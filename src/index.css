@@ -1,0 +1,226 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --order-title-size: 13px;
+  --order-meta-size: 12px;
+  --order-number-size: 11px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #0a0a0b;
+}
+
+.bg-grid {
+  background-image: linear-gradient(
+      to right,
+      rgba(148, 163, 184, 0.2) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.2) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.binary-stream {
+  background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(56, 189, 248, 0.22) 0,
+      rgba(56, 189, 248, 0.22) 1px,
+      transparent 1px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      to right,
+      rgba(15, 23, 42, 0.55) 0,
+      rgba(15, 23, 42, 0.55) 1px,
+      transparent 1px,
+      transparent 18px
+    );
+  background-size: 220px 320px, 220px 320px;
+  animation: binary-scroll 18s linear infinite;
+}
+
+@keyframes binary-scroll {
+  0% {
+    transform: translateY(-40%);
+  }
+  100% {
+    transform: translateY(40%);
+  }
+}
+
+.laundry-marker-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background-color: #8b5cf6;
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.8);
+}
+
+.house-marker-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background-color: #fbbf24;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.8);
+}
+
+.helper-marker-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background-color: #22c55e;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.8);
+}
+
+.vehicle-marker-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background-color: #3b82f6;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.8);
+}
+
+.laundry-marker-svg,
+.house-marker-svg,
+.helper-marker-svg,
+.vehicle-marker-svg {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.laundry-marker-svg svg,
+.house-marker-svg svg,
+.helper-marker-svg svg,
+.vehicle-marker-svg svg {
+  width: 100%;
+  height: 100%;
+}
+
+.laundry-marker-svg {
+  filter: drop-shadow(0 0 18px rgba(139, 92, 246, 0.9));
+}
+
+.house-marker-svg {
+  filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.9));
+}
+
+.helper-marker-svg {
+  filter: drop-shadow(0 0 16px rgba(34, 197, 94, 0.95));
+}
+
+.vehicle-marker-svg {
+  filter: drop-shadow(0 0 16px rgba(59, 130, 246, 0.95));
+}
+
+@keyframes vehicle-incident-pulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.75));
+  }
+  100% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 18px rgba(248, 113, 113, 1));
+  }
+}
+
+.vehicle-marker-svg.incident {
+  animation: vehicle-incident-pulse 0.6s ease-in-out infinite alternate;
+}
+
+.incident-dot-legend {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background-color: #ef4444;
+  box-shadow: 0 0 16px rgba(248, 113, 113, 1);
+  border: 1px solid rgba(248, 250, 252, 0.9);
+  animation: vehicle-incident-pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes handover-zone-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+.handover-zone-legend {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid #38bdf8;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.95);
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.2) 0, transparent 55%);
+  animation: handover-zone-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes ai-progress-fill {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.ai-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background-image: linear-gradient(
+    to right,
+    rgba(56, 189, 248, 1),
+    rgba(52, 211, 153, 1),
+    rgba(251, 191, 36, 1)
+  );
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.85);
+  animation: ai-progress-fill 1.6s ease-out forwards;
+}
+
+.order-card-title {
+  font-size: var(--order-title-size);
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  line-height: 1.4;
+}
+
+.order-card-meta {
+  font-size: var(--order-meta-size);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.order-card-number {
+  font-size: var(--order-number-size);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+.order-card-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

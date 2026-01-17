@@ -1,64 +1,13 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sylphold</title>
-    <style>
-        /* 移除邊距並隱藏滾動條 */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
-        }
-
-        /* 影片容器：撐滿全螢幕 */
-        .video-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            pointer-events: none; /* 防止點擊到影片彈出 YouTube 連結 */
-        }
-
-        /* 針對不同螢幕比例縮放影片，確保填滿且不留黑邊 */
-        iframe {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100vw;
-            height: 56.25vw; /* 16:9 比例 */
-            min-height: 100vh;
-            min-width: 177.77vh; /* 100 * 16 / 9 */
-            transform: translate(-50%, -50%);
-        }
-
-        /* 覆蓋一層透明遮罩，防止使用者手動暫停影片 */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            background: rgba(0,0,0,0); /* 如果想讓影片暗一點，可以改成 rgba(0,0,0,0.3) */
-        }
-    </style>
-</head>
-<body>
-    <div class="overlay"></div>
-    <div class="video-background">
-        <iframe 
-            src="https://www.youtube.com/embed/HQwOW09bLhI?autoplay=1&mute=1&loop=1&playlist=HQwOW09bLhI&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
-    </div>
-</body>
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sylphold Operations Console</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body class="bg-background">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
+
