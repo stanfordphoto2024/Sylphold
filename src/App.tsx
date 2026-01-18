@@ -1437,7 +1437,7 @@ function App() {
 
         <main className="flex-1 px-4 sm:px-6 lg:px-10 pb-5 sm:pb-6 lg:pb-8 pt-4 sm:pt-5">
           <div className="flex h-full flex-col-reverse lg:flex-row gap-4 lg:gap-6 xl:gap-8">
-            <div className="flex w-full lg:w-[38%] xl:w-[36%] flex-col gap-4 lg:gap-5">
+            <div className="flex w-full lg:w-[38%] xl:w-[36%] flex-col-reverse lg:flex-col gap-4 lg:gap-5">
               <GlassPanel title="CONTROL SURFACE" subtitle="MISSION CONTROL PANELS">
                 <div className="flex flex-col gap-3 sm:gap-4">
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
