@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Last Update: 2026-02-10 17:30 -->
+    <title>3D Beach Scene - MIB</title>
+    <!-- Deployed to sylphold.com/sea -->
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./libs/three.module.js",
+                "three/addons/": "./libs/addons/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { Water } from 'three/addons/objects/Water.js';
+        import { Sky } from 'three/addons/objects/Sky.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+        let container;
+        let camera, scene, renderer, controls;
+        let water, sun, sky;
+        let mat;
+        let sharkModel = null;
+        let sharkAnimations = [];
+        let whaleModel = null;
+        let whaleAnimations = [];
+
+        // Helper to create a curved fin shape
+        function createFinGeometry(width, height, thickness, curveOffset = 0.5) {
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0);
+            shape.quadraticCurveTo(width * curveOffset, height, width, 0);
+            shape.lineTo(0, 0);
+
+            const extrudeSettings = {
+                steps: 1,
+                depth: thickness,
+                bevelEnabled: true,
+                bevelThickness: thickness * 0.2,
+                bevelSize: thickness * 0.2,
+                bevelSegments: 2
+            };
+            return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        }
+
+        function createProceduralYacht() {
+            const group = new THREE.Group();
+
+            // High-end Materials
+            const hullMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, // Arctic White
+                roughness: 0.2, 
+                metalness: 0.1 
+            });
+            const deckMat = new THREE.MeshStandardMaterial({ 
+                color: 0x8b5a2b, // Teak Wood
+                roughness: 0.9,
+                map: createWoodTexture() // Reuse existing wood texture if possible, or just color
+            });
+            const glassMat = new THREE.MeshPhysicalMaterial({ 
+                color: 0x111111, 
+                metalness: 0.9,
+                roughness: 0.0,
+                transmission: 0.2, // Tinted glass
+                transparent: true
+            });
+            const chromeMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.0,
+                metalness: 1.0
+            });
+            const cushionMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5 }); // White leather
+
+            // --- 1. Main Hull (Sleek Superyacht Profile) ---
+            const hullLength = 40;
+            const hullWidth = 8;
+            const hullHeight = 5;
+
+            const hullShape = new THREE.Shape();
+            hullShape.moveTo(0, 0);
+            hullShape.lineTo(hullWidth/2, 0);
+            hullShape.lineTo(hullWidth/2, hullLength * 0.6); // Midsection
+            hullShape.quadraticCurveTo(hullWidth/2, hullLength, 0, hullLength + 5); // Bow curve
+            hullShape.quadraticCurveTo(-hullWidth/2, hullLength, -hullWidth/2, hullLength * 0.6);
+            hullShape.lineTo(-hullWidth/2, 0);
+            hullShape.lineTo(0, 0);
+
+            const extrudeSettings = {
+                steps: 1,
+                depth: hullHeight,
+                bevelEnabled: true,
+                bevelThickness: 0.5,
+                bevelSize: 0.5,
+                bevelSegments: 5
+            };
+            const hullGeo = new THREE.ExtrudeGeometry(hullShape, extrudeSettings);
+            const hull = new THREE.Mesh(hullGeo, hullMat);
+            hull.rotation.x = Math.PI / 2; // Lay flat
+            hull.rotation.z = Math.PI; // Point forward
+            hull.position.y = hullHeight - 1.5; // Waterline adjustment
+            group.add(hull);
+
+            // --- 2. Rear Beach Club / Swim Platform ---
+            const swimGeo = new THREE.BoxGeometry(hullWidth - 1, 0.5, 4);
+            const swimPlat = new THREE.Mesh(swimGeo, deckMat);
+            swimPlat.position.set(0, 0.5, -hullLength * 0.05 + 2); // Rear
+            group.add(swimPlat);
+
+            // --- 3. Main Deck ---
+            const mainDeckGeo = new THREE.BoxGeometry(hullWidth - 0.5, 0.2, hullLength * 0.7);
+            const mainDeck = new THREE.Mesh(mainDeckGeo, deckMat);
+            mainDeck.position.set(0, hullHeight + 0.1, -2);
+            group.add(mainDeck);
+
+            // --- 4. Superstructure (Tri-Deck Design) ---
+            
+            // Level 1: Main Salon & Cabins
+            const lvl1Geo = new THREE.BoxGeometry(hullWidth - 1.5, 2.5, hullLength * 0.4);
+            const lvl1 = new THREE.Mesh(lvl1Geo, hullMat);
+            lvl1.position.set(0, hullHeight + 1.25, 0);
+            group.add(lvl1);
+
+            // Level 1 Windows (Strip)
+            const win1Geo = new THREE.BoxGeometry(hullWidth - 1.4, 1.5, hullLength * 0.35);
+            const win1 = new THREE.Mesh(win1Geo, glassMat);
+            win1.position.set(0, hullHeight + 1.5, 0);
+            group.add(win1);
+
+            // Level 2: Bridge Deck / Owner's Suite
+            const lvl2Geo = new THREE.BoxGeometry(hullWidth - 2, 2.2, hullLength * 0.25);
+            const lvl2 = new THREE.Mesh(lvl2Geo, hullMat);
+            lvl2.position.set(0, hullHeight + 3.6, 2); // Set back
+            group.add(lvl2);
+
+            // Bridge Windows (Curved Wrap-around feel via box for now)
+            const bridgeWinGeo = new THREE.BoxGeometry(hullWidth - 1.9, 1.2, hullLength * 0.15);
+            const bridgeWin = new THREE.Mesh(bridgeWinGeo, glassMat);
+            bridgeWin.position.set(0, hullHeight + 4.0, 4); // Forward on this deck
+            group.add(bridgeWin);
+
+            // Level 3: Sun Deck / Flybridge
+            const sunDeckGeo = new THREE.BoxGeometry(hullWidth - 2.5, 0.2, hullLength * 0.2);
+            const sunDeck = new THREE.Mesh(sunDeckGeo, deckMat);
+            sunDeck.position.set(0, hullHeight + 4.8, 1);
+            group.add(sunDeck);
+
+            // Radar Arch (The signature look)
+            const archShape = new THREE.Shape();
+            archShape.moveTo(0,0);
+            archShape.lineTo(1, 3);
+            archShape.lineTo(4, 3);
+            archShape.lineTo(5, 0);
+            const archExtrude = { depth: 1, bevelEnabled: false };
+            const archGeo = new THREE.ExtrudeGeometry(archShape, archExtrude);
+            const arch = new THREE.Mesh(archGeo, hullMat);
+            arch.rotation.y = Math.PI / 2;
+            arch.position.set(-0.5, hullHeight + 4.8, -3); // Rear of sun deck
+            arch.scale.set(1, 1, hullWidth - 2); // Span width
+            arch.position.x = -(hullWidth - 2)/2; // Center it
+            
+            // Fix Arch positioning/scaling is tricky with extrude. Let's use boxes.
+            // Side pillars
+            const archL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3, 2), hullMat);
+            archL.position.set(2.5, hullHeight + 6, -2);
+            archL.rotation.x = -0.3;
+            const archR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3, 2), hullMat);
+            archR.position.set(-2.5, hullHeight + 6, -2);
+            archR.rotation.x = -0.3;
+            // Top bar
+            const archTop = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 2), hullMat);
+            archTop.position.set(0, hullHeight + 7.5, -1);
+            group.add(archL, archR, archTop);
+
+            // Satellite Domes (The "Mickey Mouse ears")
+            const domeGeo = new THREE.SphereGeometry(0.6, 16, 16, 0, Math.PI * 2, 0, Math.PI/2);
+            const dome1 = new THREE.Mesh(domeGeo, hullMat);
+            dome1.position.set(1.5, hullHeight + 7.8, -1);
+            const dome2 = new THREE.Mesh(domeGeo, hullMat);
+            dome2.position.set(-1.5, hullHeight + 7.8, -1);
+            group.add(dome1, dome2);
+
+            // --- 5. Forward Deck Features ---
+            // Helipad (H)
+            const helipadGeo = new THREE.CircleGeometry(2.5, 32);
+            const helipadMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const helipad = new THREE.Mesh(helipadGeo, helipadMat);
+            helipad.rotation.x = -Math.PI / 2;
+            helipad.position.set(0, hullHeight + 0.25, 12); // Bow
+            group.add(helipad);
+            
+            // "H" marking
+            // (Simplified as cross)
+            const hGeo1 = new THREE.BoxGeometry(0.2, 0.05, 1.5);
+            const hGeo2 = new THREE.BoxGeometry(1.5, 0.05, 0.2);
+            const hMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const h1 = new THREE.Mesh(hGeo1, hMat);
+            const h2 = new THREE.Mesh(hGeo1, hMat);
+            const h3 = new THREE.Mesh(hGeo2, hMat);
+            h1.position.set(-0.5, 0, 0);
+            h2.position.set(0.5, 0, 0);
+            const hGroup = new THREE.Group();
+            hGroup.add(h1, h2, h3);
+            hGroup.position.set(0, hullHeight + 0.26, 12);
+            group.add(hGroup);
+
+            // Jacuzzi on Sun Deck
+            const jacGeo = new THREE.CylinderGeometry(1.2, 1.0, 0.8, 16);
+            const jacWaterGeo = new THREE.CircleGeometry(1.0, 16);
+            const jacWaterMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const jacuzzi = new THREE.Mesh(jacGeo, hullMat);
+            jacuzzi.position.set(0, hullHeight + 5.2, 3);
+            const jacWater = new THREE.Mesh(jacWaterGeo, jacWaterMat);
+            jacWater.rotation.x = -Math.PI/2;
+            jacWater.position.set(0, 0.41, 0);
+            jacuzzi.add(jacWater);
+            group.add(jacuzzi);
+
+            // Railings (Chrome)
+            // Bow Railing
+            const bowRailPoints = [];
+            const railCurve = new THREE.EllipseCurve(0, 0, 3.5, 16, Math.PI, 0, false, 0);
+            const railPath = new THREE.Path(railCurve.getPoints(20));
+            // ... Simplified railing: just a tube torus segment
+            const railGeo = new THREE.TorusGeometry(3.8, 0.05, 8, 30, Math.PI);
+            const rail = new THREE.Mesh(railGeo, chromeMat);
+            rail.rotation.x = Math.PI/2;
+            rail.rotation.z = Math.PI/2;
+            rail.position.set(0, hullHeight + 1.0, 5);
+            rail.scale.set(1, 2.5, 1);
+            group.add(rail);
+
+            return group;
+        }
+
+        // Improved Fish Implementation
+        class Fish extends THREE.Group {
+            constructor(color, scale = 1) {
+                super();
+                this.fishScale = scale;
+                this.velocity = new THREE.Vector3((Math.random() - 0.5) * 0.1, 0, (Math.random() - 0.5) * 0.1);
+                this.impactVelocity = new THREE.Vector3(0, 0, 0); // For physical impact
+                
+                // Realistic Body Shape using Lathe for a more fish-like profile
+                const points = [];
+                for (let i = 0; i <= 10; i++) {
+                    const x = i / 10;
+                    // Sine-based profile for a streamlined body
+                    const r = Math.sin(x * Math.PI) * 0.6 * scale;
+                    points.push(new THREE.Vector2(r, (x - 0.5) * 2.5 * scale));
+                }
+                const bodyGeo = new THREE.LatheGeometry(points, 12);
+                const bodyMat = new THREE.MeshStandardMaterial({ 
+                    color: color,
+                    metalness: 0.8,
+                    roughness: 0.1,
+                    emissive: color,
+                    emissiveIntensity: 0.4
+                });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.rotation.x = Math.PI / 2; // Orient along Z axis
+                body.scale.set(1, 1, 0.4); 
+                this.add(body);
+
+                // Dorsal Fin (Curved and 3D)
+                const dorsalGeo = createFinGeometry(0.8 * scale, 0.6 * scale, 0.1 * scale);
+                const finMat = new THREE.MeshStandardMaterial({ 
+                    color: color, 
+                    side: THREE.DoubleSide, 
+                    emissive: color, 
+                    emissiveIntensity: 0.3 
+                });
+                const dorsalFin = new THREE.Mesh(dorsalGeo, finMat);
+                dorsalFin.position.set(-0.05 * scale, 0.4 * scale, 0.2 * scale); // Positioned on top, towards front
+                dorsalFin.rotation.y = -Math.PI / 2; // Face forward
+                this.add(dorsalFin);
+
+                // Pectoral Fins for Fish
+                const fishPecGeo = createFinGeometry(0.5 * scale, 0.3 * scale, 0.05 * scale);
+                const pecL = new THREE.Mesh(fishPecGeo, finMat);
+                pecL.position.set(0.2 * scale, -0.1 * scale, 0.4 * scale);
+                pecL.rotation.y = -Math.PI / 2;
+                pecL.rotation.x = Math.PI / 3;
+                const pecR = new THREE.Mesh(fishPecGeo, finMat);
+                pecR.position.set(-0.2 * scale, -0.1 * scale, 0.4 * scale);
+                pecR.rotation.y = -Math.PI / 2;
+                pecR.rotation.x = -Math.PI / 3;
+                this.add(pecL, pecR);
+
+                // Tail Fin
+                const tailGeo = createFinGeometry(1.2 * scale, 1.0 * scale, 0.1 * scale, 0.3);
+                this.tail = new THREE.Mesh(tailGeo, finMat);
+                this.tail.position.set(-0.05 * scale, 0, -1.2 * scale); // At the back
+                this.tail.rotation.y = Math.PI / 2; // Pointing back
+                this.add(this.tail);
+
+                // Eyes
+                const eyeGeo = new THREE.SphereGeometry(0.1 * scale, 8, 8);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+                eyeL.position.set(0.25 * scale, 0.15 * scale, 0.9 * scale);
+                const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+                eyeR.position.set(-0.25 * scale, 0.15 * scale, 0.9 * scale);
+                this.add(eyeL, eyeR);
+            }
+
+            update(time, schoolTarget) {
+                // Apply impact physics (Heavier feel: Higher drag, slower recovery)
+                this.position.add(this.impactVelocity);
+                this.impactVelocity.multiplyScalar(0.92); // Increased drag (0.95 -> 0.92) for "heavy in water" feel
+
+                // Smooth swim animation
+                const speedMult = this.fishScale > 2 ? 0.5 : 1.0;
+                
+                // Realistic Swimming: Undulation should be stronger at tail
+                // We don't have bone control here unless we dig into the GLTF skinning.
+                // Assuming standard animation is playing via Mixer.
+                // But we can add whole-body roll/pitch for realism.
+                
+                // Subtle banking when turning
+                const bankAngle = -this.velocity.x * 2.0; 
+                const pitchAngle = -this.velocity.y * 1.5;
+                
+                // Natural bobbing - Deeper, slower for a big shark
+                this.position.y += Math.sin(time * 1.5 + this.position.z * 0.1) * 0.005;
+                
+                // Steering towards target (Heavier inertia: recover slower from impact)
+                const impactFactor = Math.min(1.0, this.impactVelocity.length() * 1.5); // Sensitivity to impact
+                const steerStrength = (1.0 - impactFactor) * 0.008 * speedMult; // Reduced steer strength for "heavy" feel
+                
+                const steer = schoolTarget.clone().sub(this.position).normalize().multiplyScalar(steerStrength);
+                this.velocity.add(steer);
+                
+                // Keep velocity horizontal mostly
+                this.velocity.y *= 0.95;
+                
+                // Clamp speed (Max speed limited)
+                if (this.impactVelocity.length() < 0.1) {
+                    this.velocity.clampLength(0, 0.3 * speedMult);
+                }
+                
+                this.position.add(this.velocity);
+                
+                // Smooth rotation - Slower slerp for heavy feel
+                const totalVel = this.velocity.clone().add(this.impactVelocity.clone().multiplyScalar(0.2)); // Rotation less affected by impact "slide"
+                if (totalVel.length() > 0.001) {
+                    const lookAtPos = this.position.clone().add(totalVel);
+                    const m = new THREE.Matrix4().lookAt(lookAtPos, this.position, new THREE.Vector3(0, 1, 0));
+                    const targetRotation = new THREE.Quaternion().setFromRotationMatrix(m);
+                    
+                    // Add banking roll
+                    const roll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), bankAngle);
+                    targetRotation.multiply(roll);
+                    
+                    this.quaternion.slerp(targetRotation, 0.02); // Very slow rotation (0.08 -> 0.02)
+                }
+
+                // Boundary avoidance
+                const dist = Math.sqrt(this.position.x * this.position.x + this.position.z * this.position.z);
+                const minDist = this.fishScale > 2 ? 120 : 105;
+                const maxDist = this.fishScale > 2 ? 220 : 160;
+
+                // Ignore boundary if impacted
+                if (this.impactVelocity.length() < 0.2) {
+                    if (dist < minDist) {
+                        const push = this.position.clone().normalize().multiplyScalar(0.02);
+                        this.velocity.add(push);
+                    }
+                    if (dist > maxDist) {
+                        const pull = this.position.clone().normalize().multiplyScalar(-0.02);
+                        this.velocity.add(pull);
+                    }
+                }
+                
+                // Depth maintenance (Raise target for collision testing)
+                const targetY = this.fishScale > 2 ? -6 : -4.2; // Raised shark from -10 to -6
+                if (this.position.y > targetY + 1) this.velocity.y -= 0.01;
+                if (this.position.y < targetY - 1) this.velocity.y += 0.01;
+            }
+        }
+
+        class Shark extends Fish {
+            constructor() {
+                super(0x666666, 1);
+                this.fishScale = 6; 
+                this.state = 'cruising'; // cruising, surfacing, breaching, diving
+                this.stateTimer = 0;
+                this.lastY = -7;
+                
+                // Remove procedural parts
+                while(this.children.length > 0) {
+                    this.remove(this.children[0]);
+                }
+
+                if (sharkModel) {
+                    this.model = SkeletonUtils.clone(sharkModel);
+                    this.model.scale.set(6.4, 6.4, 6.4); 
+
+                    // Apply realistic materials
+                    this.model.traverse((child) => {
+                        if (child.isMesh) {
+                            if (child.material) {
+                                child.material = child.material.clone();
+                                
+                                const name = (child.name || '').toLowerCase();
+                                const matName = (child.material.name || '').toLowerCase();
+                                
+                                const isEye = name.includes('eye') || matName.includes('eye');
+                                const isTeeth = name.includes('teeth') || name.includes('tooth') || matName.includes('teeth') || matName.includes('dent');
+                                
+                                if (isEye) {
+                                    child.material.color.setHex(0x000000); 
+                                    child.material.roughness = 0.0;
+                                    child.material.metalness = 0.5;
+                                } else if (isTeeth) {
+                                    child.material.color.setHex(0xFFFFE0); 
+                                    child.material.roughness = 0.2;
+                                    child.material.metalness = 0.1;
+                                } else {
+                                    child.material.color.setHex(0x4C5159); // Darker, bluish-gray
+                                    child.material.roughness = 0.4;
+                                    child.material.metalness = 0.1;
+                                }
+                            }
+                        }
+                    });
+
+                    this.model.rotation.y = 0; 
+                    this.add(this.model);
+                    
+                    if (sharkAnimations && sharkAnimations.length > 0) {
+                        this.mixer = new THREE.AnimationMixer(this.model);
+                        const action = this.mixer.clipAction(sharkAnimations[0]);
+                        action.play();
+                    }
+                    
+                    sharkInstance = this;
+                }
+            }
+
+            update(time, schoolTarget) {
+                // Physics constants
+                const surfaceY = -3.0;
+                const gravity = 0.015;
+                const waterDrag = 0.95;
+                const airDrag = 0.99;
+                
+                // State Machine Logic
+                this.stateTimer -= 0.016;
+                if (this.stateTimer <= 0) {
+                    // Decide new state
+                    if (this.state === 'cruising') {
+                        if (Math.random() < 0.005) { // Small chance to breach
+                            this.state = 'surfacing';
+                            this.stateTimer = 2.0; // Spend some time aiming up
+                        } else {
+                            this.stateTimer = 1.0 + Math.random() * 2.0;
+                        }
+                    } else if (this.state === 'surfacing') {
+                        this.state = 'breaching';
+                        this.stateTimer = 3.0; // Time to jump and fall
+                        // Add upward burst
+                        this.velocity.y += 0.4;
+                        this.velocity.x *= 1.5;
+                        this.velocity.z *= 1.5;
+                    } else if (this.state === 'breaching') {
+                        // Wait until back in water to switch to diving
+                        if (this.position.y < surfaceY - 2) {
+                            this.state = 'diving';
+                            this.stateTimer = 2.0;
+                        }
+                    } else if (this.state === 'diving') {
+                        this.state = 'cruising';
+                        this.stateTimer = 5.0;
+                    }
+                }
+
+                // Apply impact physics (Collision response)
+                this.position.add(this.impactVelocity);
+                this.impactVelocity.multiplyScalar(0.92);
+
+                // --- Behavior based on State ---
+                
+                // 1. Cruising (Standard swimming)
+                if (this.state === 'cruising') {
+                    // Depth maintenance
+                    const targetY = -6.0;
+                    const diffY = targetY - this.position.y;
+                    this.velocity.y += diffY * 0.002;
+                    this.velocity.y *= 0.95; // Dampen vertical oscillation
+
+                    // Target steering
+                    const steer = schoolTarget.clone().sub(this.position).normalize().multiplyScalar(0.005);
+                    this.velocity.add(steer);
+                    
+                    // Clamp horizontal speed
+                    const hSpeed = Math.sqrt(this.velocity.x**2 + this.velocity.z**2);
+                    if (hSpeed > 0.25) {
+                        this.velocity.x = (this.velocity.x / hSpeed) * 0.25;
+                        this.velocity.z = (this.velocity.z / hSpeed) * 0.25;
+                    }
+                }
+                // 2. Surfacing (Aiming up for the jump)
+                else if (this.state === 'surfacing') {
+                    this.velocity.y += 0.01; // Accelerate up
+                    // Keep moving forward
+                    const hSpeed = Math.sqrt(this.velocity.x**2 + this.velocity.z**2);
+                    if (hSpeed < 0.3) {
+                         const fwd = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).normalize().multiplyScalar(0.005);
+                         this.velocity.add(fwd);
+                    }
+                }
+                // 3. Breaching (In the air / Falling back)
+                else if (this.state === 'breaching') {
+                    // Gravity applies always here, but let's be explicit
+                    // No steering input while in air
+                }
+                // 4. Diving (Recovering depth)
+                else if (this.state === 'diving') {
+                    this.velocity.y -= 0.005; // Swim down
+                    if (this.position.y < -7) {
+                        this.state = 'cruising'; // Early exit
+                    }
+                }
+
+                // --- Physics Integration ---
+                
+                // Apply Gravity if above water
+                if (this.position.y > surfaceY) {
+                    this.velocity.y -= gravity;
+                    this.velocity.multiplyScalar(airDrag);
+                } else {
+                    // Buoyancy/Water Drag
+                    // If deep underwater, neutral buoyancy is handled by 'cruising' logic.
+                    // If just entering water, drag applies.
+                    this.velocity.multiplyScalar(waterDrag);
+                }
+
+                // Apply Velocity
+                this.position.add(this.velocity);
+
+                // --- Splash Detection ---
+                // Check if we crossed the surfaceY
+                if ((this.lastY < surfaceY && this.position.y >= surfaceY) || 
+                    (this.lastY > surfaceY && this.position.y <= surfaceY)) {
+                    
+                    // Trigger Splash
+                    const splashScale = Math.max(1, Math.abs(this.velocity.y) * 4); // Reduced multiplier from 8 to 4
+                    // Only splash if moving fast enough vertically
+                    if (splashScale > 1.2) {
+                         splashes.push(new Splash(new THREE.Vector3(this.position.x, surfaceY, this.position.z), splashScale));
+                    }
+                }
+                this.lastY = this.position.y;
+
+                // --- Rotation / Orientation ---
+                const totalVel = this.velocity.clone().add(this.impactVelocity.clone().multiplyScalar(0.2));
+                if (totalVel.length() > 0.001) {
+                    // Calculate LookAt rotation
+                    const lookAtPos = this.position.clone().add(totalVel);
+                    const m = new THREE.Matrix4().lookAt(lookAtPos, this.position, new THREE.Vector3(0, 1, 0));
+                    const targetRotation = new THREE.Quaternion().setFromRotationMatrix(m);
+                    
+                    // Banking (Roll) based on horizontal turning
+                    // We need to estimate turn rate.
+                    // Simple hack: use cross product of current forward vs new velocity?
+                    // Or just velocity.x for now (simplified)
+                    
+                    // Let's use a simpler banking based on horizontal velocity component relative to world? 
+                    // No, banking should be into the turn.
+                    // For now, let's just use the lookAt which naturally pitches up/down.
+                    // We can add roll if we want:
+                    const bankAngle = -this.velocity.x * 2.0; // Fake banking
+                    const roll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), bankAngle);
+                    targetRotation.multiply(roll);
+
+                    this.quaternion.slerp(targetRotation, 0.1); 
+                }
+
+                // Animation
+                if (this.mixer) {
+                    // Speed up animation if moving fast
+                    const speed = this.velocity.length();
+                    this.mixer.update(0.016 + speed * 0.05);
+                }
+            }
+        }
+
+        class Whale extends Fish {
+            constructor() {
+                super(0x333333, 1);
+                this.fishScale = 58; // Significantly larger (~9x shark)
+                this.state = 'cruising';
+                this.stateTimer = 0;
+                this.lastY = -7;
+                
+                // Blowhole Cycle
+                this.blowholeSpout = new BlowholeSpout();
+                this.blowholeCycleTimer = 0;
+                this.spraysToSkip = 2; // User: Skip first two sprays at start
+                
+                while(this.children.length > 0) {
+                    this.remove(this.children[0]);
+                }
+
+                if (whaleModel) {
+                    this.model = SkeletonUtils.clone(whaleModel);
+                    this.model.scale.set(58, 58, 58); 
+
+                    // Apply materials (Simple for Whale)
+                    this.model.traverse((child) => {
+                        if (child.isMesh) {
+                            if (child.material) {
+                                child.material = child.material.clone();
+                                // Whale is usually dark grey/black
+                                // User requested darker and less shiny
+                                child.material.color.setHex(0x111111); // Very dark grey, almost black
+                                child.material.roughness = 0.7; // Rubber/Leathery skin
+                                child.material.metalness = 0.0; // Not metallic
+                            }
+                        }
+                    });
+
+                    this.model.rotation.y = 0; 
+                    this.add(this.model);
+                    
+                    if (whaleAnimations && whaleAnimations.length > 0) {
+                        this.mixer = new THREE.AnimationMixer(this.model);
+                        const action = this.mixer.clipAction(whaleAnimations[0]);
+                        action.play();
+                    }
+                    
+                    whaleInstance = this;
+                }
+            }
+
+            // Copying Shark update logic exactly for same behavior
+            update(time, schoolTarget) {
+                // Physics constants
+                const surfaceY = -3.0;
+                // EXTREMELY Heavy whale physics
+                const gravity = 0.005; // Slightly stronger to keep it grounded
+                const waterDrag = 0.998; // Extremely high inertia (hard to stop)
+                const airDrag = 0.999;
+                
+                // 1. Physics Update First (Ensure emitter follows current frame's movement)
+                this.position.add(this.velocity);
+                this.position.add(this.impactVelocity);
+                this.impactVelocity.multiplyScalar(0.99);
+
+                // 2. Update Blowhole Cycle
+                const dt = 0.016;
+                
+                // 3. Emitter Position (Head + Vertical Offset for the Back)
+                const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.quaternion);
+                const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.quaternion);
+                
+                // Adjusted: Moved forward from 21.0 to 23.5 to compensate for forward movement
+                const forwardOffset = 23.5; 
+                const upOffset = 5.5; 
+                
+                const emitterPos = this.position.clone()
+                    .add(forward.multiplyScalar(forwardOffset))
+                    .add(up.multiplyScalar(upOffset));
+
+                // NEW: Detect turning rate
+                if (!this.lastForward) this.lastForward = forward.clone();
+                const turnAngle = forward.angleTo(this.lastForward); // Radians per frame
+                this.lastForward.copy(forward);
+                const isTurningFast = turnAngle > 0.005; // Threshold for significant turning
+
+                // NEW: Only spray if the whale is slow enough and NOT turning fast
+                const currentSpeed = this.velocity.length();
+                const isStationary = currentSpeed < 0.15 && !isTurningFast; 
+                
+                if (isStationary) {
+                    this.blowholeCycleTimer += dt;
+                } else {
+                    // Slow down timer if moving or turning
+                    this.blowholeCycleTimer += dt * 0.3; 
+                }
+
+                // Updated Cycle: 15 seconds total
+                // 0s-3.5s: Single strong spray
+                // 3.5s-15s: Long Rest
+                const cycleTotal = 15.0;
+                if (this.blowholeCycleTimer > cycleTotal) {
+                    this.blowholeCycleTimer = 0;
+                    if (this.spraysToSkip > 0) this.spraysToSkip--; // One "potential" spray skipped
+                }
+
+                let isSpraying = false;
+                const cycleTime = this.blowholeCycleTimer;
+                if (isStationary && this.spraysToSkip === 0) {
+                    if (cycleTime > 0.1 && cycleTime < 3.5) {
+                        isSpraying = true;
+                    }
+                }
+                
+                this.blowholeSpout.isEmitting = isSpraying;
+                
+                // Pass velocity in units/sec for momentum inheritance
+                const velUnitsPerSec = this.velocity.clone().divideScalar(dt);
+                this.blowholeSpout.update(dt, emitterPos, velUnitsPerSec);
+
+                // 4. State Machine Logic
+                this.stateTimer -= 0.016;
+                if (this.stateTimer <= 0) {
+                    // Decide new state
+                    if (this.state === 'cruising') {
+                        if (Math.random() < 0.002) { // Very rare breach
+                            this.state = 'surfacing';
+                            this.stateTimer = 8.0; // Takes forever to surface
+                        } else {
+                            this.stateTimer = 2.0 + Math.random() * 4.0;
+                        }
+                    } else if (this.state === 'surfacing') {
+                        this.state = 'breaching';
+                        this.stateTimer = 8.0; // In air for a long time (slow motion effect)
+                        this.velocity.y += 0.12; // Barely enough force to clear water
+                        this.velocity.x *= 1.1;
+                        this.velocity.z *= 1.1;
+                        
+                        // Burst removed, controlled by cycle now
+
+                    } else if (this.state === 'breaching') {
+                        if (this.position.y < surfaceY - 2) {
+                            this.state = 'diving';
+                            this.stateTimer = 6.0; // Slow recovery
+                        }
+                    } else if (this.state === 'diving') {
+                        this.state = 'cruising';
+                        this.stateTimer = 8.0;
+                    }
+                }
+
+                // --- Behavior based on State ---
+                // User requirement: Slow down during spraying
+                const speedMult = isSpraying ? 0.3 : 1.0; 
+
+                if (this.state === 'cruising') {
+                    const targetY = -6.0;
+                    const diffY = targetY - this.position.y;
+                    this.velocity.y += diffY * 0.0005; // Extremely slow depth correction
+                    this.velocity.y *= 0.98; 
+
+                    const steer = schoolTarget.clone().sub(this.position).normalize().multiplyScalar(0.0005 * speedMult); // Barely steers
+                    this.velocity.add(steer);
+                    
+                    const hSpeed = Math.sqrt(this.velocity.x**2 + this.velocity.z**2);
+                    const maxHSpeed = 0.08 * speedMult;
+                    if (hSpeed > maxHSpeed) { // Max speed is very slow
+                        this.velocity.x = (this.velocity.x / hSpeed) * maxHSpeed;
+                        this.velocity.z = (this.velocity.z / hSpeed) * maxHSpeed;
+                    }
+                }
+                else if (this.state === 'surfacing') {
+                    this.velocity.y += 0.0015 * speedMult; // Inch upwards
+                    const hSpeed = Math.sqrt(this.velocity.x**2 + this.velocity.z**2);
+                    const maxHSpeed = 0.1 * speedMult;
+                    if (hSpeed < maxHSpeed) {
+                         const fwd = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).normalize().multiplyScalar(0.001 * speedMult);
+                         this.velocity.add(fwd);
+                    }
+                }
+                else if (this.state === 'breaching') {
+                    // Air
+                }
+                else if (this.state === 'diving') {
+                    this.velocity.y -= 0.001; // Drift downwards
+                    if (this.position.y < -7) {
+                        this.state = 'cruising'; 
+                    }
+                }
+
+                // Physics (Gravity & Drag)
+                if (this.position.y > surfaceY) {
+                    this.velocity.y -= gravity;
+                    this.velocity.multiplyScalar(airDrag);
+                } else {
+                    this.velocity.multiplyScalar(waterDrag);
+                }
+
+                this.lastY = this.position.y;
+                
+                // Tail Splash Logic
+                // Tail is behind. Approx 20 units?
+                // Need to rotate offset by quaternion
+                const tailOffset = new THREE.Vector3(0, 0, -25); // Local tail pos (assuming forward is +Z)
+                tailOffset.applyQuaternion(this.quaternion);
+                const tailPos = this.position.clone().add(tailOffset);
+                
+                // Check tail crossing surface DOWNWARDS
+                if (this.lastTailY !== undefined) {
+                    if (this.lastTailY > surfaceY && tailPos.y <= surfaceY) {
+                        // Tail Slap!
+                        // Create two side splashes
+                        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.quaternion);
+                        const left = new THREE.Vector3(-1, 0, 0).applyQuaternion(this.quaternion);
+                        
+                        const width = 8; // Fluke width offset
+                        
+                        const s1 = new Splash(tailPos.clone().add(right.multiplyScalar(width)), 4.0);
+                        const s2 = new Splash(tailPos.clone().add(left.multiplyScalar(width)), 4.0);
+                        
+                        // Add outward velocity to particles? 
+                        // Our Splash class is generic. Let's just spawn them.
+                        // Ideally we'd direct them, but simple placement works visually.
+                        splashes.push(s1, s2);
+                    }
+                }
+                this.lastTailY = tailPos.y;
+
+                // Rotation
+                const totalVel = this.velocity.clone().add(this.impactVelocity.clone().multiplyScalar(0.2));
+                if (totalVel.length() > 0.001) {
+                    const lookAtPos = this.position.clone().add(totalVel);
+                    const m = new THREE.Matrix4().lookAt(lookAtPos, this.position, new THREE.Vector3(0, 1, 0));
+                    const targetRotation = new THREE.Quaternion().setFromRotationMatrix(m);
+                    
+                    const bankAngle = -this.velocity.x * 2.0; 
+                    const roll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), bankAngle);
+                    targetRotation.multiply(roll);
+
+                    this.quaternion.slerp(targetRotation, 0.02); // Slower rotation
+                }
+
+                if (this.mixer) {
+                    const speed = this.velocity.length();
+                    // Slower animation playback for lazy feel
+                    this.mixer.update(0.008 + speed * 0.02); 
+                }
+            }
+        }
+
+        class FishSchool extends THREE.Group {
+            constructor(count, color, areaCenter, type = 'fish', phaseOffset = 0) {
+                super();
+                this.fishList = [];
+                this.center = areaCenter.clone();
+                this.target = areaCenter.clone();
+                this.phaseOffset = phaseOffset;
+                
+                for (let i = 0; i < count; i++) {
+                    let fish;
+                    if (type === 'shark') fish = new Shark();
+                    else if (type === 'whale') fish = new Whale();
+                    else fish = new Fish(color);
+
+                    fish.position.set(
+                        this.center.x + (Math.random() - 0.5) * 40,
+                        (type === 'shark' || type === 'whale') ? -7 : -4.5 + (Math.random() - 0.5) * 2,
+                        this.center.z + (Math.random() - 0.5) * 40
+                    );
+                    this.add(fish);
+                    this.fishList.push(fish);
+                }
+            }
+
+            update(time) {
+                // Target swims in a smooth, large pattern around the island shore
+                const isBigFish = this.fishList[0] instanceof Shark || this.fishList[0] instanceof Whale;
+                const isWhale = this.fishList[0] instanceof Whale;
+                const orbitRadius = isBigFish ? 180 : 125;
+                
+                // Whale is lazier (slower)
+                const baseSpeed = isWhale ? 0.05 : 0.1; 
+                const speed = isBigFish ? baseSpeed : 0.18;
+                
+                const t = time + this.phaseOffset; // Apply offset
+
+                this.target.x = Math.sin(t * speed) * orbitRadius;
+                this.target.z = Math.cos(t * speed) * orbitRadius;
+                this.target.y = isBigFish ? -10 : -4.2;
+                
+                this.fishList.forEach(fish => fish.update(time, this.target));
+            }
+        }
+
+        function createFireTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 200, 0, 0.8)');
+            gradient.addColorStop(0.4, 'rgba(255, 100, 0, 0.5)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createSplashTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.4, 'rgba(200, 240, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(100, 150, 255, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 128, 128);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        class Splash {
+            constructor(position, scale = 1) {
+                this.life = 1.0;
+                this.group = new THREE.Group();
+                this.group.position.copy(position);
+                scene.add(this.group);
+
+                // 1. Water Ring (Ripple) - Expanding circle
+                const ringGeo = new THREE.RingGeometry(0.5 * scale, 1.5 * scale, 32);
+                ringGeo.rotateX(-Math.PI / 2);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                this.ring = new THREE.Mesh(ringGeo, ringMat);
+                this.group.add(this.ring);
+
+                // 2. Droplets (Subtle spray)
+                this.particles = [];
+                const count = 20; // Reduced count
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(count * 3);
+                
+                for(let i=0; i<count; i++) {
+                    pos[i*3] = 0; pos[i*3+1] = 0; pos[i*3+2] = 0;
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = (0.2 + Math.random() * 0.3) * scale; // Reduced speed
+                    this.particles.push({
+                        vx: Math.cos(angle) * speed,
+                        vy: (0.5 + Math.random() * 0.5) * scale, // Reduced height
+                        vz: Math.sin(angle) * speed,
+                        life: 1.0
+                    });
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const mat = new THREE.PointsMaterial({
+                    size: 1.5 * scale, // Reduced size
+                    color: 0xffffff,   // Pure white foam
+                    transparent: true,
+                    opacity: 0.8,
+                    depthWrite: false,
+                    // blending: THREE.AdditiveBlending // Standard blending might be better for foam
+                });
+                this.mesh = new THREE.Points(geo, mat);
+                this.group.add(this.mesh);
+                
+                this.maxScale = scale;
+            }
+
+            update() {
+                this.life -= 0.02; // Slower fade
+                
+                // Update Ring
+                const scaleProgress = 1.0 + (1.0 - this.life) * 2.0;
+                this.ring.scale.setScalar(scaleProgress);
+                this.ring.material.opacity = this.life * 0.6;
+
+                // Update Droplets
+                const positions = this.mesh.geometry.attributes.position.array;
+                for(let i=0; i<this.particles.length; i++) {
+                    const p = this.particles[i];
+                    p.vy -= 0.03; // Gravity
+                    positions[i*3] += p.vx;
+                    positions[i*3+1] += p.vy;
+                    positions[i*3+2] += p.vz;
+                    
+                    // Kill particles that hit water again
+                    if (positions[i*3+1] < 0) {
+                        positions[i*3+1] = 0;
+                        p.vx *= 0.8;
+                        p.vz *= 0.8;
+                    }
+                }
+                this.mesh.geometry.attributes.position.needsUpdate = true;
+                this.mesh.material.opacity = this.life;
+
+                if(this.life <= 0) {
+                    scene.remove(this.group);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        class CampfireEffect {
+            constructor(parentObject, relativePosition, scale = 1.0) {
+                this.parent = parentObject;
+                this.relativePosition = relativePosition.clone();
+                this.scale = scale;
+                this.particles = [];
+                this.sparks = [];
+                
+                // Create a container group for the effect
+                this.effectGroup = new THREE.Group();
+                this.effectGroup.position.copy(this.relativePosition);
+                this.effectGroup.scale.setScalar(this.scale); // Apply scale to the whole effect group
+                this.parent.add(this.effectGroup);
+                
+                // Fire Particles
+                const fireCount = 40;
+                const fireGeo = new THREE.BufferGeometry();
+                const firePos = new Float32Array(fireCount * 3);
+                for(let i=0; i<fireCount; i++) {
+                    firePos[i*3] = (Math.random() - 0.5) * 0.75; 
+                    firePos[i*3+1] = Math.random() * 3;          
+                    firePos[i*3+2] = (Math.random() - 0.5) * 0.75;
+                    this.particles.push({
+                        speed: 0.02 + Math.random() * 0.03,
+                        life: Math.random(),
+                        offset: Math.random() * Math.PI * 2
+                    });
+                }
+                fireGeo.setAttribute('position', new THREE.BufferAttribute(firePos, 3));
+                const fireMat = new THREE.PointsMaterial({
+                    size: 2.25, 
+                    map: createFireTexture(),
+                    transparent: true,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                    vertexColors: false,
+                    color: 0xffaa33
+                });
+                this.firePoints = new THREE.Points(fireGeo, fireMat);
+                this.firePoints.position.set(0, 0.5, 0);
+                this.effectGroup.add(this.firePoints);
+
+                // Spark Particles
+                const sparkCount = 30;
+                const sparkGeo = new THREE.BufferGeometry();
+                const sparkPos = new Float32Array(sparkCount * 3);
+                for(let i=0; i<sparkCount; i++) {
+                    sparkPos[i*3] = (Math.random() - 0.5) * 1.2; 
+                    sparkPos[i*3+1] = Math.random() * 6;         
+                    sparkPos[i*3+2] = (Math.random() - 0.5) * 1.2;
+                    this.sparks.push({
+                        speed: 0.05 + Math.random() * 0.1,
+                        vx: (Math.random() - 0.5) * 0.05,
+                        vz: (Math.random() - 0.5) * 0.05,
+                        life: Math.random(),
+                    });
+                }
+                sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+                const sparkMat = new THREE.PointsMaterial({
+                    size: 0.45, 
+                    map: createFireTexture(),
+                    transparent: true,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                    color: 0xffcc00
+                });
+                this.sparkPoints = new THREE.Points(sparkGeo, sparkMat);
+                this.sparkPoints.position.set(0, 0.5, 0);
+                this.effectGroup.add(this.sparkPoints);
+
+                // Flickering Light
+                this.light = new THREE.PointLight(0xff4500, 75, 35); 
+                this.light.position.set(0, 1.5, 0);
+                this.light.castShadow = true;
+                this.light.shadow.bias = -0.001;
+                this.effectGroup.add(this.light);
+                
+                this.baseIntensity = 75;
+            }
+
+            update(time) {
+                // Update Fire
+                const firePos = this.firePoints.geometry.attributes.position.array;
+                for(let i=0; i<this.particles.length; i++) {
+                    const p = this.particles[i];
+                    p.life += p.speed;
+                    if(p.life > 1) {
+                        p.life = 0;
+                        firePos[i*3] = (Math.random() - 0.5) * 0.6; 
+                        firePos[i*3+2] = (Math.random() - 0.5) * 0.6;
+                        firePos[i*3+1] = 0;
+                    }
+                    firePos[i*3+1] += p.speed * 2;
+                    firePos[i*3] += Math.sin(time * 5 + p.offset) * 0.01;
+                    firePos[i*3+2] += Math.cos(time * 5 + p.offset) * 0.01;
+                }
+                this.firePoints.geometry.attributes.position.needsUpdate = true;
+                this.firePoints.material.size = 1.2 + Math.sin(time * 10) * 0.3;
+
+                // Update Sparks
+                const sparkPosArr = this.sparkPoints.geometry.attributes.position.array;
+                for(let i=0; i<this.sparks.length; i++) {
+                    const s = this.sparks[i];
+                    s.life += s.speed * 0.2;
+                    if(s.life > 1) {
+                        s.life = 0;
+                        sparkPosArr[i*3] = (Math.random() - 0.5) * 0.5;
+                        sparkPosArr[i*3+2] = (Math.random() - 0.5) * 0.5;
+                        sparkPosArr[i*3+1] = 0.5;
+                    }
+                    sparkPosArr[i*3+1] += s.speed;
+                    sparkPosArr[i*3] += s.vx + Math.sin(time * 10 + i) * 0.02;
+                    sparkPosArr[i*3+2] += s.vz + Math.cos(time * 10 + i) * 0.02;
+                }
+                this.sparkPoints.geometry.attributes.position.needsUpdate = true;
+
+                // Flickering Light
+                this.light.intensity = this.baseIntensity + Math.sin(time * 20) * 15 + Math.random() * 10;
+            }
+        }
+
+        let fishSchools = [];
+        let splashes = [];
+        let campfireEffect = null;
+        let yacht = null;
+        let sharkInstance = null; // Global reference for collision
+        let whaleInstance = null; // Global reference for collision
+
+        function createMistTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+            // Softer, misty look
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 128, 128);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        class BlowholeSpout {
+            constructor() {
+                this.particles = [];
+                this.maxParticles = 1200; // Increased density
+                this.isEmitting = false;
+                
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(this.maxParticles * 3);
+                const sizes = new Float32Array(this.maxParticles); // Individual sizes for growth
+                
+                for(let i=0; i<this.maxParticles; i++) {
+                    pos[i*3] = 0; pos[i*3+1] = -500; pos[i*3+2] = 0;
+                    sizes[i] = 1.0;
+                }
+                
+                geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                const mistTex = createMistTexture();
+                const mat = new THREE.PointsMaterial({
+                    size: 4.5, // Base size
+                    map: mistTex,
+                    transparent: true,
+                    opacity: 0.45,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending, // Glow effect
+                    sizeAttenuation: true
+                });
+                
+                this.mesh = new THREE.Points(geo, mat);
+                this.mesh.frustumCulled = false;
+                scene.add(this.mesh);
+                
+                this.particleData = [];
+                for(let i=0; i<this.maxParticles; i++) {
+                    this.particleData.push({
+                        life: 0,
+                        vx: 0, vy: 0, vz: 0,
+                        baseSize: 3.0 + Math.random() * 5.0
+                    });
+                }
+            }
+
+            update(deltaTime, emitterPos, emitterVel = new THREE.Vector3()) {
+                const positions = this.mesh.geometry.attributes.position.array;
+                
+                // Spawn new particles if emitting
+                if (this.isEmitting) {
+                    const spawnRate = 60; // More particles per frame
+                    for (let i = 0; i < spawnRate; i++) {
+                        const idx = this.particleData.findIndex(p => p.life <= 0);
+                        if (idx !== -1) {
+                            const p = this.particleData[idx];
+                            p.life = 1.0;
+                            
+                            // Narrow emitter at the blowhole
+                            const angle = Math.random() * Math.PI * 2;
+                            const r = Math.random() * 0.4; 
+                            
+                            positions[idx*3] = emitterPos.x + Math.cos(angle) * r;
+                            positions[idx*3+1] = emitterPos.y;
+                            positions[idx*3+2] = emitterPos.z + Math.sin(angle) * r;
+                            
+                            // High vertical velocity for a strong column
+                            const speed = 40.0 + Math.random() * 25.0; 
+                            const spread = 0.08; // Tight base spread
+                            
+                            p.vx = emitterVel.x + (Math.random() - 0.5) * spread * speed;
+                            p.vy = emitterVel.y + speed;
+                            p.vz = emitterVel.z + (Math.random() - 0.5) * spread * speed;
+                        }
+                    }
+                }
+
+                // Update existing particles
+                for(let i=0; i<this.maxParticles; i++) {
+                    const p = this.particleData[i];
+                    if (p.life > 0) {
+                        p.life -= deltaTime * 0.45; // Faster decay for mist
+                        
+                        // Physics: Gravity and Turbulence
+                        p.vy -= 15.0 * deltaTime; 
+                        p.vx += (Math.random() - 0.5) * 8.0 * deltaTime;
+                        p.vz += (Math.random() - 0.5) * 8.0 * deltaTime;
+                        
+                        positions[i*3] += p.vx * deltaTime;
+                        positions[i*3+1] += p.vy * deltaTime;
+                        positions[i*3+2] += p.vz * deltaTime;
+                    } else {
+                        positions[i*3+1] = -500; // Move dead particles away
+                    }
+                }
+                
+                this.mesh.geometry.attributes.position.needsUpdate = true;
+            }
+        }
+        
+        // Yacht Controls
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        const yachtSpeed = 0.5;
+        const turnSpeed = 0.02;
+
+        init();
+        animate();
+
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
+        });
+
+        function createSandTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 1024;
+            const context = canvas.getContext('2d');
+            
+            // Base color - Warm white
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, 1024, 1024);
+            
+            // Grainy noise for color variation
+            for (let i = 0; i < 600000; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 1024;
+                const grey = Math.random() * 25;
+                // Add some warm/sandy tones to the grains
+                context.fillStyle = `rgba(${230+grey}, ${225+grey}, ${210+grey}, 0.4)`;
+                context.fillRect(x, y, 1, 1);
+            }
+
+            // High-contrast micro-dots for the "grainy" feel (used for bump)
+            for (let i = 0; i < 150000; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 1024;
+                const dark = Math.random() * 80;
+                context.fillStyle = `rgba(${dark}, ${dark}, ${dark}, 0.2)`;
+                context.fillRect(x, y, 1.2, 1.2);
+            }
+
+            // Tiny reflective sparkles (glittering sand)
+            for (let i = 0; i < 3000; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 1024;
+                context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                context.fillRect(x, y, 1.5, 1.5);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(20, 20); // Much smaller repeat for finer grain
+            return texture;
+        }
+
+        function createLeafTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+            
+            // Base green gradient
+            const grad = context.createLinearGradient(0, 0, 0, 512);
+            grad.addColorStop(0, '#3a5f0b');
+            grad.addColorStop(1, '#2d4c08');
+            context.fillStyle = grad;
+            context.fillRect(0, 0, 512, 512);
+            
+            // Leaf veins (Frond details)
+            context.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            context.lineWidth = 1;
+            for(let i=0; i<512; i+=4) {
+                context.beginPath();
+                context.moveTo(256, 0);
+                context.lineTo(i, 512);
+                context.stroke();
+            }
+
+            // Central spine
+            context.strokeStyle = '#1e3d1a';
+            context.lineWidth = 8;
+            context.beginPath();
+            context.moveTo(256, 0);
+            context.lineTo(256, 512);
+            context.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createLeatherTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 1024;
+            const context = canvas.getContext('2d');
+            
+            // Base color (Rich brown)
+            context.fillStyle = '#8b5a2b';
+            context.fillRect(0, 0, 1024, 1024);
+            
+            // Leather pattern
+            context.strokeStyle = '#5d3a1a';
+            for (let i = 0; i < 5000; i++) {
+                context.lineWidth = Math.random() * 0.5;
+                context.beginPath();
+                const x = Math.random() * 1024;
+                const y = Math.random() * 1024;
+                context.moveTo(x, y);
+                context.lineTo(x + (Math.random()-0.5)*10, y + (Math.random()-0.5)*10);
+                context.stroke();
+            }
+
+            // Highlights
+            context.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            for (let i = 0; i < 1000; i++) {
+                context.beginPath();
+                context.arc(Math.random()*1024, Math.random()*1024, Math.random()*3, 0, Math.PI*2);
+                context.fill();
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createWoodTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#5d4037';
+            context.fillRect(0, 0, 512, 512);
+            context.strokeStyle = '#3e2723';
+            for(let i=0; i<512; i+=2) {
+                context.lineWidth = Math.random() * 2;
+                context.beginPath();
+                context.moveTo(0, i);
+                context.lineTo(512, i + (Math.random()-0.5)*20);
+                context.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createLogs(woodTex) {
+            const group = new THREE.Group();
+            const logGeo = new THREE.CylinderGeometry(0.2, 0.2, 2.5, 8);
+            const logMat = new THREE.MeshStandardMaterial({ 
+                map: woodTex,
+                roughness: 0.9,
+                bumpMap: woodTex,
+                bumpScale: 0.2
+            });
+
+            // Create a stack of 3-4 logs in a teepee shape
+            for (let i = 0; i < 4; i++) {
+                const log = new THREE.Mesh(logGeo, logMat);
+                const angle = (i / 4) * Math.PI * 2;
+                log.position.set(Math.cos(angle) * 0.4, 0.8, Math.sin(angle) * 0.4);
+                log.rotation.z = Math.PI / 4;
+                log.rotation.y = angle;
+                log.castShadow = true;
+                log.receiveShadow = true;
+                group.add(log);
+            }
+
+            // Add some smaller logs on the ground
+            for (let i = 0; i < 3; i++) {
+                const log = new THREE.Mesh(logGeo, logMat);
+                log.scale.set(0.8, 0.6, 0.8);
+                const angle = (i / 3) * Math.PI * 2 + 0.5;
+                log.position.set(Math.cos(angle) * 0.8, 0.1, Math.sin(angle) * 0.8);
+                log.rotation.x = Math.PI / 2;
+                log.rotation.z = angle + Math.PI / 2;
+                log.castShadow = true;
+                log.receiveShadow = true;
+                group.add(log);
+            }
+
+            return group;
+        }
+
+        function createCloudTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const context = canvas.getContext('2d');
+
+            const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.5)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 256, 256);
+
+            // Add some noise to the cloud texture for a wispy look
+            for (let i = 0; i < 2000; i++) {
+                const x = Math.random() * 256;
+                const y = Math.random() * 256;
+                const dist = Math.sqrt(Math.pow(x - 128, 2) + Math.pow(y - 128, 2));
+                if (dist < 128) {
+                    const alpha = (1 - dist / 128) * 0.2;
+                    context.fillStyle = `rgba(255, 255, 255, ${alpha * Math.random()})`;
+                    context.fillRect(x, y, 2, 2);
+                }
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Helper to get terrain normal for slope alignment
+        function getTerrainNormal(x, z) {
+            const eps = 0.1;
+            const hL = getTerrainHeight(x - eps, z);
+            const hR = getTerrainHeight(x + eps, z);
+            const hD = getTerrainHeight(x, z - eps);
+            const hU = getTerrainHeight(x, z + eps);
+            
+            const normal = new THREE.Vector3(hL - hR, 2 * eps, hD - hU).normalize();
+            return normal;
+        }
+
+        function createLuxuryYacht() {
+            const group = new THREE.Group();
+
+            // Materials
+            const hullMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, // White hull
+                roughness: 0.1, 
+                metalness: 0.2 
+            });
+            const deckMat = new THREE.MeshStandardMaterial({ 
+                color: 0xd2b48c, // Wood deck (tan)
+                roughness: 0.8 
+            });
+            const windowMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111, // Dark windows
+                roughness: 0.0, 
+                metalness: 0.9 
+            });
+            const railMat = new THREE.MeshStandardMaterial({
+                color: 0xaaaaaa, // Chrome rails
+                roughness: 0.1,
+                metalness: 0.9
+            });
+
+            // 1. Hull (Bottom) - Sleek and long
+            const points = [];
+            // Profile of the hull side
+            for (let i = 0; i <= 10; i++) {
+                const t = i / 10;
+                const width = Math.sin(t * Math.PI) * 2.5; // Widest in middle
+                const height = t * 3; // Height profile
+                points.push(new THREE.Vector2(width, (t - 0.5) * 15)); // Length 15
+            }
+            // Use Lathe but we need to flatten it or use something else. 
+            // Actually, constructing a hull from primitives is easier for control.
+            
+            // Alternative Hull: Stretched Cylinder bottom + Box top
+            const hullGeo = new THREE.CylinderGeometry(0, 2.5, 18, 12);
+            hullGeo.scale(1, 1, 0.7); // Flatten slightly
+            const hull = new THREE.Mesh(hullGeo, hullMat);
+            hull.rotation.x = -Math.PI / 2;
+            hull.position.y = 1.0;
+            // Cut off top half? Or just sink it.
+            // Let's refine:
+            // Main Hull Body
+            const mainHullGeo = new THREE.BoxGeometry(5, 3, 18);
+            // Taper front
+            const positions = mainHullGeo.attributes.position;
+            for(let i=0; i<positions.count; i++){
+                const z = positions.getZ(i);
+                const y = positions.getY(i);
+                if(z < -5) { // Front
+                    // Taper x based on z
+                    const factor = (z + 9) / 4; // roughly 0 at nose
+                    if(factor < 1 && factor > 0) {
+                         positions.setX(i, positions.getX(i) * factor);
+                         // Lift the nose
+                         if(y < 0) positions.setY(i, y + (1-factor)*1.5);
+                    }
+                }
+            }
+            mainHullGeo.computeVertexNormals();
+            const mainHull = new THREE.Mesh(mainHullGeo, hullMat);
+            mainHull.position.y = 1.0;
+            group.add(mainHull);
+
+            // Deck (Wood top)
+            const deckGeo = new THREE.BoxGeometry(4.8, 0.1, 17);
+            const deck = new THREE.Mesh(deckGeo, deckMat);
+            deck.position.y = 2.55;
+            group.add(deck);
+
+            // 2. Superstructure (Cabin) - Level 1
+            const cabin1Geo = new THREE.BoxGeometry(3.5, 2, 8);
+            const cabin1 = new THREE.Mesh(cabin1Geo, hullMat);
+            cabin1.position.set(0, 3.5, 1);
+            group.add(cabin1);
+
+            // Windows L1 (Strips on side)
+            const win1Geo = new THREE.BoxGeometry(3.6, 1, 7);
+            const win1 = new THREE.Mesh(win1Geo, windowMat);
+            win1.position.set(0, 3.5, 1);
+            group.add(win1);
+
+            // 3. Superstructure - Level 2 (Bridge)
+            const cabin2Geo = new THREE.BoxGeometry(2.5, 1.5, 5);
+            const cabin2 = new THREE.Mesh(cabin2Geo, hullMat);
+            cabin2.position.set(0, 5.0, 2);
+            group.add(cabin2);
+
+            // Windows L2 (Bridge glass)
+            const win2Geo = new THREE.BoxGeometry(2.6, 0.8, 3);
+            const win2 = new THREE.Mesh(win2Geo, windowMat);
+            win2.position.set(0, 5.0, 2.5); // Forward
+            group.add(win2);
+
+            // 4. Radar / Mast
+            const mastGeo = new THREE.CylinderGeometry(0.1, 0.2, 3);
+            const mast = new THREE.Mesh(mastGeo, hullMat);
+            mast.position.set(0, 6.5, 0);
+            mast.rotation.x = -0.3;
+            group.add(mast);
+
+            // 5. Rear Deck / Swim Platform
+            const swimPlatGeo = new THREE.BoxGeometry(4.5, 0.5, 3);
+            const swimPlat = new THREE.Mesh(swimPlatGeo, hullMat);
+            swimPlat.position.set(0, 0.5, 9); // Back
+            group.add(swimPlat);
+
+            // 6. Railings (Simplified)
+            // Bow Rail
+            const railGeo = new THREE.TorusGeometry(2, 0.05, 8, 20, Math.PI);
+            const rail = new THREE.Mesh(railGeo, railMat);
+            rail.rotation.x = Math.PI/2;
+            rail.rotation.z = Math.PI/2; // Arch over bow
+            rail.position.set(0, 2.8, -8);
+            rail.scale.set(1, 1.5, 1);
+            group.add(rail);
+
+            // Scale up the whole yacht because 1 unit ~ 1 meter?
+            // Rowboat was scale 1.5. Yacht should be large.
+            // Current length is ~18 units.
+            
+            return group;
+        }
+
+        function createPalmTree(woodTex, leafTex, hasTally = false) {
+            const group = new THREE.Group();
+            
+            // Reduced curve parameters for more upright growth
+            const curveX = (Math.random() - 0.5) * 1.5;
+            const curveZ = (Math.random() - 0.5) * 1.5;
+            
+            const segments = 18;
+            const heightStep = 1.0;
+            const totalHeight = segments * heightStep;
+
+            // Curved trunk geometry
+            const points = [];
+            for (let i = 0; i <= segments; i++) {
+                let radius;
+                if (i === 0) radius = 2.2; 
+                else if (i < 3) radius = 2.2 - (i * 0.3);
+                else radius = 1.2 * (1 - i * 0.035);
+                
+                const waviness = Math.sin(i * 0.4) * 0.1;
+                points.push(new THREE.Vector2(radius + waviness, i * heightStep));
+            }
+            const trunkGeo = new THREE.LatheGeometry(points, 20);
+            
+            // Apply curve to trunk vertices
+            const posAttr = trunkGeo.attributes.position;
+            for (let i = 0; i < posAttr.count; i++) {
+                const y = posAttr.getY(i);
+                const progress = y / totalHeight;
+                const offsetX = Math.pow(progress, 1.5) * curveX;
+                const offsetZ = Math.pow(progress, 1.5) * curveZ;
+                posAttr.setX(i, posAttr.getX(i) + offsetX);
+                posAttr.setZ(i, posAttr.getZ(i) + offsetZ);
+            }
+            trunkGeo.computeVertexNormals();
+
+            const trunkMat = new THREE.MeshStandardMaterial({ 
+                map: woodTex, 
+                roughness: 1.0,
+                bumpMap: woodTex,
+                bumpScale: 0.5,
+                color: 0x8d6e63
+            });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            
+            // Important: Position the trunk geometry so its base is at 0,0,0
+            // but we bury it deeper into the ground in the placement logic.
+            group.add(trunk);
+            
+            // Root mound
+            const rootGeo = new THREE.CylinderGeometry(2.4, 3.0, 1.5, 12);
+            const rootMat = new THREE.MeshStandardMaterial({ 
+                color: 0xd2b48c,
+                roughness: 1.0,
+                transparent: true,
+                opacity: 0.5
+            });
+            const roots = new THREE.Mesh(rootGeo, rootMat);
+            roots.position.y = 0.2; // Centered at origin, mostly below
+            group.add(roots);
+            
+            // Calculate EXACT top position for attachments
+            const topOffsetX = curveX;
+            const topOffsetZ = curveZ;
+            const trunkTopY = totalHeight;
+
+            // Coconuts attached to the TOP
+            const cocoMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.9 });
+            const cocoGeo = new THREE.SphereGeometry(0.5, 12, 10);
+            for(let i=0; i<4; i++) {
+                const coco = new THREE.Mesh(cocoGeo, cocoMat);
+                coco.scale.set(1, 1.1 + Math.random() * 0.2, 1);
+                const angle = i * (Math.PI * 2 / 4) + Math.random() * 0.5;
+                const dist = 0.7;
+                // Use the calculated offsets!
+                coco.position.set(topOffsetX + Math.cos(angle) * dist, trunkTopY - 0.5, topOffsetZ + Math.sin(angle) * dist);
+                coco.rotation.set(Math.random(), Math.random(), Math.random());
+                coco.castShadow = true;
+                group.add(coco);
+            }
+
+            // Leaves attached to the TOP
+            const leafCount = 14;
+            for (let i = 0; i < leafCount; i++) {
+                const leafGeo = new THREE.PlaneGeometry(3.5, 18, 4, 15);
+                const lPos = leafGeo.attributes.position;
+                for (let j = 0; j < lPos.count; j++) {
+                    const x = lPos.getX(j);
+                    const y = lPos.getY(j);
+                    const taper = (9 - y) / 18;
+                    lPos.setX(j, x * Math.pow(taper, 0.45));
+                    const normalizedY = (y + 9) / 18;
+                    const arch = -Math.pow(normalizedY, 2) * 14;
+                    const sideDroop = -Math.abs(x) * 0.6 * normalizedY;
+                    lPos.setZ(j, arch + sideDroop);
+                }
+                leafGeo.computeVertexNormals();
+                
+                const leafMat = new THREE.MeshStandardMaterial({ 
+                    map: leafTex, 
+                    side: THREE.DoubleSide, 
+                    transparent: true, 
+                    alphaTest: 0.5,
+                    color: 0x4a7c10
+                });
+                
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                // Use the calculated offsets!
+                leaf.position.set(topOffsetX, trunkTopY, topOffsetZ);
+                leaf.rotation.y = (i / leafCount) * Math.PI * 2 + Math.random() * 0.2;
+                leaf.rotation.x = -Math.PI / 10 - (Math.random() * 0.05); 
+                leaf.translateY(9); 
+                leaf.castShadow = true;
+                group.add(leaf);
+            }
+            return group;
+        }
+
+        // Global terrain height function for consistent object placement
+        function getTerrainHeight(x, z) {
+            const d = Math.sqrt(x * x + z * z);
+            
+            // Base island shape
+            let h = Math.exp(-d * d / (2 * 55 * 55)) * 14;
+            
+            // Central Mountain/Rock Hill (Inspired by Image 3)
+            const mountainD = Math.sqrt((x-10)*(x-10) + (z+15)*(z+15));
+            const mountainH = Math.exp(-mountainD * mountainD / (2 * 25 * 25)) * 45;
+            h = Math.max(h, mountainH);
+
+            // Calculate noise but scale it down in low-lying areas or near the shore
+            // to prevent "pits" that drop below sea level unexpectedly.
+            let noise = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2.5;
+            noise += Math.sin(x * 0.4) * Math.cos(z * 0.3) * 0.8;
+            noise += Math.sin(x * 1.5 + z * 0.5) * 0.15;
+
+            // Reduce noise impact when h is low (near water)
+            const noiseScale = Math.min(1.0, h / 5.0);
+            h += noise * noiseScale;
+            
+            // Final land check: ensure island core doesn't dip below a "safe" height
+            // before the intentional falloff into the ocean starts.
+            if (d < 85) {
+                h = Math.max(h, 4.2); // 4.2 results in world Y of 0.7 - 3.5 = -2.8 (just above -3.0 water)
+            }
+
+            if (d > 85) {
+                const falloff = Math.max(0, 1 - (d - 85) / 50);
+                h = h * falloff - (1 - falloff) * 6;
+            }
+            return h - 3.5; 
+        }
+
+        function init() {
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 0.8;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 20000);
+            camera.position.set(0, 100, 350); // Moved further back to see the whole yacht
+
+            sun = new THREE.Vector3();
+
+            // Water
+            const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+            water = new Water(
+                waterGeometry,
+                {
+                    textureWidth: 1024,
+                    textureHeight: 1024,
+                    waterNormals: new THREE.TextureLoader().load('./libs/textures/waternormals.jpg', function (texture) {
+                        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                    }),
+                    sunDirection: new THREE.Vector3(),
+                    sunColor: 0xffffff,
+                    waterColor: 0x00bfff, // Brighter Sky Blue for water
+                    distortionScale: 3.0,
+                    fog: scene.fog !== undefined
+                }
+            );
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = -3;
+            scene.add(water);
+
+            // Skybox - Optimizing for Deep Blue Clear Sky
+            sky = new Sky();
+            sky.scale.setScalar(10000);
+            scene.add(sky);
+
+            const skyUniforms = sky.material.uniforms;
+            skyUniforms['turbidity'].value = 0.01; // Extremely clear atmosphere
+            skyUniforms['rayleigh'].value = 0.5;   // Lower Rayleigh for a deeper, more saturated blue
+            skyUniforms['mieCoefficient'].value = 0.0005;
+            skyUniforms['mieDirectionalG'].value = 0.95;
+
+            const parameters = {
+                elevation: 45, // Higher sun position for bright noon
+                azimuth: 180
+            };
+
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            let renderTarget;
+
+            function updateSun() {
+                const phi = THREE.MathUtils.degToRad(90 - parameters.elevation);
+                const theta = THREE.MathUtils.degToRad(parameters.azimuth);
+
+                sun.setFromSphericalCoords(1, phi, theta);
+
+                sky.material.uniforms['sunPosition'].value.copy(sun);
+                water.material.uniforms['sunDirection'].value.copy(sun).normalize();
+
+                if (renderTarget !== undefined) renderTarget.dispose();
+
+                renderTarget = pmremGenerator.fromScene(sky);
+                scene.environment = renderTarget.texture;
+            }
+
+            updateSun();
+
+            const leatherTex = createLeatherTexture();
+            const woodTex = createWoodTexture();
+            const leafTex = createLeafTexture();
+
+            // Load Tropical Island Model (Removed)
+            /*
+            const islandLoader = new GLTFLoader();
+            islandLoader.load('./models/tropical_island.glb', (gltf) => {
+                const island = gltf.scene;
+                island.position.set(0, 0, 0); // Set Y to 0 as requested
+                island.scale.setScalar(2.0); // Doubled size
+                
+                island.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(island);
+                console.log('Loaded tropical island model');
+            }, undefined, (error) => {
+                console.error('Error loading tropical island model:', error);
+            });
+            */
+
+            // Shallow Water / Reef Visual (Image 2 style turquoise)
+            const shallowGeo = new THREE.PlaneGeometry(600, 600);
+            shallowGeo.rotateX(-Math.PI/2);
+            const shallowMat = new THREE.MeshBasicMaterial({ 
+                color: 0x40e0d0, // Turquoise
+                transparent: true, 
+                opacity: 0.35, 
+                depthWrite: false 
+            });
+            const shallow = new THREE.Mesh(shallowGeo, shallowMat);
+            shallow.position.y = -3.6; // Just below water surface
+            scene.add(shallow);
+
+            // Fish Schools (Underwater life) - Removed
+            /*
+            const school1 = new FishSchool(100, 0xffcc00, new THREE.Vector3(-120, -4, 0));    // Yellow
+            const school2 = new FishSchool(120, 0x00ffff, new THREE.Vector3(120, -4, 120));  // Cyan
+            const school3 = new FishSchool(80, 0xff00ff, new THREE.Vector3(0, -4, -120));   // Magenta
+            scene.add(school1, school2, school3);
+            fishSchools.push(school1, school2, school3);
+            */
+
+            // Load Shark Model and then create shark school
+            const gltfLoader = new GLTFLoader();
+            gltfLoader.load('./models/shark.glb', (gltf) => {
+                sharkModel = gltf.scene;
+                sharkAnimations = gltf.animations;
+                
+                const sharkSchool = new FishSchool(1, 0x808080, new THREE.Vector3(200, -7, 200), 'shark'); // One Great White Shark
+                scene.add(sharkSchool);
+                fishSchools.push(sharkSchool);
+            });
+
+            // Load Whale Model and create whale school
+            const whaleLoader = new GLTFLoader();
+            whaleLoader.load('./models/whale.glb', (gltf) => {
+                whaleModel = gltf.scene;
+                whaleAnimations = gltf.animations;
+
+                // Add Whale with phase offset (Math.PI) to be on opposite side
+                // Spawn at opposite position (-200, -200) to ensure immediate visual separation
+                const whaleSchool = new FishSchool(1, 0x333333, new THREE.Vector3(-200, -7, -200), 'whale', Math.PI); 
+                scene.add(whaleSchool);
+                fishSchools.push(whaleSchool);
+            });
+
+            // Luxury Yacht
+            // Try to load a GLB model, fallback to procedural yacht
+            const yachtLoader = new GLTFLoader();
+            yachtLoader.load('./models/yacht.glb', (gltf) => {
+                yacht = gltf.scene;
+                yacht.position.set(0, -3.0, 0); // Centered at origin
+                yacht.rotation.y = Math.PI; // Facing forward (-Z)
+                yacht.scale.setScalar(5.5); // Adjust scale as needed for the loaded model
+                scene.add(yacht);
+                console.log('Loaded custom yacht model');
+
+                // Add Campfire to Yacht Helipad (Position adjusted for 5.5 scale)
+                // For the GLB model, we need to find the exact spot.
+                // Assuming the "H" is on the front deck (bow).
+                // Let's adjust position slightly forward and down to sit on the deck surface.
+                const firePos = new THREE.Vector3(0, 4.6, 16); 
+                
+                // Create Wood Logs attached to yacht
+                const campfireLogs = createLogs(woodTex);
+                campfireLogs.position.copy(firePos);
+                campfireLogs.scale.setScalar(0.5); // Shrink by half (from 1.0 to 0.5)
+                yacht.add(campfireLogs);
+                
+                // Initialize particle effect attached to yacht
+                // We need to pass a scale factor to shrink particles too
+                campfireEffect = new CampfireEffect(yacht, firePos, 0.5);
+
+            }, undefined, (error) => {
+                console.log('Custom yacht model not found, using procedural yacht');
+                yacht = createProceduralYacht();
+                yacht.position.set(0, -3.0, 0); 
+                yacht.rotation.y = Math.PI; 
+                yacht.scale.setScalar(5.5); 
+                scene.add(yacht);
+
+                // Add Campfire to Procedural Yacht Helipad "H"
+                // Helipad is at (0, hullHeight + 0.26, 12). Hull height is 5.
+                // So Y = 5.26, Z = 12. This is the exact center of the "H".
+                const firePos = new THREE.Vector3(0, 5.8, 14); 
+                
+                // Create Wood Logs
+                const campfireLogs = createLogs(woodTex);
+                campfireLogs.position.copy(firePos);
+                campfireLogs.scale.setScalar(0.5); // Shrink by half
+                yacht.add(campfireLogs);
+                
+                // Initialize particle effect
+                campfireEffect = new CampfireEffect(yacht, firePos, 0.5);
+            });
+
+
+
+            // Palm Trees & Bushes removed
+            const treePositions = [];
+
+            // Try to load external palm tree model
+            /*
+            const palmLoader = new GLTFLoader();
+            palmLoader.load('./models/palm_tree.glb', (gltf) => {
+                const loadedPalmModel = gltf.scene;
+                console.log('Loaded custom palm tree model');
+                
+                treePositions.forEach(pos => {
+                    const tree = loadedPalmModel.clone();
+                    const tH = getTerrainHeight(pos.x, pos.z);
+                    
+                    // Align to terrain normal but dampen it to favor upright growth
+                    const normal = getTerrainNormal(pos.x, pos.z);
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const blendedNormal = new THREE.Vector3().lerpVectors(up, normal, 0.3).normalize();
+                    tree.quaternion.setFromUnitVectors(up, blendedNormal);
+                    
+                    // Position with deep grounding
+                    tree.position.set(pos.x, tH, pos.z); 
+                    tree.rotation.y = Math.random() * Math.PI * 2;
+                    // Scale reduced by half again as requested (total 0.25 of original base)
+                    tree.scale.setScalar((3.0 + Math.random() * 1.5) * 0.25); 
+                    
+                    // Enable shadows for the loaded model
+                    tree.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    scene.add(tree);
+                });
+            }, undefined, (error) => {
+                console.log('Custom palm tree model not found, using procedural trees');
+                // Fallback to procedural trees
+                treePositions.forEach(pos => {
+                    const tree = createPalmTree(woodTex, leafTex, pos.tally);
+                    const tH = getTerrainHeight(pos.x, pos.z);
+                    
+                    // Align to terrain normal but dampen it to favor upright growth
+                    const normal = getTerrainNormal(pos.x, pos.z);
+                    const up = new THREE.Vector3(0, 1, 0);
+                    // Mix the terrain normal with the pure UP vector (30% normal, 70% up)
+                    const blendedNormal = new THREE.Vector3().lerpVectors(up, normal, 0.3).normalize();
+                    tree.quaternion.setFromUnitVectors(up, blendedNormal);
+                    
+                    // Position with deep grounding
+                    tree.position.set(pos.x, tH - 0.7, pos.z); 
+                    tree.rotation.y = Math.random() * Math.PI * 2;
+                    tree.scale.setScalar((0.8 + Math.random() * 0.4) * 0.5);
+                    scene.add(tree);
+                });
+            });
+            */
+
+
+            // Fir Trees removed
+            /*
+            const firTreePositions = [
+                {x: -40, z: 30}, {x: 5, z: 50}
+            ];
+
+            const firLoader = new GLTFLoader();
+            firLoader.load('./models/fir_tree_01_1k.gltf/fir_tree_01_1k.gltf', (gltf) => {
+                const loadedFirModel = gltf.scene;
+                console.log('Loaded fir tree model');
+                
+                firTreePositions.forEach(pos => {
+                    const tree = loadedFirModel.clone();
+                    const tH = getTerrainHeight(pos.x, pos.z);
+                    
+                    // Align to terrain normal
+                    const normal = getTerrainNormal(pos.x, pos.z);
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const blendedNormal = new THREE.Vector3().lerpVectors(up, normal, 0.3).normalize();
+                    tree.quaternion.setFromUnitVectors(up, blendedNormal);
+                    
+                    // Fix floating: Subtract 3.5 to match sand mesh position, and extra 0.3 to embed roots
+                    tree.position.set(pos.x, tH - 3.8, pos.z); 
+                    tree.rotation.y = Math.random() * Math.PI * 2;
+                    // Fir trees scale reduced by half as requested (approx 1.5 - 2.5)
+                    tree.scale.setScalar((3.0 + Math.random() * 2.0) * 0.5); 
+                    
+                    tree.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    scene.add(tree);
+                });
+            }, undefined, (error) => {
+                console.error('Error loading fir tree model:', error);
+            });
+            */
+
+            // Small Trees (tree_small_02_1k) removed
+            /*
+            const smallTreePositions = [
+                {x: 20, z: 20}, {x: -15, z: -25}, {x: 35, z: -10}, 
+                {x: -10, z: 40}, {x: 50, z: 10}, {x: -30, z: -10}, 
+                {x: 0, z: -35}
+            ];
+
+            const smallTreeLoader = new GLTFLoader();
+            smallTreeLoader.load('./models/tree_small_02_1k.gltf/tree_small_02_1k.gltf', (gltf) => {
+                const loadedSmallTree = gltf.scene;
+                console.log('Loaded small tree model');
+                
+                smallTreePositions.forEach(pos => {
+                    const tree = loadedSmallTree.clone();
+                    const tH = getTerrainHeight(pos.x, pos.z);
+                    
+                    // Align to terrain normal
+                    const normal = getTerrainNormal(pos.x, pos.z);
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const blendedNormal = new THREE.Vector3().lerpVectors(up, normal, 0.3).normalize();
+                    tree.quaternion.setFromUnitVectors(up, blendedNormal);
+                    
+                    // Position adjustment
+                    tree.position.set(pos.x, tH - 3.6, pos.z); 
+                    tree.rotation.y = Math.random() * Math.PI * 2;
+                    tree.scale.setScalar(2.0 + Math.random() * 1.0); 
+                    
+                    tree.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    scene.add(tree);
+                });
+            }, undefined, (error) => {
+                console.error('Error loading small tree model:', error);
+            });
+            */
+
+            // Realistic Wispy Clouds using Sprites
+            const cloudTexture = createCloudTexture();
+            
+            function createCloud() {
+                const group = new THREE.Group();
+                const numPuffs = 15 + Math.floor(Math.random() * 10);
+                
+                for(let i = 0; i < numPuffs; i++) {
+                    const material = new THREE.SpriteMaterial({
+                        map: cloudTexture,
+                        transparent: true,
+                        opacity: 0.5 + Math.random() * 0.4, // Increased opacity for whiter clouds
+                        blending: THREE.NormalBlending,     // Normal blending for more solid white feel
+                        depthWrite: false
+                    });
+                    
+                    const sprite = new THREE.Sprite(material);
+                    
+                    // Spread puffs to create cloud mass
+                    const x = (Math.random() - 0.5) * 100;
+                    const y = (Math.random() - 0.5) * 30;
+                    const z = (Math.random() - 0.5) * 60;
+                    sprite.position.set(x, y, z);
+                    
+                    const scale = 40 + Math.random() * 60;
+                    sprite.scale.set(scale, scale * 0.6, 1);
+                    group.add(sprite);
+                }
+                return group;
+            }
+
+            // Generate many clouds at the horizon
+            for(let i = 0; i < 25; i++) {
+                const cloud = createCloud();
+                const angle = (Math.random() - 0.5) * Math.PI * 0.6 + Math.PI; // Focus more on the background horizon
+                const dist = 1500 + Math.random() * 1000;
+                
+                cloud.position.set(
+                    Math.sin(angle) * dist,
+                    150 + Math.random() * 150,
+                    Math.cos(angle) * dist
+                );
+                
+                cloud.scale.setScalar(2 + Math.random() * 4);
+                scene.add(cloud);
+            }
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 3);
+            dirLight.position.copy(sun).multiplyScalar(500);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 4096;
+            dirLight.shadow.mapSize.height = 4096;
+            dirLight.shadow.camera.left = -200;
+            dirLight.shadow.camera.right = 200;
+            dirLight.shadow.camera.top = 200;
+            dirLight.shadow.camera.bottom = -200;
+            dirLight.shadow.camera.far = 1000;
+            dirLight.shadow.bias = -0.0001;
+            scene.add(dirLight);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI * 0.48;
+            controls.target.set(0, 0, 0); // Focus on the yacht center
+            controls.minDistance = 30.0;
+            controls.maxDistance = 500.0;
+            controls.update();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            render();
+        }
+
+        function checkCollision() {
+            if (!yacht) return;
+
+            const yachtBox = new THREE.Box3().setFromObject(yacht);
+            const yachtCenter = new THREE.Vector3();
+            yachtBox.getCenter(yachtCenter);
+
+            // Check Shark
+            if (sharkInstance) {
+                const sharkBox = new THREE.Box3().setFromObject(sharkInstance);
+                if (yachtBox.intersectsBox(sharkBox)) {
+                    const sharkCenter = new THREE.Vector3();
+                    sharkBox.getCenter(sharkCenter);
+                    
+                    const pushDir = sharkCenter.clone().sub(yachtCenter).normalize();
+                    pushDir.y = 0; // Heavy objects don't pop up like balloons
+                    pushDir.normalize();
+
+                    // Massive inertia: Small velocity change, tiny position correction
+                    const force = 0.08; 
+                    sharkInstance.impactVelocity.add(pushDir.multiplyScalar(force));
+                    sharkInstance.position.add(pushDir.multiplyScalar(0.05)); 
+                }
+            }
+
+            // Check Whale
+            if (whaleInstance) {
+                const whaleBox = new THREE.Box3().setFromObject(whaleInstance);
+                if (yachtBox.intersectsBox(whaleBox)) {
+                    const whaleCenter = new THREE.Vector3();
+                    whaleBox.getCenter(whaleCenter);
+                    
+                    const pushDir = whaleCenter.clone().sub(yachtCenter).normalize();
+                    pushDir.y = 0; 
+                    pushDir.normalize();
+
+                    // Infinite momentum: Whale barely flinches
+                    const force = 0.01; 
+                    whaleInstance.impactVelocity.add(pushDir.multiplyScalar(force));
+                    whaleInstance.position.add(pushDir.multiplyScalar(0.01));
+                }
+            }
+
+            // Check Whale vs Shark (New)
+            if (whaleInstance && sharkInstance) {
+                const whaleBox = new THREE.Box3().setFromObject(whaleInstance);
+                const sharkBox = new THREE.Box3().setFromObject(sharkInstance);
+                
+                if (whaleBox.intersectsBox(sharkBox)) {
+                    const whaleCenter = new THREE.Vector3();
+                    whaleBox.getCenter(whaleCenter);
+                    const sharkCenter = new THREE.Vector3();
+                    sharkBox.getCenter(sharkCenter);
+                    
+                    // Vector from Whale to Shark
+                    const dir = sharkCenter.clone().sub(whaleCenter);
+                    const dist = dir.length();
+                    if (dist < 0.1) dir.set(0, 1, 0); 
+                    dir.y = 0; // Horizontal push only
+                    dir.normalize();
+                    
+                    // Whale acts as a solid wall. Shark is pushed.
+                    const pushForce = 0.15; 
+                    const posCorrection = 0.1; 
+                    
+                    // Shark response
+                    sharkInstance.impactVelocity.add(dir.clone().multiplyScalar(pushForce));
+                    sharkInstance.position.add(dir.clone().multiplyScalar(posCorrection));
+                    
+                    // Whale response: Negligible (1:500 mass ratio)
+                    whaleInstance.impactVelocity.add(dir.clone().multiplyScalar(-0.001));
+                }
+            }
+        }
+
+        function render() {
+            const time = performance.now() * 0.001;
+            
+            checkCollision();
+            
+            // Update fish schools
+            fishSchools.forEach(school => school.update(time));
+
+            // Update splashes
+            for (let i = splashes.length - 1; i >= 0; i--) {
+                const alive = splashes[i].update();
+                if (!alive) {
+                    splashes.splice(i, 1);
+                }
+            }
+
+            // Update campfire effect
+            if (campfireEffect) {
+                campfireEffect.update(time);
+            }
+
+            if (yacht) {
+                // Remove idle animation if moving, or blend it?
+                // Let's keep the gentle bobbing but override rotation/position with controls.
+                
+                // Gentle bobbing (vertical only)
+                yacht.position.y = -3.5 + Math.sin(time * 0.3) * 0.2;
+
+                // Control Logic
+                if (keys.ArrowUp) {
+                    yacht.translateZ(yachtSpeed); // Move forward
+                }
+                if (keys.ArrowDown) {
+                    yacht.translateZ(-yachtSpeed); // Move backward
+                }
+                if (keys.ArrowLeft) {
+                    yacht.rotation.y += turnSpeed; // Turn left
+                }
+                if (keys.ArrowRight) {
+                    yacht.rotation.y -= turnSpeed; // Turn right
+                }
+                
+                // Simple tilt when turning
+                if (keys.ArrowLeft) {
+                    yacht.rotation.z = Math.min(yacht.rotation.z + 0.01, 0.1);
+                } else if (keys.ArrowRight) {
+                    yacht.rotation.z = Math.max(yacht.rotation.z - 0.01, -0.1);
+                } else {
+                    // Return to upright
+                    yacht.rotation.z *= 0.95;
+                }
+            }
+
+            water.material.uniforms['time'].value += 1.0 / 60.0;
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
