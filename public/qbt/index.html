@@ -1,80 +1,64 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2685.4">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000; min-height: 14.0px}
-    span.s1 {font-kerning: none}
-  </style>
+    <base href="/qbt/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qubit Sphere</title>
+    <style>
+        body { margin: 0; background-color: #000; }
+        canvas { display: block; }
+
+        #error-rate-counter {
+            position: absolute;
+            bottom: 25px;
+            right: 60px;
+            color: #00ffff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            opacity: 0;
+        }
+        .bloch-label {
+            position: absolute;
+            opacity: 0.7;
+            pointer-events: none; /* So they don't interfere with mouse controls */
+            transform: translate(-50%, -50%); /* Center the label on its coordinates */
+        }
+        .bloch-label .katex {
+            color: #00ffff;
+            font-size: 24px;
+        }
+
+        #formula-container,
+        #final-formula-container,
+        #bloch-formula-container,
+        .bloch-label {
+            user-select: none;
+            -webkit-user-select: none; /* For Safari */
+            -moz-user-select: none;    /* For Firefox */
+            -ms-user-select: none;     /* For Internet Explorer/Edge */
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
-<p class="p1"><span class="s1">&lt;!DOCTYPE html&gt;</span></p>
-<p class="p1"><span class="s1">&lt;html lang="en"&gt;</span></p>
-<p class="p1"><span class="s1">&lt;head&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;title&gt;Qubit Sphere&lt;/title&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;style&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>body { margin: 0; background-color: #000; }</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>canvas { display: block; }</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>#error-rate-counter {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>position: absolute;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>bottom: 25px;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>right: 60px;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>color: #00ffff;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>font-family: 'Courier New', Courier, monospace;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>font-size: 16px;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>opacity: 0;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>.bloch-label {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>position: absolute;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>opacity: 0.7;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>pointer-events: none; /* So they don't interfere with mouse controls */</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>transform: translate(-50%, -50%); /* Center the label on its coordinates */</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>.bloch-label .katex {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>color: #00ffff;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>font-size: 24px;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>#formula-container,</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>#final-formula-container,</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>#bloch-formula-container,</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>.bloch-label {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>user-select: none;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>-webkit-user-select: none; /* For Safari */</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>-moz-user-select: none;<span class="Apple-converted-space">    </span>/* For Firefox */</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>-ms-user-select: none; <span class="Apple-converted-space">    </span>/* For Internet Explorer/Edge */</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"&gt;&lt;/script&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"&gt;&lt;/script&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
-<p class="p1"><span class="s1">&lt;body&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="error-rate-counter"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="formula-container" style="position: absolute; top: 40px; left: 40px; color: white; font-size: 24px; z-index: 100; opacity: 0;"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="final-formula-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 32px; z-index: 100; opacity: 0; white-space: nowrap;"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="bloch-formula-container" style="position: absolute; bottom: 40px; width: 100%; text-align: center; color: white; font-size: 24px; z-index: 100; opacity: 0;"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="label-0" class="bloch-label"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="label-1" class="bloch-label"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script type="importmap"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>{</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>"imports": {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>"three": "https://unpkg.com/three@0.160.0/build/three.module.js",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script type="module" src="./main.js"&gt;&lt;/script&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+
+    <div id="error-rate-counter"></div>
+    <div id="formula-container" style="position: absolute; top: 40px; left: 40px; color: white; font-size: 24px; z-index: 100; opacity: 0;"></div>
+    <div id="final-formula-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 32px; z-index: 100; opacity: 0; white-space: nowrap;"></div>
+    <div id="bloch-formula-container" style="position: absolute; bottom: 40px; width: 100%; text-align: center; color: white; font-size: 24px; z-index: 100; opacity: 0;"></div>
+    <div id="label-0" class="bloch-label"></div>
+    <div id="label-1" class="bloch-label"></div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="./main.js"></script>
 </body>
 </html>
