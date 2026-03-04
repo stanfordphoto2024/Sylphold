@@ -15,9 +15,12 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
+renderer.domElement.style.touchAction = 'none';
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.minDistance = 2;
+controls.maxDistance = 50;
 
 // --- Starry Sky ---
 const starVertices = [];
@@ -181,7 +184,7 @@ scene.add(errorParticles);
 // --- Animation and Interaction ---
 let isAnimating = false;
 let hasAnimatedOnce = false;
-window.addEventListener('click', () => {
+function startAnimation() {
     if (isAnimating || hasAnimatedOnce) return;
     isAnimating = true;
     hasAnimatedOnce = true;
@@ -307,13 +310,57 @@ window.addEventListener('click', () => {
 
     // 6. Zoom out to reveal the full grid
     tl.to(camera.position, { z: 50, duration: 4, ease: 'power2.inOut' }, 3.0);
-});
+}
+
+let pointerDownTime = 0;
+let pointerDownPosition = { x: 0, y: 0 };
+
+renderer.domElement.addEventListener('pointerdown', (event) => {
+    pointerDownTime = Date.now();
+    pointerDownPosition.x = event.clientX;
+    pointerDownPosition.y = event.clientY;
+}, { passive: true });
+
+renderer.domElement.addEventListener('pointerup', (event) => {
+    const pointerUpTime = Date.now();
+    const pointerUpPosition = { x: event.clientX, y: event.clientY };
+
+    const deltaX = pointerUpPosition.x - pointerDownPosition.x;
+    const deltaY = pointerUpPosition.y - pointerDownPosition.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const deltaTime = pointerUpTime - pointerDownTime;
+
+    // It's a 'tap' if the pointer moved less than 10px and for less than 500ms
+    if (distance < 20 && deltaTime < 600) {
+        startAnimation();
+    }
+}, { passive: true });
+
+renderer.domElement.addEventListener('touchstart', (event) => {
+    pointerDownTime = Date.now();
+    pointerDownPosition.x = event.touches[0].clientX;
+    pointerDownPosition.y = event.touches[0].clientY;
+}, { passive: true });
+
+renderer.domElement.addEventListener('touchend', (event) => {
+    const pointerUpTime = Date.now();
+    const pointerUpPosition = { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+
+    const deltaX = pointerUpPosition.x - pointerDownPosition.x;
+    const deltaY = pointerUpPosition.y - pointerDownPosition.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const deltaTime = pointerUpTime - pointerDownTime;
+
+    if (distance < 20 && deltaTime < 600) {
+        startAnimation();
+    }
+}, { passive: true });
 
 function showQLDPC() {
     const finalFormulaContainer = document.getElementById('final-formula-container');
     katex.render("\\text{Logical Qubits} = \\frac{N_{\\text{physical}}}{d^2}", finalFormulaContainer, { throwOnError: false });
 
-    const tl = gsap.timeline({ onComplete: () => { controls.enabled = true; isAnimating = false; } });
+    const tl = gsap.timeline({ onComplete: () => { controls.enabled = true; isAnimating = false; controls.maxDistance = 50; } });
     tl.to(particleMaterial.uniforms.uDimFactor, { value: 0.1, duration: 3, ease: 'power2.out' }, 0)
       .to(finalFormulaContainer, { opacity: 1, duration: 3, ease: 'power2.out' }, 0)
       .to(energyLines.material, { opacity: 0.6, duration: 3, ease: 'power2.out' }, 0);
