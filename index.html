@@ -1263,13 +1263,23 @@ const OFFLINE_TASKS=[
 let queue=[], qi=0, deck=[], flowMode='gym', flowLevel='gym', flowType='prompt';
 let certTimer=null, certRemaining=0;
 
+/* ---------- 隨機出題:洗牌函式 (Fisher-Yates) ---------- */
+function shuffle(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
 function startAssessment(mode, full){
   ensureIdentity();
   flowMode=mode;
   let pool;
-  if(mode==='online'){ pool=ONLINE_TASKS.slice(); }
-  else if(mode==='offline'){ pool=OFFLINE_TASKS.slice(); }
-  else { pool = full ? GYM_TASKS.slice() : GYM_TASKS.filter(t=>['planning','creative','technical'].includes(t.suit)); }
+  if(mode==='online'){ pool=shuffle(ONLINE_TASKS); }
+  else if(mode==='offline'){ pool=shuffle(OFFLINE_TASKS); }
+  else { const all=shuffle(GYM_TASKS); pool = full ? all : all.slice(0,3); }
   queue=pool.map(t=>({...t})); qi=0; deck=[];
   $('flowMode').textContent = mode==='online' ? 'Online · Certified' : mode==='offline' ? 'Offline · Verified' : 'Gym · Practice';
   $('scoreCap').textContent = mode==='online' ? 'Online Certified TQ' : mode==='offline' ? 'Verified TQ' : 'Practice TQ';
