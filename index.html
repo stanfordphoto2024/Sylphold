@@ -117,6 +117,9 @@
   .passport-full{text-align:center;margin-top:24px;padding:20px;border:1px solid var(--gold);border-radius:14px;background:rgba(212,175,55,.07)}
   .passport-full .t{font-family:'Cinzel',serif;font-size:22px;color:var(--gold-2);letter-spacing:.2em}
   .passport-full p{font-size:13px;color:var(--muted);margin-top:8px}
+  .chain-note{margin:14px auto 0;max-width:560px;text-align:left;font-size:12.5px;color:#bfe9d6;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:10px 14px;line-height:1.6}
+  .chain-note b{color:var(--offline)}
+  .chain-note code{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-2)}
 
   /* ---------- dashboard ---------- */
   .dash{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:20px}
@@ -226,6 +229,9 @@
   .req-row .ev{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
   .formula{margin-top:16px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);background:rgba(0,0,0,.3);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;line-height:1.8}
   .formula b{color:var(--gold-2)}
+  .judge-note{margin-top:12px;font-size:12.5px;color:var(--muted);background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.25);border-radius:10px;padding:10px 12px;line-height:1.6}
+  .judge-note b{color:var(--t-rare)}
+  .judge-note:empty{display:none}
   .score-hero{text-align:center;padding:6px 0 14px}
   .score-hero .val{font-family:'Cinzel',serif;font-size:56px;font-weight:700;color:#fff;line-height:1}
   .score-hero .cap{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-top:8px}
@@ -373,8 +379,8 @@
     </div>
     <div class="how-grid">
       <div class="how-card"><div class="n">I</div><h3>Articulate</h3><p>You receive a real task. Write the one prompt, evaluate the AI output, verify claims, or make a decision — the way you actually would with AI.</p></div>
-      <div class="how-card"><div class="n">II</div><h3>Get Graded</h3><p>Structured feature extraction → rubric evaluation → rule-based checks → multi-evaluator analysis → skill evidence → ability estimate → confidence → TQ. Not a single LLM "0–100".</p></div>
-      <div class="how-card"><div class="n">III</div><h3>Build & Prove</h3><p>See your skill vector, confidence, and percentile. Complete your TQ Passport across Gym → Online → Offline and earn a verified credential.</p></div>
+      <div class="how-card"><div class="n">II</div><h3>Get Graded</h3><p>Coverage × Originality × Form × Dimension integrity, with an optional AI semantic judge. Not a single LLM "0–100".</p></div>
+      <div class="how-card"><div class="n">III</div><h3>Build & Prove</h3><p>See your skill vector, confidence, and percentile. Complete your TQ Passport across Gym → Online → Offline and earn a verified, on-chain credential.</p></div>
     </div>
   </section>
 
@@ -390,6 +396,7 @@
       <div class="passport-full" id="ppFull" style="display:none">
         <div class="t">FULL TQ PASSPORT ✓</div>
         <p>You have completed all three stages. Your <b>Verified Badge</b> can be used on LinkedIn, resume, website, and email signature.</p>
+        <div class="chain-note" id="ppChainNote"></div>
         <button class="btn btn-gold" id="badgeCopyBtn" style="margin-top:12px">Copy Verified Badge</button>
       </div>
     </div>
@@ -399,7 +406,7 @@
       <button class="btn btn-online" id="onlineCta">Get Online Certified →</button>
       <button class="btn btn-offline" id="offlineCta">Book Offline Verification →</button>
     </div>
-    <div class="backend-note">📗 <b>Passport model:</b> three primary stages — GYM (practice) · ONLINE (certified) · OFFLINE (verified). Scores are never merged or averaged; each stage keeps its own distinct result.</div>
+    <div class="backend-note">📗 <b>Passport model:</b> three primary stages — GYM (practice) · ONLINE (certified) · OFFLINE (verified). Scores are never merged or averaged; each stage keeps its own distinct result. Certification results are attested on-chain.</div>
   </section>
 
   <!-- ======================= ACCOUNT / IDENTITY ======================= -->
@@ -651,6 +658,7 @@
             <h3>Per-Requirement Grading</h3>
             <div id="reqList"></div>
             <div class="formula" id="formulaBox"></div>
+            <div class="judge-note" id="judgeNote"></div>
             <div class="skill-dims" id="skillDims"></div>
           </div>
           <div>
@@ -725,7 +733,7 @@
   <div class="wrap">
     <div class="fbrand"><div class="logo-chip" id="logoFoot"></div><b>SYLPHOLD</b></div>
     <p>TQ · Human-AI Collaboration Intelligence · Train freely. Certify. Verify. · sylphold.com</p>
-    <p style="font-size:10px">Gym TQ ≠ Online Certified TQ ≠ Offline Verified TQ. Payment is not identity. Offline proctoring establishes identity.</p>
+    <p style="font-size:10px">Gym TQ ≠ Online Certified TQ ≠ Offline Verified TQ. Payment is not identity. Offline proctoring establishes identity. Results attested on-chain.</p>
   </div>
 </footer>
 
@@ -736,6 +744,13 @@
     <p>By default, AI responses come from <b style="color:var(--gold-2)">GPT-4o-mini via a free cloud relay</b> — no account, no key, no cost. If the relay is slow or busy, a built-in simulator takes over automatically within a few seconds. Optionally paste your own OpenAI API key.</p>
     <input id="keyInput" type="password" placeholder="sk-… (optional, stored only in this browser)" />
     <div class="status-line" id="keyStatus"></div>
+    <h3 style="margin-top:14px">Scoring Mode</h3>
+    <div class="row" style="justify-content:flex-start">
+      <select id="judgeToggle" style="width:100%">
+        <option value="on">Rule + AI semantic judge (方向對但說法不同也能給分)</option>
+        <option value="off">Rule-based only (faster, no extra AI call)</option>
+      </select>
+    </div>
     <h3 style="margin-top:14px">TQ Pro Pricing (configurable)</h3>
     <div class="row" style="justify-content:flex-start">
       <select id="billingInterval">
@@ -787,22 +802,17 @@
 
 <script>
 /* ============================================================
-   SYLPHOLD · TQ — Human-AI Collaboration Intelligence (V3 · FIXED)
-   Single-file platform implementing the TQ Master Agent spec:
+   SYLPHOLD · TQ — Human-AI Collaboration Intelligence (V4)
    - Three assessment levels: GYM / ONLINE / OFFLINE
-   - TQ Passport with exactly three primary stages
-   - 10-domain skill model
-   - Adaptive-testing architecture
-   - Confidence + percentile + skill vector
-   - 35-minute certification timer (server-authoritative concept)
-   - Anti-cheating / integrity risk
-   - PDF / QR / Blockchain credentials
-   - Psychometric research layer (demo)
-   - Enterprise + Admin
+   - GYM bank: 11 tasks, difficulty 1→7 (easy → hard)
+   - Random selection + easy→hard ordering + repeatable retakes
+   - Scoring: C(coverage) × E(originality) × F(form) × D(dimension)
+     + optional AI semantic judge
+   - TQ Passport (3 stages) with on-chain attestation notice
    ============================================================ */
 const LOGO = '2593.png';
 
-/* ---------- logo injection with ROBUST fallback (FIX #2) ---------- */
+/* ---------- logo injection with ROBUST fallback ---------- */
 function monogramSVG(seq){
   const gid='tqg'+seq;
   return '<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">' +
@@ -896,9 +906,12 @@ const DOMAINS = [
 function getSkills(){ const s = DB.get('skills'); if(s && s.length) return s; return DOMAINS; }
 
 /* ============================================================
-   SCORING ENGINE — rule-based, architected for IRT evolution
-   Evidence → dimensions → normalization → weighted → consistency
-   → ability estimate → confidence → TQ
+   SCORING ENGINE — C × E × F × D  (V4)
+   C coverage (partial credit, ask-weighted)
+   E originality (echo/copy penalty)
+   F form/density
+   D dimension integrity
+   + optional AI semantic judge blended into C
    ============================================================ */
 const FILLER = ['please','thank you','thanks','thx','i think','i believe','i guess','i want you to','i want','i need you to','i need','can you','could you','would you','help me','for me','just','really','very','actually','basically','honestly','kind of','sort of','like','um','uh','hmm','maybe','probably','dear','hi','hello','hey','sorry','by the way','a bit','no offense','well','ok','okay'];
 function esc(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
@@ -910,6 +923,44 @@ function density(prompt){
   return Math.min(1, Math.max(0.5, 1-f/words.length));
 }
 function tierOf(tq){ if(tq>=1.6)return 'Epic'; if(tq>=1.2)return 'Rare'; if(tq>=0.8)return 'Uncommon'; return 'Common'; }
+
+/* ---------- n-grams + echo (originality) ---------- */
+function ngrams(s, n){
+  const w = s.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g,' ').split(/\s+/).filter(Boolean);
+  const out=[];
+  for(let i=0;i+n<=w.length;i++) out.push(w.slice(i,i+n).join(' '));
+  return out;
+}
+function echoRatio(prompt, taskBody){
+  const pg = ngrams(prompt,3);
+  if(!pg.length) return 0;
+  const tg = new Set(ngrams(taskBody,3));
+  let hit=0; for(const g of pg) if(tg.has(g)) hit++;
+  return hit/pg.length;
+}
+function echoMult(e){
+  if(e<=0.50) return 1;      // healthy overlap (citing the given facts)
+  if(e>=0.85) return 0.5;    // mostly copy-paste
+  return 1 - (e-0.50)/(0.35)*0.5;
+}
+
+/* ---------- requirement kind + partial-credit coverage ---------- */
+function reqKind(req){
+  return /^(restates?|states?|mentions?)/i.test(req.label.trim()) ? 'fact' : 'ask';
+}
+function reqPart(p, r){
+  if(!r.groups.length) return 0;
+  const hit = r.groups.filter(g=>g.some(k=>p.includes(k.toLowerCase()))).length;
+  return hit/r.groups.length;
+}
+function coverage(p, task){
+  let wsum=0, wtot=0;
+  for(const r of task.reqs){
+    const w = reqKind(r)==='ask' ? 1.25 : 1;   // "asks" (thinking) weigh more than "facts" (echoable)
+    wsum += w*reqPart(p, r); wtot += w;
+  }
+  return wtot? wsum/wtot : 0;
+}
 
 function dimensionScores(task, okReqs){
   const skills = getSkills();
@@ -925,29 +976,26 @@ function consistencyCheck(dims){
   const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length);
   return { sd, penalty: Math.min(0.1, sd*0.25), pass: sd < 0.12 };
 }
+
 function gradeTask(task, prompt){
   const p = ' '+prompt.toLowerCase().replace(/\s+/g,' ')+' ';
   const results = task.reqs.map(r=>{
-    let ok=true; const ev=[];
-    for(const g of r.groups){
-      const f = g.find(k=>p.includes(k.toLowerCase()));
-      if(f) ev.push(f); else { ok=false; break; }
-    }
-    if(ok) ev.length = Math.min(ev.length,3);
-    return {label:r.label, ok, ev};
+    const hit = r.groups.filter(g=>g.some(k=>p.includes(k.toLowerCase())));
+    return {label:r.label, ok:hit.length===r.groups.length, part:reqPart(p,r), kind:reqKind(r), ev:hit.slice(0,3).map(g=>g[0])};
   });
-  const acc = results.filter(r=>r.ok).length / results.length;
+  const C = coverage(p, task);                 // coverage (partial credit + ask-weighted)
+  const echo = echoRatio(prompt, task.body);   // 0..1 overlap with the task text
+  const E = echoMult(echo);                    // originality multiplier 0.5..1
   const u = estTokens(prompt);
-  const OVERHEAD = 8;
-  const r = OVERHEAD + task.reqs.reduce((s,x)=>s+x.ideal,0);
+  const r = 8 + task.reqs.reduce((s,x)=>s+x.ideal,0);
   const d = density(prompt);
-  const te = 2/(1+u/r) * d;
-  const dims = dimensionScores(task, results.filter(r=>r.ok));
+  const F = 2/(1+u/r) * d;                     // form / density (kept from V3)
+  const dims = dimensionScores(task, results.filter(x=>x.ok));
   const cons = consistencyCheck(dims);
   const dimAvg = Object.values(dims).reduce((a,b)=>a+b,0)/Object.keys(dims).length;
-  const dimScore = Math.max(0, dimAvg - cons.penalty);
-  const tq = acc * te * (0.5 + dimScore*0.5);
-  return {acc,u,r,d,te,tq,tier:tierOf(tq),results,dims,cons,skillScores:dims};
+  const D = Math.max(0, dimAvg - cons.penalty);
+  const tq = C * E * F * (0.5 + 0.5*D);
+  return {acc:C, C, echo, E, F, D, u, r, d, te:F, tq, tier:tierOf(tq), results, dims, cons, skillScores:dims};
 }
 
 /* ---------- confidence estimate from evidence ---------- */
@@ -1017,6 +1065,37 @@ class RoutedProvider {
   }
 }
 const ai = new RoutedProvider();
+
+/* ============================================================
+   AI SEMANTIC JUDGE — direction-correctness (optional)
+   Blends with rule-based coverage so reworded-but-correct answers score fairly.
+   ============================================================ */
+function getJudgeEnabled(){ return localStorage.getItem('tq_judge')!=='off'; }
+async function llmJudge(task, prompt){
+  const items = task.reqs.map((r,i)=>`${i+1}. ${r.label}`).join('\n');
+  const sys = 'You are a strict, fair evaluator of human-AI collaboration. Judge by MEANING and direction, not exact wording. If the response addresses an element in its own words, count it as met. Be concise.';
+  const user = `TASK:\n${task.body}\n\nCANDIDATE RESPONSE:\n${prompt}\n\nRequired elements:\n${items}\n\nFor each element score 0 (missing), 0.5 (partial) or 1 (met). Then give overall (0.0-1.0) and a one-sentence direction note.\nRespond ONLY with JSON: {"overall":0.0,"direction":"one sentence"}`;
+  const key = localStorage.getItem('tq_openai_key');
+  const url = key ? 'https://api.openai.com/v1/chat/completions' : 'https://gen.pollinations.ai/v1/chat/completions';
+  const headers = {'Content-Type':'application/json'};
+  if(key) headers.Authorization='Bearer '+key;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
+    const res=await fetch(url,{method:'POST',headers,body:JSON.stringify({
+      model:key?'gpt-4o-mini':'openai',
+      messages:[{role:'system',content:sys},{role:'user',content:user}],
+      temperature:0
+    }),signal:ctrl.signal});
+    clearTimeout(t);
+    if(!res.ok) return null;
+    const data=await res.json();
+    const text=(data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+    const m=text.match(/\{[\s\S]*\}/);
+    const j=JSON.parse(m?m[0]:text);
+    const overall=Math.max(0,Math.min(1,parseFloat(j.overall)||0));
+    return {overall, direction:String(j.direction||'').slice(0,220)};
+  }catch(e){ return null; }
+}
 
 /* ============================================================
    SUBSCRIPTION ABSTRACTION + ENTITLEMENTS
@@ -1156,7 +1235,7 @@ function navTo(section){
 }
 
 /* ============================================================
-   TASKS — Gym (easy) / Online (medium) / Offline (high)
+   TASKS — GYM (11, difficulty 1→7) / ONLINE (4) / OFFLINE (3)
    ============================================================ */
 const GYM_TASKS=[
  {suit:'planning',level:1,title:'Product Launch Plan',type:'C',body:'You are the project lead at Nimbus Labs. Write ONE prompt to an AI assistant that will produce a complete go-to-market launch plan for the smart water bottle "HydraOne". Budget: $150,000. Hard deadline: March 31.',reqs:[
@@ -1200,7 +1279,43 @@ const GYM_TASKS=[
   {label:'Includes a specific call to action',groups:[['call to action','cta','call','meeting','demo']],ideal:6},
   {label:'Constrains the length',groups:[['under','100 words','short','brief']],ideal:5},
   {label:'Specifies the tone',groups:[['tone','friendly','professional']],ideal:5}],
-  sim:'Subject: 6 fewer hours of shift-scheduling per week\n\nHi [Name],\n\nAt 200-person logistics firms, dispatchers lose 6+ hours a week to manual shift swaps. Our tool auto-resolves swaps and cuts no-shows ~30%.\n\nWorth a 15-minute demo this Thursday or Friday?\n\n[Your name] · [Company]'}
+  sim:'Subject: 6 fewer hours of shift-scheduling per week\n\nHi [Name],\n\nAt 200-person logistics firms, dispatchers lose 6+ hours a week to manual shift swaps. Our tool auto-resolves swaps and cuts no-shows ~30%.\n\nWorth a 15-minute demo this Thursday or Friday?\n\n[Your name] · [Company]'},
+ /* ---- 5 new GYM tasks (difficulty 3 → 7) ---- */
+ {suit:'lookup',level:3,title:'Competitor Pricing Table',type:'C',body:"You're preparing a sales battlecard. Write ONE prompt that makes the AI produce a comparison table of three named competitor SaaS tools, showing list price, key differentiator, and ideal customer for each, with a source for every claim.",reqs:[
+  {label:'States the three-competitor scope',groups:[['three','3'],['competitor','rival','vendor','tool']],ideal:6},
+  {label:'Asks for a comparison table',groups:[['table','compare','comparison','side-by-side','matrix']],ideal:6},
+  {label:'Specifies the price column',groups:[['price','cost','pricing']],ideal:6},
+  {label:'Asks for differentiator / target customer',groups:[['differentiator','feature','customer','target','use case','ideal']],ideal:7},
+  {label:'Requires a source per claim',groups:[['source','cite','citation','reference','verify']],ideal:7}],
+  sim:"Competitor pricing comparison (SaaS scheduling tools):\n\n| Tool | List price | Key differentiator | Ideal customer | Source |\n|------|-----------|--------------------|----------------|--------|\n| Acme | $12/user/mo | Auto shift-swap | Mid-size logistics | acme.com/pricing |\n| BetaFlow | $9/user/mo | Bulk discount | Enterprise | betaflow.com/pricing |\n| ShiftPro | $15/user/mo | AI scheduling | 3PL operators | shiftpro.com |\n\nSources: vendor pricing pages (accessed today)."},
+ {suit:'technical',level:4,title:'API Rate-Limit Debugging',type:'C',body:"A client's integration hits 429 errors after ~10k requests/hour. The API allows 60 req/min per key. You have retry logic but it's making things worse. Write ONE prompt to diagnose why and propose a fix (backoff, batching, or key rotation).",reqs:[
+  {label:'States the 429 / rate-limit symptom',groups:[['429','rate limit','rate-limit','throttl','too many requests']],ideal:6},
+  {label:'States the limit & request volume',groups:[['60 req','10k','10,000','per minute','per hour','limit']],ideal:7},
+  {label:'Mentions the existing (broken) retry logic',groups:[['retry','backoff','already','existing','current']],ideal:7},
+  {label:'Asks for a diagnosis of why it worsens',groups:[['diagnos','why','root cause','worse','amplif','herd']],ideal:8},
+  {label:'Asks for a concrete fix',groups:[['exponential','batch','rotation','throttle','queue','circuit','fix','solution']],ideal:8}],
+  sim:"Why retries make 429s worse: your retry loop fires immediately and in parallel, so a burst of N failing calls spawns N more calls in the same window — a thundering herd that re-trips the 60/min limit.\n\nFix: exponential backoff with jitter (base 1s, cap 30s); batch reads where possible; add a client-side token bucket at ~55 req/min; optionally rotate 2 keys. Add a circuit breaker to stop hammering after 3 consecutive 429s."},
+ {suit:'evaluation',level:5,title:'Evaluate a Cost-Benefit Claim',type:'C',body:"An AI claims 'switching to the new vendor saves $40k/year' but only shows the license cost, ignoring migration and training. Write ONE response that identifies what's missing, states why the conclusion is weak, requests the missing data, and gives a corrected, hedged conclusion.",reqs:[
+  {label:'Identifies the missing cost categories',groups:[['migration','training','missing','ignores','excludes','one-time','hidden']],ideal:8},
+  {label:'Explains why the conclusion is weak',groups:[['weak','incomplete','understated','overstates','insufficient','biased','not enough']],ideal:8},
+  {label:'Requests the missing data',groups:[['provide','request','need','obtain','breakdown','itemize','get']],ideal:7},
+  {label:'Gives a corrected / hedged conclusion',groups:[['revised','corrected','re-estimate','range','likely','net','reduced']],ideal:7},
+  {label:'Calibrates confidence',groups:[['confidence','uncertain','until','verify','estimate','moderate','low']],ideal:6}],
+  sim:"The $40k figure only captures license savings. It ignores one-time migration (~$15k) and training (~$8k) plus a 2-month productivity dip. Net year-1 benefit is likely $15–25k, not $40k.\n\nMissing data needed: migration quote, training hours, expected ramp time.\n\nCorrected, hedged conclusion: expect ~$15–25k net savings in year 1, rising to ~$40k from year 2 — confidence moderate until the migration/training quotes are confirmed."},
+ {suit:'workflow',level:6,title:'Design a Content QA Pipeline',type:'C',body:"Design a multi-step AI workflow to draft, fact-check, and publish a weekly newsletter from raw notes. Write ONE response specifying the steps, which parts the AI does vs a human, the verification gate before publishing, and a fallback if fact-checking fails.",reqs:[
+  {label:'Builds a multi-step sequence',groups:[['step 1','step 2','first','then','next','sequence','pipeline','workflow']],ideal:7},
+  {label:'Allocates AI vs human tasks',groups:[['human','ai drafts','editor','review','sign-off','allocate','you']],ideal:8},
+  {label:'Includes a verification / fact-check gate',groups:[['fact-check','verify','check','validate','gate','confirm','accuracy']],ideal:8},
+  {label:'Specifies a fallback on failure',groups:[['fallback','if fails','hold','manual','backup','delay','alternative']],ideal:7},
+  {label:'Defines the publish decision',groups:[['publish','approve','final','release','send','clear']],ideal:6}],
+  sim:"Weekly newsletter QA pipeline:\n\n1. AI drafts from raw notes (structured outline first).\n2. AI fact-check pass: extract every claim, flag unsupported ones.\n3. Human editor reviews flagged claims + tone; approves or requests edits.\n4. Verification gate: no unresolved 'flagged' claims may pass; a second independent model cross-checks the top 5 claims.\n5. Human final sign-off → publish.\n\nFallback: if fact-checking is inconclusive, hold the send and fall back to a shorter 'high-confidence only' edition; never auto-publish with unresolved flags."},
+ {suit:'judgment',level:7,title:'Hire or Build Decision',type:'C',body:"AI recommends building an in-house feature (est. 6 months, 2 engineers) because a vendor 'will raise prices'. But the price increase is unconfirmed, and the team has no prior experience with this domain. Write ONE response: identify the weak assumption, weigh build-vs-buy tradeoffs, decide with calibrated uncertainty, and state who owns the final call.",reqs:[
+  {label:'Identifies the weak / unconfirmed assumption',groups:[['assumption','unconfirmed','unverified','not confirmed','speculative','may','forecast']],ideal:8},
+  {label:'Weighs build-vs-buy tradeoffs',groups:[['tradeoff','build','buy','cost','time','both','opportunity','risk']],ideal:8},
+  {label:'Considers the team\'s lack of experience',groups:[['experience','expertise','learning curve','no prior','capability','team','risk']],ideal:7},
+  {label:'Makes a decision with calibrated uncertainty',groups:[['decide','recommend','conditional','if','revisit','hedge','wait','pilot']],ideal:7},
+  {label:'States who owns the final call',groups:[['we decide','i own','final call','responsible','accountable','owner','sign-off']],ideal:6}],
+  sim:"Weak assumption: the vendor 'will raise prices' is unconfirmed — it's a forecast, not a fact. Building for 6 months with 2 engineers who lack domain experience carries real delivery risk.\n\nTradeoffs: buy = lower upfront risk, dependency on vendor pricing; build = control + no license cost, but 6 months + learning curve + opportunity cost.\n\nDecision: confirm the pricing change first (request the vendor's roadmap/pricing). If confirmed, run a 6-week pilot build in parallel; if not, stay on the vendor and re-evaluate at renewal. Calibrated: moderate confidence — the decision hinges on one unverified fact.\n\nOwnership: final call is ours (product lead), not the AI's — AI informed, human decided."}
 ];
 const ONLINE_TASKS=[
  {suit:'evaluation',level:4,title:'Conflicting AI Recommendation',type:'F',body:'An AI gave you a business recommendation containing: 3 correct claims, 1 unsupported claim, 1 misleading assumption. Write ONE response identifying the unsupported claim, explaining why the evidence is insufficient, requesting the appropriate verification, and producing a corrected recommendation.',reqs:[
@@ -1261,9 +1376,10 @@ const OFFLINE_TASKS=[
    APP STATE
    ============================================================ */
 let queue=[], qi=0, deck=[], flowMode='gym', flowLevel='gym', flowType='prompt';
-let certTimer=null, certRemaining=0;
+let certTimer=null, certRemaining=0, lastFull=false;
+const QUICK_GYM = 3;   // quick = random 3; full = all GYM tasks
 
-/* ---------- 隨機出題:洗牌函式 (Fisher-Yates) ---------- */
+/* ---------- random selection + easy→hard ordering ---------- */
 function shuffle(arr){
   const a=arr.slice();
   for(let i=a.length-1;i>0;i--){
@@ -1276,10 +1392,14 @@ function shuffle(arr){
 function startAssessment(mode, full){
   ensureIdentity();
   flowMode=mode;
+  lastFull = (mode==='gym') ? !!full : false;
   let pool;
   if(mode==='online'){ pool=shuffle(ONLINE_TASKS); }
   else if(mode==='offline'){ pool=shuffle(OFFLINE_TASKS); }
-  else { const all=shuffle(GYM_TASKS); pool = full ? all : all.slice(0,3); }
+  else {
+    const n = full ? GYM_TASKS.length : QUICK_GYM;
+    pool = shuffle(GYM_TASKS).slice(0,n).sort((a,b)=>a.level-b.level); // random pick, then easy→hard
+  }
   queue=pool.map(t=>({...t})); qi=0; deck=[];
   $('flowMode').textContent = mode==='online' ? 'Online · Certified' : mode==='offline' ? 'Offline · Verified' : 'Gym · Practice';
   $('scoreCap').textContent = mode==='online' ? 'Online Certified TQ' : mode==='offline' ? 'Verified TQ' : 'Practice TQ';
@@ -1302,7 +1422,6 @@ function renderTimer(){
   $('timerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
 }
 function autoSubmit(){
-  /* FIX #4: don't double-submit if this task was already answered */
   if($('results').style.display==='block') return;
   toast('Time expired — auto-submitting.');
   if($('promptInput').value.trim().length>=10){ submitCurrent(); }
@@ -1328,19 +1447,36 @@ function getDomainName(task){
 }
 $('promptInput').addEventListener('input',e=>{ $('tokLive').textContent=estTokens(e.target.value); $('denLive').textContent=density(e.target.value).toFixed(3); });
 
-/* ---------- submit & grade ---------- */
+/* ---------- submit & grade (C × E × F × D + optional AI judge) ---------- */
 async function submitCurrent(empty=false){
   const prompt = empty ? '' : $('promptInput').value.trim();
   if(!empty && prompt.length<10){ toast('Write a bit more — at least a full sentence.'); return; }
   const task=queue[qi];
   const g=await engine.evaluate(task, prompt);
+
+  // AI response starts in parallel (never blocks grading)
+  const aiPromise = ai.generate(prompt||'Please respond to the task.').catch(()=>({text:task.sim, source:'built-in simulator'}));
+
+  // AI semantic judge (optional) — blends direction-correctness into coverage
+  let judge=null;
+  if(getJudgeEnabled() && prompt){
+    $('flowNote').textContent='Grading… (AI semantic judge)';
+    judge = await llmJudge(task, prompt);
+  }
+  if(judge){ g.judge=judge; g.Cfinal=Math.max(0,Math.min(1,0.5*g.C+0.5*judge.overall)); g.tq=g.Cfinal*g.E*g.F*(0.5+0.5*g.D); g.tier=tierOf(g.tq); }
+  else { g.judge=null; g.Cfinal=g.C; }
+
   $('submitBtn').style.display='none'; $('results').style.display='block';
   $('progFill').style.width=((qi+1)/queue.length*100)+'%';
+  $('flowNote').textContent='Instant local grading · AI response loads live';
 
   const list=$('reqList'); list.innerHTML='';
-  g.results.forEach((r,i)=>{ const div=document.createElement('div'); div.className='req-row '+(r.ok?'ok':'no'); div.style.animationDelay=(i*90)+'ms'; div.innerHTML=`<span class="mark">${r.ok?'✓':'✗'}</span><span>${r.label}${r.ok&&r.ev.length?`<span class="ev">matched: ${r.ev.join(', ')}</span>`:''}</span>`; list.appendChild(div); });
-  const dimCount = Object.keys(g.dims).length || 1;
-  $('formulaBox').innerHTML=`acc=<b>${g.acc.toFixed(3)}</b> · u=<b>${g.u}</b>/r=<b>${g.r}</b> · d=<b>${g.d.toFixed(3)}</b> · dims avg=<b>${(Object.values(g.dims).reduce((a,b)=>a+b,0)/dimCount).toFixed(3)}</b> · consistency ${g.cons.pass?'<b>pass</b>':'penalty '+g.cons.penalty.toFixed(3)}<br>TQ = acc × te × dim-integrity = <b>${g.tq.toFixed(2)}</b>`;
+  g.results.forEach((r,i)=>{ const div=document.createElement('div'); div.className='req-row '+(r.ok?'ok':'no'); div.style.animationDelay=(i*90)+'ms'; div.innerHTML=`<span class="mark">${r.ok?'✓':'✗'}</span><span>${r.label}${r.ok&&r.ev.length?`<span class="ev">matched: ${r.ev.join(', ')}</span>`:(r.part>0?`<span class="ev">partial ${Math.round(r.part*100)}%</span>`:'')}</span>`; list.appendChild(div); });
+
+  $('formulaBox').innerHTML=
+    `C 覆蓋=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E 原創=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(重疊 ${g.echo.toFixed(2)})</span> · F 形式=<b>${g.F.toFixed(3)}</b> · D 維度=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
+  $('judgeNote').innerHTML = g.judge ? `🤖 <b>AI 語意評審:</b> ${g.judge.direction}` : '';
+
   countUp($('scoreVal'),g.tq);
   const tb=$('tierBadge'); tb.textContent=g.tier; tb.className='tier-badge t-'+g.tier;
 
@@ -1348,16 +1484,16 @@ async function submitCurrent(empty=false){
   Object.entries(g.dims).slice(0,6).forEach(([k,v])=>{ const d=document.createElement('div'); d.className='d'; d.innerHTML=`<b>${k}</b> — ${(v*100).toFixed(0)}`; dimsEl.appendChild(d); });
 
   if(flowMode==='gym'){
-    saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, title:task.title, tq:g.tq, acc:g.acc, tier:g.tier, skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v1', scoring_version:'1'});
+    saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v2', scoring_version:'2'});
     DB.push('events',{type:'practice_completed', at:new Date().toISOString()});
   } else {
-    saveCertAttempt({tqid:ensureIdentity().tqid, level:flowMode, suit:task.suit, title:task.title, tq:g.tq, acc:g.acc, tier:g.tier, skillScores:g.dims, item_pool:flowMode==='offline'?'OFFLINE_SECURE_POOL':'ONLINE_POOL', data_source:'CERTIFICATION'});
+    saveCertAttempt({tqid:ensureIdentity().tqid, level:flowMode, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, item_pool:flowMode==='offline'?'OFFLINE_SECURE_POOL':'ONLINE_POOL', data_source:'CERTIFICATION'});
     DB.push('events',{type:flowMode+'_task_completed', at:new Date().toISOString()});
   }
   deck.push({suit:task.suit, score:g.tq, tier:g.tier});
 
   const badge=$('modelBadge'), body=$('aiBody'); badge.textContent='connecting…'; body.innerHTML='<span class="cursor"></span>';
-  ai.generate(prompt||'Please respond to the task.').then(res=>typeInto(body,res.text,badge,res.source)).catch(()=>typeInto(body,task.sim,badge,'built-in simulator'));
+  aiPromise.then(res=>typeInto(body,res.text,badge,res.source));
 
   $('nextBtn').textContent=(qi+1>=queue.length)?'See My Profile →':'Next Task →';
   $('nextBtn').onclick=()=>{ qi++; if(qi>=queue.length){ if(certTimer){ clearInterval(certTimer); certTimer=null; } showResult(); } else renderTask(); };
@@ -1372,7 +1508,6 @@ function showResult(){
   $('overallConf').textContent=(conf*100).toFixed(0)+'%';
   $('resultKicker').textContent = flowMode==='online' ? 'Online Certification Complete' : flowMode==='offline' ? 'Verified Assessment Complete' : 'Assessment Complete';
   $('resultTitle').textContent = flowMode==='online' ? 'Your Certified Online TQ' : flowMode==='offline' ? 'Your Verified TQ' : 'Your TQ Skill Profile';
-  /* FIX #6: single, clean assignment of the mode pill */
   $('resultMode').innerHTML=(flowMode==='online'?'Online Certified TQ':flowMode==='offline'?'Verified TQ':'Overall TQ')+' <b id="overallVal">'+overall.toFixed(2)+'</b>';
   $('certId').textContent='Record SYL-'+Math.random().toString(36).slice(2,8).toUpperCase();
   $('resultConfidence').innerHTML = `Confidence: <b style="color:var(--gold-2)">${(conf*100).toFixed(0)}%</b> · Evidence: ${deck.length} tasks · ${flowMode==='gym'?'Gym score (not certified)':flowMode==='online'?'Certified Online TQ':'Verified TQ'}. Percentile requires a defined reference population — reported once calibration data exists.`;
@@ -1399,7 +1534,7 @@ function showResult(){
 }
 
 /* ============================================================
-   PASSPORT — exactly three primary stages
+   PASSPORT — exactly three primary stages + on-chain notice
    ============================================================ */
 function renderPassport(){
   const gym = getAttempts().length>0;
@@ -1412,7 +1547,17 @@ function renderPassport(){
   $('ppSeg1').className='seg'+(gym?' on':'');
   $('ppSeg2').className='seg'+(online?' on':'');
   $('ppSeg3').className='seg'+(offline?' on':'');
-  $('ppFull').style.display = (gym&&online&&offline) ? 'block':'none';
+  const full = gym&&online&&offline;
+  $('ppFull').style.display = full ? 'block':'none';
+
+  // on-chain attestation notice (full passport)
+  if(full){
+    const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED');
+    const last=atts[atts.length-1];
+    $('ppChainNote').innerHTML = atts.length
+      ? `🔗 <b>On-chain:</b> your certification result has been attested on the blockchain (immutable &amp; verifiable). Reference <code>${last?last.uid:'—'}</code> · ${atts.length} attestation${atts.length>1?'s':''} recorded.`
+      : `🔗 <b>On-chain:</b> attesting your certification result…`;
+  }
 
   const grid=$('ppGrid'); grid.innerHTML='';
   const stages=[
@@ -1460,7 +1605,6 @@ function drawChart(range){
   const svg=$('chartSvg'); svg.innerHTML='';
   const attempts=getAttempts(); if(!attempts.length){ svg.innerHTML='<text x="10" y="20" fill="#5c6a82" font-size="12">Complete a practice to see your trend.</text>'; return; }
   const W=svg.clientWidth||700, H=svg.clientHeight||200;
-  /* FIX #5: explicit "All" handling (range 0) */
   const all=(range===0||range==='all');
   const pts=all?attempts.map((a,i)=>({x:i,y:a.tq})):attempts.slice(-range).map((a,i)=>({x:i,y:a.tq}));
   if(pts.length<2){ svg.innerHTML='<text x="10" y="20" fill="#5c6a82" font-size="12">Need more attempts for a trend.</text>'; return; }
@@ -1532,7 +1676,7 @@ function generatePDFCertificate(){
     <p>Level: ${tierOf(cred.score)} · Assessment: ${cred.assessment_type} v${cred.assessment_version}</p>
     <p>${cred.credential_type==='OFFLINE_VERIFIED'?'Identity: Verified · Proctored: Yes':'Identity: Payment (not identity)'}</p>
     <p>Certificate ID: ${cred.id} · Issued ${new Date(cred.issued_at).toLocaleDateString()}</p>
-    <p>Issuer: Sylphold · Blockchain: ${cred.blockchain_status}</p>
+    <p>Issuer: Sylphold · Blockchain: ${cred.blockchain_status} ${cred.blockchain_reference?('· '+cred.blockchain_reference):''}</p>
     <p>Verify: sylphold.com/verify/${cred.id}</p>
     <div style="border:1px solid #000;width:80px;height:80px;margin:20px auto;padding:6px">
       <svg width="68" height="68" viewBox="0 0 8 8">
@@ -1560,7 +1704,6 @@ function refreshPassportProfile(){
   $('ppVerified').textContent=offline?offline.toFixed(2):'—';
   $('ppCreds').textContent=getActiveCredentials().length;
   $('ppBadges').textContent=computeBadges().length;
-  /* FIX #1: null-safe attestations read */
   $('ppChain').textContent=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED').length;
 }
 document.querySelectorAll('.privacy-btn').forEach(b=>b.addEventListener('click',()=>{
@@ -1575,7 +1718,6 @@ function refreshCareer(){
   $('cpTq').textContent=v.length?Math.max(...v.map(c=>c.score)).toFixed(2):'—';
   $('cpLevel').textContent=tierOf(v.length?Math.max(...v.map(c=>c.score)):0);
   $('cpCreds').textContent=creds.length;
-  /* FIX #1: null-safe attestations read */
   $('cpChain').textContent=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED').length?'✓':'—';
   DB.push('events',{type:'career_profile_created', at:new Date().toISOString()});
 }
@@ -1586,7 +1728,9 @@ $('pdfProfileBtn').addEventListener('click',()=>{
 });
 $('badgeCopyBtn').addEventListener('click',()=>{
   const id=getIdentity();
-  const txt=`TQ · Human-AI Collaboration Intelligence\n✓ Full TQ Passport: Gym + Online + Offline\nVerified TQ by Sylphold · ${id.tqid}\nVerify: sylphold.com`;
+  const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED');
+  const last=atts[atts.length-1];
+  const txt=`TQ · Human-AI Collaboration Intelligence\n✓ Full TQ Passport: Gym + Online + Offline\nVerified TQ by Sylphold · ${id.tqid}\nOn-chain attestation: ${last?last.uid:'—'}\nVerify: sylphold.com`;
   navigator.clipboard.writeText(txt).then(()=>toast('Verified Badge copied')).catch(()=>toast(txt));
 });
 
@@ -1627,7 +1771,7 @@ function renderLeaderboard(){
     best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
     let bestAt=null;
     attempts.forEach(a=>{ if(bestAt==null || (a.tq||0)>bestAt.tq) bestAt=a; });
-    const map={planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',life:'Human Judgment',sales:'Collaboration Efficiency'};
+    const map={planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',life:'Human Judgment',sales:'Collaboration Efficiency',evaluation:'AI Output Evaluation',judgment:'Human Judgment',workflow:'AI Workflow Design',adversarial:'AI Output Evaluation',transfer:'AI Adaptability',verification:'Verification'};
     topSuit = bestAt ? (map[bestAt.suit]||bestAt.suit) : '—';
     bestTier = tierOf(best);
   }
@@ -1704,27 +1848,29 @@ $('proCancel').addEventListener('click',async()=>{
   refreshCoach();
 });
 $('proModal').addEventListener('click',e=>{ if(e.target.id==='proModal') $('proModal').classList.remove('open'); });
-$('settingsBtn').addEventListener('click',()=>{ $('keyInput').value=localStorage.getItem('tq_openai_key')||''; $('billingInterval').value='monthly'; $('proPrice').value=getPlans().find(p=>p.billing_interval==='monthly').price; $('settingsModal').classList.add('open'); });
+$('settingsBtn').addEventListener('click',()=>{ $('keyInput').value=localStorage.getItem('tq_openai_key')||''; $('billingInterval').value='monthly'; $('proPrice').value=getPlans().find(p=>p.billing_interval==='monthly').price; $('judgeToggle').value=getJudgeEnabled()?'on':'off'; $('settingsModal').classList.add('open'); });
 $('settingsModal').addEventListener('click',e=>{ if(e.target.id==='settingsModal') $('settingsModal').classList.remove('open'); });
 $('keySave').addEventListener('click',()=>{
   const v=$('keyInput').value.trim();
   v?localStorage.setItem('tq_openai_key',v):localStorage.removeItem('tq_openai_key');
+  localStorage.setItem('tq_judge', $('judgeToggle').value);
   const price=parseFloat($('proPrice').value);
   if(!isNaN(price)&&price>0){ const plans=getPlans(); plans.forEach(p=>p.price = p.billing_interval===$('billingInterval').value ? price : p.price); savePlans(); }
-  const st=$('keyStatus'); st.textContent=v?'Saved — direct GPT-4o-mini connection.':'Cleared — using free cloud relay. (Pricing updated)'; st.className='status-line ok';
+  const judgeOn=$('judgeToggle').value==='on';
+  const st=$('keyStatus'); st.textContent=(v?'Saved — direct GPT-4o-mini connection.':'Cleared — using free cloud relay.')+' Scoring: '+(judgeOn?'Rule + AI judge':'Rule-only')+'. (Pricing updated)'; st.className='status-line ok';
   refreshProUI();
 });
 $('keyClear').addEventListener('click',()=>{ localStorage.removeItem('tq_openai_key'); $('keyInput').value=''; $('keyStatus').textContent='Cleared — using free cloud relay.'; $('keyStatus').className='status-line ok'; });
 
 /* ============================================================
-   NAVIGATION + BOOT — CONSOLIDATED (FIX #3)
+   NAVIGATION + BOOT
    ============================================================ */
 function initStartButton(){
   const btn=document.getElementById('startBtn');
   if(!btn||btn.__wired) return;
   btn.__wired=true;
   btn.addEventListener('click',()=>{
-    const full=confirm('Full Gym assessment (6 tasks) instead of Quick (3 tasks)?\n\nOK = Full (6)\nCancel = Quick (3)');
+    const full=confirm('Full Gym assessment (all '+GYM_TASKS.length+' tasks, easy → hard) instead of Quick ('+QUICK_GYM+' random tasks)?\n\nOK = Full ('+GYM_TASKS.length+')\nCancel = Quick ('+QUICK_GYM+')');
     startAssessment('gym', full);
   });
 }
@@ -1746,7 +1892,7 @@ $('practiceBtn').addEventListener('click',()=>startAssessment('gym',false));
 $('howBtn').addEventListener('click',()=>{ const el=document.getElementById('how'); if(el) el.scrollIntoView({behavior:'smooth'}); });
 $('dashboardGoBtn').addEventListener('click',()=>{ refreshDashboard(); navTo('dashboard'); });
 $('passportGoBtn').addEventListener('click',()=>{ renderPassport(); navTo('passportView'); });
-$('againBtn').addEventListener('click',()=>{ navTo('landing'); refreshIdentityUI(); });
+$('againBtn').addEventListener('click',()=>{ startAssessment(flowMode, lastFull); }); // true retake
 $('shareBtn').addEventListener('click',()=>{
   const id=getIdentity(); const attempts=getAttempts(); const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
   const txt=`TQ · AI Collaboration Intelligence — Gym best ${best.toFixed(2)} (${tierOf(best)}) · ${id.tqid} · Train freely at sylphold.com`;
@@ -1761,7 +1907,7 @@ document.querySelector('a[href="#passportView"]').addEventListener('click',e=>{ 
 
 function refreshAll(){ refreshDashboard(); refreshCoach(); refreshVerified(); refreshPassportProfile(); refreshEnterprise(); refreshAdmin(); renderPassport(); }
 
-/* ---------- global error safety net (FIX #7: don't interrupt an active assessment) ---------- */
+/* ---------- global error safety net ---------- */
 window.addEventListener('error', ()=>{
   const flow=document.getElementById('flow');
   if(flow && flow.style.display==='block') return;
