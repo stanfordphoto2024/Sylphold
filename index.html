@@ -747,7 +747,7 @@
     <h3 style="margin-top:14px">Scoring Mode</h3>
     <div class="row" style="justify-content:flex-start">
       <select id="judgeToggle" style="width:100%">
-        <option value="on">Rule + AI semantic judge (方向對但說法不同也能給分)</option>
+        <option value="on">Rule + AI semantic judge (direction-correct answers score even if worded differently)</option>
         <option value="off">Rule-based only (faster, no extra AI call)</option>
       </select>
     </div>
@@ -1474,8 +1474,8 @@ async function submitCurrent(empty=false){
   g.results.forEach((r,i)=>{ const div=document.createElement('div'); div.className='req-row '+(r.ok?'ok':'no'); div.style.animationDelay=(i*90)+'ms'; div.innerHTML=`<span class="mark">${r.ok?'✓':'✗'}</span><span>${r.label}${r.ok&&r.ev.length?`<span class="ev">matched: ${r.ev.join(', ')}</span>`:(r.part>0?`<span class="ev">partial ${Math.round(r.part*100)}%</span>`:'')}</span>`; list.appendChild(div); });
 
   $('formulaBox').innerHTML=
-    `C 覆蓋=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E 原創=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(重疊 ${g.echo.toFixed(2)})</span> · F 形式=<b>${g.F.toFixed(3)}</b> · D 維度=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
-  $('judgeNote').innerHTML = g.judge ? `🤖 <b>AI 語意評審:</b> ${g.judge.direction}` : '';
+    `C coverage=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E originality=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(overlap ${g.echo.toFixed(2)})</span> · F form=<b>${g.F.toFixed(3)}</b> · D dimension=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
+  $('judgeNote').innerHTML = g.judge ? `🤖 <b>AI semantic judge:</b> ${g.judge.direction}` : '';
 
   countUp($('scoreVal'),g.tq);
   const tb=$('tierBadge'); tb.textContent=g.tier; tb.className='tier-badge t-'+g.tier;
