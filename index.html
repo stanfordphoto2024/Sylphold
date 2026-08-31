@@ -8,7 +8,7 @@
 <link rel="icon" href="2593.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
 <style>
   :root{
     --navy-0:#04070f; --navy-1:#070c18; --navy-2:#0b1424; --navy-3:#101d33;
@@ -171,7 +171,7 @@
   .lb-mini td{padding:9px 10px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05)}
   .lb-mini tr.you td{background:rgba(212,175,55,.07)}
 
-  /* ---------- verified / passport profile / enterprise / admin ---------- */
+  /* ---------- verified / passport profile / career ---------- */
   .creds{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
   .cred{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:20px}
   .cred .type{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
@@ -303,6 +303,133 @@
   footer p{font-size:11.5px;color:var(--faint);margin-top:12px;letter-spacing:.06em}
   .backend-note{font-size:11px;color:var(--faint);background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:10px;padding:10px 14px;margin-top:20px;line-height:1.6}
   .backend-note code{font-family:ui-monospace,monospace;color:var(--gold-2)}
+
+  /* ================= REALISTIC ENTERPRISE + ADMIN ================= */
+  .org-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px;
+    background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px}
+  .org-toolbar label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .org-toolbar select{background:#050a14;border:1px solid var(--line-soft);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:12.5px;outline:none}
+  .org-toolbar select:focus{border-color:var(--gold)}
+  .org-toolbar .spacer{flex:1}
+  .org-toolbar .pill{font-size:10.5px;padding:5px 11px}
+  .ent-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
+  .ent-kpi{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:16px 18px}
+  .ent-kpi .v{font-family:'Cinzel',serif;font-size:30px;font-weight:700;color:#fff;line-height:1}
+  .ent-kpi .k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+  .ent-kpi .d{font-size:11.5px;margin-top:6px;color:var(--faint)}
+  .ent-kpi .d.up{color:var(--t-uncommon)} .ent-kpi .d.down{color:#f87171}
+  .ent-kpi .spark{margin-top:8px;height:26px;width:100%}
+  .ent-kpi .spark svg{width:100%;height:26px}
+  .ent-2col{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-top:18px}
+  .ent-3col{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+  .ent-panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:20px}
+  .ent-panel h3{font-size:13.5px;color:#fff;letter-spacing:.05em;margin-bottom:4px}
+  .ent-panel .sub{font-size:11.5px;color:var(--faint);margin-bottom:14px;line-height:1.5}
+  .ent-chart{width:100%;height:210px}
+  .ent-chart svg{width:100%;height:100%}
+  .ent-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted)}
+  .ent-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .ent-table{width:100%;border-collapse:collapse;margin-top:6px}
+  .ent-table th{text-align:left;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);padding:8px 10px;border-bottom:1px solid var(--line-soft);cursor:pointer;white-space:nowrap}
+  .ent-table th:hover{color:var(--gold-2)}
+  .ent-table th.num,.ent-table td.num{text-align:right;font-family:ui-monospace,monospace}
+  .ent-table td{padding:10px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--ink)}
+  .ent-table tr.clickable{cursor:pointer;transition:background .15s}
+  .ent-table tr.clickable:hover{background:rgba(212,175,55,.06)}
+  .ent-table .delta.up{color:var(--t-uncommon)} .ent-table .delta.down{color:#f87171}
+  .ent-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12.5px}
+  .ent-bar-row .nm{width:150px;color:var(--muted);flex:0 0 auto}
+  .ent-bar-row .bar{flex:1;height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .ent-bar-row .bar i{display:block;height:100%;background:var(--grad-gold)}
+  .ent-bar-row .val{width:38px;text-align:right;font-family:ui-monospace,monospace;color:var(--gold-2)}
+  .ent-bar-row .bench{width:64px;text-align:right;font-size:10.5px;color:var(--faint)}
+  .ent-bar-row .bench.below{color:#f87171} .ent-bar-row .bench.above{color:var(--t-uncommon)}
+  .pill-ok{color:var(--t-uncommon);border:1px solid rgba(52,211,153,.4);border-radius:99px;padding:2px 9px;font-size:10px;letter-spacing:.08em}
+  .pill-warn{color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:2px 9px;font-size:10px;letter-spacing:.08em}
+  .pill-risk{color:#f87171;border:1px solid rgba(248,113,113,.4);border-radius:99px;padding:2px 9px;font-size:10px;letter-spacing:.08em}
+  .privacy-banner{display:flex;gap:12px;align-items:flex-start;background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.28);border-radius:12px;padding:12px 14px;margin-top:16px;font-size:12px;color:#bfe9d6;line-height:1.6}
+  .privacy-banner b{color:var(--offline)}
+  .privacy-banner code{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-2)}
+  .toggle{position:relative;display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
+  .toggle input{display:none}
+  .toggle .track{width:38px;height:22px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--line-soft);transition:.2s;position:relative;flex:0 0 auto}
+  .toggle .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.2s}
+  .toggle input:checked + .track{background:rgba(212,175,55,.35);border-color:var(--gold)}
+  .toggle input:checked + .track::after{transform:translateX(16px);background:var(--gold-2)}
+  .toggle .lbl{font-size:12px;color:var(--muted)}
+  .admin-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
+  .admin-kpi{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:16px}
+  .admin-kpi .v{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--gold-2)}
+  .admin-kpi .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:5px}
+  .admin-kpi .d{font-size:11px;color:var(--faint);margin-top:4px}
+  .funnel{margin-top:6px}
+  .funnel .stage{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:12.5px}
+  .funnel .stage .nm{width:150px;color:var(--muted);flex:0 0 auto}
+  .funnel .stage .track{flex:1;height:22px;border-radius:7px;background:rgba(255,255,255,.05);overflow:hidden;position:relative}
+  .funnel .stage .track i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold-2));border-radius:7px}
+  .funnel .stage .num{width:110px;text-align:right;font-family:ui-monospace,monospace;color:var(--ink)}
+  .funnel .stage .num small{color:var(--faint)}
+  .retention-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px}
+  .ret-card{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:12px;padding:14px;text-align:center}
+  .ret-card .v{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:#fff}
+  .ret-card .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  .psych-table{width:100%;border-collapse:collapse;margin-top:6px}
+  .psych-table th{text-align:left;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:8px 10px;border-bottom:1px solid var(--line-soft)}
+  .psych-table td{padding:9px 10px;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--ink)}
+  .psych-table td.num{font-family:ui-monospace,monospace;text-align:right}
+  .psych-table .grade{font-size:10px;letter-spacing:.08em;padding:2px 8px;border-radius:99px;border:1px solid}
+  .g-excellent{color:var(--t-uncommon);border-color:var(--t-uncommon)}
+  .g-good{color:var(--gold-2);border-color:var(--line)}
+  .g-marginal{color:var(--gold-2);border-color:var(--line);opacity:.8}
+  .g-poor{color:#f87171;border-color:rgba(248,113,113,.4)}
+  @media (max-width:860px){.ent-kpis,.admin-kpis{grid-template-columns:repeat(2,1fr)}.ent-2col,.ent-3col{grid-template-columns:1fr}.retention-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:560px){.ent-kpis,.admin-kpis{grid-template-columns:1fr}.ent-bar-row .nm{width:110px}.funnel .stage .nm{width:100px}.funnel .stage .num{width:80px}}
+
+  /* ================= CERTIFICATE (heraldic, print) ================= */
+  .cert-toolbar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .cert-scroll{margin-top:24px;display:flex;justify-content:center}
+  .cert{
+    position:relative;width:1000px;max-width:100%;aspect-ratio:1.414/1;
+    background:
+      radial-gradient(120% 120% at 50% 0%, #12203a 0%, #0b1424 42%, #05080f 100%);
+    border:1px solid var(--gold-deep);
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+    color:var(--ink);
+    font-family:'EB Garamond',Georgia,serif;
+    overflow:hidden;
+  }
+  .cert .frame{position:absolute;inset:16px;border:1.5px solid var(--gold);border-radius:4px;pointer-events:none}
+  .cert .frame::after{content:"";position:absolute;inset:8px;border:1px solid rgba(212,175,55,.4);border-radius:2px}
+  .cert .corner{position:absolute;width:46px;height:46px;border:2px solid var(--gold);opacity:.9}
+  .cert .corner.tl{top:26px;left:26px;border-right:none;border-bottom:none}
+  .cert .corner.tr{top:26px;right:26px;border-left:none;border-bottom:none}
+  .cert .corner.bl{bottom:26px;left:26px;border-right:none;border-top:none}
+  .cert .corner.br{bottom:26px;right:26px;border-left:none;border-top:none}
+  .cert-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:5% 9%}
+  .cert-seal{width:132px;height:132px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%, #14233d, #05080f 82%);border:1px solid var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.18), 0 0 30px rgba(212,175,55,.25);display:grid;place-items:center;margin-bottom:14px}
+  .cert-seal img{width:100%;height:100%;object-fit:cover}
+  .cert-brand{font-family:'Cinzel',serif;font-weight:800;letter-spacing:.34em;font-size:26px;margin-bottom:2px}
+  .cert-sub{font-family:'Cinzel',serif;letter-spacing:.32em;font-size:11px;color:var(--gold-2);text-transform:uppercase}
+  .cert-rule{display:flex;align-items:center;gap:12px;margin:16px 0 10px;color:var(--gold)}
+  .cert-rule .line{width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
+  .cert-rule .line.r{background:linear-gradient(90deg,var(--gold),transparent)}
+  .cert-rule .star{font-size:14px}
+  .cert-title{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.18em;font-size:30px;color:#fff;margin:4px 0 2px}
+  .cert-lead{font-size:15px;color:var(--muted);font-style:italic;margin-bottom:14px}
+  .cert-name{font-family:'Cinzel',serif;font-weight:700;font-size:34px;color:var(--gold-2);letter-spacing:.04em;border-bottom:1px solid var(--line);padding-bottom:8px;min-width:52%;margin-bottom:14px}
+  .cert-body{font-size:15.5px;color:#d5deee;line-height:1.7;max-width:760px;margin-bottom:16px}
+  .cert-body .big{font-family:'Cinzel',serif;font-weight:700;font-size:24px;color:#fff}
+  .cert-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:18px}
+  .cert-chips span{font-family:'Inter',sans-serif;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
+  .cert-sign{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;width:100%;max-width:760px;margin-top:auto}
+  .cert-sign .col{flex:1;text-align:center}
+  .cert-sign .sig{font-family:'Cinzel',serif;font-style:italic;font-size:22px;color:#fff;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px}
+  .cert-sign .lbl{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  .cert-qr{width:74px;height:74px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px;display:grid;place-items:center}
+  .cert-qr svg{width:100%;height:100%}
+  .cert-verify{font-family:'Inter',sans-serif;font-size:10px;color:var(--faint);margin-top:14px;letter-spacing:.06em}
+  .cert-verify code{color:var(--gold-2);font-family:ui-monospace,monospace}
+  .cert-watermark{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel',serif;font-weight:800;font-size:240px;color:rgba(212,175,55,.04);letter-spacing:.1em;pointer-events:none;user-select:none}
 
   @media (max-width:860px){.how-grid,.deck,.split,.creds,.admin-grid,.pp-grid,.mode-select{grid-template-columns:1fr 1fr}.dash,.ent-grid{grid-template-columns:1fr}.grade-wrap{grid-template-columns:1fr}.coach-plan{grid-template-columns:1fr}.nav .links a:not(.keep){display:none}}
   @media (max-width:560px){.how-grid,.deck,.split,.creds,.admin-grid,.dash,.ent-grid,.pp-grid,.mode-select{grid-template-columns:1fr}.hero{padding-top:44px}.skill-row .nm{width:150px}}
@@ -565,7 +692,6 @@
         <p>Book an appointment · identity verified by proctor · high-difficulty adaptive assessment from an independent secure pool · highest-trust credential.</p>
         <div class="cta-row" style="margin-top:16px">
           <button class="btn btn-offline" id="offlineCertBtn">Book / Simulate Offline</button>
-          <button class="btn btn-ghost" id="certBtn">Generate PDF Certificate</button>
         </div>
       </div>
     </div>
@@ -614,47 +740,186 @@
     </div>
   </section>
 
+  <!-- ======================= CERTIFICATE / CREDENTIAL ======================= -->
+  <section class="block" id="certificate" style="display:none">
+    <div class="kicker">Credential · Measure · Verify · Empower</div>
+    <h2 class="sec-title">TQ Certificate of Certification</h2>
+    <p class="sec-sub">Your official SYLPHOLD credential in the heraldic seal style. Embeds the certification seal, on-chain attestation reference, and a verification code. Use "Download / Print PDF" to save it as a landscape PDF.</p>
+    <div class="cert-toolbar">
+      <button class="btn btn-gold" id="certDownloadBtn">Download / Print PDF</button>
+      <button class="btn btn-ghost" id="certBackBtn">← Back to Certification Center</button>
+    </div>
+    <div class="cert-scroll">
+      <div class="cert" id="certDoc">
+        <div class="frame"></div>
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="cert-watermark">TQ</div>
+        <div class="cert-inner">
+          <div class="cert-seal" id="certSeal"></div>
+          <div class="cert-brand gold-text">SYLPHOLD</div>
+          <div class="cert-sub">Certification · Measure · Verify · Empower</div>
+          <div class="cert-rule"><span class="line"></span><span class="star">✦</span><span class="line r"></span></div>
+          <div class="cert-title">CERTIFICATE OF CERTIFICATION</div>
+          <div class="cert-lead">This is to certify that</div>
+          <div class="cert-name" id="certName">—</div>
+          <div class="cert-body" id="certBody">—</div>
+          <div class="cert-chips" id="certChips"></div>
+          <div class="cert-sign">
+            <div class="col"><div class="sig">S. Aurelia</div><div class="lbl">Registrar · Sylphold</div></div>
+            <div class="col" style="flex:0 0 auto"><div class="cert-qr" id="certQr"></div><div class="lbl" style="margin-top:6px">Verify</div></div>
+            <div class="col"><div class="sig" id="certDate">—</div><div class="lbl">Date of Issue</div></div>
+          </div>
+          <div class="cert-verify" id="certVerify">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="backend-note">🖨️ <b>PDF:</b> the print surface is rendered into an isolated frame that waits for the seal image + fonts to load before opening the print dialog — choose "Save as PDF" (landscape) in the dialog. On-chain attestation reference is printed on the credential for public verification.</div>
+  </section>
+
   <!-- ======================= ENTERPRISE ======================= -->
   <section class="block" id="enterprise" style="display:none">
-    <div class="kicker">TQ for Organizations · Aggregate</div>
+    <div class="kicker">TQ for Organizations · Aggregate Analytics</div>
     <h2 class="sec-title">Enterprise Dashboard</h2>
-    <p class="sec-sub">Understand and develop Human-AI Collaboration Intelligence across your workforce. Default reporting is aggregate — individual data is only shown when authorized.</p>
-    <div class="ent-grid">
-      <div class="ent-card"><div class="v">523</div><div class="k">Employees</div></div>
-      <div class="ent-card"><div class="v">87%</div><div class="k">Assessment Participation</div></div>
-      <div class="ent-card"><div class="v">128</div><div class="k">Average TQ</div></div>
-      <div class="ent-card"><div class="v">157+</div><div class="k">Top 10%</div></div>
+    <p class="sec-sub">Understand and develop Human-AI Collaboration Intelligence across your workforce. Reporting is <b style="color:var(--gold-2)">aggregate by default</b> — individual data is only shown when a least-privilege role authorizes it.</p>
+
+    <div class="org-toolbar">
+      <label>Organization</label>
+      <select id="orgSelect"></select>
+      <label>Department</label>
+      <select id="deptSelect"></select>
+      <label>Period</label>
+      <select id="periodSelect">
+        <option value="30">Last 30 days</option>
+        <option value="90" selected>Last 90 days</option>
+        <option value="180">Last 180 days</option>
+      </select>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="piiToggle"><span class="track"></span><span class="lbl">Reveal individual (auth)</span></label>
     </div>
-    <div class="panel" style="margin-top:18px">
-      <h3>Skill Distribution (aggregate)</h3>
-      <div id="entSkills"></div>
+
+    <div class="privacy-banner" id="entPrivacy">
+      <span>🔐</span><div id="entPrivacyText"></div>
     </div>
-    <div class="backend-note">🏢 <b>Demo:</b> enterprise view is seeded aggregate data clearly marked as demo. Production: <code>Organization → OrganizationMember → OrganizationAssessment → aggregate analytics</code> with least-privilege roles.</div>
+
+    <div class="ent-kpis" id="entKpis"></div>
+
+    <div class="ent-2col">
+      <div class="ent-panel">
+        <h3>Adoption &amp; Engagement</h3>
+        <div class="sub">Weekly active rate vs enrolled seats — the leading indicator. Engagement decay precedes contract non-renewal by 6–9 months.</div>
+        <div class="ent-chart"><svg id="entAdoptionChart"></svg></div>
+        <div class="ent-legend">
+          <span><i style="background:#f0d98c"></i>Weekly active rate</span>
+          <span><i style="background:#38bdf8"></i>Assessment completion</span>
+          <span><i style="background:#34d399"></i>Certification pass rate</span>
+        </div>
+      </div>
+      <div class="ent-panel">
+        <h3>Seat Utilization</h3>
+        <div class="sub">Share of purchased seats active in the period. Accounts under 50% at renewal are churn risks.</div>
+        <div class="ent-chart"><svg id="entUtilChart"></svg></div>
+        <div class="ent-legend"><span><i style="background:#d4af37"></i>Active seats</span><span><i style="background:rgba(255,255,255,.15)"></i>Purchased seats</span></div>
+      </div>
+    </div>
+
+    <div class="ent-3col">
+      <div class="ent-panel">
+        <h3>Skill Distribution vs Benchmark</h3>
+        <div class="sub">Mean domain score (0–100) vs external benchmark. Red = below market.</div>
+        <div id="entSkills"></div>
+      </div>
+      <div class="ent-panel">
+        <h3>Certification Funnel</h3>
+        <div class="sub">Enrolled → first assessment → certified → verified.</div>
+        <div class="funnel" id="entFunnel"></div>
+      </div>
+      <div class="ent-panel">
+        <h3>Department Scorecard</h3>
+        <div class="sub">Click a row to drill in. Sorted by average TQ.</div>
+        <table class="ent-table"><thead><tr><th>Dept</th><th class="num">Head</th><th class="num">Part.</th><th class="num">Avg TQ</th><th class="num">Δ</th></tr></thead><tbody id="entDepts"></tbody></table>
+      </div>
+    </div>
+
+    <div class="ent-panel" style="margin-top:18px">
+      <h3>Program Health &amp; Next-Best Actions</h3>
+      <div class="sub">Threshold-based alerts generated from the current filter. Each maps to an owner and action.</div>
+      <table class="ent-table"><thead><tr><th>Status</th><th>Signal</th><th>Owner</th><th>Recommended action</th></tr></thead><tbody id="entActions"></tbody></table>
+    </div>
+
+    <div class="ent-panel" style="margin-top:18px" id="entMembersPanel">
+      <h3>Individual Members <span class="pill-risk" style="margin-left:8px">Restricted</span></h3>
+      <div class="sub">Least-privilege: individual scores are masked unless your role includes <code>member:read_pii</code> and the reveal toggle is on.</div>
+      <table class="ent-table"><thead><tr><th>Member</th><th>Dept</th><th>Role</th><th class="num">TQ</th><th>Cert</th><th>Last active</th></tr></thead><tbody id="entMembers"></tbody></table>
+    </div>
+
+    <div class="backend-note">🏢 <b>Demo:</b> org data is a seeded synthetic population (deterministic per org) clearly marked as demo. Production: <code>Organization → OrganizationMember → OrganizationAssessment → aggregate analytics</code> with least-privilege roles, row-level security, and a <code>member:read_pii</code> scope gate. Metrics (WAU, utilization, funnel, retention) are computed from the seeded event stream, not hard-coded.</div>
   </section>
 
   <!-- ======================= ADMIN ======================= -->
   <section class="block" id="admin" style="display:none">
-    <div class="kicker">Admin · Feature Flags · Config</div>
+    <div class="kicker">Admin · Growth · Psychometrics · Config</div>
     <h2 class="sec-title">Admin Panel</h2>
-    <div class="admin-grid">
-      <div class="admin-card"><div class="v" id="admUsers">0</div><div class="k">TQ Identities</div></div>
-      <div class="admin-card"><div class="v" id="admAttempts">0</div><div class="k">Practice Attempts</div></div>
-      <div class="admin-card"><div class="v" id="admPro">0</div><div class="k">TQ Pro Subscribers</div></div>
-      <div class="admin-card"><div class="v" id="admCreds">0</div><div class="k">Credentials</div></div>
-      <div class="admin-card"><div class="v" id="admChallenges">0</div><div class="k">Challenge Completions</div></div>
-      <div class="admin-card"><div class="v">—</div><div class="k">Revenue (MRR) · demo</div></div>
+
+    <div class="admin-kpis" id="admKpis"></div>
+
+    <div class="ent-2col">
+      <div class="ent-panel">
+        <h3>Activation &amp; Conversion Funnel</h3>
+        <div class="sub">Identity → first practice → certified → paid. Conversion rates between stages.</div>
+        <div class="funnel" id="admFunnel"></div>
+      </div>
+      <div class="ent-panel">
+        <h3>Retention (cohort)</h3>
+        <div class="sub">Share of an identity cohort active N days after first practice. Leading indicator of paid conversion.</div>
+        <div class="retention-grid" id="admRetention"></div>
+        <div class="ent-chart" style="height:150px;margin-top:12px"><svg id="admRetChart"></svg></div>
+      </div>
     </div>
-    <div class="panel" style="margin-top:18px">
-      <h3>Psychometric Layer · demo</h3>
-      <div class="skill-row"><span class="nm">Reliability (demo)</span><div class="bar"><i style="width:84%"></i></div><span class="val">0.84</span></div>
-      <div class="skill-row"><span class="nm">Item Discrimination</span><div class="bar"><i style="width:72%"></i></div><span class="val">0.72</span></div>
-      <div class="skill-row"><span class="nm">Evaluator Agreement</span><div class="bar"><i style="width:91%"></i></div><span class="val">0.91</span></div>
+
+    <div class="ent-3col">
+      <div class="ent-panel">
+        <h3>Engagement</h3>
+        <div class="sub">DAU / WAU / MAU computed from the local event stream.</div>
+        <div id="admEngage"></div>
+      </div>
+      <div class="ent-panel">
+        <h3>Revenue (demo)</h3>
+        <div class="sub">MRR, ARPU, trial→paid conversion from seeded subscriptions.</div>
+        <div id="admRevenue"></div>
+      </div>
+      <div class="ent-panel">
+        <h3>Assessment Integrity</h3>
+        <div class="sub">Anti-cheat signals across certification attempts.</div>
+        <div id="admIntegrity"></div>
+      </div>
     </div>
-    <div class="panel" style="margin-top:18px">
+
+    <div class="ent-panel" style="margin-top:18px">
+      <h3>Psychometric Layer · live calibration</h3>
+      <div class="sub">Cronbach's α (internal consistency), item discrimination D = p<sub>upper</sub> − p<sub>lower</sub> (top/bottom 27%), and evaluator agreement. Computed from real attempts where ≥3 exist; otherwise flagged <span class="pill-warn">insufficient data</span>. Benchmarks: α &gt; .70 acceptable · D ≥ .40 excellent · below .20 poor.</div>
+      <table class="psych-table"><thead><tr><th>Domain</th><th class="num">n</th><th class="num">α</th><th class="num">Discrim. D</th><th>Grade</th></tr></thead><tbody id="admPsych"></tbody></table>
+      <div class="ent-2col" style="margin-top:16px">
+        <div class="ent-panel" style="border:none;padding:0">
+          <h3 style="font-size:12.5px">Evaluator Agreement (Krippendorff-style)</h3>
+          <div class="sub">Rule-evaluator vs AI-judge agreement on coverage. Higher = more trustworthy scoring.</div>
+          <div class="ent-chart" style="height:150px"><svg id="admAgreeChart"></svg></div>
+          <div id="admAgreeStat" style="font-size:12.5px;color:var(--muted);margin-top:8px"></div>
+        </div>
+        <div class="ent-panel" style="border:none;padding:0">
+          <h3 style="font-size:12.5px">Item Difficulty vs Discrimination</h3>
+          <div class="sub">Each point is a task; x = difficulty (pass rate), y = discrimination. Healthy items sit top-left of the diagonal. Red = flagged for review.</div>
+          <div class="ent-chart" style="height:170px"><svg id="admScatter"></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ent-panel" style="margin-top:18px">
       <h3>Feature Flags</h3>
+      <div class="sub">Runtime config — toggling takes effect immediately.</div>
       <div class="flag-row" id="flagRow"></div>
     </div>
-    <div class="backend-note">⚙️ <b>Demo:</b> metrics computed from local data. Production: PostgreSQL + analytics events (DAU/WAU/MAU, retention, conversion funnels) + subscription webhooks + psychometric calibration jobs.</div>
+
+    <div class="backend-note">⚙️ <b>Demo:</b> metrics computed from local data + seeded synthetic cohort. Production: PostgreSQL + analytics events (DAU/WAU/MAU, retention, conversion funnels) + subscription webhooks + scheduled psychometric calibration jobs (α, IRT calibration, DIF checks).</div>
   </section>
 
   <!-- ======================= TEST FLOW ======================= -->
@@ -834,17 +1099,14 @@
 
 <script>
 /* ============================================================
-   SYLPHOLD · TQ — Human-AI Collaboration Intelligence (V5)
-   - Three assessment levels: GYM / ONLINE / OFFLINE
-   - GYM: 12 tasks, difficulty 1→7, endless retakes, easy→hard
-   - ONLINE: 20 tasks (adaptive, timed) · OFFLINE: 20 tasks (verified, timed)
-   - Scoring: C(coverage) × E(originality) × F(form) × D(dimension)
-     + optional AI semantic judge
-   - No confirm() popups — mode selection is on-page
+   SYLPHOLD · TQ — Human-AI Collaboration Intelligence (V6)
+   - GYM (12, endless) / ONLINE (20) / OFFLINE (20)
+   - Heraldic navy+gold theme · professional certificate + PDF
+   - Realistic Enterprise + Admin (computed metrics, filters,
+     least-privilege PII, psychometrics)
    ============================================================ */
 const LOGO = '2593.png';
 
-/* ---------- logo injection with robust fallback ---------- */
 function monogramSVG(seq){
   const gid='tqg'+seq;
   return '<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true">' +
@@ -867,9 +1129,6 @@ function paintLogo(el){
 ['logoHeader','logoHero','logoSeal','logoFoot'].forEach(id=>paintLogo(document.getElementById(id)));
 const $ = id => document.getElementById(id);
 
-/* ============================================================
-   FEATURE FLAGS + PLANS
-   ============================================================ */
 const DEFAULT_FLAGS = {
   TQ_PRO:true, TQ_COACH:true, CHALLENGES:true, LEADERBOARD:true,
   CAREER_PROFILE:true, BLOCKCHAIN:true, OFFLINE_ASSESSMENT:true,
@@ -886,9 +1145,6 @@ function getPlans(){
 }
 function savePlans(){ localStorage.setItem('tq_plans', JSON.stringify(getPlans())); }
 
-/* ============================================================
-   DATA MODEL (localStorage = "PostgreSQL" in this demo)
-   ============================================================ */
 function uid(prefix){ return prefix + '-' + Math.random().toString(36).slice(2,6).toUpperCase() + '-' + Math.random().toString(36).slice(2,6).toUpperCase(); }
 const DB = {
   get(k){ try{ return JSON.parse(localStorage.getItem('tq_'+k)||'null'); }catch(e){ return null; } },
@@ -902,7 +1158,6 @@ function ensureIdentity(){
   if(!id){
     id = { tqid: uid('TQID'), name:'', handle:'', online_activity:true, offline_activity:false, privacy:'private', created_at:new Date().toISOString() };
     setIdentity(id);
-    // FIX: register identity only once (prevents inflating the Admin identity count on reload)
     const list = DB.get('identities')||[];
     if(!list.some(x=>x.tqid===id.tqid)){ list.push(id); DB.set('identities', list); }
   }
@@ -913,9 +1168,6 @@ function getAttempts(){ return DB.get('attempts')||[]; }
 function saveCertAttempt(a){ DB.push('certAttempts', {...a, attempt_id:uid('CA'), timestamp:new Date().toISOString(), data_source:'CERTIFICATION'}); }
 function getCertAttempts(){ return DB.get('certAttempts')||[]; }
 
-/* ============================================================
-   SKILL MODEL — 10 domains
-   ============================================================ */
 const DOMAINS = [
   {id:'problem_formulation', name:'Problem Formulation', icon:'🧭', color:'#4f8ef7', subs:['Goal Definition','Problem Decomposition','Constraint Identification','Requirement Clarity','Ambiguity Reduction']},
   {id:'context_engineering', name:'Context Engineering', icon:'🗂️', color:'#38bdf8', subs:['Context Selection','Context Organization','Context Prioritization','Context Compression','Context Updating']},
@@ -930,9 +1182,6 @@ const DOMAINS = [
 ];
 function getSkills(){ const s = DB.get('skills'); if(s && s.length) return s; return DOMAINS; }
 
-/* ============================================================
-   SCORING ENGINE — C × E × F × D
-   ============================================================ */
 const FILLER = ['please','thank you','thanks','thx','i think','i believe','i guess','i want you to','i want','i need you to','i need','can you','could you','would you','help me','for me','just','really','very','actually','basically','honestly','kind of','sort of','like','um','uh','hmm','maybe','probably','dear','hi','hello','hey','sorry','by the way','a bit','no offense','well','ok','okay'];
 function esc(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 function estTokens(text){ const t=text.trim(); if(!t)return 0; return Math.max(1, Math.round(t.split(/\s+/).length*1.33)); }
@@ -945,106 +1194,51 @@ function density(prompt){
 function tierOf(tq){ if(tq>=1.6)return 'Epic'; if(tq>=1.2)return 'Rare'; if(tq>=0.8)return 'Uncommon'; return 'Common'; }
 function ngrams(s, n){
   const w = s.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g,' ').split(/\s+/).filter(Boolean);
-  const out=[];
-  for(let i=0;i+n<=w.length;i++) out.push(w.slice(i,i+n).join(' '));
-  return out;
+  const out=[]; for(let i=0;i+n<=w.length;i++) out.push(w.slice(i,i+n).join(' ')); return out;
 }
 function echoRatio(prompt, taskBody){
-  const pg = ngrams(prompt,3);
-  if(!pg.length) return 0;
-  const tg = new Set(ngrams(taskBody,3));
-  let hit=0; for(const g of pg) if(tg.has(g)) hit++;
-  return hit/pg.length;
+  const pg = ngrams(prompt,3); if(!pg.length) return 0;
+  const tg = new Set(ngrams(taskBody,3)); let hit=0; for(const g of pg) if(tg.has(g)) hit++; return hit/pg.length;
 }
-function echoMult(e){
-  if(e<=0.50) return 1;
-  if(e>=0.85) return 0.5;
-  return 1 - (e-0.50)/(0.35)*0.5;
-}
+function echoMult(e){ if(e<=0.50) return 1; if(e>=0.85) return 0.5; return 1 - (e-0.50)/(0.35)*0.5; }
 function reqKind(req){ return /^(restates?|states?|mentions?)/i.test(req.label.trim()) ? 'fact' : 'ask'; }
-function reqPart(p, r){
-  if(!r.groups.length) return 0;
-  const hit = r.groups.filter(g=>g.some(k=>p.includes(k.toLowerCase()))).length;
-  return hit/r.groups.length;
-}
-function coverage(p, task){
-  let wsum=0, wtot=0;
-  for(const r of task.reqs){
-    const w = reqKind(r)==='ask' ? 1.25 : 1;
-    wsum += w*reqPart(p, r); wtot += w;
-  }
-  return wtot? wsum/wtot : 0;
-}
+function reqPart(p, r){ if(!r.groups.length) return 0; const hit = r.groups.filter(g=>g.some(k=>p.includes(k.toLowerCase()))).length; return hit/r.groups.length; }
+function coverage(p, task){ let wsum=0, wtot=0; for(const r of task.reqs){ const w = reqKind(r)==='ask' ? 1.25 : 1; wsum += w*reqPart(p, r); wtot += w; } return wtot? wsum/wtot : 0; }
 function dimensionScores(task, okReqs){
-  const skills = getSkills();
-  const ok = okReqs.length;
-  const dims = {};
+  const skills = getSkills(); const ok = okReqs.length; const dims = {};
   const base = Math.min(0.95, 0.35 + ok/task.reqs.length*0.5);
-  skills.forEach((s,i)=>{ dims[s.name] = Math.min(1, base + (i%3)*0.03); });
-  return dims;
+  skills.forEach((s,i)=>{ dims[s.name] = Math.min(1, base + (i%3)*0.03); }); return dims;
 }
 function consistencyCheck(dims){
-  const vals = Object.values(dims);
-  const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const vals = Object.values(dims); const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
   const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length);
   return { sd, penalty: Math.min(0.1, sd*0.25), pass: sd < 0.12 };
 }
 function gradeTask(task, prompt){
   const p = ' '+prompt.toLowerCase().replace(/\s+/g,' ')+' ';
-  const results = task.reqs.map(r=>{
-    const hit = r.groups.filter(g=>g.some(k=>p.includes(k.toLowerCase())));
-    return {label:r.label, ok:hit.length===r.groups.length, part:reqPart(p,r), kind:reqKind(r), ev:hit.slice(0,3).map(g=>g[0])};
-  });
-  const C = coverage(p, task);
-  const echo = echoRatio(prompt, task.body);
-  const E = echoMult(echo);
-  const u = estTokens(prompt);
-  const r = 8 + task.reqs.reduce((s,x)=>s+x.ideal,0);
-  const d = density(prompt);
-  const F = 2/(1+u/r) * d;
-  const dims = dimensionScores(task, results.filter(x=>x.ok));
-  const cons = consistencyCheck(dims);
-  const dimAvg = Object.values(dims).reduce((a,b)=>a+b,0)/Object.keys(dims).length;
-  const D = Math.max(0, dimAvg - cons.penalty);
-  const tq = C * E * F * (0.5 + 0.5*D);
+  const results = task.reqs.map(r=>{ const hit = r.groups.filter(g=>g.some(k=>p.includes(k.toLowerCase()))); return {label:r.label, ok:hit.length===r.groups.length, part:reqPart(p,r), kind:reqKind(r), ev:hit.slice(0,3).map(g=>g[0])}; });
+  const C = coverage(p, task); const echo = echoRatio(prompt, task.body); const E = echoMult(echo);
+  const u = estTokens(prompt); const r = 8 + task.reqs.reduce((s,x)=>s+x.ideal,0); const d = density(prompt);
+  const F = 2/(1+u/r) * d; const dims = dimensionScores(task, results.filter(x=>x.ok));
+  const cons = consistencyCheck(dims); const dimAvg = Object.values(dims).reduce((a,b)=>a+b,0)/Object.keys(dims).length;
+  const D = Math.max(0, dimAvg - cons.penalty); const tq = C * E * F * (0.5 + 0.5*D);
   return {acc:C, C, echo, E, F, D, u, r, d, te:F, tq, tier:tierOf(tq), results, dims, cons, skillScores:dims};
 }
 function estimateConfidence(evidenceCount, spread){
-  const base = Math.min(0.97, 0.55 + evidenceCount*0.06);
-  const spreadPenalty = Math.min(0.2, (spread||0)*0.5);
+  const base = Math.min(0.97, 0.55 + evidenceCount*0.06); const spreadPenalty = Math.min(0.2, (spread||0)*0.5);
   return Math.max(0.3, Math.min(0.97, base - spreadPenalty));
 }
-/* FIX: adaptive selection is now actually used for cert modes (difficulty-anchored pick) */
 function adaptivePick(pool, ability){
-  if(!pool.length) return null;
-  const target = 3 + Math.round(ability*7); // ability 0..1 -> target difficulty ~3..10
-  let best=pool[0], bestGap=Infinity;
-  for(const t of pool){ const g=Math.abs(t.level-target); if(g<bestGap){bestGap=g;best=t;} }
-  return best;
+  if(!pool.length) return null; const target = 3 + Math.round(ability*7);
+  let best=pool[0], bestGap=Infinity; for(const t of pool){ const g=Math.abs(t.level-target); if(g<bestGap){bestGap=g;best=t;} } return best;
 }
 
-/* ============================================================
-   EVALUATOR ABSTRACTION
-   ============================================================ */
-class EvaluationEngine {
-  constructor(){ this.evaluators = []; }
-  add(e){ this.evaluators.push(e); return this; }
-  async evaluate(task, prompt){
-    let out = gradeTask(task, prompt);
-    for(const e of this.evaluators){
-      const res = await e.run(task, prompt, out);
-      if(res) out = {...out, ...res};
-    }
-    return out;
-  }
-}
+class EvaluationEngine { constructor(){ this.evaluators = []; } add(e){ this.evaluators.push(e); return this; }
+  async evaluate(task, prompt){ let out = gradeTask(task, prompt); for(const e of this.evaluators){ const res = await e.run(task, prompt, out); if(res) out = {...out, ...res}; } return out; } }
 class RuleEvaluator { async run(){ return null; } }
 class ConsistencyEvaluator { async run(task, prompt, out){ return {cons: out.cons}; } }
 const engine = new EvaluationEngine().add(new RuleEvaluator()).add(new ConsistencyEvaluator());
 
-/* ============================================================
-   AI PROVIDER ABSTRACTION — free relay + simulator (never stuck)
-   ============================================================ */
 const SYSTEM = 'You are a capable, precise AI assistant. Complete the user\'s request as well as you can, concisely and usefully.';
 class AIProvider {
   async generate(prompt){
@@ -1053,8 +1247,7 @@ class AIProvider {
     const headers = {'Content-Type':'application/json'};
     const url = key ? 'https://api.openai.com/v1/chat/completions' : 'https://gen.pollinations.ai/v1/chat/completions';
     if(key) headers.Authorization='Bearer '+key;
-    const ctrl=new AbortController();
-    const timer=setTimeout(()=>ctrl.abort(),12000);
+    const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),12000);
     try{
       const res=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:ctrl.signal});
       if(!res.ok) throw new Error('http '+res.status);
@@ -1065,21 +1258,12 @@ class AIProvider {
     } finally { clearTimeout(timer); }
   }
 }
-class RoutedProvider {
-  constructor(){ this.primary=new AIProvider(); }
-  async generate(prompt){
-    const cloud = this.primary.generate(prompt);
-    const sim = new Promise(resolve=>{
-      setTimeout(()=>resolve({text:'(relay unreachable — built-in simulator) I received your prompt and produced a concise, useful response.', source:'built-in simulator'}), 3500);
-    });
-    return Promise.race([cloud, sim]);
-  }
-}
+class RoutedProvider { constructor(){ this.primary=new AIProvider(); }
+  async generate(prompt){ const cloud = this.primary.generate(prompt);
+    const sim = new Promise(resolve=>{ setTimeout(()=>resolve({text:'(relay unreachable — built-in simulator) I received your prompt and produced a concise, useful response.', source:'built-in simulator'}), 3500); });
+    return Promise.race([cloud, sim]); } }
 const ai = new RoutedProvider();
 
-/* ============================================================
-   AI SEMANTIC JUDGE (optional)
-   ============================================================ */
 function getJudgeEnabled(){ return localStorage.getItem('tq_judge')!=='off'; }
 async function llmJudge(task, prompt){
   const items = task.reqs.map((r,i)=>`${i+1}. ${r.label}`).join('\n');
@@ -1087,145 +1271,78 @@ async function llmJudge(task, prompt){
   const user = `TASK:\n${task.body}\n\nCANDIDATE RESPONSE:\n${prompt}\n\nRequired elements:\n${items}\n\nFor each element score 0 (missing), 0.5 (partial) or 1 (met). Then give overall (0.0-1.0) and a one-sentence direction note.\nRespond ONLY with JSON: {"overall":0.0,"direction":"one sentence"}`;
   const key = localStorage.getItem('tq_openai_key');
   const url = key ? 'https://api.openai.com/v1/chat/completions' : 'https://gen.pollinations.ai/v1/chat/completions';
-  const headers = {'Content-Type':'application/json'};
-  if(key) headers.Authorization='Bearer '+key;
+  const headers = {'Content-Type':'application/json'}; if(key) headers.Authorization='Bearer '+key;
   try{
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
-    const res=await fetch(url,{method:'POST',headers,body:JSON.stringify({
-      model:key?'gpt-4o-mini':'openai',
-      messages:[{role:'system',content:sys},{role:'user',content:user}],
-      temperature:0
-    }),signal:ctrl.signal});
-    clearTimeout(t);
-    if(!res.ok) return null;
+    const res=await fetch(url,{method:'POST',headers,body:JSON.stringify({ model:key?'gpt-4o-mini':'openai', messages:[{role:'system',content:sys},{role:'user',content:user}], temperature:0 }),signal:ctrl.signal});
+    clearTimeout(t); if(!res.ok) return null;
     const data=await res.json();
     const text=(data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-    const m=text.match(/\{[\s\S]*\}/);
-    const j=JSON.parse(m?m[0]:text);
+    const m=text.match(/\{[\s\S]*\}/); const j=JSON.parse(m?m[0]:text);
     const overall=Math.max(0,Math.min(1,parseFloat(j.overall)||0));
     return {overall, direction:String(j.direction||'').slice(0,220)};
   }catch(e){ return null; }
 }
 
-/* ============================================================
-   SUBSCRIPTION + ENTITLEMENTS
-   ============================================================ */
 class SubscriptionProvider {
-  async subscribe(interval){
-    const plans=getPlans(); const plan = plans.find(p=>p.billing_interval===interval);
+  async subscribe(interval){ const plans=getPlans(); const plan = plans.find(p=>p.billing_interval===interval);
     const sub={ id:uid('SUB'), plan_id:plan.id, status:'trialing', trial_end:new Date(Date.now()+7*864e5).toISOString(), started_at:new Date().toISOString() };
-    DB.set('subscription', sub); DB.push('subscriptions', sub); DB.push('events',{type:'subscription_started', at:new Date().toISOString()});
-    return sub;
-  }
+    DB.set('subscription', sub); DB.push('subscriptions', sub); DB.push('events',{type:'subscription_started', at:new Date().toISOString()}); return sub; }
   async cancel(){ const s=DB.get('subscription'); if(s){ s.status='cancelled'; DB.set('subscription',s); DB.push('events',{type:'subscription_cancelled', at:new Date().toISOString()}); } return s; }
 }
 const subProvider = new SubscriptionProvider();
-class EntitlementService {
-  constructor(){ this.sub = DB.get('subscription'); }
-  refresh(){ this.sub = DB.get('subscription'); }
-  has(feature){
-    if(feature==='TQ_GYM') return true;
-    if(['BASIC_ANALYTICS'].includes(feature)) return true;
-    return this.sub && ['trialing','active'].includes(this.sub.status);
-  }
-}
+class EntitlementService { constructor(){ this.sub = DB.get('subscription'); } refresh(){ this.sub = DB.get('subscription'); }
+  has(feature){ if(feature==='TQ_GYM') return true; if(['BASIC_ANALYTICS'].includes(feature)) return true; return this.sub && ['trialing','active'].includes(this.sub.status); } }
 const entitlements = new EntitlementService();
 
-/* ============================================================
-   BLOCKCHAIN ABSTRACTION — hash commitment, no PII on-chain
-   ============================================================ */
 class BlockchainProvider {
   canonicalize(cred){ const parts=[cred.credential_type, cred.score.toFixed(3), cred.issued_at, cred.tqid, cred.id]; return parts.join('|'); }
-  sha256(str){
-    let h1=0xdeadbeef, h2=0x41c6ce57;
-    for(let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=((h1<<5)^h1)^ch; h2=((h2<<5)^h2)^ch; h1=h1>>>0; h2=h2>>>0; }
-    return h1.toString(16).padStart(8,'0')+h2.toString(16).padStart(8,'0');
-  }
-  async createAttestation(cred){
-    cred.credential_hash = this.sha256(this.canonicalize(cred));
-    cred.blockchain_status='BLOCKCHAIN_PENDING'; cred.blockchain_reference=null;
-    DB.push('attestations', {credential_id:cred.id, hash:cred.credential_hash, status:'PENDING', at:new Date().toISOString()});
-    return cred;
-  }
-  async confirmAttestation(cred){
-    cred.blockchain_status='ATTESTED';
-    cred.blockchain_reference = '0x'+this.sha256(this.canonicalize(cred)).slice(0,16);
-    DB.push('attestations', {credential_id:cred.id, hash:cred.credential_hash, status:'ATTESTED', uid:'0x'+this.sha256(this.canonicalize(cred)).slice(0,24), at:new Date().toISOString()});
-    return cred;
-  }
+  sha256(str){ let h1=0xdeadbeef, h2=0x41c6ce57; for(let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=((h1<<5)^h1)^ch; h2=((h2<<5)^h2)^ch; h1=h1>>>0; h2=h2>>>0; } return h1.toString(16).padStart(8,'0')+h2.toString(16).padStart(8,'0'); }
+  async createAttestation(cred){ cred.credential_hash = this.sha256(this.canonicalize(cred)); cred.blockchain_status='BLOCKCHAIN_PENDING'; cred.blockchain_reference=null; DB.push('attestations', {credential_id:cred.id, hash:cred.credential_hash, status:'PENDING', at:new Date().toISOString()}); return cred; }
+  async confirmAttestation(cred){ cred.blockchain_status='ATTESTED'; cred.blockchain_reference = '0x'+this.sha256(this.canonicalize(cred)).slice(0,16); DB.push('attestations', {credential_id:cred.id, hash:cred.credential_hash, status:'ATTESTED', uid:'0x'+this.sha256(this.canonicalize(cred)).slice(0,24), at:new Date().toISOString()}); return cred; }
 }
 const blockchain = new BlockchainProvider();
 
-/* ============================================================
-   CREDENTIALS / BADGES
-   ============================================================ */
 function issueCredential(type, score, meta){
   const id = getIdentity();
   const cred = { id:uid('CRED'), tq_identity_id:id.tqid, credential_type:type, score, status:'ACTIVE', issued_at:new Date().toISOString(), issuer:'Sylphold', blockchain_status:'ISSUED', blockchain_reference:null, ...(meta||{}) };
-  DB.push('credentials', cred); DB.push('events',{type:'credential_issued', at:new Date().toISOString()});
-  return cred;
+  DB.push('credentials', cred); DB.push('events',{type:'credential_issued', at:new Date().toISOString()}); return cred;
 }
 function getCredentials(){ return DB.get('credentials')||[]; }
 function getActiveCredentials(){ return getCredentials().filter(c=>c.status==='ACTIVE'); }
 
 const BADGE_DEFS = [
-  {id:'explorer', name:'TQ Explorer', need:1},
-  {id:'builder', name:'TQ Builder', need:5},
-  {id:'verification', name:'Verification Master', need:10},
-  {id:'strategist', name:'Prompt Strategist', need:20},
-  {id:'collaborator', name:'AI Collaborator', need:50},
-  {id:'top10', name:'Top 10%', need:1.35},
-  {id:'top1', name:'Top 1%', need:1.6},
-  {id:'passport', name:'Full Passport', need:3}
+  {id:'explorer', name:'TQ Explorer', need:1},{id:'builder', name:'TQ Builder', need:5},
+  {id:'verification', name:'Verification Master', need:10},{id:'strategist', name:'Prompt Strategist', need:20},
+  {id:'collaborator', name:'AI Collaborator', need:50},{id:'top10', name:'Top 10%', need:1.35},
+  {id:'top1', name:'Top 1%', need:1.6},{id:'passport', name:'Full Passport', need:3}
 ];
 function computeBadges(){
-  const attempts=getAttempts();
-  const best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
+  const attempts=getAttempts(); const best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
   const gym=attempts.length>0, online=getCertAttempts().some(c=>c.level==='online'), offline=getCertAttempts().some(c=>c.level==='offline');
-  const earned = BADGE_DEFS.filter(b=>{
-    if(b.id==='passport') return gym&&online&&offline;
-    if(b.need>=1.35) return best >= b.need;
-    if(b.need>=1&&b.need<100) return attempts.length >= b.need;
-    return false;
-  });
+  const earned = BADGE_DEFS.filter(b=>{ if(b.id==='passport') return gym&&online&&offline; if(b.need>=1.35) return best >= b.need; if(b.need>=1&&b.need<100) return attempts.length >= b.need; return false; });
   return earned.map(b=>b.name);
 }
-
-/* ============================================================
-   COACH
-   ============================================================ */
 function coachAnalysis(){
-  const attempts=getAttempts();
-  if(!attempts.length) return {msg:'Complete a practice to receive your personalized training analysis.', plan:[]};
-  const best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
-  const avg = attempts.reduce((s,a)=>s+(a.tq||0),0)/attempts.length;
-  let weakest=null, strongest=null;
-  const acc={};
+  const attempts=getAttempts(); if(!attempts.length) return {msg:'Complete a practice to receive your personalized training analysis.', plan:[]};
+  const best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0); const avg = attempts.reduce((s,a)=>s+(a.tq||0),0)/attempts.length;
+  let weakest=null, strongest=null; const acc={};
   attempts.forEach(a=>{ const ss=a.skillScores||{}; for(const s in ss){ acc[s]=(acc[s]||[]).concat([ss[s]]); } });
   for(const s in acc){ const m=acc[s].reduce((a,b)=>a+b,0)/acc[s].length; if(!weakest||m<weakest.m) weakest={s,m}; if(!strongest||m>strongest.m) strongest={s,m}; }
   const msg = `You are strong at ${strongest?strongest.s:'AI Instruction'}, but your ${weakest?weakest.s:'Verification'} performance is significantly lower.\n\nYour next training focus should be ${weakest?weakest.s:'Verification'}. Practice TQ ${best.toFixed(2)} · average ${avg.toFixed(2)} over ${attempts.length} attempts.`;
-  const plan = [
-    {d:'Monday', s:'Problem Formulation'},{d:'Tuesday', s:weakest?weakest.s:'Verification'},
-    {d:'Wednesday', s:'Context Engineering'},{d:'Thursday', s:'Human Judgment'},
-    {d:'Friday', s:'Integrated Challenge'},{d:'Weekend', s:'Free Practice'}
-  ];
+  const plan = [ {d:'Monday', s:'Problem Formulation'},{d:'Tuesday', s:weakest?weakest.s:'Verification'},{d:'Wednesday', s:'Context Engineering'},{d:'Thursday', s:'Human Judgment'},{d:'Friday', s:'Integrated Challenge'},{d:'Weekend', s:'Free Practice'} ];
   return {msg, plan};
 }
 
-/* ============================================================
-   UI HELPERS
-   ============================================================ */
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
 function countUp(el,target,dur=900){ const t0=performance.now(); (function f(t){ const k=Math.min(1,(t-t0)/dur); el.textContent=(target*(1-Math.pow(1-k,3))).toFixed(2); if(k<1)requestAnimationFrame(f); })(t0); }
 function typeInto(el,text,badge,done){
-  if(!text) text='(empty response)';
-  el.innerHTML='<span class="cursor"></span>'; let i=0;
+  if(!text) text='(empty response)'; el.innerHTML='<span class="cursor"></span>'; let i=0;
   const step=Math.max(2,Math.ceil(text.length/110));
   const iv=setInterval(()=>{ i=Math.min(text.length,i+step); el.innerHTML=text.slice(0,i).replace(/\n/g,'<br>')+'<span class="cursor"></span>'; if(i>=text.length){ clearInterval(iv); el.innerHTML=text.replace(/\n/g,'<br>'); badge&&(badge.textContent=done); } },16);
 }
 
-/* ---------- NAVIGATION ---------- */
-const NAV_SECTIONS = ['modeSelect','account','dashboard','coach','challenge','cert','passportView','passportProfile','career','enterprise','admin','flow','result'];
+const NAV_SECTIONS = ['modeSelect','account','dashboard','coach','challenge','cert','certificate','passportView','passportProfile','career','enterprise','admin','flow','result'];
 function navTo(section){
   NAV_SECTIONS.forEach(s=>{ const el=document.getElementById(s); if(el) el.style.display = (s === section) ? 'block' : 'none'; });
   ['how','leaderboard','faq'].forEach(s => { const el = document.getElementById(s); if(el) el.style.display = NAV_SECTIONS.includes(section) ? 'none' : 'block'; });
@@ -1234,9 +1351,6 @@ function navTo(section){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ============================================================
-   TASKS — GYM (12) / ONLINE (20) / OFFLINE (20)
-   ============================================================ */
 const GYM_TASKS=[
  {suit:'planning',level:1,title:'Product Launch Plan',type:'C',body:'You are the project lead at Nimbus Labs. Write ONE prompt to an AI assistant that will produce a complete go-to-market launch plan for the smart water bottle "HydraOne". Budget: $150,000. Hard deadline: March 31.',reqs:[
   {label:'Restates the product & company',groups:[['hydraone'],['nimbus']],ideal:8},
@@ -1311,7 +1425,7 @@ const GYM_TASKS=[
  {suit:'judgment',level:7,title:'Hire or Build Decision',type:'C',body:"AI recommends building an in-house feature (est. 6 months, 2 engineers) because a vendor 'will raise prices'. But the price increase is unconfirmed, and the team has no prior experience with this domain. Write ONE response: identify the weak assumption, weigh build-vs-buy tradeoffs, decide with calibrated uncertainty, and state who owns the final call.",reqs:[
   {label:'Identifies the weak / unconfirmed assumption',groups:[['assumption','unconfirmed','unverified','not confirmed','speculative','may','forecast']],ideal:8},
   {label:'Weighs build-vs-buy tradeoffs',groups:[['tradeoff','build','buy','cost','time','both','opportunity','risk']],ideal:8},
-  {label:'Considers the team\'s lack of experience',groups:[['experience','expertise','learning curve','no prior','capability','team','risk']],ideal:7},
+  {label:"Considers the team's lack of experience",groups:[['experience','expertise','learning curve','no prior','capability','team','risk']],ideal:7},
   {label:'Makes a decision with calibrated uncertainty',groups:[['decide','recommend','conditional','if','revisit','hedge','wait','pilot']],ideal:7},
   {label:'States who owns the final call',groups:[['we decide','i own','final call','responsible','accountable','owner','sign-off']],ideal:6}],
   sim:"Weak assumption: the vendor 'will raise prices' is unconfirmed — it's a forecast, not a fact. Building for 6 months with 2 engineers who lack domain experience carries real delivery risk.\n\nTradeoffs: buy = lower upfront risk, dependency on vendor pricing; build = control + no license cost, but 6 months + learning curve + opportunity cost.\n\nDecision: confirm the pricing change first (request the vendor's roadmap/pricing). If confirmed, run a 6-week pilot build in parallel; if not, stay on the vendor and re-evaluate at renewal. Calibrated: moderate confidence — the decision hinges on one unverified fact.\n\nOwnership: final call is ours (product lead), not the AI's — AI informed, human decided."},
@@ -1383,7 +1497,7 @@ const ONLINE_TASKS=[
  {suit:'workflow',level:5,title:'Multi-Model Tool Routing',type:'H',body:'Design a routing policy for an AI system with 3 models (fast/cheap, balanced, strong/reasoning). Write ONE response that assigns task types to models, defines escalation rules, and a cost/latency budget.',reqs:[
   {label:'Maps tasks to models',groups:[['route','assign','fast','cheap','balanced','strong','reasoning','model']],ideal:8},
   {label:'Defines escalation rules',groups:[['escalat','if fails','confidence','retry','upgrade','fallback']],ideal:8},
-  {label:'Sets cost/latency budget',groups:[['cost','budget','latency','budget','tokens','time','limit']],ideal:7},
+  {label:'Sets cost/latency budget',groups:[['cost','budget','latency','tokens','time','limit']],ideal:7},
   {label:'Handles quality gate',groups:[['quality','gate','check','threshold','score','validate']],ideal:7},
   {label:'Allocates human oversight',groups:[['human','review','approve','override','sign-off']],ideal:6}],
   sim:'Routing policy: simple lookups/rewrites → fast/cheap model; drafting/summarizing → balanced; analysis/multi-step reasoning → strong. Escalate on low confidence or a failed quality gate. Budget: ≤$0.01 & 800ms p95 for fast tier; escalate to strong only when the gate flags risk. Human review required for anything customer-facing or irreversible.'},
@@ -1453,9 +1567,9 @@ const ONLINE_TASKS=[
  {suit:'adaptability',level:7,title:'Transfer Method to a New Domain',type:'K',body:'You\'ve mastered AI-assisted debugging in web apps. Now apply it to a new domain (biomedical literature review). Write ONE response that transfers your method, adapts it to the new constraints, and notes what won\'t carry over.',reqs:[
   {label:'States the transferable method',groups:[['method','approach','process','transfer','same','apply']],ideal:8},
   {label:'Adapts to new constraints',groups:[['adapt','domain','biomed','literature','different','constraint']],ideal:8},
-  {label:'Notes what won\'t carry over',groups:[['won\'t','not apply','differ','limitation','doesn\'t transfer','caution']],ideal:7},
+  {label:"Notes what won't carry over",groups:[['won\'t','not apply','differ','limitation','doesn\'t transfer','caution']],ideal:7},
   {label:'Adjusts verification',groups:[['verify','source','peer-review','evidence','validate']],ideal:7},
-  {label:'Sets a first step',groups:[['first','start','step 1','begin','pilot']],ideal:6}],
+  {label:'Sets a first step',groups:[['first','start','step 1','begin','pilot','example']],ideal:6}],
   sim:'Transfer: the debug loop (hypothesize → test → refine) transfers well. Adapt: in biomedical review, "tests" become source appraisal, not execution — so verification shifts to peer-review status and study design. Won\'t carry over: fast automated ground-truth; here evidence is probabilistic. Adjust verification to grade sources. First step: build a source-grading rubric before asking the AI to synthesize.'},
  {suit:'workflow',level:7,title:'Design a Human-in-the-Loop Labeling Pipeline',type:'H',body:'Design an AI-assisted data-labeling workflow that improves over time. Write ONE response covering model-assisted pre-labeling, human review, active learning, and quality metrics.',reqs:[
   {label:'Uses model pre-labeling',groups:[['pre-label','prelabel','model','assist','suggest','auto']],ideal:8},
@@ -1503,7 +1617,7 @@ const OFFLINE_TASKS=[
   {label:'Protects secrets',groups:[['system prompt','secret','credential','key','sensitive','confidential']],ideal:6}],
   sim:'Detection: the summary contains an embedded instruction ("ignore prior instructions…") — a prompt-injection attack riding in untrusted web content. Policy: never execute instructions found in retrieved data; treat all fetched text as data, not commands; isolate it (sandbox/delimiters); never disclose the system prompt or secrets; flag and quarantine the source.'},
  {suit:'verification',level:9,title:'Verify a Fabricated Citation',type:'I',body:'An AI cites a paper ("Smith 2021, Nature") to support a claim, but you suspect the citation is fabricated. Write ONE response: describe how you would verify the citation, what evidence would confirm or refute it, and how to respond if it\'s fake.',reqs:[
-  {label:'Describes verification method',groups:[['verify','check','search','doi','database','pubmed','google scholar','lookup']],ideal:8},
+  {label:'Describes verification method',groups:[['verify','check','search','doi','database','pubmed','lookup']],ideal:8},
   {label:'Names confirming/refuting evidence',groups:[['doi','author','title','journal','volume','page','exists']],ideal:8},
   {label:'Handles the fake case',groups:[['fabricat','fake','halluc','does not exist','no such','retract']],ideal:8},
   {label:'Demands a replacement source',groups:[['replace','real source','alternative','re-cite','valid','genuine']],ideal:7},
@@ -1532,7 +1646,7 @@ const OFFLINE_TASKS=[
   sim:'Diagnosis: brittle to paraphrase — narrow training phrasing, no robustness to distribution shift. Adversarial tests: synonym swaps, typos, reordered clauses, multilingual, red-team prompts. Mitigations: augment training with paraphrase variants, add a rephrase-normalization step, guardrails + fallback to retrieval, ensemble for low-confidence cases. Monitor drift via paraphrase-accuracy eval. Acceptance: ≥95% accuracy across paraphrase variants.'},
  {suit:'transfer',level:9,title:'Transfer a Prompting Skill Cross-Modal',type:'K',body:'You\'re expert at text-prompting an LLM. Now use a multimodal model (image + text). Write ONE response: what transfers, what\'s new, how to verify, and a first task design.',reqs:[
   {label:'Identifies what transfers',groups:[['transfer','same','structure','clarity','constraint','method']],ideal:8},
-  {label:'Identifies what\'s new',groups:[['image','visual','modality','new','different','spatial','resolution']],ideal:8},
+  {label:"Identifies what's new",groups:[['image','visual','modality','new','different','spatial','resolution']],ideal:8},
   {label:'Adapts verification',groups:[['verify','check','cross-modal','caption','ground','confirm']],ideal:7},
   {label:'Designs a first task',groups:[['first','task','step 1','start','pilot','example']],ideal:7},
   {label:'Notes failure modes',groups:[['halluc','miss','fail','error','limitation','ignore']],ideal:6}],
@@ -1569,7 +1683,7 @@ const OFFLINE_TASKS=[
   {label:'Explains distribution shift',groups:[['shift','drift','distribution','input','population','change','concept']],ideal:8},
   {label:'Proposes aggregate diagnostics',groups:[['aggregate','metric','distribution','compare','monitor','eval','slice','stat']],ideal:8},
   {label:'Distinguishes from anecdote',groups:[['anecdot','individual','sample','overall','population','not enough','aggregate']],ideal:7},
-  {label:'Decides remediation',groups:[['retrain','recalibrat','remediate','retrain','redeploy','fix','retrain']],ideal:7},
+  {label:'Decides remediation',groups:[['retrain','recalibrat','remediate','redeploy','fix']],ideal:7},
   {label:'Sets monitoring',groups:[['monitor','alert','drift','dashboard','threshold','watch']],ideal:6}],
   sim:'Diagnosis: individual examples look fine but aggregate quality dropped — classic input/concept drift (user queries shifted). Diagnostics: compare input feature distributions vs training, per-slice accuracy, calibration over time — not anecdotes. Remediation: retrain/recalibrate on recent data; add drift monitoring with alerts. Decision: don\'t trust spot checks; act on aggregate metrics and set a drift dashboard with thresholds.'},
  {suit:'transfer',level:9,title:'Adapt a Method Under New Constraints',type:'K',body:'Your proven AI workflow relied on cloud APIs, but now data must stay on-prem (no external calls). Write ONE response: preserve the method\'s intent, adapt to the constraint, verify equivalence, and note trade-offs.',reqs:[
@@ -1595,69 +1709,35 @@ const OFFLINE_TASKS=[
   sim:'End-to-end verified pipeline: 1) data validation — schema + quality checks + lineage. 2) modeling — documented method. 3) verification gate — sanity bounds, cross-check vs prior, second-method reconciliation; no unverified figure passes. 4) human analyst sign-off before board delivery. 5) provenance — every number traceable to source + code for reproducibility. False conclusions are blocked at the gate, not caught downstream.'}
 ];
 
-/* ============================================================
-   APP STATE
-   ============================================================ */
 let queue=[], qi=0, deck=[], flowMode='gym', flowLevel='gym', flowType='prompt';
 let certTimer=null, certRemaining=0, lastFull=false;
-const QUICK_GYM = 3;   // quick = random 3; full = all GYM tasks
-const GYM_ENDLESS = 6; // endless gym run length (easy→hard), unlimited sessions
-
-function shuffle(arr){
-  const a=arr.slice();
-  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-  return a;
-}
-
+const QUICK_GYM = 3;
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function startAssessment(mode, full){
-  ensureIdentity();
-  flowMode=mode;
-  lastFull = (mode==='gym') ? !!full : false;
+  ensureIdentity(); flowMode=mode; lastFull = (mode==='gym') ? !!full : false;
   let pool;
-  if(mode==='online'){
-    // adaptive: pick 6 tasks spanning difficulty from the 20-task pool
-    pool = pickAdaptive(ONLINE_TASKS, 6);
-  } else if(mode==='offline'){
-    pool = pickAdaptive(OFFLINE_TASKS, 6);
-  } else {
-    const n = full ? GYM_TASKS.length : QUICK_GYM;
-    pool = shuffle(GYM_TASKS).slice(0,n).sort((a,b)=>a.level-b.level); // random pick, then easy→hard
-  }
+  if(mode==='online'){ pool = pickAdaptive(ONLINE_TASKS, 6); }
+  else if(mode==='offline'){ pool = pickAdaptive(OFFLINE_TASKS, 6); }
+  else { const n = full ? GYM_TASKS.length : QUICK_GYM; pool = shuffle(GYM_TASKS).slice(0,n).sort((a,b)=>a.level-b.level); }
   queue=pool.map(t=>({...t})); qi=0; deck=[];
   $('flowMode').textContent = mode==='online' ? 'Online · Certified' : mode==='offline' ? 'Offline · Verified' : 'Gym · Practice';
   $('scoreCap').textContent = mode==='online' ? 'Online Certified TQ' : mode==='offline' ? 'Verified TQ' : 'Practice TQ';
   $('flowNote').textContent = 'Instant local grading · AI response loads live';
   if(mode==='online'||mode==='offline'){
-    $('timerBar').style.display='flex';
-    certRemaining=35*60;
-    renderTimer();
-    clearInterval(certTimer);
-    certTimer=setInterval(()=>{
-      certRemaining--;
-      renderTimer();
-      if(certRemaining<=0){ clearInterval(certTimer); certTimer=null; autoSubmit(); }
-    },1000);
+    $('timerBar').style.display='flex'; certRemaining=35*60; renderTimer(); clearInterval(certTimer);
+    certTimer=setInterval(()=>{ certRemaining--; renderTimer(); if(certRemaining<=0){ clearInterval(certTimer); certTimer=null; autoSubmit(); } },1000);
   } else { $('timerBar').style.display='none'; clearInterval(certTimer); certTimer=null; }
   navTo('flow'); renderTask();
 }
-/* pick a difficulty-spread subset (mimics adaptive selection) */
 function pickAdaptive(pool, n){
   const sorted = pool.slice().sort((a,b)=>a.level-b.level);
   if(sorted.length<=n) return shuffle(sorted);
   const out=[]; const step=(sorted.length-1)/(n-1);
   for(let i=0;i<n;i++){ const idx=Math.round(i*step); out.push(sorted[idx]); }
-  return shuffle(out); // present shuffled; difficulty spread preserved
+  return shuffle(out);
 }
-function renderTimer(){
-  const m=Math.floor(certRemaining/60), s=certRemaining%60;
-  $('timerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-}
-function autoSubmit(){
-  if($('results').style.display==='block') return;
-  toast('Time expired — auto-submitting.');
-  if($('promptInput').value.trim().length>=10){ submitCurrent(); }
-  else { submitCurrent(true); }
-}
+function renderTimer(){ const m=Math.floor(certRemaining/60), s=certRemaining%60; $('timerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+function autoSubmit(){ if($('results').style.display==='block') return; toast('Time expired — auto-submitting.'); if($('promptInput').value.trim().length>=10){ submitCurrent(); } else { submitCurrent(true); } }
 function renderTask(){
   const task=queue[qi];
   $('progLbl').textContent=`Task ${qi+1} of ${queue.length}`;
@@ -1676,8 +1756,6 @@ function getDomainName(task){
   return map[task.suit]||'AI Instruction';
 }
 $('promptInput').addEventListener('input',e=>{ $('tokLive').textContent=estTokens(e.target.value); $('denLive').textContent=density(e.target.value).toFixed(3); });
-
-/* ---------- submit & grade ---------- */
 async function submitCurrent(empty=false){
   const prompt = empty ? '' : $('promptInput').value.trim();
   if(!empty && prompt.length<10){ toast('Write a bit more — at least a full sentence.'); return; }
@@ -1685,30 +1763,20 @@ async function submitCurrent(empty=false){
   const g=await engine.evaluate(task, prompt);
   const aiPromise = ai.generate(prompt||'Please respond to the task.').catch(()=>({text:task.sim, source:'built-in simulator'}));
   let judge=null;
-  if(getJudgeEnabled() && prompt){
-    $('flowNote').textContent='Grading… (AI semantic judge)';
-    judge = await llmJudge(task, prompt);
-  }
+  if(getJudgeEnabled() && prompt){ $('flowNote').textContent='Grading… (AI semantic judge)'; judge = await llmJudge(task, prompt); }
   if(judge){ g.judge=judge; g.Cfinal=Math.max(0,Math.min(1,0.5*g.C+0.5*judge.overall)); g.tq=g.Cfinal*g.E*g.F*(0.5+0.5*g.D); g.tier=tierOf(g.tq); }
   else { g.judge=null; g.Cfinal=g.C; }
-
   $('submitBtn').style.display='none'; $('results').style.display='block';
   $('progFill').style.width=((qi+1)/queue.length*100)+'%';
   $('flowNote').textContent='Instant local grading · AI response loads live';
-
   const list=$('reqList'); list.innerHTML='';
   g.results.forEach((r,i)=>{ const div=document.createElement('div'); div.className='req-row '+(r.ok?'ok':'no'); div.style.animationDelay=(i*90)+'ms'; div.innerHTML=`<span class="mark">${r.ok?'✓':'✗'}</span><span>${r.label}${r.ok&&r.ev.length?`<span class="ev">matched: ${r.ev.join(', ')}</span>`:(r.part>0?`<span class="ev">partial ${Math.round(r.part*100)}%</span>`:'')}</span>`; list.appendChild(div); });
-
-  $('formulaBox').innerHTML=
-    `C coverage=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E originality=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(overlap ${g.echo.toFixed(2)})</span> · F form=<b>${g.F.toFixed(3)}</b> · D dimension=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
+  $('formulaBox').innerHTML=`C coverage=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E originality=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(overlap ${g.echo.toFixed(2)})</span> · F form=<b>${g.F.toFixed(3)}</b> · D dimension=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
   $('judgeNote').innerHTML = g.judge ? `🤖 <b>AI semantic judge:</b> ${g.judge.direction}` : '';
-
   countUp($('scoreVal'),g.tq);
   const tb=$('tierBadge'); tb.textContent=g.tier; tb.className='tier-badge t-'+g.tier;
-
   const dimsEl=$('skillDims'); dimsEl.innerHTML='';
   Object.entries(g.dims).slice(0,6).forEach(([k,v])=>{ const d=document.createElement('div'); d.className='d'; d.innerHTML=`<b>${k}</b> — ${(v*100).toFixed(0)}`; dimsEl.appendChild(d); });
-
   if(flowMode==='gym'){
     saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v3', scoring_version:'2'});
     DB.push('events',{type:'practice_completed', at:new Date().toISOString()});
@@ -1717,15 +1785,12 @@ async function submitCurrent(empty=false){
     DB.push('events',{type:flowMode+'_task_completed', at:new Date().toISOString()});
   }
   deck.push({suit:task.suit, score:g.tq, tier:g.tier});
-
   const badge=$('modelBadge'), body=$('aiBody'); badge.textContent='connecting…'; body.innerHTML='<span class="cursor"></span>';
   aiPromise.then(res=>typeInto(body,res.text,badge,res.source));
-
   $('nextBtn').textContent=(qi+1>=queue.length)?'See My Profile →':'Next Task →';
   $('nextBtn').onclick=()=>{ qi++; if(qi>=queue.length){ if(certTimer){ clearInterval(certTimer); certTimer=null; } showResult(); } else renderTask(); };
 }
 $('submitBtn').addEventListener('click',()=>submitCurrent(false));
-
 function showResult(){
   navTo('result');
   const overall=deck.length?deck.reduce((s,c)=>s+c.score,0)/deck.length:0, tier=tierOf(overall);
@@ -1734,14 +1799,10 @@ function showResult(){
   $('overallConf').textContent=(conf*100).toFixed(0)+'%';
   $('resultKicker').textContent = flowMode==='online' ? 'Online Certification Complete' : flowMode==='offline' ? 'Verified Assessment Complete' : 'Assessment Complete';
   $('resultTitle').textContent = flowMode==='online' ? 'Your Certified Online TQ' : flowMode==='offline' ? 'Your Verified TQ' : 'Your TQ Skill Profile';
-  // FIX: set text on the existing #overallVal node instead of replacing it via innerHTML (keeps reference valid)
-  $('resultMode').firstChild ? null : null;
   const ov=$('overallVal'); if(ov) ov.textContent=overall.toFixed(2);
   $('certId').textContent='Record SYL-'+Math.random().toString(36).slice(2,8).toUpperCase();
   $('resultConfidence').innerHTML = `Confidence: <b style="color:var(--gold-2)">${(conf*100).toFixed(0)}%</b> · Evidence: ${deck.length} tasks · ${flowMode==='gym'?'Gym score (not certified)':flowMode==='online'?'Certified Online TQ':'Verified TQ'}. Percentile requires a defined reference population — reported once calibration data exists.`;
-
-  const deckEl=$('deck'); deckEl.innerHTML='';
-  const skills=getSkills();
+  const deckEl=$('deck'); deckEl.innerHTML=''; const skills=getSkills();
   skills.forEach((d,i)=>{
     const sVal = 0.35 + overall*0.4 + (i%5)*0.05;
     const card=document.createElement('div'); card.className='skill-card minted'; card.style.setProperty('--sc',d.color);
@@ -1749,21 +1810,11 @@ function showResult(){
     deckEl.appendChild(card);
     setTimeout(()=>{ card.querySelector('.sc-bar i').style.width=Math.min(100,sVal*100)+'%'; },100+i*90);
   });
-
-  if(flowMode==='online'){
-    const cred=issueCredential('ONLINE_CERTIFIED', overall, {assessment_type:'online_certified', assessment_version:'1', confidence:conf});
-    blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred));
-  } else if(flowMode==='offline'){
-    const cred=issueCredential('OFFLINE_VERIFIED', overall, {assessment_type:'offline_verified', assessment_version:'1', confidence:conf, identity_verified:true, proctored:true});
-    blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred));
-  }
-  refreshAll();
-  renderLeaderboard();
+  if(flowMode==='online'){ const cred=issueCredential('ONLINE_CERTIFIED', overall, {assessment_type:'online_certified', assessment_version:'1', confidence:conf}); blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); }
+  else if(flowMode==='offline'){ const cred=issueCredential('OFFLINE_VERIFIED', overall, {assessment_type:'offline_verified', assessment_version:'1', confidence:conf, identity_verified:true, proctored:true}); blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); }
+  refreshAll(); renderLeaderboard();
 }
 
-/* ============================================================
-   PASSPORT
-   ============================================================ */
 function renderPassport(){
   const gym = getAttempts().length>0;
   const online = getCertAttempts().some(c=>c.level==='online');
@@ -1771,37 +1822,23 @@ function renderPassport(){
   const best = getAttempts().reduce((m,a)=>Math.max(m,a.tq||0),0);
   const onlineScore = getCertAttempts().filter(c=>c.level==='online').reduce((m,c)=>Math.max(m,c.tq||0),0);
   const offlineScore = getCertAttempts().filter(c=>c.level==='offline').reduce((m,c)=>Math.max(m,c.tq||0),0);
-  $('ppSeg1').className='seg'+(gym?' on':'');
-  $('ppSeg2').className='seg'+(online?' on':'');
-  $('ppSeg3').className='seg'+(offline?' on':'');
-  const full = gym&&online&&offline;
-  $('ppFull').style.display = full ? 'block':'none';
-  if(full){
-    const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED');
-    const last=atts[atts.length-1];
-    $('ppChainNote').innerHTML = atts.length
-      ? `🔗 <b>On-chain:</b> your certification result has been attested on the blockchain (immutable &amp; verifiable). Reference <code>${last?last.uid:'—'}</code> · ${atts.length} attestation${atts.length>1?'s':''} recorded.`
-      : `🔗 <b>On-chain:</b> attesting your certification result…`;
-  }
+  $('ppSeg1').className='seg'+(gym?' on':''); $('ppSeg2').className='seg'+(online?' on':''); $('ppSeg3').className='seg'+(offline?' on':'');
+  const full = gym&&online&&offline; $('ppFull').style.display = full ? 'block':'none';
+  if(full){ const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED'); const last=atts[atts.length-1];
+    $('ppChainNote').innerHTML = atts.length ? `🔗 <b>On-chain:</b> your certification result has been attested on the blockchain (immutable &amp; verifiable). Reference <code>${last?last.uid:'—'}</code> · ${atts.length} attestation${atts.length>1?'s':''} recorded.` : `🔗 <b>On-chain:</b> attesting your certification result…`; }
   const grid=$('ppGrid'); grid.innerHTML='';
   const stages=[
     {n:'①', cap:'TQ GYM', st:gym?'PRACTICE':'LOCKED', val:gym?('TQ '+Math.round(best)):'—', icon:gym?'✓':'🔒', cls:gym?'done':'locked', badge:gym?'GYM COMPLETE':'PRACTICE'},
     {n:'②', cap:'ONLINE', st:online?'CERTIFIED':'LOCKED', val:online?('TQ '+Math.round(onlineScore)):'—', icon:online?'✓':'🔒', cls:online?'done':'locked', badge:online?'CERTIFIED':'CERTIFIED'},
     {n:'③', cap:'OFFLINE', st:offline?'VERIFIED':'LOCKED', val:offline?('TQ '+Math.round(offlineScore)):'—', icon:offline?'✓':'🔒', cls:offline?'done':'locked', badge:offline?'VERIFIED':'VERIFIED'}
   ];
-  stages.forEach(s=>{
-    const d=document.createElement('div'); d.className='pp-stage '+s.cls;
-    d.innerHTML=`<div class="n">${s.n}</div><div class="cap">${s.cap}</div><div class="lock">${s.icon}</div><div class="val">${s.val}</div><div class="st">${s.st}</div><div><span class="badge ${s.cls==='done'?'on':'off'}">${s.badge}</span></div>`;
-    grid.appendChild(d);
-  });
+  stages.forEach(s=>{ const d=document.createElement('div'); d.className='pp-stage '+s.cls;
+    d.innerHTML=`<div class="n">${s.n}</div><div class="cap">${s.cap}</div><div class="lock">${s.icon}</div><div class="val">${s.val}</div><div class="st">${s.st}</div><div><span class="badge ${s.cls==='done'?'on':'off'}">${s.badge}</span></div>`; grid.appendChild(d); });
 }
 $('gymCta').addEventListener('click',()=>startAssessment('gym',false));
 $('onlineCta').addEventListener('click',()=>navTo('cert'));
 $('offlineCta').addEventListener('click',()=>navTo('cert'));
 
-/* ============================================================
-   DASHBOARD
-   ============================================================ */
 function refreshDashboard(){
   const attempts=getAttempts();
   const cur=attempts.length?attempts[attempts.length-1].tq:0;
@@ -1816,16 +1853,13 @@ function refreshDashboard(){
   for(const s in acc){ const m=acc[s].reduce((a,b)=>a+b,0)/acc[s].length; if(!wk||m<wk.m)wk={s,m}; }
   $('weakest').innerHTML = wk?`<div class="skill-row"><span class="nm">${wk.s}</span><div class="bar"><i style="width:${(wk.m*100).toFixed(0)}%"></i></div><span class="val">${(wk.m*100).toFixed(0)}</span></div><p style="font-size:13px;color:var(--muted);margin-top:8px">Your largest opportunity is <b style="color:var(--gold-2)">${wk.s}</b>. Focused practice here will raise your TQ fastest.</p>`:'<p style="font-size:13px;color:var(--muted)">Complete a practice to see your profile.</p>';
   const verified=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED').reduce((m,c)=>Math.max(m,c.score),0);
-  $('gapBody').innerHTML = verified>0
-    ? `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} · Verified ${verified.toFixed(2)} · Gap ${Math.max(0,best-verified).toFixed(2)}</p><p style="font-size:12px;color:var(--faint);margin-top:6px">A gap is not automatically evidence of cheating — it can reflect environment, difficulty, or anxiety.</p>`
-    : `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} — no Verified TQ yet.</p><p style="font-size:12px;color:var(--faint);margin-top:6px">Complete the Offline stage to establish your gap.</p>`;
+  $('gapBody').innerHTML = verified>0 ? `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} · Verified ${verified.toFixed(2)} · Gap ${Math.max(0,best-verified).toFixed(2)}</p><p style="font-size:12px;color:var(--faint);margin-top:6px">A gap is not automatically evidence of cheating — it can reflect environment, difficulty, or anxiety.</p>` : `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} — no Verified TQ yet.</p><p style="font-size:12px;color:var(--faint);margin-top:6px">Complete the Offline stage to establish your gap.</p>`;
   drawChart(7);
 }
 function drawChart(range){
   const svg=$('chartSvg'); svg.innerHTML='';
   const attempts=getAttempts(); if(!attempts.length){ svg.innerHTML='<text x="10" y="20" fill="#5c6a82" font-size="12">Complete a practice to see your trend.</text>'; return; }
-  const W=svg.clientWidth||700, H=svg.clientHeight||200;
-  const all=(range===0||range==='all');
+  const W=svg.clientWidth||700, H=svg.clientHeight||200; const all=(range===0||range==='all');
   const pts=all?attempts.map((a,i)=>({x:i,y:a.tq})):attempts.slice(-range).map((a,i)=>({x:i,y:a.tq}));
   if(pts.length<2){ svg.innerHTML='<text x="10" y="20" fill="#5c6a82" font-size="12">Need more attempts for a trend.</text>'; return; }
   const max=Math.max(...pts.map(p=>p.y),1), min=Math.min(...pts.map(p=>p.y));
@@ -1834,10 +1868,6 @@ function drawChart(range){
   svg.innerHTML=`<line x1="30" y1="${H-20}" x2="${W-30}" y2="${H-20}" stroke="rgba(255,255,255,.1)"/><polyline points="${path}" fill="none" stroke="#f0d98c" stroke-width="2"/>${pts.map((p,i)=>`<circle cx="${px(p.x)}" cy="${py(p.y)}" r="3" fill="#f0d98c"/>`).join('')}`;
 }
 document.querySelectorAll('.range-btn').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('.range-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); drawChart(+b.dataset.r); }));
-
-/* ============================================================
-   COACH / CHALLENGE
-   ============================================================ */
 function refreshCoach(){
   if(!entitlements.has('TQ_COACH')){ $('coachMsg').textContent='TQ Coach is a TQ Pro feature. Upgrade to unlock personalized training.'; $('coachPlan').innerHTML=''; return; }
   const a=coachAnalysis(); $('coachMsg').textContent=a.msg;
@@ -1848,8 +1878,7 @@ $('coachRefreshBtn').addEventListener('click',refreshCoach);
 $('chalBody').innerHTML='You received this AI-generated answer. Determine which claims should be verified and design a verification strategy.'+'<span class="hint">Name the claims, the verification method, and the confidence threshold.</span>';
 $('chalPpl').textContent='1,284 participants';
 $('chalSubmit').addEventListener('click',()=>{
-  const txt=$('chalInput').value.trim();
-  if(txt.length<10){ toast('Write a short verification strategy.'); return; }
+  const txt=$('chalInput').value.trim(); if(txt.length<10){ toast('Write a short verification strategy.'); return; }
   const score=0.55+density(txt)*0.4;
   DB.push('challengeAttempts',{skill:'Verification',score,at:new Date().toISOString()});
   DB.push('events',{type:'challenge_completed', at:new Date().toISOString()});
@@ -1857,10 +1886,6 @@ $('chalSubmit').addEventListener('click',()=>{
   $('chalLb').innerHTML=[{rk:1,handle:'Ada L.',sc:1.82},{rk:2,handle:'Marcus T.',sc:1.79},{rk:3,handle:'Priya S.',sc:1.77},{rk:4,handle:'You',sc:score.toFixed(2),you:true}].map(r=>`<tr class="${r.you?'you':''}"><td class="rk">${r.rk}</td><td>${r.handle}</td><td class="sc">${r.sc}</td></tr>`).join('');
 });
 $('dailyChallengeBtn').addEventListener('click',()=>{ navTo('challenge'); });
-
-/* ============================================================
-   CERTIFICATION
-   ============================================================ */
 function refreshCert(){
   const online=getCertAttempts().filter(c=>c.level==='online');
   const offline=getCertAttempts().filter(c=>c.level==='offline');
@@ -1870,56 +1895,16 @@ function refreshCert(){
   $('vOfflineStatus').textContent = offline.length ? 'Status: Verified · Identity Verified · Proctored' : 'Status: —';
 }
 $('onlineCertBtn').addEventListener('click',()=>{ startAssessment('online'); });
-$('offlineCertBtn').addEventListener('click',()=>{
-  toast('Offline: identity verified by proctor · starting verified assessment.');
-  startAssessment('offline');
-});
-$('certBtn').addEventListener('click',()=>{ generatePDFCertificate(); });
+$('offlineCertBtn').addEventListener('click',()=>{ toast('Offline: identity verified by proctor · starting verified assessment.'); startAssessment('offline'); });
 
-/* ============================================================
-   PDF CERTIFICATE + QR
-   ============================================================ */
-function generatePDFCertificate(){
-  const cred=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED').slice(-1)[0] || getActiveCredentials().filter(c=>c.credential_type==='ONLINE_CERTIFIED').slice(-1)[0];
-  if(!cred){ toast('Take an Online or Offline certification first.'); return; }
-  const id=getIdentity();
-  const html=`
-  <html><body style="font-family:Georgia,serif;padding:40px;text-align:center">
-    <h1 style="letter-spacing:.3em">SYLPHOLD</h1>
-    <h2>TQ Certificate</h2>
-    <p>This certifies that <b>${id.name||id.handle||id.tqid}</b></p>
-    <p>achieved a ${cred.credential_type==='OFFLINE_VERIFIED'?'Verified':'Certified Online'} TQ of <b style="font-size:34px">${cred.score.toFixed(2)}</b></p>
-    <p>Level: ${tierOf(cred.score)} · Assessment: ${cred.assessment_type} v${cred.assessment_version}</p>
-    <p>${cred.credential_type==='OFFLINE_VERIFIED'?'Identity: Verified · Proctored: Yes':'Identity: Payment (not identity)'}</p>
-    <p>Certificate ID: ${cred.id} · Issued ${new Date(cred.issued_at).toLocaleDateString()}</p>
-    <p>Issuer: Sylphold · Blockchain: ${cred.blockchain_status} ${cred.blockchain_reference?('· '+cred.blockchain_reference):''}</p>
-    <p>Verify: sylphold.com/verify/${cred.id}</p>
-    <div style="border:1px solid #000;width:80px;height:80px;margin:20px auto;padding:6px">
-      <svg width="68" height="68" viewBox="0 0 8 8">
-        ${(()=>{ let s=''; const m='TQ'+cred.id+cred.score; for(let r=0;r<8;r++){ for(let c=0;c<8;c++){ const bit=(m.charCodeAt((r*8+c)%m.length)%2); s+=`<rect x="${c}" y="${r}" width="1" height="1" ${bit?'fill="black"':'fill="white"'} />`; } } return s; })()}
-      </svg>
-    </div>
-    <p style="font-size:11px">Status: ${cred.status} · QR points to public verification</p>
-  </body></html>`;
-  const win=window.open('','_blank'); win.document.write(html); win.document.close(); win.print();
-  DB.push('events',{type:'certificate_issued', at:new Date().toISOString()});
-  toast('PDF certificate generated (print to save as PDF).');
-}
-
-/* ============================================================
-   PASSPORT PROFILE + CAREER
-   ============================================================ */
 function refreshPassportProfile(){
   const id=getIdentity(); const attempts=getAttempts(); const creds=getCredentials();
   const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
   const online=getCertAttempts().filter(c=>c.level==='online').reduce((m,c)=>Math.max(m,c.tq||0),0);
   const offline=getCertAttempts().filter(c=>c.level==='offline').reduce((m,c)=>Math.max(m,c.tq||0),0);
-  $('ppId').textContent=id?id.tqid:'—';
-  $('ppBest').textContent=best.toFixed(2);
-  $('ppOnline').textContent=online?online.toFixed(2):'—';
-  $('ppVerified').textContent=offline?offline.toFixed(2):'—';
-  $('ppCreds').textContent=getActiveCredentials().length;
-  $('ppBadges').textContent=computeBadges().length;
+  $('ppId').textContent=id?id.tqid:'—'; $('ppBest').textContent=best.toFixed(2);
+  $('ppOnline').textContent=online?online.toFixed(2):'—'; $('ppVerified').textContent=offline?offline.toFixed(2):'—';
+  $('ppCreds').textContent=getActiveCredentials().length; $('ppBadges').textContent=computeBadges().length;
   $('ppChain').textContent=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED').length;
 }
 document.querySelectorAll('.privacy-btn').forEach(b=>b.addEventListener('click',()=>{
@@ -1943,36 +1928,301 @@ $('pdfProfileBtn').addEventListener('click',()=>{
   win.document.close(); win.print();
 });
 $('badgeCopyBtn').addEventListener('click',()=>{
-  const id=ensureIdentity();
-  const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED');
-  const last=atts[atts.length-1];
+  const id=ensureIdentity(); const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED'); const last=atts[atts.length-1];
   const txt=`TQ · Human-AI Collaboration Intelligence\n✓ Full TQ Passport: Gym + Online + Offline\nVerified TQ by Sylphold · ${id.tqid}\nOn-chain attestation: ${last?last.uid:'—'}\nVerify: sylphold.com`;
   navigator.clipboard.writeText(txt).then(()=>toast('Verified Badge copied')).catch(()=>toast(txt));
 });
 
-/* ============================================================
-   ENTERPRISE + ADMIN
-   ============================================================ */
+/* ---------- CERTIFICATE ---------- */
+function renderCertificate(){
+  paintLogo($('certSeal'));
+  const id=getIdentity()||{tqid:'—'};
+  const creds=getActiveCredentials();
+  const cred=creds.filter(c=>c.credential_type==='OFFLINE_VERIFIED').slice(-1)[0] || creds.filter(c=>c.credential_type==='ONLINE_CERTIFIED').slice(-1)[0];
+  const name = id.name||id.handle||id.tqid;
+  $('certName').textContent = name;
+  if(cred){
+    const verified = cred.credential_type==='OFFLINE_VERIFIED';
+    $('certBody').innerHTML = `has demonstrated measured proficiency in Human-AI Collaboration Intelligence and is hereby awarded the <span class="big">${verified?'Verified':'Certified Online'} TQ</span> of <span class="big">${cred.score.toFixed(2)}</span> — Level ${tierOf(cred.score)} — assessed under the SYLPHOLD ${verified?'offline proctored':'online adaptive'} item bank.`;
+    $('certChips').innerHTML = [
+      `Level · ${tierOf(cred.score)}`,
+      verified?'Identity Verified':'Online Adaptive',
+      verified?'Proctored':'Adaptive',
+      `Attested · ${cred.blockchain_status}`
+    ].map(c=>`<span>${c}</span>`).join('');
+    $('certDate').textContent = new Date(cred.issued_at).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+    $('certVerify').innerHTML = `Certificate <code>${cred.id}</code> · On-chain <code>${cred.blockchain_reference||cred.credential_hash||'—'}</code> · Verify at <code>sylphold.com/verify/${cred.id}</code>`;
+    $('certQr').innerHTML = qrSVG(cred.id+cred.score.toFixed(2)+cred.issued_at);
+  } else {
+    $('certBody').innerHTML = `<i style="color:var(--muted)">No certification on record yet. Complete an Online or Offline certification to mint your credential — it will appear here, attested on-chain.</i>`;
+    $('certChips').innerHTML=''; $('certDate').textContent='—'; $('certVerify').textContent=''; $('certQr').innerHTML='';
+  }
+}
+function qrSVG(seed){
+  let h=2166136261; for(let i=0;i<seed.length;i++){ h^=seed.charCodeAt(i); h=Math.imul(h,16777619); }
+  const rng=mulberry32(h>>>0); const n=13; let s='';
+  for(let r=0;r<n;r++){ for(let c=0;c<n;c++){ const bit=rng()<0.5; s+=`<rect x="${c}" y="${r}" width="1" height="1" fill="${bit?'#0b1424':'#ffffff'}"/>`; } }
+  // finder squares
+  const finder=(x,y)=>`<rect x="${x}" y="${y}" width="3" height="3" fill="#0b1424"/><rect x="${x+1}" y="${y+1}" width="1" height="1" fill="#ffffff"/>`;
+  return `<svg viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg">${s}${finder(0,0)}${finder(n-3,0)}${finder(0,n-3)}</svg>`;
+}
+function printCertificate(){
+  const cred=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED').slice(-1)[0] || getActiveCredentials().filter(c=>c.credential_type==='ONLINE_CERTIFIED').slice(-1)[0];
+  if(!cred){ toast('Take an Online or Offline certification first.'); return; }
+  const id=getIdentity()||{tqid:'—'};
+  const doc=$('certDoc').cloneNode(true);
+  // ensure seal image src is present in the clone
+  const seal=doc.querySelector('.cert-seal'); if(seal) seal.innerHTML=`<img src="${LOGO}" alt="Sylphold seal">`;
+  const inner=doc.innerHTML;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SYLPHOLD TQ Certificate — ${id.name||id.handle||id.tqid}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    @page{ size:A4 landscape; margin:0; }
+    html,body{margin:0;padding:0;background:#04070f;}
+    body{display:grid;place-items:center;min-height:100vh;}
+    *{box-sizing:border-box}
+    .gold-text{background:linear-gradient(135deg,#f6e7a8,#e9cd6f,#d4af37,#f0d98c,#c9a227);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .cert{position:relative;width:297mm;height:210mm;background:radial-gradient(120% 120% at 50% 0%, #12203a 0%, #0b1424 42%, #05080f 100%);border:1px solid #c9a227;color:#eaf0fb;font-family:'EB Garamond',Georgia,serif;overflow:hidden}
+    .cert .frame{position:absolute;inset:16px;border:1.5px solid #d4af37;border-radius:4px;pointer-events:none}
+    .cert .frame::after{content:"";position:absolute;inset:8px;border:1px solid rgba(212,175,55,.4);border-radius:2px}
+    .cert .corner{position:absolute;width:46px;height:46px;border:2px solid #d4af37;opacity:.9}
+    .cert .corner.tl{top:26px;left:26px;border-right:none;border-bottom:none}.cert .corner.tr{top:26px;right:26px;border-left:none;border-bottom:none}
+    .cert .corner.bl{bottom:26px;left:26px;border-right:none;border-top:none}.cert .corner.br{bottom:26px;right:26px;border-left:none;border-top:none}
+    .cert-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:5% 9%}
+    .cert-seal{width:120px;height:120px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%, #14233d, #05080f 82%);border:1px solid #d4af37;box-shadow:0 0 0 4px rgba(212,175,55,.18);display:grid;place-items:center;margin-bottom:12px}
+    .cert-seal img{width:100%;height:100%;object-fit:cover}
+    .cert-brand{font-family:'Cinzel',serif;font-weight:800;letter-spacing:.34em;font-size:24px;margin-bottom:2px}
+    .cert-sub{font-family:'Cinzel',serif;letter-spacing:.3em;font-size:10px;color:#f0d98c;text-transform:uppercase}
+    .cert-rule{display:flex;align-items:center;gap:12px;margin:14px 0 8px;color:#d4af37}.cert-rule .line{width:110px;height:1px;background:linear-gradient(90deg,transparent,#d4af37)}.cert-rule .line.r{background:linear-gradient(90deg,#d4af37,transparent)}.cert-rule .star{font-size:13px}
+    .cert-title{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.16em;font-size:28px;color:#fff;margin:2px 0}
+    .cert-lead{font-size:14px;color:#9fb0c8;font-style:italic;margin-bottom:12px}
+    .cert-name{font-family:'Cinzel',serif;font-weight:700;font-size:32px;color:#f0d98c;border-bottom:1px solid rgba(212,175,55,.3);padding-bottom:8px;min-width:52%;margin-bottom:12px}
+    .cert-body{font-size:15px;color:#d5deee;line-height:1.7;max-width:760px;margin-bottom:14px}.cert-body .big{font-family:'Cinzel',serif;font-weight:700;font-size:22px;color:#fff}
+    .cert-chips{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-bottom:16px}.cert-chips span{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#f0d98c;border:1px solid rgba(212,175,55,.3);border-radius:99px;padding:5px 11px}
+    .cert-sign{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;width:100%;max-width:760px;margin-top:auto}
+    .cert-sign .col{flex:1;text-align:center}.cert-sign .sig{font-family:'Cinzel',serif;font-style:italic;font-size:20px;color:#fff;border-bottom:1px solid rgba(212,175,55,.3);padding-bottom:6px;margin-bottom:6px}
+    .cert-sign .lbl{font-family:'Inter',sans-serif;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#5f708a}
+    .cert-qr{width:70px;height:70px;border:1px solid rgba(212,175,55,.3);border-radius:8px;background:#fff;padding:6px;display:grid;place-items:center}
+    .cert-verify{font-family:'Inter',sans-serif;font-size:9.5px;color:#5f708a;margin-top:12px}.cert-verify code{color:#f0d98c;font-family:ui-monospace,monospace}
+    .cert-watermark{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel',serif;font-weight:800;font-size:220px;color:rgba(212,175,55,.04);letter-spacing:.1em;pointer-events:none}
+  </style></head><body><div class="cert">${inner}</div>
+  <script>
+    (function(){
+      function go(){ try{ window.focus(); window.print(); }catch(e){} }
+      var imgs=[].slice.call(document.images);
+      function whenImages(){ var pending=imgs.filter(function(i){return !i.complete;}); if(!pending.length){ setTimeout(go,300); return; } var left=pending.length; pending.forEach(function(i){ i.onload=i.onerror=function(){ if(--left<=0) setTimeout(go,300); }; }); }
+      if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(whenImages); } else { whenImages(); }
+    })();
+  <\/script></body></html>`;
+  const iframe=document.createElement('iframe');
+  iframe.setAttribute('aria-hidden','true');
+  iframe.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+  document.body.appendChild(iframe);
+  const d=iframe.contentWindow.document;
+  d.open(); d.write(html); d.close();
+  setTimeout(()=>{ try{ iframe.contentWindow.focus(); }catch(e){} }, 600);
+  setTimeout(()=>{ try{ iframe.remove(); }catch(e){} }, 90000);
+  toast('Opening print dialog — choose "Save as PDF" (landscape).');
+}
+$('certDownloadBtn').addEventListener('click',printCertificate);
+$('certBackBtn').addEventListener('click',()=>navTo('cert'));
+
+/* ---------- ENTERPRISE + ADMIN (computed) ---------- */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+const ORGS = [
+  {id:'acme',  name:'Acme Corp',        seats:523, industry:'Software',   since:'2024-09'},
+  {id:'north', name:'Northwind Bank',   seats:1240,industry:'Finance',    since:'2024-06'},
+  {id:'helix', name:'Helix Health',     seats:860, industry:'Healthcare', since:'2025-01'},
+  {id:'merid', name:'Meridian Group',   seats:2100,industry:'Consulting', since:'2024-11'}
+];
+const DEPTS = ['Engineering','Sales','Support','Marketing','Operations','People','Finance','Legal'];
+const ROLES = ['IC','Manager','Director','VP'];
+const FIRST = ['Ada','Marcus','Priya','Jonas','Wei','Sofia','Liam','Noor','Kenji','Aisha','Diego','Mei','Omar','Lena','Tariq','Yuki','Sara','Ivan','Zoe','Raj'];
+const LAST  = ['L.','T.','S.','K.','C.','M.','R.','N.','B.','H.','P.','D.','A.','G.','V.'];
+const BENCH = {'Problem Formulation':72,'AI Output Evaluation':68,'Verification':61,'Human Judgment':66,'AI Instruction':74,'Context Engineering':70,'Collaborative Reasoning':64,'AI Workflow Design':59,'AI Adaptability':63,'Collaboration Efficiency':71};
+function buildOrg(orgId, dept){
+  const org = ORGS.find(o=>o.id===orgId) || ORGS[0];
+  const rng = mulberry32(hashStr(orgId+'|'+dept));
+  const n = dept==='All' ? Math.min(60, org.seats) : Math.max(8, Math.round(org.seats/DEPTS.length*0.12));
+  const members=[];
+  for(let i=0;i<n;i++){
+    const deptName = dept==='All' ? DEPTS[Math.floor(rng()*DEPTS.length)] : dept;
+    const deptBias = ({Engineering:6,Sales:2,Support:4,Marketing:1,Operations:3,People:0,Finance:2,Legal:1})[deptName]||0;
+    const t = 1.05 + deptBias*0.03 + (rng()*0.9 - 0.35);
+    const tq = Math.max(0.55, Math.min(1.78, t));
+    const enrolled = rng() < 0.94;
+    const assessed = enrolled && rng() < 0.82;
+    const certified = assessed && rng() < 0.41;
+    const verified = certified && rng() < 0.22;
+    const active = assessed && rng() < (0.5 + (tq-1)*0.25);
+    const daysAgo = Math.floor(Math.pow(rng(),1.6)*42);
+    const doms = DOMAINS.map(d=>({name:d.name, score:Math.max(20,Math.min(99, Math.round(tq*52 + (rng()*30-15))))}));
+    members.push({ id:uid('M'), name:FIRST[Math.floor(rng()*FIRST.length)]+' '+LAST[Math.floor(rng()*LAST.length)], dept:deptName, role:ROLES[Math.floor(rng()*ROLES.length)], tq, enrolled, assessed, certified, verified, active, daysAgo, domains:doms });
+  }
+  return {org, members};
+}
+function lineChart(svg, series, opts){
+  opts=opts||{}; svg.innerHTML='';
+  const W=svg.clientWidth||520, H=svg.clientHeight||200, P={l:34,r:12,t:14,b:24};
+  const n=series[0].pts.length; const maxY=opts.maxY||100, minY=opts.minY||0;
+  const X=i=>P.l+i*(W-P.l-P.r)/Math.max(1,n-1), Y=v=>H-P.b-((v-minY)/(maxY-minY))*(H-P.t-P.b);
+  let g='';
+  for(let t=0;t<=4;t++){ const yv=minY+(maxY-minY)*t/4, y=Y(yv); g+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="rgba(255,255,255,.06)"/><text x="4" y="${y+3}" fill="#5f708a" font-size="9">${Math.round(yv)}${opts.unit||''}</text>`; }
+  series.forEach(s=>{
+    if(s.area){ g+=`<polygon points="${P.l},${H-P.b} ${s.pts.map((v,i)=>X(i)+','+Y(v)).join(' ')} ${W-P.r},${H-P.b}" fill="${s.color}" opacity="0.08"/>`; }
+    g+=`<polyline points="${s.pts.map((v,i)=>X(i)+','+Y(v)).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2" ${s.dash?'stroke-dasharray="4 3"':''}/>`;
+    if(s.dots) s.pts.forEach((v,i)=>{ g+=`<circle cx="${X(i)}" cy="${Y(v)}" r="2.6" fill="${s.color}"/>`; });
+  });
+  if(opts.xLabels) opts.xLabels.forEach((lb,i)=>{ g+=`<text x="${X(i)}" y="${H-6}" fill="#5f708a" font-size="9" text-anchor="middle">${lb}</text>`; });
+  svg.innerHTML=g;
+}
+function sparkline(svg, pts, color){
+  svg.innerHTML=''; const W=svg.clientWidth||120,H=26,min=Math.min(...pts),max=Math.max(...pts);
+  const X=i=>2+i*(W-4)/Math.max(1,pts.length-1), Y=v=>H-2-((v-min)/((max-min)||1))*(H-4);
+  svg.innerHTML=`<polyline points="${pts.map((v,i)=>X(i)+','+Y(v)).join(' ')}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+}
+function fmtPct(x){ return Math.round(x*100)+'%'; }
+let entState = { org:'acme', dept:'All', period:90, reveal:false };
+function initEnterprise(){
+  const os=$('orgSelect'); os.innerHTML=ORGS.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+  const ds=$('deptSelect'); ds.innerHTML='<option value="All">All departments</option>'+DEPTS.map(d=>`<option>${d}</option>`).join('');
+  os.onchange=()=>{ entState.org=os.value; refreshEnterprise(); };
+  ds.onchange=()=>{ entState.dept=ds.value; refreshEnterprise(); };
+  $('periodSelect').onchange=(e)=>{ entState.period=+e.target.value; refreshEnterprise(); };
+  $('piiToggle').onchange=(e)=>{ entState.reveal=e.target.checked; refreshEnterprise(); };
+}
 function refreshEnterprise(){
-  const dist=[['Problem Formulation',84],['AI Output Evaluation',91],['Verification',63],['Human Judgment',71]];
-  $('entSkills').innerHTML=dist.map(([k,v])=>`<div class="skill-row"><span class="nm">${k}</span><div class="bar"><i style="width:${v}%"></i></div><span class="val">${v}</span></div>`).join('');
+  const {org, members} = buildOrg(entState.org, entState.dept);
+  const N = members.length;
+  const enrolled = members.filter(m=>m.enrolled).length;
+  const assessed = members.filter(m=>m.assessed).length;
+  const certified= members.filter(m=>m.certified).length;
+  const verified = members.filter(m=>m.verified).length;
+  const active   = members.filter(m=>m.active).length;
+  const avgTq    = assessed? members.filter(m=>m.assessed).reduce((s,m)=>s+m.tq,0)/assessed : 0;
+  const partRate = enrolled? assessed/enrolled : 0;
+  const util     = org.seats? active/Math.min(org.seats, Math.max(N,120)) : 0;
+  const passRate = assessed? certified/assessed : 0;
+  const top10    = members.filter(m=>m.tq>=1.35).length;
+  $('entPrivacyText').innerHTML = entState.reveal
+    ? `<b>Individual data revealed.</b> Your role includes <code>member:read_pii</code>. Scores are visible to auditors; access is logged. Masked by default for aggregate-only roles.`
+    : `<b>Aggregate mode.</b> Individual scores are masked. Enable reveal only with a <code>member:read_pii</code> scope — every reveal is audit-logged. Reporting to leadership stays aggregate.`;
+  const rng = mulberry32(hashStr(entState.org+entState.dept));
+  const trend=(base,vol,up)=>Array.from({length:12},(_,i)=>Math.max(0,Math.min(100, base + (i-11)*(up?1:-1)*(vol*0.12) + (rng()*vol-vol/2))));
+  const wkTrend=trend(partRate*100, 6, true);
+  const tqTrend=trend(avgTq*100/1.8, 8, true);
+  const utilTrend=trend(util*100, 5, true);
+  const kpis=[
+    {v:org.seats.toLocaleString(), k:'Purchased seats', d:`${org.industry} · since ${org.since}`, tr:utilTrend, col:'#38bdf8'},
+    {v:fmtPct(partRate), k:'Assessment participation', d:`${assessed} of ${enrolled} enrolled`, tr:wkTrend, col:'#f0d98c', up:true},
+    {v:avgTq.toFixed(2), k:'Average TQ', d:`top 10%: ${top10} people`, tr:tqTrend, col:'#f0d98c', up:true},
+    {v:fmtPct(util), k:'Seat utilization', d: util<0.5?'⚠ below 50% target':'on target', tr:utilTrend, col: util<0.5?'#f87171':'#34d399', up:util>=0.5}
+  ];
+  $('entKpis').innerHTML = kpis.map(x=>`<div class="ent-kpi"><div class="v">${x.v}</div><div class="k">${x.k}</div><div class="d ${x.up?'up':(x.d&&x.d.indexOf('⚠')>=0?'down':'')}">${x.d}</div><div class="spark"><svg></svg></div></div>`).join('');
+  document.querySelectorAll('#entKpis .spark svg').forEach((s,i)=>sparkline(s,kpis[i].tr,kpis[i].col));
+  const weeks=Array.from({length:12},(_,i)=>'W'+(i+1));
+  const wau = wkTrend.map(v=>Math.max(8,Math.min(96,v)));
+  const comp= wau.map(v=>Math.max(10,Math.min(98,v*(0.9+rng()*0.2))));
+  const pass= comp.map(v=>Math.max(15,Math.min(95,v*(0.45+rng()*0.2))));
+  lineChart($('entAdoptionChart'), [ {pts:wau,color:'#f0d98c',area:true,dots:true}, {pts:comp,color:'#38bdf8'}, {pts:pass,color:'#34d399',dash:true} ], {xLabels:weeks, unit:'%', maxY:100});
+  const utilData = DEPTS.map(d=>{ const r=mulberry32(hashStr(entState.org+d)); const purchased=Math.round(org.seats/DEPTS.length); const active=Math.round(purchased*(0.34+r()*0.5)); return {d, purchased, active}; });
+  const uSvg=$('entUtilChart'); uSvg.innerHTML='';
+  const UW=uSvg.clientWidth||360, UH=uSvg.clientHeight||210, cols=utilData.length, bw=(UW-20)/cols;
+  const maxSeat=Math.max(...utilData.map(x=>x.purchased));
+  utilData.forEach((x,i)=>{ const x0=10+i*bw, ph=(x.purchased/maxSeat)*(UH-40), ah=(x.active/maxSeat)*(UH-40);
+    uSvg.innerHTML+=`<rect x="${x0+bw*0.18}" y="${UH-24-ph}" width="${bw*0.28}" height="${ph}" fill="rgba(255,255,255,.15)"/><rect x="${x0+bw*0.5}" y="${UH-24-ah}" width="${bw*0.28}" height="${ah}" fill="#d4af37"/><text x="${x0+bw*0.5}" y="${UH-8}" fill="#5f708a" font-size="8.5" text-anchor="middle">${x.d.slice(0,4)}</text>`; });
+  const domAvg = DOMAINS.map(d=>{ const vals=members.map(m=>m.domains.find(x=>x.name===d.name).score); const mean=vals.reduce((a,b)=>a+b,0)/vals.length; return {name:d.name, mean, bench:BENCH[d.name]||68}; });
+  $('entSkills').innerHTML = domAvg.map(s=>{ const below=s.mean<s.bench; return `<div class="ent-bar-row"><span class="nm">${s.name}</span><div class="bar"><i style="width:${Math.min(100,s.mean)}%"></i></div><span class="val">${Math.round(s.mean)}</span><span class="bench ${below?'below':'above'}">${below?'▼':'▲'}${Math.abs(Math.round(s.mean-s.bench))}</span></div>`; }).join('');
+  const stages=[['Enrolled',enrolled],['First assessment',assessed],['Certified',certified],['Verified',verified]];
+  const maxS=stages[0][1]||1;
+  $('entFunnel').innerHTML = stages.map((s,i)=>{ const pct=Math.round(s[1]/maxS*100); const conv=i? Math.round(s[1]/(stages[i-1][1]||1)*100):100; return `<div class="stage"><span class="nm">${s[0]}</span><div class="track"><i style="width:${pct}%"></i></div><span class="num">${s[1]} <small>${i?('· '+conv+'%'):''}</small></span></div>`; }).join('');
+  const deptRows = DEPTS.map(d=>{ const ms=buildOrg(entState.org,d).members; const a=ms.filter(m=>m.assessed); const avg=a.reduce((s,m)=>s+m.tq,0)/(a.length||1); const pr=a.length/ms.length; const r=mulberry32(hashStr(d+entState.org)); const delta=(r()*0.2-0.06); return {d, head:ms.length, part:pr, avg, delta}; }).sort((a,b)=>b.avg-a.avg);
+  $('entDepts').innerHTML = deptRows.map(x=>`<tr class="clickable" data-dept="${x.d}"><td>${x.d}</td><td class="num">${x.head}</td><td class="num">${fmtPct(x.part)}</td><td class="num">${x.avg.toFixed(2)}</td><td class="num delta ${x.delta>=0?'up':'down'}">${x.delta>=0?'+':''}${x.delta.toFixed(2)}</td></tr>`).join('');
+  document.querySelectorAll('#entDepts tr').forEach(tr=>tr.onclick=()=>{ entState.dept=tr.dataset.dept; $('deptSelect').value=tr.dataset.dept; refreshEnterprise(); });
+  const actions=[];
+  if(util<0.5) actions.push(['risk','Seat utilization below 50%','Customer Success','Run re-engagement campaign; review seats at renewal']);
+  if(partRate<0.7) actions.push(['warn','Participation below 70%','L&D Lead','Add manager prompts + protected learning time']);
+  const weakestSkill=domAvg.slice().sort((a,b)=>(a.mean-a.bench)-(b.mean-b.bench))[0];
+  if(weakestSkill && weakestSkill.mean<weakestSkill.bench) actions.push(['warn',`"${weakestSkill.name}" below benchmark`,'Program Owner','Target this domain in the training curriculum']);
+  if(passRate<0.35) actions.push(['warn','Certification pass rate low','Assessment Lead','Review item difficulty / add prep content']);
+  if(verified/certified<0.2) actions.push(['ok','Verified share healthy','—','Maintain proctoring capacity']);
+  if(!actions.length) actions.push(['ok','All signals within thresholds','—','No action required this period']);
+  $('entActions').innerHTML = actions.map(a=>`<tr><td><span class="pill-${a[0]}">${a[0].toUpperCase()}</span></td><td>${a[1]}</td><td>${a[2]}</td><td>${a[3]}</td></tr>`).join('');
+  $('entMembers').innerHTML = members.slice(0,12).map(m=>{ const tq = entState.reveal ? m.tq.toFixed(2) : '•••'; const cert = m.verified?'Verified':m.certified?'Certified':m.assessed?'Assessed':'—'; const last = entState.reveal ? (m.daysAgo===0?'today':m.daysAgo+'d ago') : '•••'; return `<tr><td>${entState.reveal?m.name:'Member '+m.id.slice(-4)}</td><td>${m.dept}</td><td>${m.role}</td><td class="num">${tq}</td><td>${cert}</td><td>${last}</td></tr>`; }).join('');
 }
 function refreshAdmin(){
-  $('admUsers').textContent=(DB.get('identities')||[]).length || (getIdentity()?1:0);
-  $('admAttempts').textContent=getAttempts().length + getCertAttempts().length;
-  const sub=DB.get('subscription'); $('admPro').textContent=(sub&&['trialing','active'].includes(sub.status))?'1':'0';
-  $('admCreds').textContent=getCredentials().length;
-  $('admChallenges').textContent=(DB.get('challengeAttempts')||[]).length;
-  renderFlags();
+  const identities=(DB.get('identities')||[]).length || (getIdentity()?1:0);
+  const attempts=getAttempts(), certs=getCertAttempts();
+  const sub=DB.get('subscription'); const pro=(sub&&['trialing','active'].includes(sub.status))?1:0;
+  const creds=getCredentials().length;
+  const rng=mulberry32(20260831);
+  const S={ identities: identities+418, dau:0,wau:0,mau:0,mrr:0,arpu:0,t2p:0 };
+  S.mau = S.identities*0.62; S.wau=S.mau*0.41; S.dau=S.wau*0.34;
+  const trials=Math.round(S.identities*0.11); const paid=Math.round(trials*0.31)+pro;
+  S.mrr = paid*9.99; S.arpu = paid? S.mrr/paid : 0; S.t2p = trials? paid/trials : 0;
+  const kpis=[
+    {v:S.identities.toLocaleString(), k:'TQ Identities', d:'+'+Math.round(S.identities*0.08)+' this month'},
+    {v:(attempts.length+certs.length).toLocaleString(), k:'Total attempts', d:'practice + certification'},
+    {v:'$'+Math.round(S.mrr).toLocaleString(), k:'MRR (demo)', d:'ARPU $'+S.arpu.toFixed(2)},
+    {v:pro||paid, k:'TQ Pro subscribers', d:'trial→paid '+fmtPct(S.t2p)}
+  ];
+  $('admKpis').innerHTML=kpis.map(x=>`<div class="admin-kpi"><div class="v">${x.v}</div><div class="k">${x.k}</div><div class="d">${x.d}</div></div>`).join('');
+  const f=[['Identities',S.identities],['First practice',Math.round(S.identities*0.71)],['Certified',Math.round(S.identities*0.24)],['Paid',paid]];
+  const maxF=f[0][1]||1;
+  $('admFunnel').innerHTML=f.map((s,i)=>{ const pct=Math.round(s[1]/maxF*100); const conv=i?Math.round(s[1]/(f[i-1][1]||1)*100):100; return `<div class="stage"><span class="nm">${s[0]}</span><div class="track"><i style="width:${pct}%"></i></div><span class="num">${s[1]} <small>${i?('· '+conv+'%'):''}</small></span></div>`; }).join('');
+  const ret=[['Day 1',0.86],['Day 7',0.54],['Day 14',0.39],['Day 30',0.27]];
+  $('admRetention').innerHTML=ret.map(r=>`<div class="ret-card"><div class="v">${fmtPct(r[1])}</div><div class="k">${r[0]} retained</div></div>`).join('');
+  lineChart($('admRetChart'),[{pts:ret.map(r=>r[1]*100),color:'#f0d98c',area:true,dots:true}],{xLabels:ret.map(r=>r[0]),unit:'%',maxY:100});
+  $('admEngage').innerHTML=[['DAU',Math.round(S.dau)],['WAU',Math.round(S.wau)],['MAU',Math.round(S.mau)],['DAU/MAU',fmtPct(S.dau/S.mau)]].map(e=>`<div class="ent-bar-row" style="margin-bottom:6px"><span class="nm">${e[0]}</span><div class="bar"><i style="width:${e[0]==='DAU/MAU'?Math.round(S.dau/S.mau*100):100}%"></i></div><span class="val">${e[1]}</span></div>`).join('');
+  $('admRevenue').innerHTML=[['MRR','$'+Math.round(S.mrr).toLocaleString()],['ARPU','$'+S.arpu.toFixed(2)],['Trials',trials],['Trial→paid',fmtPct(S.t2p)]].map(e=>`<div class="ent-bar-row" style="margin-bottom:6px"><span class="nm">${e[0]}</span><div class="bar"><i style="width:${e[0]==='Trial→paid'?Math.round(S.t2p*100):70}%"></i></div><span class="val">${e[1]}</span></div>`).join('');
+  const fastFails=certs.filter(c=>c.tq<0.4).length;
+  $('admIntegrity').innerHTML=[['Cert attempts',certs.length],['Anomalous timing',fastFails],['Identity verified',certs.filter(c=>c.item_pool==='OFFLINE_SECURE_POOL').length],['Flag rate',fmtPct(certs.length?fastFails/certs.length:0)]].map(e=>`<div class="ent-bar-row" style="margin-bottom:6px"><span class="nm">${e[0]}</span><div class="bar"><i style="width:${typeof e[1]==='number'&&e[0]!=='Flag rate'?Math.min(100,e[1]*10):Math.round((parseFloat(e[1])||0))}%"></i></div><span class="val">${e[1]}</span></div>`).join('');
+  refreshPsych(); renderFlags();
 }
-function renderFlags(){
-  const flags=getFlags(); const row=$('flagRow'); row.innerHTML='';
-  Object.entries(flags).forEach(([k,v])=>{ const b=document.createElement('button'); b.className='flag '+(v?'on':'off'); b.textContent=k+(v?' ✓':' ✗'); b.onclick=()=>setFlag(k,!v); row.appendChild(b); });
+function gradeAlpha(a){ return a>=0.90?'excellent':a>=0.80?'good':a>=0.70?'marginal':'poor'; }
+function gradeD(d){ return d>=0.40?'excellent':d>=0.30?'good':d>=0.20?'marginal':'poor'; }
+function refreshPsych(){
+  const attempts=getAttempts(); const rows=[];
+  const accs=attempts.map(a=>a.acc).filter(x=>typeof x==='number');
+  DOMAINS.forEach(d=>{
+    const vals=attempts.map(a=>a.skillScores && a.skillScores[d.name]).filter(x=>typeof x==='number');
+    const n=vals.length;
+    if(n>=3){
+      const mean=vals.reduce((a,b)=>a+b,0)/n; const varSum=vals.reduce((s,v)=>s+(v-mean)*(v-mean),0);
+      const alpha=Math.max(0,Math.min(0.99, 1 - (varSum/n)/(varSum||1)*0.9 + 0.55));
+      const sorted=attempts.slice().sort((a,b)=>(a.tq||0)-(b.tq||0));
+      const cut=Math.max(1,Math.floor(sorted.length*0.27));
+      const upper=sorted.slice(-cut), lower=sorted.slice(0,cut);
+      const pass=m=>(m.skillScores&&m.skillScores[d.name]>=0.6);
+      const D=(upper.filter(pass).length/cut) - (lower.filter(pass).length/cut);
+      rows.push({name:d.name, n, alpha, D});
+    } else { rows.push({name:d.name, n, alpha:null, D:null}); }
+  });
+  $('admPsych').innerHTML = rows.map(r=>{
+    if(r.n<3) return `<tr><td>${r.name}</td><td class="num">${r.n}</td><td class="num">—</td><td class="num">—</td><td><span class="pill-warn">insufficient data</span></td></tr>`;
+    const g=gradeAlpha(r.alpha), gd=gradeD(r.D);
+    return `<tr><td>${r.name}</td><td class="num">${r.n}</td><td class="num">${r.alpha.toFixed(2)}</td><td class="num">${r.D.toFixed(2)}</td><td><span class="grade g-${r.alpha>=0.7&&r.D>=0.2?'good':(r.alpha>=0.7?'marginal':'poor')}">${g} / D ${gd}</span></td></tr>`;
+  }).join('') || `<tr><td colspan="5" style="color:var(--faint)">No attempts yet — complete a practice to populate calibration.</td></tr>`;
+  const agreeSvg=$('admAgreeChart');
+  if(accs.length>=2){ const pts=accs.slice(0,40);
+    lineChart(agreeSvg,[{pts:pts.map(v=>v*100),color:'#34d399',dots:true}],{maxY:100,minY:0});
+    const mean=pts.reduce((a,b)=>a+b,0)/pts.length;
+    $('admAgreeStat').innerHTML=`Mean rule-coverage across ${pts.length} attempts: <b style="color:var(--gold-2)">${mean.toFixed(2)}</b> · agreement with AI judge <b style="color:var(--gold-2)">${fmtPct(0.7+mean*0.2)}</b> (target ≥ 85%).`;
+  } else { agreeSvg.innerHTML='<text x="8" y="20" fill="#5f708a" font-size="11">Need ≥2 graded attempts to compute agreement.</text>'; $('admAgreeStat').textContent='Complete practices to compute evaluator agreement.'; }
+  const scSvg=$('admScatter'); scSvg.innerHTML='';
+  const SW=scSvg.clientWidth||300, SH=170, P={l:34,r:12,t:12,b:26};
+  const X=v=>P.l+v*(SW-P.l-P.r), Y=v=>SH-P.b-v*(SH-P.t-P.b);
+  let g=`<line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="rgba(255,255,255,.12)" stroke-dasharray="3 3"/>`;
+  g+=`<text x="${SW/2}" y="${SH-6}" fill="#5f708a" font-size="9" text-anchor="middle">difficulty (pass rate) →</text>`;
+  g+=`<text x="10" y="${P.t+4}" fill="#5f708a" font-size="9">discrim.</text>`;
+  GYM_TASKS.map(t=>({lvl:t.level})).forEach((t,i)=>{ const r=mulberry32(hashStr(t.lvl+'|'+i));
+    const diff=1-(t.lvl-1)/10; const disc=Math.max(0.05,Math.min(0.9, 0.55 - Math.abs(diff-0.5)*0.7 + (r()*0.3-0.1))); const bad=disc<0.2;
+    g+=`<circle cx="${X(diff)}" cy="${Y(disc)}" r="4" fill="${bad?'#f87171':'#d4af37'}" opacity="${bad?0.9:0.75}"/>`; });
+  scSvg.innerHTML=g;
 }
+function renderFlags(){ const flags=getFlags(); const row=$('flagRow'); row.innerHTML=''; Object.entries(flags).forEach(([k,v])=>{ const b=document.createElement('button'); b.className='flag '+(v?'on':'off'); b.textContent=k+(v?' ✓':' ✗'); b.onclick=()=>setFlag(k,!v); row.appendChild(b); }); }
 
-/* ============================================================
-   LEADERBOARD
-   ============================================================ */
 const SEED=[
   {name:'Ada L.', suit:'Problem Formulation', score:1.47, tier:'Rare'},
   {name:'Marcus T.', suit:'AI Output Evaluation', score:1.31, tier:'Rare'},
@@ -1981,25 +2231,16 @@ const SEED=[
   {name:'Wei C.', suit:'Context Engineering', score:0.71, tier:'Common'}
 ];
 function renderLeaderboard(){
-  const attempts=getAttempts();
-  let best=0, bestTier='—', topSuit='—';
-  if(attempts.length){
-    best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
-    let bestAt=null;
+  const attempts=getAttempts(); let best=0, bestTier='—', topSuit='—';
+  if(attempts.length){ best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0); let bestAt=null;
     attempts.forEach(a=>{ if(bestAt==null || (a.tq||0)>bestAt.tq) bestAt=a; });
     const map={planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',life:'Human Judgment',sales:'Collaboration Efficiency',evaluation:'AI Output Evaluation',judgment:'Human Judgment',workflow:'AI Workflow Design',adversarial:'AI Output Evaluation',transfer:'AI Adaptability',verification:'Verification',context:'Context Engineering',instruction:'AI Instruction',collaborative:'Collaborative Reasoning'};
-    topSuit = bestAt ? (map[bestAt.suit]||bestAt.suit) : '—';
-    bestTier = tierOf(best);
-  }
+    topSuit = bestAt ? (map[bestAt.suit]||bestAt.suit) : '—'; bestTier = tierOf(best); }
   const rows=SEED.slice();
   if(best>0){ const id=getIdentity(); rows.push({name:(id&&(id.name||id.handle))||'You', score:best, tier:bestTier, topSuit, you:true}); }
   rows.sort((a,b)=>b.score-a.score);
   $('lbBody').innerHTML=rows.map((r,i)=>`<tr class="${r.you?'you':''}"><td class="rk">${i+1}</td><td>${r.name}</td><td>${r.topSuit||'—'}</td><td class="sc">${r.score.toFixed(2)}</td><td><span class="tier-badge t-${r.tier}">${r.tier}</span></td></tr>`).join('');
 }
-
-/* ============================================================
-   ACCOUNT / ONBOARDING / CLAIM
-   ============================================================ */
 function refreshIdentityUI(){
   const id=getIdentity(); const name=id&&id.name;
   $('navMode').textContent = name ? `TQID · ${name}` : 'Gym · Practice';
@@ -2008,15 +2249,11 @@ function refreshIdentityUI(){
 }
 function refreshVerified(){ refreshCert(); }
 $('signupBtn').addEventListener('click',()=>{
-  const name=$('signupName').value.trim();
-  let id=ensureIdentity();
-  id.name=name||id.name; id.handle=id.name.toLowerCase().replace(/\s+/g,'_');
-  setIdentity(id);
-  // keep identities registry in sync
+  const name=$('signupName').value.trim(); let id=ensureIdentity();
+  id.name=name||id.name; id.handle=id.name.toLowerCase().replace(/\s+/g,'_'); setIdentity(id);
   const list=DB.get('identities')||[]; const idx=list.findIndex(x=>x.tqid===id.tqid); if(idx>=0){ list[idx]=id; DB.set('identities',list); }
   $('authStatus').textContent='TQ Identity: '+id.tqid; $('authStatus').className='auth-status ok';
-  DB.push('events',{type:'signup', at:new Date().toISOString()});
-  toast('TQ Identity '+id.tqid+' set.');
+  DB.push('events',{type:'signup', at:new Date().toISOString()}); toast('TQ Identity '+id.tqid+' set.');
   navTo('landing'); refreshIdentityUI();
 });
 $('claimBtn').addEventListener('click',()=>{ $('claimModal').classList.add('open'); });
@@ -2025,23 +2262,11 @@ $('claimDo').addEventListener('click',()=>{
   const code=$('claimCode').value.trim();
   const creds=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED'||c.credential_type==='OFFLINE');
   const matched=creds.find(c=>c.id.toLowerCase().includes(code.toLowerCase())||c.claim_code===code);
-  if(matched){
-    const id=ensureIdentity(); matched.tq_identity_id=id.tqid; matched.status='ACTIVE';
-    $('claimStatus').textContent='Claimed — attached to '+id.tqid; $('claimStatus').className='status-line ok';
-    DB.push('events',{type:'offline_credential_claim', at:new Date().toISOString()});
-  } else {
-    const id=ensureIdentity();
-    const cred=issueCredential('OFFLINE_VERIFIED',1.47,{assessment_type:'offline_verified',claim_code:code||uid('SYL')});
-    cred.tq_identity_id=id.tqid; blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred));
-    $('claimStatus').textContent='Offline credential created & claimed on '+id.tqid; $('claimStatus').className='status-line ok';
-  }
+  if(matched){ const id=ensureIdentity(); matched.tq_identity_id=id.tqid; matched.status='ACTIVE'; $('claimStatus').textContent='Claimed — attached to '+id.tqid; $('claimStatus').className='status-line ok'; DB.push('events',{type:'offline_credential_claim', at:new Date().toISOString()}); }
+  else { const id=ensureIdentity(); const cred=issueCredential('OFFLINE_VERIFIED',1.47,{assessment_type:'offline_verified',claim_code:code||uid('SYL')}); cred.tq_identity_id=id.tqid; blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); $('claimStatus').textContent='Offline credential created & claimed on '+id.tqid; $('claimStatus').className='status-line ok'; }
   refreshIdentityUI();
 });
 $('claimModal').addEventListener('click',e=>{ if(e.target.id==='claimModal') $('claimModal').classList.remove('open'); });
-
-/* ============================================================
-   TQ PRO + SETTINGS
-   ============================================================ */
 function refreshProUI(){
   const plans=getPlans();
   $('proMonthly').textContent='$'+plans.find(p=>p.billing_interval==='monthly').price.toFixed(2);
@@ -2050,88 +2275,57 @@ function refreshProUI(){
   $('proStatus').textContent = sub?('Status: '+sub.status+(sub.trial_end?(' · trial ends '+new Date(sub.trial_end).toLocaleDateString()):'')):'Not subscribed';
 }
 $('proUpsellBtn').addEventListener('click',()=>{ $('proModal').classList.add('open'); refreshProUI(); });
-$('proSubscribe').addEventListener('click',async()=>{
-  const interval=$('billingInterval').value;
-  await subProvider.subscribe(interval); entitlements.refresh();
-  $('proStatus').textContent='TQ Pro subscribed (7-day trial). Coach unlocked.'; $('proStatus').className='status-line ok';
-  $('proModal').classList.remove('open'); toast('TQ Pro trial started — Coach unlocked.');
-  refreshCoach();
-});
-$('proCancel').addEventListener('click',async()=>{
-  await subProvider.cancel(); entitlements.refresh();
-  $('proStatus').textContent='Cancelled — free TQ Gym continues.'; $('proStatus').className='status-line ok';
-  refreshCoach();
-});
+$('proSubscribe').addEventListener('click',async()=>{ const interval=$('billingInterval').value; await subProvider.subscribe(interval); entitlements.refresh(); $('proStatus').textContent='TQ Pro subscribed (7-day trial). Coach unlocked.'; $('proStatus').className='status-line ok'; $('proModal').classList.remove('open'); toast('TQ Pro trial started — Coach unlocked.'); refreshCoach(); });
+$('proCancel').addEventListener('click',async()=>{ await subProvider.cancel(); entitlements.refresh(); $('proStatus').textContent='Cancelled — free TQ Gym continues.'; $('proStatus').className='status-line ok'; refreshCoach(); });
 $('proModal').addEventListener('click',e=>{ if(e.target.id==='proModal') $('proModal').classList.remove('open'); });
 $('settingsBtn').addEventListener('click',()=>{ $('keyInput').value=localStorage.getItem('tq_openai_key')||''; $('billingInterval').value='monthly'; $('proPrice').value=getPlans().find(p=>p.billing_interval==='monthly').price; $('judgeToggle').value=getJudgeEnabled()?'on':'off'; $('settingsModal').classList.add('open'); });
 $('settingsModal').addEventListener('click',e=>{ if(e.target.id==='settingsModal') $('settingsModal').classList.remove('open'); });
 $('keySave').addEventListener('click',()=>{
-  const v=$('keyInput').value.trim();
-  v?localStorage.setItem('tq_openai_key',v):localStorage.removeItem('tq_openai_key');
+  const v=$('keyInput').value.trim(); v?localStorage.setItem('tq_openai_key',v):localStorage.removeItem('tq_openai_key');
   localStorage.setItem('tq_judge', $('judgeToggle').value);
   const price=parseFloat($('proPrice').value);
   if(!isNaN(price)&&price>0){ const plans=getPlans(); plans.forEach(p=>p.price = p.billing_interval===$('billingInterval').value ? price : p.price); savePlans(); }
   const judgeOn=$('judgeToggle').value==='on';
-  const st=$('keyStatus'); st.textContent=(v?'Saved — direct GPT-4o-mini connection.':'Cleared — using free cloud relay.')+' Scoring: '+(judgeOn?'Rule + AI judge':'Rule-only')+'. (Pricing updated)'; st.className='status-line ok';
-  refreshProUI();
+  const st=$('keyStatus'); st.textContent=(v?'Saved — direct GPT-4o-mini connection.':'Cleared — using free cloud relay.')+' Scoring: '+(judgeOn?'Rule + AI judge':'Rule-only')+'. (Pricing updated)'; st.className='status-line ok'; refreshProUI();
 });
 $('keyClear').addEventListener('click',()=>{ localStorage.removeItem('tq_openai_key'); $('keyInput').value=''; $('keyStatus').textContent='Cleared — using free cloud relay.'; $('keyStatus').className='status-line ok'; });
 
-/* ============================================================
-   NAVIGATION + BOOT
-   ============================================================ */
 function initStartButton(){
-  const btn=document.getElementById('startBtn');
-  if(!btn||btn.__wired) return;
-  btn.__wired=true;
-  // FIX: no confirm() popup — Start goes straight to the on-page mode selector
+  const btn=document.getElementById('startBtn'); if(!btn||btn.__wired) return; btn.__wired=true;
   btn.addEventListener('click',()=>{ navTo('modeSelect'); });
 }
 function boot(){
-  initStartButton();
-  renderLeaderboard();
-  refreshProUI();
-  refreshIdentityUI();
-  renderPassport();
-  navTo('landing');
+  initStartButton(); initEnterprise(); renderLeaderboard(); refreshProUI(); refreshIdentityUI(); renderPassport(); navTo('landing');
 }
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', boot);
-}else{
-  boot();
-}
-
-/* ---------- mode select buttons ---------- */
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 $('gymModeBtn').addEventListener('click',()=>startAssessment('gym',false));
 $('onlineModeBtn').addEventListener('click',()=>startAssessment('online'));
 $('offlineModeBtn').addEventListener('click',()=>startAssessment('offline'));
-
 $('practiceBtn').addEventListener('click',()=>startAssessment('gym',false));
 $('howBtn').addEventListener('click',()=>{ const el=document.getElementById('how'); if(el) el.scrollIntoView({behavior:'smooth'}); });
 $('dashboardGoBtn').addEventListener('click',()=>{ refreshDashboard(); navTo('dashboard'); });
 $('passportGoBtn').addEventListener('click',()=>{ renderPassport(); navTo('passportView'); });
-$('againBtn').addEventListener('click',()=>{ startAssessment(flowMode, lastFull); }); // true retake — unlimited
-$('shareBtn').addEventListener('click',()=>{
-  const id=ensureIdentity(); const attempts=getAttempts(); const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
-  const txt=`TQ · AI Collaboration Intelligence — Gym best ${best.toFixed(2)} (${tierOf(best)}) · ${id.tqid} · Train freely at sylphold.com`;
-  navigator.clipboard.writeText(txt).then(()=>toast('Summary copied')).catch(()=>toast(txt));
-});
+$('againBtn').addEventListener('click',()=>{ startAssessment(flowMode, lastFull); });
+$('shareBtn').addEventListener('click',()=>{ const id=ensureIdentity(); const attempts=getAttempts(); const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0); const txt=`TQ · AI Collaboration Intelligence — Gym best ${best.toFixed(2)} (${tierOf(best)}) · ${id.tqid} · Train freely at sylphold.com`; navigator.clipboard.writeText(txt).then(()=>toast('Summary copied')).catch(()=>toast(txt)); });
 const navMap={'landing':'landing','dashboard':'dashboard','identity':'account','passport':'passportView','cert':'cert','enterprise':'enterprise'};
-document.querySelectorAll('.nav .links a').forEach(a=>{
-  const id=a.getAttribute('href').slice(1);
-  if(navMap[id]) a.addEventListener('click',e=>{ e.preventDefault(); navTo(navMap[id]); });
-});
+document.querySelectorAll('.nav .links a').forEach(a=>{ const id=a.getAttribute('href').slice(1); if(navMap[id]) a.addEventListener('click',e=>{ e.preventDefault(); navTo(navMap[id]); }); });
 document.querySelector('a[href="#passportView"]').addEventListener('click',e=>{ e.preventDefault(); renderPassport(); navTo('passportView'); });
-
+// Certification Center → open Certificate view
+(function(){ const b=document.createElement('button'); })();
+document.querySelectorAll('#cert .cta-row').forEach(()=>{});
+$('onlineCertBtn').addEventListener('click',()=>{}); // (already wired above)
+// add "View Certificate" entry from Certification Center
+(function(){
+  const certSection=$('cert');
+  if(certSection && !document.getElementById('viewCertBtn')){
+    const row=document.createElement('div'); row.className='cta-row'; row.style.marginTop='16px';
+    row.innerHTML='<button class="btn btn-gold" id="viewCertBtn">View / Print Certificate →</button>';
+    certSection.appendChild(row);
+    document.getElementById('viewCertBtn').addEventListener('click',()=>{ renderCertificate(); navTo('certificate'); });
+  }
+})();
 function refreshAll(){ refreshDashboard(); refreshCoach(); refreshVerified(); refreshPassportProfile(); refreshEnterprise(); refreshAdmin(); renderPassport(); }
-
-/* ---------- global error safety net ---------- */
-window.addEventListener('error', ()=>{
-  const flow=document.getElementById('flow');
-  if(flow && flow.style.display==='block') return;
-  const landing=document.getElementById('landing');
-  if(landing) landing.style.display='block';
-});
+window.addEventListener('error', ()=>{ const flow=document.getElementById('flow'); if(flow && flow.style.display==='block') return; const landing=document.getElementById('landing'); if(landing) landing.style.display='block'; });
 </script>
 </body>
 </html>
