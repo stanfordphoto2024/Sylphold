@@ -15,7 +15,7 @@
     --panel:rgba(255,255,255,.035); --panel-2:rgba(16,29,51,.5);
     --line:rgba(212,175,55,.30); --line-soft:rgba(255,255,255,.08);
     --gold:#d4af37; --gold-2:#f0d98c; --gold-3:#e9cd6f; --gold-deep:#c9a227; --gold-dim:#8a742c;
-    --ink:#eaf0fb; --muted:#9fb0c8; --faint:#5f708a;
+    --ink:#eaf0fb; --muted:#aab9cd; --faint:#7f8fa8;
     --t-common:#94a3b8; --t-uncommon:#34d399; --t-rare:#60a5fa; --t-epic:#f0d98c;
     --gym:#38bdf8; --online:#f0d98c; --offline:#34d399;
     --grad-gold:linear-gradient(135deg,#f6e7a8 0%,#e9cd6f 28%,#d4af37 52%,#f0d98c 72%,#c9a227 100%);
@@ -40,13 +40,14 @@
   /* ---------- header ---------- */
   header{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(4,7,15,.74);border-bottom:1px solid var(--line)}
   .nav{display:flex;align-items:center;gap:14px;padding:12px 0;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0;flex:0 1 auto}
   .logo-chip{width:46px;height:46px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:radial-gradient(circle at 50% 35%, #12203a, #05080f 78%);border:1px solid var(--line);display:grid;place-items:center}
   .logo-chip img{width:100%;height:100%;object-fit:cover}
-  .wordmark{line-height:1.05}
-  .wordmark b{font-family:'Cinzel',serif;font-size:19px;letter-spacing:.24em;font-weight:800}
-  .wordmark span{display:block;font-size:10px;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;margin-top:3px}
-  .nav .links{margin-left:auto;display:flex;gap:16px;align-items:center;font-size:13px;flex-wrap:wrap}
+  .wordmark{line-height:1.05;min-width:0;overflow:hidden}
+  .wordmark b{font-family:'Cinzel',serif;font-size:19px;letter-spacing:.24em;font-weight:800;display:block;white-space:nowrap}
+  .wordmark span{display:block;font-size:9.5px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nav .links{margin-left:auto;display:flex;gap:14px;align-items:center;font-size:13px;flex-wrap:wrap}
+  @media (max-width:1240px){ .wordmark span{display:none} }
   .nav .links a{color:var(--muted);transition:color .2s}
   .nav .links a:hover{color:var(--gold-2)}
   .nav .links .badge{font-size:10px;letter-spacing:.12em;color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:3px 10px;text-transform:uppercase}
@@ -300,6 +301,10 @@
   footer .fbrand{display:inline-flex;align-items:center;gap:10px}
   footer .fbrand .logo-chip{width:30px;height:30px}
   footer .fbrand b{font-family:'Cinzel',serif;letter-spacing:.24em;color:var(--gold-2);font-size:14px}
+  footer .foot-links{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:16px;font-size:12.5px}
+  footer .foot-links a{color:var(--muted);padding:6px 4px;border-radius:6px}
+  footer .foot-links a:hover{color:var(--gold-2)}
+  footer .foot-links span{color:var(--gold-dim)}
   footer p{font-size:11.5px;color:var(--faint);margin-top:12px;letter-spacing:.06em}
   .backend-note{font-size:11px;color:var(--faint);background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:10px;padding:10px 14px;margin-top:20px;line-height:1.6}
   .backend-note code{font-family:ui-monospace,monospace;color:var(--gold-2)}
@@ -431,37 +436,192 @@
   .cert-verify code{color:var(--gold-2);font-family:ui-monospace,monospace}
   .cert-watermark{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel',serif;font-weight:800;font-size:240px;color:rgba(212,175,55,.04);letter-spacing:.1em;pointer-events:none;user-select:none}
 
-  @media (max-width:860px){.how-grid,.deck,.split,.creds,.admin-grid,.pp-grid,.mode-select{grid-template-columns:1fr 1fr}.dash,.ent-grid{grid-template-columns:1fr}.grade-wrap{grid-template-columns:1fr}.coach-plan{grid-template-columns:1fr}.nav .links a:not(.keep){display:none}}
+  @media (max-width:860px){.how-grid,.deck,.split,.creds,.admin-grid,.pp-grid,.mode-select{grid-template-columns:1fr 1fr}.dash,.ent-grid{grid-template-columns:1fr}.grade-wrap{grid-template-columns:1fr}.coach-plan{grid-template-columns:1fr}}
   @media (max-width:560px){.how-grid,.deck,.split,.creds,.admin-grid,.dash,.ent-grid,.pp-grid,.mode-select{grid-template-columns:1fr}.hero{padding-top:44px}.skill-row .nm{width:150px}}
+
+  /* ================= UX LAYER · focus, wayfinding, feedback, a11y ================= */
+  :focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+  .skip-link{position:absolute;left:12px;top:-60px;z-index:300;background:#0d1626;border:1px solid var(--gold);color:var(--gold-2);padding:10px 16px;border-radius:10px;font-size:13px;transition:top .18s}
+  .skip-link:focus{top:10px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  section.block:focus{outline:none}
+  .brand{color:inherit;border-radius:12px}
+  a.brand:hover .wordmark b{color:var(--gold-2)}
+
+  /* header: tools + mobile menu */
+  header .nav{position:relative}
+  .nav-tools{display:flex;align-items:center;gap:8px;margin-left:12px}
+  .nav .links a{position:relative;padding:6px 2px;border-radius:6px}
+  .nav .links a[aria-current="page"]{color:var(--gold-2)}
+  .nav .links a[aria-current="page"]::after{content:"";position:absolute;left:2px;right:2px;bottom:-2px;height:2px;border-radius:2px;background:var(--grad-gold)}
+  .nav .links a.pro::after{content:"PRO";font-family:'Inter',sans-serif;font-size:8px;letter-spacing:.14em;color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:1px 5px;margin-left:6px;vertical-align:2px}
+  .nav .links a.lockednav{opacity:.6}
+  .nav-toggle{display:none;width:40px;height:40px;border-radius:10px;background:none;border:1px solid var(--line-soft);place-items:center;gap:4px;flex-direction:column}
+  .nav-toggle span{display:block;width:16px;height:1.5px;background:var(--muted);border-radius:2px;transition:.2s}
+  .nav-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(5px) rotate(45deg)}
+  .nav-toggle[aria-expanded="true"] span:nth-child(2){opacity:0}
+  .nav-toggle[aria-expanded="true"] span:nth-child(3){transform:translateY(-5px) rotate(-45deg)}
+  @media (max-width:940px){
+    .nav-toggle{display:flex;align-items:center;justify-content:center}
+    .nav .links{position:absolute;left:0;right:0;top:100%;flex-direction:column;align-items:stretch;gap:0;margin-left:0;
+      background:rgba(5,9,18,.98);border-bottom:1px solid var(--line);box-shadow:0 22px 44px rgba(0,0,0,.55);
+      padding:10px 24px 14px;font-size:15px;display:none;backdrop-filter:blur(14px)}
+    .nav .links.open{display:flex}
+    .nav .links a{padding:13px 4px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--ink)}
+    .nav .links a[aria-current="page"]::after{display:none}
+    .nav .links .badge{align-self:flex-start;margin-bottom:6px}
+    .wordmark span{display:none}
+  }
+  @media (max-width:600px){ .wordmark b{font-size:16px;letter-spacing:.16em} .nav-tools{margin-left:auto} }
+
+  /* section wayfinding */
+  .sec-bar{display:flex;align-items:center;gap:12px;margin:-6px 0 16px;flex-wrap:wrap}
+  .back-btn{background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:99px;padding:7px 15px;font-size:12px;transition:.18s}
+  .back-btn:hover{color:var(--gold-2);border-color:var(--line)}
+  .crumb{font-size:12px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
+  .crumb b{color:var(--muted);font-weight:500}
+  .crumb i{font-style:normal;margin:0 6px;color:var(--gold-dim)}
+
+  /* buttons / inputs */
+  .btn{min-height:44px}
+  .btn.loading{color:transparent!important;pointer-events:none;position:relative}
+  .btn.loading::after{content:"";position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-9px 0 0 -9px;border:2px solid rgba(26,20,5,.3);border-top-color:#1a1405;border-radius:50%;animation:spin .7s linear infinite}
+  .btn-ghost.loading::after{border-color:rgba(234,240,251,.25);border-top-color:var(--gold-2)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .link-btn{background:none;border:none;color:var(--gold-2);font-size:12px;text-decoration:underline;text-underline-offset:3px;padding:4px 6px}
+  .link-btn:hover{color:#fff}
+  input,select,textarea{font-size:15px}
+  textarea{min-height:170px}
+  .auth-card input,.modal select,.modal input[type=text],.modal input[type=password]{min-height:44px}
+  @media (pointer:coarse){ .btn,.range-btn,.flag,.privacy-btn,.back-btn,.icon-btn,.nav-toggle{min-height:44px} .icon-btn,.nav-toggle{min-width:44px} }
+
+  /* flow: sticky timer + exit + draft */
+  .timer-bar{position:sticky;top:71px;z-index:30;background:rgba(6,11,22,.94);backdrop-filter:blur(10px);border:1px solid var(--line-soft);border-radius:12px;padding:10px 14px;margin-bottom:16px}
+  .timer-bar .tt{min-width:74px;text-align:right}
+  .timer-bar.warn{border-color:var(--line);background:rgba(30,22,6,.9)}
+  .timer-bar.warn .tt{color:var(--gold-3)}
+  .timer-bar.crit{border-color:rgba(248,113,113,.5);background:rgba(40,10,10,.92);animation:critPulse 1.6s ease-in-out infinite}
+  .timer-bar.crit .tt{color:#fca5a5}
+  @keyframes critPulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}50%{box-shadow:0 0 0 4px rgba(248,113,113,.14)}}
+  .exit-btn{background:none;border:1px solid var(--line-soft);color:var(--faint);border-radius:99px;padding:6px 14px;font-size:11.5px;letter-spacing:.08em}
+  .exit-btn:hover{color:#f87171;border-color:rgba(248,113,113,.45)}
+  .kbd{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line-soft);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--muted);background:rgba(0,0,0,.3)}
+  .draft-note{font-size:11.5px;color:var(--t-uncommon);margin-top:8px;opacity:0;transition:opacity .3s}
+  .draft-note.on{opacity:1}
+  .req-row .mark{flex:0 0 auto;width:18px;font-weight:700;font-size:14px;line-height:1.4}
+  .req-row.ok .mark{color:var(--t-uncommon)} .req-row.no .mark{color:#f87171}
+  .req-row .ev{margin-left:18px}
+
+  /* paused-assessment resume bar (replaces leave/confirm popups) */
+  .resume-bar{position:sticky;top:71px;z-index:40;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;
+    padding:10px 20px;font-size:13px;color:var(--ink);
+    background:linear-gradient(90deg,rgba(212,175,55,.16),rgba(212,175,55,.05) 55%,rgba(212,175,55,.16));
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .resume-bar[hidden]{display:none}
+  .resume-bar .rb-dot{width:8px;height:8px;border-radius:50%;background:var(--gold-2);box-shadow:0 0 0 4px rgba(212,175,55,.18);animation:pulse 2.6s ease-in-out infinite}
+  .resume-bar b{color:var(--gold-2);letter-spacing:.04em}
+  .resume-bar .rb-time{font-family:ui-monospace,monospace;color:var(--gold-2)}
+  .resume-bar .btn{padding:8px 18px;font-size:13px;min-height:38px}
+  .resume-bar .rb-x{background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;text-underline-offset:3px;padding:6px}
+  .resume-bar .rb-x:hover{color:#f87171}
+  @media (max-width:600px){ .resume-bar{gap:10px;padding:9px 12px;font-size:12.5px} }
+
+  /* toasts */
+  .toast{border-radius:12px;max-width:min(92vw,520px);text-align:center;line-height:1.5;box-shadow:0 18px 44px rgba(0,0,0,.5)}
+  .toast.err{color:#fca5a5;border-color:rgba(248,113,113,.45)}
+  .toast.ok{color:#bfe9d6;border-color:rgba(52,211,153,.4)}
+
+  /* modals */
+  .modal{position:relative;max-height:min(86vh,760px);overflow:auto}
+  .modal-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:none;border:1px solid var(--line-soft);color:var(--muted);font-size:14px;line-height:1}
+  .modal-x:hover{color:var(--gold-2);border-color:var(--line)}
+  .modal h3{padding-right:34px}
+  .modal .field-label{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+
+  /* banner */
+  .banner{display:none;gap:12px;align-items:flex-start;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.35);border-radius:12px;padding:12px 14px;margin:14px 0 0;font-size:12.5px;color:#f3c1c1;line-height:1.6}
+  .banner.on{display:flex}
+  .banner b{color:#fca5a5}
+  .banner .link-btn{color:#fca5a5;flex:0 0 auto}
+
+  /* landing resume */
+  .resume-card{max-width:660px;margin:26px auto 0;background:linear-gradient(165deg,rgba(255,255,255,.05),rgba(4,7,15,.55));border:1px solid var(--line-soft);border-radius:16px;padding:18px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;text-align:left}
+  .resume-card[hidden]{display:none}
+  .resume-card .rc-k{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)}
+  .resume-card .rc-v{font-family:'Cinzel',serif;font-size:22px;color:#fff;margin-top:4px}
+  .resume-card .rc-col{flex:1 1 120px;min-width:110px}
+  .resume-card .rc-actions{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+  .resume-card .btn{padding:11px 18px;font-size:13.5px}
+
+  /* misc */
+  .mode-card:focus-within,.how-card:hover,.mode-card:hover{border-color:var(--line)}
+  .ai-panel h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:#fff;margin-bottom:10px}
+  .ai-panel .badge{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line-soft);border-radius:99px;padding:3px 9px;font-weight:500}
+  .lb-table tr.you td:first-child{position:relative}
+  .lb-table tr.you td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--grad-gold)}
+  .ent-table tr:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+    html{scroll-behavior:auto}
+    .skill-card{transform:none;opacity:1}
+  }
+  @media print{
+    header,.toast,.modal-bg,.sec-bar,.backend-note,.cert-toolbar,.cta-row,.pill-row{display:none!important}
+    body{background:#fff;color:#111}
+  }
 </style>
 </head>
 <body>
 
+<a class="skip-link" href="#main">Skip to main content</a>
+
 <!-- ======================= HEADER ======================= -->
 <header>
   <div class="wrap nav">
-    <div class="brand">
+    <a class="brand" href="#landing" data-nav="landing" aria-label="SYLPHOLD TQ — home">
       <div class="logo-chip" id="logoHeader"></div>
-      <div class="wordmark"><b class="gold-text">SYLPHOLD</b><span>TQ · Human-AI Collaboration Intelligence</span></div>
-    </div>
-    <nav class="links">
+      <div class="wordmark"><b class="gold-text">SYLPHOLD</b><span>TQ · Collaboration Intelligence</span></div>
+    </a>
+    <nav class="links" id="navLinks" aria-label="Primary">
       <span class="badge" id="navMode">Gym · Practice</span>
-      <a href="#landing" class="keep">Home</a>
-      <a href="#passportView" class="keep">Passport</a>
-      <a href="#dashboard" class="keep">Dashboard</a>
-      <a href="#identity" class="keep">Identity</a>
-      <a href="#cert" class="keep">Certify</a>
-      <a href="#enterprise" class="keep">Enterprise</a>
-      <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+      <a href="#modeSelect" data-nav="modeSelect">Gym</a>
+      <a href="#passportView" data-nav="passportView">Passport</a>
+      <a href="#dashboard" data-nav="dashboard">Dashboard</a>
+      <a href="#coach" data-nav="coach">Coach</a>
+      <a href="#cert" data-nav="cert">Certify</a>
+      <a href="#enterprise" data-nav="enterprise">Enterprise</a>
+      <a href="#admin" data-nav="admin">Admin</a>
+      <a href="#account" data-nav="account">Identity</a>
     </nav>
+    <div class="nav-tools">
+      <button class="icon-btn" id="settingsBtn" title="Settings · AI connection &amp; scoring" aria-label="Open settings">⚙</button>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   </div>
 </header>
 
-<main class="wrap">
+<div class="resume-bar" id="resumeBar" hidden role="region" aria-label="Assessment in progress">
+  <span class="rb-dot" aria-hidden="true"></span>
+  <div><b id="rbMode">Assessment</b> paused<span class="rb-time" id="rbTime"> · —</span></div>
+  <button class="btn btn-gold" id="rbResume" type="button">Resume →</button>
+  <button class="rb-x" id="rbDiscard" type="button">Discard</button>
+</div>
+
+<main class="wrap" id="main">
+  <div class="banner" id="errorBanner" role="alert">
+    <span aria-hidden="true">⚠️</span>
+    <div style="flex:1"><b>Something didn’t load correctly.</b> <span id="errorBannerMsg">You can keep going — the rest of the page still works.</span></div>
+    <button class="link-btn" id="errorBannerReload">Reload</button>
+    <button class="link-btn" id="errorBannerClose" aria-label="Dismiss message">Dismiss</button>
+  </div>
+  <p class="sr-only" id="srStatus" role="status" aria-live="polite"></p>
 
   <!-- ======================= LANDING ======================= -->
   <section class="hero" id="landing">
-    <div class="logo-big" id="logoHero"></div>
+    <div class="logo-big" id="logoHero" role="img" aria-label="Sylphold seal"></div>
     <h1>How well do you <em class="gold-text">work with AI?</em></h1>
     <p class="sub">
       TQ — the <b style="color:var(--gold-2)">AI Collaboration Quotient</b>. Not an IQ. Not prompt engineering.
@@ -477,6 +637,15 @@
       <div class="pill online">Online · <b>Certified</b> · Paid</div>
       <div class="pill offline">Offline · <b>Verified</b> · Proctored</div>
     </div>
+    <div class="resume-card" id="resumeCard" hidden>
+      <div class="rc-col"><div class="rc-k">Welcome back</div><div class="rc-v" id="rcName">—</div></div>
+      <div class="rc-col"><div class="rc-k">Gym best</div><div class="rc-v" id="rcBest">—</div></div>
+      <div class="rc-col"><div class="rc-k">Practices</div><div class="rc-v" id="rcRuns">0</div></div>
+      <div class="rc-actions">
+        <button class="btn btn-gold" id="rcResume">Continue training →</button>
+        <button class="btn btn-ghost" id="rcDash">Dashboard</button>
+      </div>
+    </div>
   </section>
 
   <!-- ======================= MODE SELECT ======================= -->
@@ -486,7 +655,7 @@
     <p class="sec-sub">TQ Gym is free and unlimited — train from easy to hard, as many times as you like. Gym scores are practice results, not official certification.</p>
     <div class="mode-select">
       <div class="mode-card gym">
-        <div class="mc-ring">🏋️</div>
+        <div class="mc-ring" aria-hidden="true">🏋️</div>
         <div class="mc-cap">Level 1 · Free · Unlimited</div>
         <h3 class="gold-text">TQ Gym</h3>
         <p>Practice any of the Gym tasks in a graded sequence from easy → hard. Endless retakes. Instant grading.</p>
@@ -494,7 +663,7 @@
         <button class="btn btn-gym mc-btn" id="gymModeBtn">Start TQ Gym →</button>
       </div>
       <div class="mode-card online">
-        <div class="mc-ring">🎓</div>
+        <div class="mc-ring" aria-hidden="true">🎓</div>
         <div class="mc-cap">Level 2 · Certified · Paid</div>
         <h3 class="gold-text">Online Certified</h3>
         <p>Controlled, adaptive assessment from the online pool. Produces a Certified Online TQ with on-chain attestation.</p>
@@ -502,7 +671,7 @@
         <button class="btn btn-online mc-btn" id="onlineModeBtn">Take Online Certification →</button>
       </div>
       <div class="mode-card offline">
-        <div class="mc-ring">🛡️</div>
+        <div class="mc-ring" aria-hidden="true">🛡️</div>
         <div class="mc-cap">Level 3 · Verified · Proctored</div>
         <h3 class="gold-text">Offline Verified</h3>
         <p>Highest-difficulty, identity-verified assessment from an independent secure pool. Produces the Verified TQ credential.</p>
@@ -571,13 +740,19 @@
 
   <!-- ======================= ACCOUNT / IDENTITY ======================= -->
   <section class="block" id="account" style="display:none">
-    <div class="auth-card">
-      <h3>Create your TQ Identity</h3>
-      <p>One identity for online, offline, credentials, certificates, and history. A TQ Identity is created automatically on your first practice — this step is optional and lets you set a display name.</p>
-      <input id="signupName" placeholder="Display name or handle (e.g. Ada L.)" />
-      <button class="btn btn-gold" id="signupBtn" style="width:100%">Create TQ Identity</button>
-      <div class="auth-status" id="authStatus"></div>
-      <p style="margin-top:10px;font-size:12px">Already have a TQID? <button class="btn btn-ghost" id="claimBtn" style="padding:6px 14px;font-size:12px">Claim / Link offline credential</button></p>
+    <div class="kicker">TQ Identity</div>
+    <h2 class="sec-title">Your identity across every stage</h2>
+    <p class="sec-sub">One identity links your Gym practice, Online certification, Offline verification, credentials and history.</p>
+    <div class="auth-card" style="margin-top:22px">
+      <h3>Create or update your TQ Identity</h3>
+      <p>A TQ Identity is created automatically on your first practice — this step is optional and lets you set a display name used on your certificates and career profile. TQ is measured against your own progress — never ranked against other people.</p>
+      <div class="pp-row" style="padding:0 0 12px"><span class="k">Current TQID</span><span class="v" id="curIdChip">—</span></div>
+      <label class="field-label" for="signupName">Display name or handle</label>
+      <input id="signupName" placeholder="e.g. Ada L." autocomplete="nickname" maxlength="40" />
+      <button class="btn btn-gold" id="signupBtn" style="width:100%">Save TQ Identity</button>
+      <div class="auth-status" id="authStatus" role="status" aria-live="polite"></div>
+      <p style="margin-top:12px;font-size:12.5px">Already have a TQID? <button class="btn btn-ghost" id="claimBtn" style="padding:8px 14px;font-size:12px">Claim / link offline credential</button></p>
+      <div class="backend-note">🔒 Everything lives in <b>this browser only</b> (<code>localStorage</code>): identity, attempts, credentials. No server, no upload. Clearing site data resets the demo.</div>
     </div>
   </section>
 
@@ -650,10 +825,11 @@
       <div class="chal-top"><span class="badge" id="chalSkill">Verification</span><span class="badge" id="chalPpl">— participants</span></div>
       <div class="task-body" id="chalBody">—</div>
       <div class="prompt-box">
-        <label>Your response</label>
-        <textarea id="chalInput" placeholder="Design the verification strategy…"></textarea>
+        <label for="chalInput">Your response</label>
+        <textarea id="chalInput" placeholder="Name the claims, the verification method, and the confidence threshold…" aria-describedby="chalHint"></textarea>
         <div class="submit-row">
           <button class="btn btn-gold" id="chalSubmit">Submit Challenge</button>
+          <span class="note"><span class="kbd">⌘/Ctrl</span> + <span class="kbd">Enter</span> to submit · <span id="chalCount">0</span> words</span>
         </div>
       </div>
       <div id="chalResult" style="margin-top:18px">
@@ -798,7 +974,7 @@
     </div>
 
     <div class="privacy-banner" id="entPrivacy">
-      <span>🔐</span><div id="entPrivacyText"></div>
+      <span aria-hidden="true">🔐</span><div id="entPrivacyText"></div>
     </div>
 
     <div class="ent-kpis" id="entKpis"></div>
@@ -924,29 +1100,33 @@
 
   <!-- ======================= TEST FLOW ======================= -->
   <section class="block" id="flow" style="display:none">
-    <div class="timer-bar" id="timerBar" style="display:none">
+    <div class="timer-bar" id="timerBar" style="display:none" role="timer" aria-label="Time remaining in this assessment">
       <span class="tl">Time Remaining</span>
       <span class="tt" id="timerText">35:00</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="exit-btn" id="exitFlow" aria-label="Pause this assessment and leave" title="Your place and drafts are kept — resume from the bar at the top">Pause &amp; exit</button>
     </div>
     <div class="progress-row">
       <span class="lbl" id="progLbl">Task 1 of 3</span>
-      <div class="bar"><i id="progFill"></i></div>
+      <div class="bar" id="flowBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Assessment progress"><i id="progFill"></i></div>
+      <button class="exit-btn" id="exitFlowPlain" style="display:none" title="Your place and drafts are kept — resume from the bar at the top">Pause</button>
     </div>
     <div class="task-card" id="taskCard">
       <div class="task-top"><span class="suit-chip" id="suitChip">🧭 Planning</span><span class="badge" id="flowMode">Gym · Practice</span></div>
       <h2 id="taskTitle">—</h2>
       <div class="task-body" id="taskBody">—</div>
       <div class="prompt-box" id="promptBox">
-        <label>Your prompt — the only thing the AI will see</label>
-        <textarea id="promptInput" placeholder="Write the single prompt that accomplishes the task with maximum information density…"></textarea>
-        <div class="live-row">
+        <label for="promptInput" id="promptLabel">Your prompt — the only thing the AI will see</label>
+        <textarea id="promptInput" placeholder="Write the single prompt that accomplishes the task with maximum information density…" aria-describedby="liveRow draftNote"></textarea>
+        <div class="draft-note" id="draftNote">Draft restored from this device.</div>
+        <div class="live-row" id="liveRow">
           <span>Tokens <b id="tokLive">0</b></span>
           <span>Density <b id="denLive">1.000</b></span>
           <span style="color:var(--faint)">Token consumption is an operational metric, not the TQ score.</span>
         </div>
         <div class="submit-row">
           <button class="btn btn-gold" id="submitBtn">Submit &amp; Grade</button>
-          <span class="note" id="flowNote">Instant local grading · AI response loads live</span>
+          <span class="note" id="flowNote">Instant local grading · AI response loads live · <span class="kbd">⌘/Ctrl</span> + <span class="kbd">Enter</span> to submit</span>
         </div>
       </div>
       <div id="results" style="display:none">
@@ -1002,16 +1182,7 @@
     </div>
   </section>
 
-  <!-- ======================= LEADERBOARD ======================= -->
-  <section class="block" id="leaderboard">
-    <div class="kicker">The Ladder</div>
-    <h2 class="sec-title">Practice Leaderboard</h2>
-    <p class="sec-sub">Your best run is saved on this device. Public leaderboards show a pseudonym/handle, not a legal name, unless consent allows.</p>
-    <table class="lb-table">
-      <thead><tr><th>#</th><th>Handle</th><th>Top Skill</th><th>TQ</th><th>Tier</th></tr></thead>
-      <tbody id="lbBody"></tbody>
-    </table>
-  </section>
+  <!-- ======================= LEADERBOARD (retired — score ranking hidden by design) ======================= -->
 
   <!-- ======================= FAQ ======================= -->
   <section class="block" id="faq">
@@ -1023,38 +1194,50 @@
       <div class="split-card"><h3>Is Gym score the same as certified?</h3><p>No. Gym is practice. Online is certified. Offline is verified. They are three distinct results — never merged or averaged.</p></div>
       <div class="split-card"><h3>Is using AI cheating?</h3><p>No. TQ measures how well a human collaborates with AI — using AI is the point. Verified TQ adds identity and assessment-integrity controls.</p></div>
     </div>
+    <div class="cta-row" style="margin-top:26px">
+      <button class="btn btn-gold" id="faqStartBtn">Start free in the TQ Gym →</button>
+      <button class="btn btn-ghost" id="faqPassportBtn">See my TQ Passport</button>
+    </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
     <div class="fbrand"><div class="logo-chip" id="logoFoot"></div><b class="gold-text">SYLPHOLD</b></div>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="#modeSelect" data-nav="modeSelect">TQ Gym</a><span>·</span>
+      <a href="#passportView" data-nav="passportView">Passport</a><span>·</span>
+      <a href="#dashboard" data-nav="dashboard">Dashboard</a><span>·</span>
+      <a href="#cert" data-nav="cert">Certify</a><span>·</span>
+      <a href="#account" data-nav="account">Identity</a><span>·</span>
+      <a href="#landing" data-nav="landing">Top ↑</a>
+    </nav>
     <p>TQ · Human-AI Collaboration Intelligence · Train freely. Certify. Verify. · sylphold.com</p>
     <p style="font-size:10px">Gym TQ ≠ Online Certified TQ ≠ Offline Verified TQ. Payment is not identity. Offline proctoring establishes identity. Results attested on-chain.</p>
   </div>
 </footer>
 
 <!-- ======================= SETTINGS MODAL ======================= -->
-<div class="modal-bg" id="settingsModal">
+<div class="modal-bg" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
   <div class="modal">
-    <h3>Settings · AI & Subscription</h3>
+    <button class="modal-x" data-close aria-label="Close settings">✕</button>
+    <h3 id="settingsTitle">Settings · AI &amp; Subscription</h3>
     <p>By default, AI responses come from <b class="gold-text">GPT-4o-mini via a free cloud relay</b> — no account, no key, no cost. If the relay is slow or busy, a built-in simulator takes over automatically within a few seconds. Optionally paste your own OpenAI API key.</p>
-    <input id="keyInput" type="password" placeholder="sk-… (optional, stored only in this browser)" />
-    <div class="status-line" id="keyStatus"></div>
-    <h3 style="margin-top:14px">Scoring Mode</h3>
+    <label class="field-label" for="keyInput">OpenAI API key · optional, stored only in this browser</label>
+    <input id="keyInput" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+    <div class="status-line" id="keyStatus" role="status" aria-live="polite"></div>
+    <label class="field-label" for="judgeToggle">Scoring mode</label>
+    <select id="judgeToggle">
+      <option value="on">Rule + AI semantic judge (direction-correct answers score even if worded differently)</option>
+      <option value="off">Rule-based only (faster, no extra AI call)</option>
+    </select>
+    <label class="field-label" for="billingInterval">TQ Pro pricing · configurable</label>
     <div class="row" style="justify-content:flex-start">
-      <select id="judgeToggle" style="width:100%">
-        <option value="on">Rule + AI semantic judge (direction-correct answers score even if worded differently)</option>
-        <option value="off">Rule-based only (faster, no extra AI call)</option>
-      </select>
-    </div>
-    <h3 style="margin-top:14px">TQ Pro Pricing (configurable)</h3>
-    <div class="row" style="justify-content:flex-start">
-      <select id="billingInterval">
+      <select id="billingInterval" aria-label="Billing interval" style="flex:1">
         <option value="monthly">Monthly</option>
         <option value="annual">Annual</option>
       </select>
-      <input type="text" id="proPrice" placeholder="9.99" style="width:90px" />
+      <input type="text" id="proPrice" placeholder="9.99" aria-label="TQ Pro price" inputmode="decimal" style="width:110px" />
     </div>
     <div class="row">
       <button class="btn btn-ghost" id="keyClear" style="padding:10px 18px;font-size:13px">Clear Key</button>
@@ -1064,9 +1247,10 @@
 </div>
 
 <!-- ======================= PRO MODAL ======================= -->
-<div class="modal-bg" id="proModal">
+<div class="modal-bg" id="proModal" role="dialog" aria-modal="true" aria-labelledby="proTitle">
   <div class="modal">
-    <h3>TQ Pro</h3>
+    <button class="modal-x" data-close aria-label="Close TQ Pro dialog">✕</button>
+    <h3 id="proTitle">TQ Pro</h3>
     <p>Don't just measure your TQ — improve it. TQ Pro includes TQ Coach, advanced analytics, personalized training, daily challenges, weekly plans, benchmarking, TQ Gap analysis, and TQ Passport features.</p>
     <div class="stat-grid" style="margin-bottom:14px">
       <div class="stat"><div class="v" id="proMonthly">$9.99</div><div class="k">Monthly</div></div>
@@ -1082,12 +1266,14 @@
 </div>
 
 <!-- ======================= OFFLINE CLAIM MODAL ======================= -->
-<div class="modal-bg" id="claimModal">
+<div class="modal-bg" id="claimModal" role="dialog" aria-modal="true" aria-labelledby="claimTitle">
   <div class="modal">
-    <h3>Claim an Offline Credential</h3>
+    <button class="modal-x" data-close aria-label="Close claim dialog">✕</button>
+    <h3 id="claimTitle">Claim an Offline Credential</h3>
     <p>An offline-only candidate received a certificate ID + claim code. Create an account, verify identity, claim the credential, and attach it to a single TQ Identity.</p>
-    <input id="claimCode" placeholder="Claim code (e.g. SYL-8F42-91AC)" />
-    <div class="status-line" id="claimStatus"></div>
+    <label class="field-label" for="claimCode">Claim code</label>
+    <input id="claimCode" placeholder="e.g. SYL-8F42-91AC" autocomplete="off" spellcheck="false" />
+    <div class="status-line" id="claimStatus" role="status" aria-live="polite"></div>
     <div class="row">
       <button class="btn btn-ghost" id="claimCancel" style="padding:10px 18px;font-size:13px">Cancel</button>
       <button class="btn btn-gold" id="claimDo" style="padding:10px 24px;font-size:13px">Claim</button>
@@ -1095,7 +1281,7 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ============================================================
@@ -1121,7 +1307,8 @@ function paintLogo(el){
   if(!el) return;
   el.innerHTML='';
   const img=document.createElement('img');
-  img.src=LOGO; img.alt='Sylphold';
+  img.src=LOGO; img.alt='Sylphold'; img.decoding='async';
+  img.loading = (el.id==='logoHero'||el.id==='logoHeader') ? 'eager' : 'lazy';
   const fb=monogramSVG(_logoSeq++);
   img.onerror=function(){ el.innerHTML=fb; };
   el.appendChild(img);
@@ -1130,26 +1317,33 @@ function paintLogo(el){
 const $ = id => document.getElementById(id);
 
 const DEFAULT_FLAGS = {
-  TQ_PRO:true, TQ_COACH:true, CHALLENGES:true, LEADERBOARD:true,
+  TQ_PRO:true, TQ_COACH:true, CHALLENGES:true,
   CAREER_PROFILE:true, BLOCKCHAIN:true, OFFLINE_ASSESSMENT:true,
   ENTERPRISE:true, ADAPTIVE:true, ANTI_CHEAT:true
 };
-function getFlags(){ const f = JSON.parse(localStorage.getItem('tq_flags')||'{}'); return {...DEFAULT_FLAGS, ...f}; }
-function setFlag(k,v){ const f = getFlags(); f[k]=v; localStorage.setItem('tq_flags', JSON.stringify(f)); renderFlags(); }
+function getFlags(){ const f = JSON.parse(lsGet('tq_flags')||'{}'); return {...DEFAULT_FLAGS, ...f}; }
+function setFlag(k,v){ const f = getFlags(); f[k]=v; lsSet('tq_flags', JSON.stringify(f)); renderFlags(); }
 function getPlans(){
-  const p = JSON.parse(localStorage.getItem('tq_plans')||'null');
+  const p = JSON.parse(lsGet('tq_plans')||'null');
   return p || [
     {id:'pro', name:'TQ Pro', price:9.99, currency:'USD', billing_interval:'monthly', active:true},
     {id:'pro_annual', name:'TQ Pro', price:79.00, currency:'USD', billing_interval:'annual', active:true}
   ];
 }
-function savePlans(){ localStorage.setItem('tq_plans', JSON.stringify(getPlans())); }
+function savePlans(){ lsSet('tq_plans', JSON.stringify(getPlans())); }
 
 function uid(prefix){ return prefix + '-' + Math.random().toString(36).slice(2,6).toUpperCase() + '-' + Math.random().toString(36).slice(2,6).toUpperCase(); }
+/* storage that never throws (private mode, file://, disabled cookies) */
+let STORAGE_OK = true;
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ STORAGE_OK=false; return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ STORAGE_OK=false; storageWarning(); return false; } }
+function lsDel(k){ try{ localStorage.removeItem(k); return true; }catch(e){ return false; } }
+let _storageWarned=false;
+function storageWarning(){ if(_storageWarned) return; _storageWarned=true; showErrorBanner('This browser is blocking local storage, so progress will not persist between visits.'); }
 const DB = {
-  get(k){ try{ return JSON.parse(localStorage.getItem('tq_'+k)||'null'); }catch(e){ return null; } },
-  set(k,v){ localStorage.setItem('tq_'+k, JSON.stringify(v)); },
-  push(k,item){ const a = this.get(k)||[]; a.push(item); this.set(k,a); return a; }
+  get(k){ try{ return JSON.parse(lsGet('tq_'+k)||'null'); }catch(e){ return null; } },
+  set(k,v){ lsSet('tq_'+k, JSON.stringify(v)); },
+  push(k,item){ const a = this.get(k)||[]; a.push(item); if(a.length>400) a.splice(0,a.length-400); this.set(k,a); return a; }
 };
 function getIdentity(){ return DB.get('identity'); }
 function setIdentity(id){ DB.set('identity', id); }
@@ -1242,7 +1436,7 @@ const engine = new EvaluationEngine().add(new RuleEvaluator()).add(new Consisten
 const SYSTEM = 'You are a capable, precise AI assistant. Complete the user\'s request as well as you can, concisely and usefully.';
 class AIProvider {
   async generate(prompt){
-    const key = localStorage.getItem('tq_openai_key');
+    const key = lsGet('tq_openai_key');
     const body = { model: key?'gpt-4o-mini':'openai', messages:[{role:'system',content:SYSTEM},{role:'user',content:prompt}], temperature:0.7 };
     const headers = {'Content-Type':'application/json'};
     const url = key ? 'https://api.openai.com/v1/chat/completions' : 'https://gen.pollinations.ai/v1/chat/completions';
@@ -1264,12 +1458,12 @@ class RoutedProvider { constructor(){ this.primary=new AIProvider(); }
     return Promise.race([cloud, sim]); } }
 const ai = new RoutedProvider();
 
-function getJudgeEnabled(){ return localStorage.getItem('tq_judge')!=='off'; }
+function getJudgeEnabled(){ return lsGet('tq_judge')!=='off'; }
 async function llmJudge(task, prompt){
   const items = task.reqs.map((r,i)=>`${i+1}. ${r.label}`).join('\n');
   const sys = 'You are a strict, fair evaluator of human-AI collaboration. Judge by MEANING and direction, not exact wording. If the response addresses an element in its own words, count it as met. Be concise.';
   const user = `TASK:\n${task.body}\n\nCANDIDATE RESPONSE:\n${prompt}\n\nRequired elements:\n${items}\n\nFor each element score 0 (missing), 0.5 (partial) or 1 (met). Then give overall (0.0-1.0) and a one-sentence direction note.\nRespond ONLY with JSON: {"overall":0.0,"direction":"one sentence"}`;
-  const key = localStorage.getItem('tq_openai_key');
+  const key = lsGet('tq_openai_key');
   const url = key ? 'https://api.openai.com/v1/chat/completions' : 'https://gen.pollinations.ai/v1/chat/completions';
   const headers = {'Content-Type':'application/json'}; if(key) headers.Authorization='Bearer '+key;
   try{
@@ -1334,21 +1528,92 @@ function coachAnalysis(){
   return {msg, plan};
 }
 
-function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
-function countUp(el,target,dur=900){ const t0=performance.now(); (function f(t){ const k=Math.min(1,(t-t0)/dur); el.textContent=(target*(1-Math.pow(1-k,3))).toFixed(2); if(k<1)requestAnimationFrame(f); })(t0); }
+const REDUCE_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+let _toastTimer=null;
+function toast(msg,type){
+  const t=$('toast'); if(!t) return;
+  t.textContent=msg; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'), Math.min(5200, 2200+msg.length*24));
+}
+function countUp(el,target,dur=900){
+  if(REDUCE_MOTION){ el.textContent=target.toFixed(2); return; }
+  const t0=performance.now(); (function f(t){ const k=Math.min(1,(t-t0)/dur); el.textContent=(target*(1-Math.pow(1-k,3))).toFixed(2); if(k<1)requestAnimationFrame(f); })(t0);
+}
+let _typeIv=null;
+function stopTyping(){ if(_typeIv){ clearInterval(_typeIv); _typeIv=null; } }
 function typeInto(el,text,badge,done){
-  if(!text) text='(empty response)'; el.innerHTML='<span class="cursor"></span>'; let i=0;
-  const step=Math.max(2,Math.ceil(text.length/110));
-  const iv=setInterval(()=>{ i=Math.min(text.length,i+step); el.innerHTML=text.slice(0,i).replace(/\n/g,'<br>')+'<span class="cursor"></span>'; if(i>=text.length){ clearInterval(iv); el.innerHTML=text.replace(/\n/g,'<br>'); badge&&(badge.textContent=done); } },16);
+  stopTyping();
+  if(!text) text='(empty response)';
+  const render=(partial)=>{ el.innerHTML=(partial==null?text:text.slice(0,partial)).replace(/\n/g,'<br>')+(partial==null?'':'<span class="cursor"></span>'); };
+  if(REDUCE_MOTION){ render(null); if(badge) badge.textContent=done; return; }
+  render(0);
+  const step=Math.max(2,Math.ceil(text.length/110)); let i=0;
+  _typeIv=setInterval(()=>{ i=Math.min(text.length,i+step); render(i);
+    if(i>=text.length){ stopTyping(); render(null); if(badge) badge.textContent=done; } },16);
+}
+function announce(msg){ const s=$('srStatus'); if(s) s.textContent=msg; }
+/* clipboard that also works on file:// where there is no secure context */
+function copyText(txt){
+  const fallback=()=>{ try{ const ta=document.createElement('textarea'); ta.value=txt; ta.setAttribute('readonly','');
+      ta.style.cssText='position:fixed;top:-1000px;left:0;opacity:0'; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,ta.value.length);
+      const ok=document.execCommand&&document.execCommand('copy'); ta.remove(); return !!ok; }catch(e){ return false; } };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
+      return navigator.clipboard.writeText(txt).then(()=>true).catch(fallback);
+    }
+  }catch(e){}
+  return Promise.resolve(fallback());
 }
 
 const NAV_SECTIONS = ['modeSelect','account','dashboard','coach','challenge','cert','certificate','passportView','passportProfile','career','enterprise','admin','flow','result'];
+const SECTION_LABELS = {landing:'Home',modeSelect:'Choose a mode',account:'Identity',dashboard:'Dashboard',coach:'TQ Coach',challenge:'Daily Challenge',
+  cert:'Certification Center',certificate:'Certificate',passportView:'TQ Passport',passportProfile:'Passport Profile',career:'Career Profile',
+  enterprise:'Enterprise',admin:'Admin',flow:'Assessment',result:'Results'};
+const SECTION_BACK = {modeSelect:'landing',account:'landing',dashboard:'landing',coach:'landing',challenge:'coach',cert:'landing',certificate:'cert',
+  passportView:'landing',passportProfile:'passportView',career:'passportProfile',enterprise:'landing',admin:'landing',result:'landing'};
+let currentSection='landing';
 function navTo(section){
+  if(currentSection==='flow' && section!=='flow'){ stopTyping(); pauseAssessment(); }
   NAV_SECTIONS.forEach(s=>{ const el=document.getElementById(s); if(el) el.style.display = (s === section) ? 'block' : 'none'; });
-  ['how','leaderboard','faq'].forEach(s => { const el = document.getElementById(s); if(el) el.style.display = NAV_SECTIONS.includes(section) ? 'none' : 'block'; });
+  ['how','faq'].forEach(s => { const el = document.getElementById(s); if(el) el.style.display = NAV_SECTIONS.includes(section) ? 'none' : 'block'; });
   const landing = document.getElementById('landing');
   if(landing) landing.style.display = NAV_SECTIONS.includes(section) ? 'none' : 'block';
-  window.scrollTo({top:0,behavior:'smooth'});
+  currentSection = section;
+  syncNav(section);
+  updateResumeBar();
+  if(section!=='flow') stopTyping();
+  onSectionEnter(section);
+  const target = document.getElementById(section);
+  if(target){
+    const bar = target.querySelector('.sec-bar .crumb');
+    if(bar) bar.innerHTML = section==='landing' ? 'Home' : ('Home <i>/</i> <b>'+(SECTION_LABELS[section]||section)+'</b>');
+    if(!target.hasAttribute('tabindex')) target.setAttribute('tabindex','-1');
+  }
+  closeNavMenu();
+  announce(SECTION_LABELS[section]||section);
+  window.scrollTo({top:0,behavior:REDUCE_MOTION?'auto':'smooth'});
+}
+function syncNav(section){
+  document.querySelectorAll('a[data-nav]').forEach(a=>{
+    const on = a.getAttribute('data-nav')===section;
+    if(on) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
+  });
+}
+function onSectionEnter(section){
+  try{
+    if(section==='dashboard'){ refreshDashboard(); }
+    else if(section==='coach'){ refreshCoach(); }
+    else if(section==='cert'){ refreshCert(); }
+    else if(section==='passportView'){ renderPassport(); }
+    else if(section==='passportProfile'){ refreshPassportProfile(); syncPrivacyButtons(); }
+    else if(section==='certificate'){ renderCertificate(); }
+    else if(section==='career'){ refreshCareer(); }
+    else if(section==='enterprise'){ refreshEnterprise(); }
+    else if(section==='admin'){ refreshAdmin(); }
+    else if(section==='account'){ const id=getIdentity(); const chip=$('curIdChip'); if(chip) chip.textContent=id?id.tqid:'not created yet'; if(id&&id.name&&!$('signupName').value) $('signupName').value=id.name; }
+    else if(section==='landing'){ renderResume(); }
+  }catch(e){ console.warn('[TQ] section render',section,e); }
 }
 
 const GYM_TASKS=[
@@ -1387,13 +1652,6 @@ const GYM_TASKS=[
   {label:'Asks for a monthly allocation',groups:[['allocation','breakdown','budget','allocate','categories']],ideal:7},
   {label:'Sets a constraint (keep money for fun)',groups:[['keep','limit','at least','no more than','discretionary','fun']],ideal:7}],
   sim:'Monthly budget on $6,200 take-home:\n\n• Rent: $1,800 (29%)\n• Savings — down payment: $850/mo → $20,400 in 24 months (on track)\n• Essentials: $2,400\n• Discretionary / fun: $550 (keep at least $300 untouched)\n• Buffer: $600\n\nRules: pay savings first; cap discretionary at $550.'},
-  {suit:'workflow',level:2,title:'Restaurant Supply & Staffing',type:'C',body:'You manage a classic American restaurant in Woodside, open daily 7am–9pm for breakfast, lunch, and dinner. Its buttermilk pancakes and steak dinners are signature items, and Friday dinner service is the busiest. This week: your pancake-mix supplier is short and two servers called out sick on Friday. Write ONE prompt to an AI assistant that will produce a recovery plan covering both the food supply and the Friday staffing problem.',reqs:[
-  {label:'States the operating context (meals & hours)',groups:[['breakfast','lunch','dinner','7am','9pm','daily']],ideal:7},
-  {label:'Names the signature items at risk',groups:[['pancake','steak','buttermilk','signature']],ideal:7},
-  {label:'States the supply shortage concretely',groups:[['pancake mix','supplier','short','out of stock','backorder']],ideal:8},
-  {label:'States the staffing gap concretely',groups:[['server','two','sick','call out','friday','short-staffed']],ideal:8},
-  {label:'Asks for a concrete recovery plan',groups:[['recovery','plan','prioriti','substitut','reassign','cross-train','contingency','steps']],ideal:8}],
-  sim:'Friday recovery plan for the Restaurant:\n\nFood supply — pancake mix: (1) call the backup broadline supplier for a same-day 2-case order; (2) re-portion to a limited weekend batch and pull the silver-dollar pancake off the brunch menu; (3) push the banana/ricotta specials that use on-hand inventory; (4) reorder the primary mix with a par level + 1-case buffer going forward.\n\nFriday staffing — 2 servers out: (1) cross-train the morning host and a bartender onto a half section for the 5–8pm peak; (2) shift the closest server from Saturday open to Friday close; (3) tighten the section map to 4 sections instead of 6 and cap walk-ins via the waitlist; (4) run a pre-shift 3-minute huddle on 86 items and pancake limits.\n\nGuardrails: never run a section without a trained server; if the mix can\'t land by 3pm, 86 pancakes before doors and inform the host stand.'},
  {suit:'sales',level:3,title:'Cold Outreach Email',type:'C',body:'You sell a B2B scheduling tool. The prospect is VP of Operations at a 200-person logistics firm. Write ONE prompt to draft the cold email — under 100 words, specific value proposition, clear CTA, professional but friendly tone.',reqs:[
   {label:'States who the prospect is',groups:[['vp','logistics','operations']],ideal:7},
   {label:'States the value proposition',groups:[['value','save','reduce','cut','hours','time']],ideal:7},
@@ -1717,8 +1975,9 @@ const OFFLINE_TASKS=[
 ];
 
 let queue=[], qi=0, deck=[], flowMode='gym', flowLevel='gym', flowType='prompt';
-let certTimer=null, certRemaining=0, lastFull=false;
+let certTimer=null, certRemaining=0, lastFull=false, assessmentActive=false, assessmentPaused=false, submitting=false;
 const QUICK_GYM = 3;
+const CERT_SECONDS = 35*60;
 function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function startAssessment(mode, full){
   ensureIdentity(); flowMode=mode; lastFull = (mode==='gym') ? !!full : false;
@@ -1726,15 +1985,56 @@ function startAssessment(mode, full){
   if(mode==='online'){ pool = pickAdaptive(ONLINE_TASKS, 6); }
   else if(mode==='offline'){ pool = pickAdaptive(OFFLINE_TASKS, 6); }
   else { const n = full ? GYM_TASKS.length : QUICK_GYM; pool = shuffle(GYM_TASKS).slice(0,n).sort((a,b)=>a.level-b.level); }
-  queue=pool.map(t=>({...t})); qi=0; deck=[];
+  queue=pool.map(t=>({...t})); qi=0; deck=[]; submitting=false; assessmentActive=true; assessmentPaused=false;
   $('flowMode').textContent = mode==='online' ? 'Online · Certified' : mode==='offline' ? 'Offline · Verified' : 'Gym · Practice';
   $('scoreCap').textContent = mode==='online' ? 'Online Certified TQ' : mode==='offline' ? 'Verified TQ' : 'Practice TQ';
-  $('flowNote').textContent = 'Instant local grading · AI response loads live';
+  setFlowNote();
   if(mode==='online'||mode==='offline'){
-    $('timerBar').style.display='flex'; certRemaining=35*60; renderTimer(); clearInterval(certTimer);
-    certTimer=setInterval(()=>{ certRemaining--; renderTimer(); if(certRemaining<=0){ clearInterval(certTimer); certTimer=null; autoSubmit(); } },1000);
-  } else { $('timerBar').style.display='none'; clearInterval(certTimer); certTimer=null; }
+    $('timerBar').style.display='flex'; $('exitFlowPlain').style.display='none';
+    certRemaining=CERT_SECONDS; renderTimer(); clearInterval(certTimer);
+    certTimer=setInterval(tickCert,1000);
+    toast(mode==='online' ? 'Online certification started · 35:00 covers all 6 tasks.' : 'Identity verified by proctor · verified assessment started (35:00).','ok');
+  } else { $('timerBar').style.display='none'; $('exitFlowPlain').style.display=''; clearInterval(certTimer); certTimer=null; }
   navTo('flow'); renderTask();
+}
+function tickCert(){
+  certRemaining--;
+  if(certRemaining===5*60){ toast('5 minutes remaining.','err'); }
+  else if(certRemaining===60){ toast('1 minute remaining — wrap up and submit.','err'); }
+  if(certRemaining<=0){ certRemaining=0; clearInterval(certTimer); certTimer=null; renderTimer(); autoSubmit(); return; }
+  renderTimer();
+}
+function endAssessment(){ if(certTimer){ clearInterval(certTimer); certTimer=null; } assessmentActive=false; assessmentPaused=false; submitting=false; }
+function pauseAssessment(){
+  if(!assessmentActive) return;
+  if(certTimer){ clearInterval(certTimer); certTimer=null; }
+  assessmentPaused=true;
+}
+function resumeAssessment(){
+  if(!assessmentActive) return;
+  assessmentPaused=false;
+  if((flowMode==='online'||flowMode==='offline') && certRemaining>0 && !certTimer) certTimer=setInterval(tickCert,1000);
+  navTo('flow');
+  toast('Welcome back — pick up where you left off.','ok');
+}
+function discardAssessment(){
+  const label=assessmentLabel();
+  endAssessment(); queue=[]; qi=0; deck=[];
+  updateResumeBar();
+  toast(label+' discarded — tasks you already submitted are still saved.','err');
+}
+function assessmentLabel(){ return flowMode==='online'?'Online certification':flowMode==='offline'?'Verified assessment':'TQ Gym practice'; }
+function updateResumeBar(){
+  const bar=$('resumeBar'); if(!bar) return;
+  const show = assessmentActive && currentSection!=='flow';
+  bar.hidden = !show;
+  if(!show) return;
+  const m=$('rbMode'); if(m) m.textContent=assessmentLabel();
+  const t=$('rbTime');
+  if(t){
+    const left=Math.max(0,certRemaining);
+    t.textContent = (flowMode==='gym') ? (' · task '+(qi+1)+' of '+queue.length) : (' · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' left');
+  }
 }
 function pickAdaptive(pool, n){
   const sorted = pool.slice().sort((a,b)=>a.level-b.level);
@@ -1743,61 +2043,121 @@ function pickAdaptive(pool, n){
   for(let i=0;i<n;i++){ const idx=Math.round(i*step); out.push(sorted[idx]); }
   return shuffle(out);
 }
-function renderTimer(){ const m=Math.floor(certRemaining/60), s=certRemaining%60; $('timerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
-function autoSubmit(){ if($('results').style.display==='block') return; toast('Time expired — auto-submitting.'); if($('promptInput').value.trim().length>=10){ submitCurrent(); } else { submitCurrent(true); } }
+function renderTimer(){
+  const m=Math.floor(certRemaining/60), s=certRemaining%60;
+  const txt=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const el=$('timerText'); el.textContent=txt;
+  const bar=$('timerBar');
+  bar.classList.toggle('crit', certRemaining<=60);
+  bar.classList.toggle('warn', certRemaining>60 && certRemaining<=300);
+  el.setAttribute('aria-label','Time remaining '+m+' minutes '+s+' seconds');
+}
+function autoSubmit(){ if($('results').style.display==='block') return; toast('Time expired — auto-submitting this task.','err'); if($('promptInput').value.trim().length>=10){ submitCurrent(); } else { submitCurrent(true); } }
+function taskKey(t){ return flowMode+':'+(t?t.title:'?'); }
+function setFlowNote(msg){ const n=$('flowNote'); if(n) n.innerHTML = msg || 'Instant local grading · AI response loads live · <span class="kbd">⌘/Ctrl</span> + <span class="kbd">Enter</span> to submit'; }
+function setSubmitState(busy){
+  const b=$('submitBtn'); if(!b) return;
+  b.classList.toggle('loading',!!busy); b.disabled=!!busy;
+  b.setAttribute('aria-busy', busy?'true':'false');
+}
 function renderTask(){
-  const task=queue[qi];
+  const task=queue[qi]; if(!task) return;
+  stopTyping();
   $('progLbl').textContent=`Task ${qi+1} of ${queue.length}`;
-  $('progFill').style.width=(qi/queue.length*100)+'%';
+  const pct=Math.round(qi/queue.length*100);
+  $('progFill').style.width=pct+'%';
+  const pbar=$('flowBar'); if(pbar){ pbar.setAttribute('aria-valuenow',String(pct)); pbar.setAttribute('aria-valuetext',`Task ${qi+1} of ${queue.length}`); }
   $('suitChip').textContent='🧭 '+getDomainName(task);
   $('taskTitle').textContent=task.title;
   $('taskBody').innerHTML=task.body+'<span class="hint">Difficulty '+task.level+'/10 · '+task.type+' item · AI sees only your response.</span>';
   $('promptBox').style.display='block';
-  $('promptInput').value=''; $('promptInput').dispatchEvent(new Event('input'));
-  $('results').style.display='none'; $('submitBtn').style.display='';
+  const draft=(DB.get('drafts')||{})[taskKey(task)]||'';
+  $('promptInput').value=draft;
+  $('promptInput').dispatchEvent(new Event('input'));
+  const note=$('draftNote');
+  if(draft.trim()){ note.classList.add('on'); setTimeout(()=>note.classList.remove('on'),3400); } else { note.classList.remove('on'); }
+  $('results').style.display='none'; $('submitBtn').style.display=''; setSubmitState(false);
   const card=$('taskCard'); card.style.animation='none'; void card.offsetWidth; card.style.animation='';
-  $('promptInput').focus();
+  announce(`Task ${qi+1} of ${queue.length}. ${task.title}. ${getDomainName(task)}. Difficulty ${task.level} of 10.`);
+  try{ $('promptInput').focus({preventScroll:true}); }catch(e){ try{ $('promptInput').focus(); }catch(e2){} }
 }
 function getDomainName(task){
   const map={planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',life:'Human Judgment',sales:'Collaboration Efficiency',evaluation:'AI Output Evaluation',judgment:'Human Judgment',workflow:'AI Workflow Design',adversarial:'AI Output Evaluation',transfer:'AI Adaptability',verification:'Verification',context:'Context Engineering',instruction:'AI Instruction',collaborative:'Collaborative Reasoning'};
   return map[task.suit]||'AI Instruction';
 }
-$('promptInput').addEventListener('input',e=>{ $('tokLive').textContent=estTokens(e.target.value); $('denLive').textContent=density(e.target.value).toFixed(3); });
+let _draftTimer=null;
+$('promptInput').addEventListener('input',e=>{
+  const v=e.target.value;
+  $('tokLive').textContent=estTokens(v); $('denLive').textContent=density(v).toFixed(3);
+  clearTimeout(_draftTimer);
+  _draftTimer=setTimeout(()=>{
+    if(!queue[qi]) return;
+    const d=DB.get('drafts')||{}; const k=taskKey(queue[qi]);
+    if(v.trim()) d[k]=v.slice(0,4000); else delete d[k];
+    const keys=Object.keys(d); if(keys.length>30) keys.slice(0,keys.length-30).forEach(x=>delete d[x]);
+    DB.set('drafts',d);
+  },500);
+});
 async function submitCurrent(empty=false){
+  if(submitting) return;
   const prompt = empty ? '' : $('promptInput').value.trim();
-  if(!empty && prompt.length<10){ toast('Write a bit more — at least a full sentence.'); return; }
-  const task=queue[qi];
-  const g=await engine.evaluate(task, prompt);
-  const aiPromise = ai.generate(prompt||'Please respond to the task.').catch(()=>({text:task.sim, source:'built-in simulator'}));
-  let judge=null;
-  if(getJudgeEnabled() && prompt){ $('flowNote').textContent='Grading… (AI semantic judge)'; judge = await llmJudge(task, prompt); }
-  if(judge){ g.judge=judge; g.Cfinal=Math.max(0,Math.min(1,0.5*g.C+0.5*judge.overall)); g.tq=g.Cfinal*g.E*g.F*(0.5+0.5*g.D); g.tier=tierOf(g.tq); }
-  else { g.judge=null; g.Cfinal=g.C; }
-  $('submitBtn').style.display='none'; $('results').style.display='block';
-  $('progFill').style.width=((qi+1)/queue.length*100)+'%';
-  $('flowNote').textContent='Instant local grading · AI response loads live';
-  const list=$('reqList'); list.innerHTML='';
-  g.results.forEach((r,i)=>{ const div=document.createElement('div'); div.className='req-row '+(r.ok?'ok':'no'); div.style.animationDelay=(i*90)+'ms'; div.innerHTML=`<span class="mark">${r.ok?'✓':'✗'}</span><span>${r.label}${r.ok&&r.ev.length?`<span class="ev">matched: ${r.ev.join(', ')}</span>`:(r.part>0?`<span class="ev">partial ${Math.round(r.part*100)}%</span>`:'')}</span>`; list.appendChild(div); });
-  $('formulaBox').innerHTML=`C coverage=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E originality=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(overlap ${g.echo.toFixed(2)})</span> · F form=<b>${g.F.toFixed(3)}</b> · D dimension=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
-  $('judgeNote').innerHTML = g.judge ? `🤖 <b>AI semantic judge:</b> ${g.judge.direction}` : '';
-  countUp($('scoreVal'),g.tq);
-  const tb=$('tierBadge'); tb.textContent=g.tier; tb.className='tier-badge t-'+g.tier;
-  const dimsEl=$('skillDims'); dimsEl.innerHTML='';
-  Object.entries(g.dims).slice(0,6).forEach(([k,v])=>{ const d=document.createElement('div'); d.className='d'; d.innerHTML=`<b>${k}</b> — ${(v*100).toFixed(0)}`; dimsEl.appendChild(d); });
-  if(flowMode==='gym'){
-    saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v3', scoring_version:'2'});
-    DB.push('events',{type:'practice_completed', at:new Date().toISOString()});
-  } else {
-    saveCertAttempt({tqid:ensureIdentity().tqid, level:flowMode, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, item_pool:flowMode==='offline'?'OFFLINE_SECURE_POOL':'ONLINE_POOL', data_source:'CERTIFICATION'});
-    DB.push('events',{type:flowMode+'_task_completed', at:new Date().toISOString()});
+  if(!empty && prompt.length<10){
+    toast('Write a bit more — at least a full sentence.','err');
+    const ta=$('promptInput'); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+    return;
   }
-  deck.push({suit:task.suit, score:g.tq, tier:g.tier});
-  const badge=$('modelBadge'), body=$('aiBody'); badge.textContent='connecting…'; body.innerHTML='<span class="cursor"></span>';
-  aiPromise.then(res=>typeInto(body,res.text,badge,res.source));
-  $('nextBtn').textContent=(qi+1>=queue.length)?'See My Profile →':'Next Task →';
-  $('nextBtn').onclick=()=>{ qi++; if(qi>=queue.length){ if(certTimer){ clearInterval(certTimer); certTimer=null; } showResult(); } else renderTask(); };
+  submitting=true; setSubmitState(true); setFlowNote('Grading your response…');
+  const task=queue[qi];
+  try{
+    const g=await engine.evaluate(task, prompt);
+    const aiPromise = ai.generate(prompt||'Please respond to the task.').catch(()=>({text:task.sim, source:'built-in simulator'}));
+    let judge=null;
+    if(getJudgeEnabled() && prompt){ setFlowNote('Grading… <span class="kbd">rule</span> + AI semantic judge'); judge = await llmJudge(task, prompt); }
+    if(judge){ g.judge=judge; g.Cfinal=Math.max(0,Math.min(1,0.5*g.C+0.5*judge.overall)); g.tq=g.Cfinal*g.E*g.F*(0.5+0.5*g.D); g.tier=tierOf(g.tq); }
+    else { g.judge=null; g.Cfinal=g.C; }
+    const d=DB.get('drafts')||{}; delete d[taskKey(task)]; DB.set('drafts',d);
+    $('submitBtn').style.display='none'; $('results').style.display='block';
+    const pct=Math.round((qi+1)/queue.length*100);
+    $('progFill').style.width=pct+'%';
+    const pbar=$('flowBar'); if(pbar){ pbar.setAttribute('aria-valuenow',String(pct)); pbar.setAttribute('aria-valuetext',`${qi+1} of ${queue.length} tasks graded`); }
+    setFlowNote();
+    const list=$('reqList'); list.innerHTML='';
+    g.results.forEach((r,i)=>{ const div=document.createElement('div'); div.className='req-row '+(r.ok?'ok':'no'); div.style.animationDelay=(i*90)+'ms'; div.innerHTML=`<span class="mark" aria-hidden="true">${r.ok?'✓':'✗'}</span><span><span class="sr-only">${r.ok?'Met: ':'Not met: '}</span>${r.label}${r.ok&&r.ev.length?`<span class="ev">matched: ${r.ev.join(', ')}</span>`:(r.part>0?`<span class="ev">partial ${Math.round(r.part*100)}%</span>`:'')}</span>`; list.appendChild(div); });
+    $('formulaBox').innerHTML=`C coverage=<b>${g.Cfinal.toFixed(3)}</b>${g.judge?` <span style="color:var(--faint)">(rule ${g.C.toFixed(2)} + AI ${g.judge.overall.toFixed(2)})</span>`:''} · E originality=<b>${g.E.toFixed(2)}</b><span style="color:var(--faint)">(overlap ${g.echo.toFixed(2)})</span> · F form=<b>${g.F.toFixed(3)}</b> · D dimension=<b>${g.D.toFixed(3)}</b><br>TQ = C × E × F × (0.5+0.5·D) = <b>${g.tq.toFixed(2)}</b>`;
+    $('judgeNote').innerHTML = g.judge ? `🤖 <b>AI semantic judge:</b> ${g.judge.direction}` : '';
+    countUp($('scoreVal'),g.tq);
+    const tb=$('tierBadge'); tb.textContent=g.tier; tb.className='tier-badge t-'+g.tier;
+    const dimsEl=$('skillDims'); dimsEl.innerHTML='';
+    Object.entries(g.dims).slice(0,6).forEach(([k,v])=>{ const d=document.createElement('div'); d.className='d'; d.innerHTML=`<b>${k}</b> — ${(v*100).toFixed(0)}`; dimsEl.appendChild(d); });
+    if(flowMode==='gym'){
+      saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v3', scoring_version:'2'});
+      DB.push('events',{type:'practice_completed', at:new Date().toISOString()});
+    } else {
+      saveCertAttempt({tqid:ensureIdentity().tqid, level:flowMode, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, item_pool:flowMode==='offline'?'OFFLINE_SECURE_POOL':'ONLINE_POOL', data_source:'CERTIFICATION'});
+      DB.push('events',{type:flowMode+'_task_completed', at:new Date().toISOString()});
+    }
+    deck.push({suit:task.suit, score:g.tq, tier:g.tier});
+    const badge=$('modelBadge'), body=$('aiBody'); badge.textContent='connecting…'; body.innerHTML='<span class="cursor"></span>';
+    aiPromise.then(res=>typeInto(body,res.text,badge,res.source));
+    announce(`Task graded. TQ ${g.tq.toFixed(2)}, tier ${g.tier}. ${qi+1>=queue.length?'Last task — open your profile.':'Next task available.'}`);
+    $('nextBtn').textContent=(qi+1>=queue.length)?'See My Profile →':'Next Task →';
+    $('nextBtn').onclick=()=>{ qi++; if(qi>=queue.length){ endAssessment(); showResult(); } else renderTask(); };
+  }catch(e){
+    console.warn('[TQ] grading failed',e);
+    toast('Grading failed — check your connection and try again.','err');
+    setFlowNote();
+  }finally{
+    submitting=false; setSubmitState(false);
+  }
 }
 $('submitBtn').addEventListener('click',()=>submitCurrent(false));
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey) && e.key==='Enter'){
+    if(document.activeElement===$('promptInput') && $('flow').style.display==='block'){ e.preventDefault(); submitCurrent(false); }
+    else if(document.activeElement===$('chalInput')){ e.preventDefault(); $('chalSubmit').click(); }
+  }
+});
+
 function showResult(){
   navTo('result');
   const overall=deck.length?deck.reduce((s,c)=>s+c.score,0)/deck.length:0, tier=tierOf(overall);
@@ -1819,7 +2179,7 @@ function showResult(){
   });
   if(flowMode==='online'){ const cred=issueCredential('ONLINE_CERTIFIED', overall, {assessment_type:'online_certified', assessment_version:'1', confidence:conf}); blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); }
   else if(flowMode==='offline'){ const cred=issueCredential('OFFLINE_VERIFIED', overall, {assessment_type:'offline_verified', assessment_version:'1', confidence:conf, identity_verified:true, proctored:true}); blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); }
-  refreshAll(); renderLeaderboard();
+  refreshAll();
 }
 
 function renderPassport(){
@@ -1852,6 +2212,13 @@ function refreshDashboard(){
   const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
   const avg=attempts.length?attempts.reduce((s,a)=>s+(a.tq||0),0)/attempts.length:0;
   $('curTQ').textContent=cur.toFixed(2); $('bestTQ').textContent=best.toFixed(2); $('avgTQ').textContent=avg.toFixed(2); $('attempts').textContent=attempts.length;
+  const kick=$('dashKicker');
+  if(kick){
+    const verified=getActiveCredentials().some(c=>c.credential_type==='OFFLINE_VERIFIED');
+    const certified=getActiveCredentials().some(c=>c.credential_type==='ONLINE_CERTIFIED');
+    kick.textContent = verified ? 'Practice TQ · Passport complete (Offline verified)' : certified ? 'Practice TQ · Online certified · Offline not yet' : 'Practice TQ · Unverified';
+    kick.style.color = verified ? 'var(--offline)' : certified ? 'var(--online)' : 'var(--gold)';
+  }
   const skills=getSkills(); const acc={};
   attempts.forEach(a=>{ const ss=a.skillScores||{}; for(const s in ss){ acc[s]=(acc[s]||[]).concat([ss[s]]); } });
   const sp=$('skillProfile'); sp.innerHTML='';
@@ -1861,36 +2228,60 @@ function refreshDashboard(){
   $('weakest').innerHTML = wk?`<div class="skill-row"><span class="nm">${wk.s}</span><div class="bar"><i style="width:${(wk.m*100).toFixed(0)}%"></i></div><span class="val">${(wk.m*100).toFixed(0)}</span></div><p style="font-size:13px;color:var(--muted);margin-top:8px">Your largest opportunity is <b style="color:var(--gold-2)">${wk.s}</b>. Focused practice here will raise your TQ fastest.</p>`:'<p style="font-size:13px;color:var(--muted)">Complete a practice to see your profile.</p>';
   const verified=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED').reduce((m,c)=>Math.max(m,c.score),0);
   $('gapBody').innerHTML = verified>0 ? `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} · Verified ${verified.toFixed(2)} · Gap ${Math.max(0,best-verified).toFixed(2)}</p><p style="font-size:12px;color:var(--faint);margin-top:6px">A gap is not automatically evidence of cheating — it can reflect environment, difficulty, or anxiety.</p>` : `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} — no Verified TQ yet.</p><p style="font-size:12px;color:var(--faint);margin-top:6px">Complete the Offline stage to establish your gap.</p>`;
-  drawChart(7);
+  drawChart(currentRange);
 }
+let currentRange=7;
 function drawChart(range){
+  range = (range===undefined||range===null) ? currentRange : range;
   const svg=$('chartSvg'); svg.innerHTML='';
-  const attempts=getAttempts(); if(!attempts.length){ svg.innerHTML='<text x="10" y="20" fill="#5c6a82" font-size="12">Complete a practice to see your trend.</text>'; return; }
+  const attempts=getAttempts(); if(!attempts.length){ svg.innerHTML='<text x="10" y="24" fill="#7f8fa8" font-size="12">Complete a practice to see your trend here.</text>'; return; }
   const W=svg.clientWidth||700, H=svg.clientHeight||200; const all=(range===0||range==='all');
   const pts=all?attempts.map((a,i)=>({x:i,y:a.tq})):attempts.slice(-range).map((a,i)=>({x:i,y:a.tq}));
-  if(pts.length<2){ svg.innerHTML='<text x="10" y="20" fill="#5c6a82" font-size="12">Need more attempts for a trend.</text>'; return; }
+  if(pts.length<2){ svg.innerHTML='<text x="10" y="24" fill="#7f8fa8" font-size="12">Complete one more practice to draw a trend line.</text>'; return; }
   const max=Math.max(...pts.map(p=>p.y),1), min=Math.min(...pts.map(p=>p.y));
-  const px=i=>30+i*(W-60)/Math.max(1,pts.length-1), py=y=>H-20-(y-min)/(max-min||1)*(H-40);
-  let path=''; pts.forEach((p,i)=>{ path+=(i?' L':'M')+px(p.x).toFixed(1)+','+py(p.y).toFixed(1); });
-  svg.innerHTML=`<line x1="30" y1="${H-20}" x2="${W-30}" y2="${H-20}" stroke="rgba(255,255,255,.1)"/><polyline points="${path}" fill="none" stroke="#f0d98c" stroke-width="2"/>${pts.map((p,i)=>`<circle cx="${px(p.x)}" cy="${py(p.y)}" r="3" fill="#f0d98c"/>`).join('')}`;
+  const px=i=>30+i*(W-60)/Math.max(1,pts.length-1), py=y=>H-20-(y-min)/(max-min||1)*(H-44);
+  const poly=pts.map(p=>px(p.x).toFixed(1)+','+py(p.y).toFixed(1)).join(' ');
+  const area=`30,${H-20} ${poly} ${px(pts.length-1).toFixed(1)},${H-20}`;
+  const last=pts[pts.length-1];
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label',`Practice TQ trend, ${pts.length} attempts, from ${pts[0].y.toFixed(2)} to ${last.y.toFixed(2)}`);
+  svg.innerHTML=`<line x1="30" y1="${H-20}" x2="${W-30}" y2="${H-20}" stroke="rgba(255,255,255,.1)"/>`+
+    `<line x1="30" y1="${py(max).toFixed(1)}" x2="${W-30}" y2="${py(max).toFixed(1)}" stroke="rgba(255,255,255,.06)"/>`+
+    `<text x="4" y="${(py(max)+3).toFixed(1)}" fill="#7f8fa8" font-size="10">${max.toFixed(1)}</text>`+
+    `<text x="4" y="${(py(min)+3).toFixed(1)}" fill="#7f8fa8" font-size="10">${min.toFixed(1)}</text>`+
+    `<polygon points="${area}" fill="#f0d98c" opacity="0.08"/>`+
+    `<polyline points="${poly}" fill="none" stroke="#f0d98c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`+
+    pts.map(p=>`<circle cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="3" fill="#f0d98c"/>`).join('')+
+    `<circle cx="${px(pts.length-1).toFixed(1)}" cy="${py(last.y).toFixed(1)}" r="5" fill="none" stroke="#f0d98c" stroke-width="1.5"/>`+
+    `<text x="${W-30}" y="14" fill="#f0d98c" font-size="11" text-anchor="end">latest ${last.y.toFixed(2)}</text>`;
 }
-document.querySelectorAll('.range-btn').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('.range-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); drawChart(+b.dataset.r); }));
+document.querySelectorAll('.range-btn').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('.range-btn').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');}); b.classList.add('active'); b.setAttribute('aria-pressed','true'); currentRange=+b.dataset.r; drawChart(currentRange); }));
 function refreshCoach(){
-  if(!entitlements.has('TQ_COACH')){ $('coachMsg').textContent='TQ Coach is a TQ Pro feature. Upgrade to unlock personalized training.'; $('coachPlan').innerHTML=''; return; }
+  if(!entitlements.has('TQ_COACH')){
+    $('coachMsg').textContent='TQ Coach is part of TQ Pro. Your TQ Gym practice stays free and unlimited forever — the coach adds a personalized plan on top of it.';
+    $('coachPlan').innerHTML='<div class="coach-day" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:180px;font-size:13px;color:var(--muted)">Start a 7-day trial to unlock the coach, weekly plans, TQ Gap analysis and advanced analytics.</div><button class="btn btn-gold" id="coachUnlockBtn" style="padding:10px 18px;font-size:13px">Unlock TQ Pro →</button></div>';
+    const ub=$('coachUnlockBtn'); if(ub) ub.addEventListener('click',()=>{ refreshProUI(); openModal('proModal'); });
+    return;
+  }
   const a=coachAnalysis(); $('coachMsg').textContent=a.msg;
   $('coachPlan').innerHTML=a.plan.map(p=>`<div class="coach-day"><div class="d">${p.d}</div><div class="s">${p.s}</div></div>`).join('');
   DB.push('events',{type:'coach_opened', at:new Date().toISOString()});
 }
-$('coachRefreshBtn').addEventListener('click',refreshCoach);
-$('chalBody').innerHTML='You received this AI-generated answer. Determine which claims should be verified and design a verification strategy.'+'<span class="hint">Name the claims, the verification method, and the confidence threshold.</span>';
+$('coachRefreshBtn').addEventListener('click',()=>{ refreshCoach(); toast('Training analysis refreshed.'); });
+$('chalBody').innerHTML='You received this AI-generated answer. Determine which claims should be verified and design a verification strategy.'+'<span class="hint" id="chalHint">Name the claims, the verification method, and the confidence threshold.</span>';
 $('chalPpl').textContent='1,284 participants';
+let chalBusy=false;
 $('chalSubmit').addEventListener('click',()=>{
-  const txt=$('chalInput').value.trim(); if(txt.length<10){ toast('Write a short verification strategy.'); return; }
+  const btn=$('chalSubmit'), txt=$('chalInput').value.trim();
+  if(txt.length<10){ toast('Write a short verification strategy first.','err'); $('chalInput').focus(); return; }
+  if(chalBusy) return; chalBusy=true; btn.classList.add('loading'); btn.disabled=true;
   const score=0.55+density(txt)*0.4;
   DB.push('challengeAttempts',{skill:'Verification',score,at:new Date().toISOString()});
   DB.push('events',{type:'challenge_completed', at:new Date().toISOString()});
-  toast('Challenge scored — skill Verification updated.');
-  $('chalLb').innerHTML=[{rk:1,handle:'Ada L.',sc:1.82},{rk:2,handle:'Marcus T.',sc:1.79},{rk:3,handle:'Priya S.',sc:1.77},{rk:4,handle:'You',sc:score.toFixed(2),you:true}].map(r=>`<tr class="${r.you?'you':''}"><td class="rk">${r.rk}</td><td>${r.handle}</td><td class="sc">${r.sc}</td></tr>`).join('');
+  $('chalLb').innerHTML=[{rk:1,handle:'Ada L.',sc:1.82},{rk:2,handle:'Marcus T.',sc:1.79},{rk:3,handle:'Priya S.',sc:1.77},{rk:4,handle:'You',sc:score.toFixed(2),you:true}]
+    .map(r=>`<tr class="${r.you?'you':''}"><td class="rk">${r.rk}</td><td>${r.handle}${r.you?' <span class="pill-ok">you</span>':''}</td><td class="sc">${r.sc}</td></tr>`).join('');
+  toast('Challenge scored — Verification updated.','ok');
+  chalBusy=false; btn.classList.remove('loading'); btn.disabled=false;
 });
 $('dailyChallengeBtn').addEventListener('click',()=>{ navTo('challenge'); });
 function refreshCert(){
@@ -1902,7 +2293,7 @@ function refreshCert(){
   $('vOfflineStatus').textContent = offline.length ? 'Status: Verified · Identity Verified · Proctored' : 'Status: —';
 }
 $('onlineCertBtn').addEventListener('click',()=>{ startAssessment('online'); });
-$('offlineCertBtn').addEventListener('click',()=>{ toast('Offline: identity verified by proctor · starting verified assessment.'); startAssessment('offline'); });
+$('offlineCertBtn').addEventListener('click',()=>{ toast('Identity verified by simulated proctor.','ok'); startAssessment('offline'); });
 
 function refreshPassportProfile(){
   const id=getIdentity(); const attempts=getAttempts(); const creds=getCredentials();
@@ -1930,14 +2321,31 @@ function refreshCareer(){
   DB.push('events',{type:'career_profile_created', at:new Date().toISOString()});
 }
 $('pdfProfileBtn').addEventListener('click',()=>{
-  const id=getIdentity()||{tqid:'—'}; const win=window.open('','_blank');
-  win.document.write(`<html><body style="font-family:Georgia,serif;padding:40px"><h1>TQ Career Profile</h1><p>${id.name||id.handle||id.tqid} · Verified TQ ${$('cpTq').textContent} · Level ${$('cpLevel').textContent}</p><p>Credentials: ${$('cpCreds').textContent} · Blockchain: ${$('cpChain').textContent}</p></body></html>`);
-  win.document.close(); win.print();
+  const id=getIdentity()||{tqid:'—'};
+  const name=(id.name||id.handle||id.tqid).replace(/[<>&]/g,'');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>TQ Career Profile — ${name}</title>
+    <style>@page{size:A4 portrait;margin:18mm}body{font-family:Georgia,serif;color:#111;padding:8px}h1{font-size:24px;letter-spacing:.06em}
+    .k{color:#666;font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-top:18px}
+    .v{font-size:18px;margin-top:4px}small{color:#666;display:block;margin-top:28px;font-size:11px;border-top:1px solid #ddd;padding-top:10px}</style>
+    </head><body><h1>TQ Career Profile</h1>
+    <div class="k">Name / Handle</div><div class="v">${name}</div>
+    <div class="k">Verified TQ</div><div class="v">${$('cpTq').textContent} · Level ${$('cpLevel').textContent}</div>
+    <div class="k">Credentials</div><div class="v">${$('cpCreds').textContent} · Blockchain verified: ${$('cpChain').textContent}</div>
+    <small>SYLPHOLD · Human-AI Collaboration Intelligence · Gym TQ ≠ Online Certified TQ ≠ Offline Verified TQ · sylphold.com</small>
+    </body></html>`;
+  const iframe=document.createElement('iframe');
+  iframe.setAttribute('aria-hidden','true');
+  iframe.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+  document.body.appendChild(iframe);
+  const d=iframe.contentWindow.document; d.open(); d.write(html); d.close();
+  setTimeout(()=>{ try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){ toast('Use your browser menu to print this profile.','err'); } },500);
+  setTimeout(()=>{ try{ iframe.remove(); }catch(e){} },90000);
+  toast('Opening print dialog — choose "Save as PDF".');
 });
 $('badgeCopyBtn').addEventListener('click',()=>{
   const id=ensureIdentity(); const atts=(DB.get('attestations')||[]).filter(a=>a.status==='ATTESTED'); const last=atts[atts.length-1];
   const txt=`TQ · Human-AI Collaboration Intelligence\n✓ Full TQ Passport: Gym + Online + Offline\nVerified TQ by Sylphold · ${id.tqid}\nOn-chain attestation: ${last?last.uid:'—'}\nVerify: sylphold.com`;
-  navigator.clipboard.writeText(txt).then(()=>toast('Verified Badge copied')).catch(()=>toast(txt));
+  copyText(txt).then(ok=>{ toast(ok?'Verified Badge copied — paste it into your profile.':'Copy blocked by the browser — the badge is shown below.',ok?'ok':'err'); if(!ok) console.log(txt); });
 });
 
 /* ---------- CERTIFICATE ---------- */
@@ -2146,7 +2554,12 @@ function refreshEnterprise(){
   $('entFunnel').innerHTML = stages.map((s,i)=>{ const pct=Math.round(s[1]/maxS*100); const conv=i? Math.round(s[1]/(stages[i-1][1]||1)*100):100; return `<div class="stage"><span class="nm">${s[0]}</span><div class="track"><i style="width:${pct}%"></i></div><span class="num">${s[1]} <small>${i?('· '+conv+'%'):''}</small></span></div>`; }).join('');
   const deptRows = DEPTS.map(d=>{ const ms=buildOrg(entState.org,d).members; const a=ms.filter(m=>m.assessed); const avg=a.reduce((s,m)=>s+m.tq,0)/(a.length||1); const pr=a.length/ms.length; const r=mulberry32(hashStr(d+entState.org)); const delta=(r()*0.2-0.06); return {d, head:ms.length, part:pr, avg, delta}; }).sort((a,b)=>b.avg-a.avg);
   $('entDepts').innerHTML = deptRows.map(x=>`<tr class="clickable" data-dept="${x.d}"><td>${x.d}</td><td class="num">${x.head}</td><td class="num">${fmtPct(x.part)}</td><td class="num">${x.avg.toFixed(2)}</td><td class="num delta ${x.delta>=0?'up':'down'}">${x.delta>=0?'+':''}${x.delta.toFixed(2)}</td></tr>`).join('');
-  document.querySelectorAll('#entDepts tr').forEach(tr=>tr.onclick=()=>{ entState.dept=tr.dataset.dept; $('deptSelect').value=tr.dataset.dept; refreshEnterprise(); });
+  document.querySelectorAll('#entDepts tr').forEach(tr=>{
+    tr.setAttribute('tabindex','0'); tr.setAttribute('role','button'); tr.setAttribute('aria-label','Filter to '+tr.dataset.dept);
+    const go=()=>{ entState.dept=tr.dataset.dept; $('deptSelect').value=tr.dataset.dept; refreshEnterprise(); toast('Filtered to '+tr.dataset.dept+'.','ok'); };
+    tr.onclick=go;
+    tr.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } };
+  });
   const actions=[];
   if(util<0.5) actions.push(['risk','Seat utilization below 50%','Customer Success','Run re-engagement campaign; review seats at renewal']);
   if(partRate<0.7) actions.push(['warn','Participation below 70%','L&D Lead','Add manager prompts + protected learning time']);
@@ -2228,52 +2641,43 @@ function refreshPsych(){
     g+=`<circle cx="${X(diff)}" cy="${Y(disc)}" r="4" fill="${bad?'#f87171':'#d4af37'}" opacity="${bad?0.9:0.75}"/>`; });
   scSvg.innerHTML=g;
 }
-function renderFlags(){ const flags=getFlags(); const row=$('flagRow'); row.innerHTML=''; Object.entries(flags).forEach(([k,v])=>{ const b=document.createElement('button'); b.className='flag '+(v?'on':'off'); b.textContent=k+(v?' ✓':' ✗'); b.onclick=()=>setFlag(k,!v); row.appendChild(b); }); }
+function renderFlags(){ const flags=getFlags(); const row=$('flagRow'); if(!row) return; row.innerHTML=''; Object.entries(flags).forEach(([k,v])=>{ const b=document.createElement('button'); b.type='button'; b.className='flag '+(v?'on':'off'); b.setAttribute('aria-pressed',v?'true':'false'); b.textContent=k+(v?' ✓':' ✗'); b.title=(v?'Enabled':'Disabled')+' — click to toggle'; b.onclick=()=>{ setFlag(k,!v); toast(k+(v?' disabled':' enabled'),v?'ok':'err'); }; row.appendChild(b); }); }
 
-const SEED=[
-  {name:'Ada L.', suit:'Problem Formulation', score:1.47, tier:'Rare'},
-  {name:'Marcus T.', suit:'AI Output Evaluation', score:1.31, tier:'Rare'},
-  {name:'Priya S.', suit:'AI Instruction', score:1.12, tier:'Uncommon'},
-  {name:'Jonas K.', suit:'Collaboration Efficiency', score:0.94, tier:'Uncommon'},
-  {name:'Wei C.', suit:'Context Engineering', score:0.71, tier:'Common'}
-];
-function renderLeaderboard(){
-  const attempts=getAttempts(); let best=0, bestTier='—', topSuit='—';
-  if(attempts.length){ best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0); let bestAt=null;
-    attempts.forEach(a=>{ if(bestAt==null || (a.tq||0)>bestAt.tq) bestAt=a; });
-    const map={planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',life:'Human Judgment',sales:'Collaboration Efficiency',evaluation:'AI Output Evaluation',judgment:'Human Judgment',workflow:'AI Workflow Design',adversarial:'AI Output Evaluation',transfer:'AI Adaptability',verification:'Verification',context:'Context Engineering',instruction:'AI Instruction',collaborative:'Collaborative Reasoning'};
-    topSuit = bestAt ? (map[bestAt.suit]||bestAt.suit) : '—'; bestTier = tierOf(best); }
-  const rows=SEED.slice();
-  if(best>0){ const id=getIdentity(); rows.push({name:(id&&(id.name||id.handle))||'You', score:best, tier:bestTier, topSuit, you:true}); }
-  rows.sort((a,b)=>b.score-a.score);
-  $('lbBody').innerHTML=rows.map((r,i)=>`<tr class="${r.you?'you':''}"><td class="rk">${i+1}</td><td>${r.name}</td><td>${r.topSuit||'—'}</td><td class="sc">${r.score.toFixed(2)}</td><td><span class="tier-badge t-${r.tier}">${r.tier}</span></td></tr>`).join('');
-}
 function refreshIdentityUI(){
   const id=getIdentity(); const name=id&&id.name;
-  $('navMode').textContent = name ? `TQID · ${name}` : 'Gym · Practice';
+  const badge=$('navMode');
+  if(badge){ badge.textContent = name ? name : (id?'Practice · no name':'Gym · Practice'); badge.title = id?('TQ Identity '+id.tqid):'No identity yet — created on your first practice'; }
+  const chip=$('curIdChip'); if(chip && id) chip.textContent=id.tqid;
   refreshDashboard(); refreshCoach(); refreshVerified(); refreshPassportProfile(); refreshEnterprise(); refreshAdmin();
-  renderPassport();
+  renderPassport(); renderResume(); syncNavLocks();
 }
 function refreshVerified(){ refreshCert(); }
 $('signupBtn').addEventListener('click',()=>{
-  const name=$('signupName').value.trim(); let id=ensureIdentity();
-  id.name=name||id.name; id.handle=id.name.toLowerCase().replace(/\s+/g,'_'); setIdentity(id);
+  const name=$('signupName').value.trim(); const st=$('authStatus');
+  if(!name){ st.textContent='Enter a display name first — it is what your certificates and career profile show.'; st.className='auth-status err'; $('signupName').focus(); return; }
+  let id=ensureIdentity();
+  id.name=name.slice(0,40); id.handle=id.name.toLowerCase().replace(/\s+/g,'_'); setIdentity(id);
   const list=DB.get('identities')||[]; const idx=list.findIndex(x=>x.tqid===id.tqid); if(idx>=0){ list[idx]=id; DB.set('identities',list); }
-  $('authStatus').textContent='TQ Identity: '+id.tqid; $('authStatus').className='auth-status ok';
-  DB.push('events',{type:'signup', at:new Date().toISOString()}); toast('TQ Identity '+id.tqid+' set.');
-  navTo('landing'); refreshIdentityUI();
+  st.textContent='Saved · TQ Identity '+id.tqid; st.className='auth-status ok';
+  const chip=$('curIdChip'); if(chip) chip.textContent=id.tqid;
+  DB.push('events',{type:'signup', at:new Date().toISOString()});
+  toast('You are signed in as '+id.name+'.','ok');
+  refreshIdentityUI(); navTo('dashboard');
 });
-$('claimBtn').addEventListener('click',()=>{ $('claimModal').classList.add('open'); });
-$('claimCancel').addEventListener('click',()=>$('claimModal').classList.remove('open'));
+$('claimBtn').addEventListener('click',()=>{ $('claimStatus').textContent=''; openModal('claimModal'); });
+$('claimCancel').addEventListener('click',()=>closeModal($('claimModal')));
 $('claimDo').addEventListener('click',()=>{
-  const code=$('claimCode').value.trim();
+  const code=$('claimCode').value.trim(); const st=$('claimStatus');
+  if(code.length<4){ st.textContent='Enter the claim code from your offline certificate (e.g. SYL-8F42-91AC).'; st.className='status-line err'; $('claimCode').focus(); return; }
   const creds=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED'||c.credential_type==='OFFLINE');
   const matched=creds.find(c=>c.id.toLowerCase().includes(code.toLowerCase())||c.claim_code===code);
-  if(matched){ const id=ensureIdentity(); matched.tq_identity_id=id.tqid; matched.status='ACTIVE'; $('claimStatus').textContent='Claimed — attached to '+id.tqid; $('claimStatus').className='status-line ok'; DB.push('events',{type:'offline_credential_claim', at:new Date().toISOString()}); }
-  else { const id=ensureIdentity(); const cred=issueCredential('OFFLINE_VERIFIED',1.47,{assessment_type:'offline_verified',claim_code:code||uid('SYL')}); cred.tq_identity_id=id.tqid; blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); $('claimStatus').textContent='Offline credential created & claimed on '+id.tqid; $('claimStatus').className='status-line ok'; }
-  refreshIdentityUI();
+  if(matched){ const id=ensureIdentity(); matched.tq_identity_id=id.tqid; matched.status='ACTIVE'; st.textContent='Claimed — attached to '+id.tqid; st.className='status-line ok'; DB.push('events',{type:'offline_credential_claim', at:new Date().toISOString()}); }
+  else { const id=ensureIdentity(); const cred=issueCredential('OFFLINE_VERIFIED',1.47,{assessment_type:'offline_verified',claim_code:code}); cred.tq_identity_id=id.tqid; blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); st.textContent='Offline credential created & claimed on '+id.tqid; st.className='status-line ok'; }
+  $('claimCode').value='';
+  refreshIdentityUI(); toast('Offline credential linked to your passport.','ok');
+  setTimeout(()=>closeModal($('claimModal')),900);
 });
-$('claimModal').addEventListener('click',e=>{ if(e.target.id==='claimModal') $('claimModal').classList.remove('open'); });
+$('claimModal').addEventListener('click',e=>{ if(e.target.id==='claimModal') closeModal($('claimModal')); });
 function refreshProUI(){
   const plans=getPlans();
   $('proMonthly').textContent='$'+plans.find(p=>p.billing_interval==='monthly').price.toFixed(2);
@@ -2281,47 +2685,203 @@ function refreshProUI(){
   const sub=DB.get('subscription');
   $('proStatus').textContent = sub?('Status: '+sub.status+(sub.trial_end?(' · trial ends '+new Date(sub.trial_end).toLocaleDateString()):'')):'Not subscribed';
 }
-$('proUpsellBtn').addEventListener('click',()=>{ $('proModal').classList.add('open'); refreshProUI(); });
-$('proSubscribe').addEventListener('click',async()=>{ const interval=$('billingInterval').value; await subProvider.subscribe(interval); entitlements.refresh(); $('proStatus').textContent='TQ Pro subscribed (7-day trial). Coach unlocked.'; $('proStatus').className='status-line ok'; $('proModal').classList.remove('open'); toast('TQ Pro trial started — Coach unlocked.'); refreshCoach(); });
-$('proCancel').addEventListener('click',async()=>{ await subProvider.cancel(); entitlements.refresh(); $('proStatus').textContent='Cancelled — free TQ Gym continues.'; $('proStatus').className='status-line ok'; refreshCoach(); });
-$('proModal').addEventListener('click',e=>{ if(e.target.id==='proModal') $('proModal').classList.remove('open'); });
-$('settingsBtn').addEventListener('click',()=>{ $('keyInput').value=localStorage.getItem('tq_openai_key')||''; $('billingInterval').value='monthly'; $('proPrice').value=getPlans().find(p=>p.billing_interval==='monthly').price; $('judgeToggle').value=getJudgeEnabled()?'on':'off'; $('settingsModal').classList.add('open'); });
-$('settingsModal').addEventListener('click',e=>{ if(e.target.id==='settingsModal') $('settingsModal').classList.remove('open'); });
+$('proUpsellBtn').addEventListener('click',()=>{
+  if(entitlements.has('TQ_COACH')){ refreshCoach(); navTo('coach'); }
+  else { refreshProUI(); openModal('proModal'); }
+});
+$('proSubscribe').addEventListener('click',async()=>{
+  const btn=$('proSubscribe'); btn.classList.add('loading'); btn.disabled=true;
+  try{
+    const interval=$('billingInterval').value; await subProvider.subscribe(interval); entitlements.refresh();
+    $('proStatus').textContent='TQ Pro subscribed (7-day trial). Coach unlocked.'; $('proStatus').className='status-line ok';
+    toast('TQ Pro trial started — Coach unlocked.','ok');
+    refreshCoach(); syncNavLocks();
+    setTimeout(()=>closeModal($('proModal')),700);
+  }catch(e){ toast('Could not start the trial.','err'); }
+  finally{ btn.classList.remove('loading'); btn.disabled=false; }
+});
+$('proCancel').addEventListener('click',async()=>{ await subProvider.cancel(); entitlements.refresh(); $('proStatus').textContent='Cancelled — free TQ Gym continues.'; $('proStatus').className='status-line ok'; refreshCoach(); syncNavLocks(); });
+
+$('settingsBtn').addEventListener('click',()=>{
+  $('keyInput').value=lsGet('tq_openai_key')||''; $('billingInterval').value='monthly';
+  $('proPrice').value=getPlans().find(p=>p.billing_interval==='monthly').price;
+  $('judgeToggle').value=getJudgeEnabled()?'on':'off'; $('keyStatus').textContent='';
+  openModal('settingsModal');
+});
 $('keySave').addEventListener('click',()=>{
-  const v=$('keyInput').value.trim(); v?localStorage.setItem('tq_openai_key',v):localStorage.removeItem('tq_openai_key');
-  localStorage.setItem('tq_judge', $('judgeToggle').value);
+  const v=$('keyInput').value.trim(); v?lsSet('tq_openai_key',v):lsDel('tq_openai_key');
+  lsSet('tq_judge', $('judgeToggle').value);
   const price=parseFloat($('proPrice').value);
   if(!isNaN(price)&&price>0){ const plans=getPlans(); plans.forEach(p=>p.price = p.billing_interval===$('billingInterval').value ? price : p.price); savePlans(); }
   const judgeOn=$('judgeToggle').value==='on';
-  const st=$('keyStatus'); st.textContent=(v?'Saved — direct GPT-4o-mini connection.':'Cleared — using free cloud relay.')+' Scoring: '+(judgeOn?'Rule + AI judge':'Rule-only')+'. (Pricing updated)'; st.className='status-line ok'; refreshProUI();
+  const st=$('keyStatus'); st.textContent=(v?'Saved — direct GPT-4o-mini connection.':'Cleared — using free cloud relay.')+' Scoring: '+(judgeOn?'Rule + AI judge':'Rule-only')+'. Pricing updated.'; st.className='status-line ok';
+  refreshProUI(); toast('Settings saved.','ok');
+  setTimeout(()=>closeModal($('settingsModal')),700);
 });
-$('keyClear').addEventListener('click',()=>{ localStorage.removeItem('tq_openai_key'); $('keyInput').value=''; $('keyStatus').textContent='Cleared — using free cloud relay.'; $('keyStatus').className='status-line ok'; });
+$('keyClear').addEventListener('click',()=>{ lsDel('tq_openai_key'); $('keyInput').value=''; $('keyStatus').textContent='Cleared — using free cloud relay.'; $('keyStatus').className='status-line ok'; });
+$('keyInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('keySave').click(); } });
 
 function initStartButton(){
   const btn=document.getElementById('startBtn'); if(!btn||btn.__wired) return; btn.__wired=true;
   btn.addEventListener('click',()=>{ navTo('modeSelect'); });
 }
+
+/* ============================================================
+   UX LAYER · wayfinding, modals, menus, resilience
+   ============================================================ */
+let _lastFocus=null;
+function openModal(id){
+  const m = typeof id==='string' ? $(id) : id; if(!m) return;
+  _lastFocus = document.activeElement;
+  m.classList.add('open');
+  if(!m.__trap){
+    m.__trap=(e)=>{
+      if(e.key!=='Tab') return;
+      const items=[].slice.call(m.querySelectorAll('button,[href],input,select,textarea')).filter(el=>!el.disabled && el.getClientRects().length);
+      if(!items.length) return;
+      const first=items[0], last=items[items.length-1];
+      if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+    };
+    m.addEventListener('keydown',m.__trap);
+  }
+  const f=m.querySelector('input,select,textarea');
+  if(f) setTimeout(()=>{ try{ f.focus(); }catch(e){} },40);
+}
+function closeModal(m){
+  if(!m) return;
+  if(m.__trap) m.removeEventListener('keydown',m.__trap);
+  m.classList.remove('open');
+  if(_lastFocus && _lastFocus.focus){ try{ _lastFocus.focus(); }catch(e){} }
+}
+function openNavMenu(){ const l=$('navLinks'), t=$('navToggle'); if(!l) return; l.classList.add('open'); if(t){ t.setAttribute('aria-expanded','true'); t.setAttribute('aria-label','Close menu'); } }
+function closeNavMenu(){ const l=$('navLinks'), t=$('navToggle'); if(!l||!l.classList.contains('open')) return; l.classList.remove('open'); if(t){ t.setAttribute('aria-expanded','false'); t.setAttribute('aria-label','Open menu'); } }
+function injectSectionBars(){
+  NAV_SECTIONS.forEach(s=>{
+    if(s==='flow') return;
+    const sec=document.getElementById(s); if(!sec || sec.querySelector('.sec-bar')) return;
+    const back=SECTION_BACK[s]; if(!back) return;
+    const bar=document.createElement('div'); bar.className='sec-bar';
+    bar.innerHTML=`<button class="back-btn" type="button" data-nav="${back}">← ${back==='landing'?'Home':'Back'}</button><span class="crumb"></span>`;
+    sec.insertBefore(bar, sec.firstChild);
+  });
+}
+function wireNav(){
+  document.addEventListener('click',e=>{
+    const el=e.target && e.target.closest ? e.target : null; if(!el) return;
+    const closer=el.closest('[data-close], .modal-x');
+    if(closer){ const m=closer.closest('.modal-bg'); if(m){ closeModal(m); e.preventDefault(); } return; }
+    const nav=el.closest('[data-nav]');
+    if(nav){ e.preventDefault(); const target=nav.getAttribute('data-nav');
+      if(target==='passportView') renderPassport(); if(target==='certificate') renderCertificate(); navTo(target); return; }
+    const opener=el.closest('[data-open]');
+    if(opener){ e.preventDefault(); openModal(opener.getAttribute('data-open')); }
+  });
+  const t=$('navToggle');
+  if(t) t.addEventListener('click',ev=>{ ev.stopPropagation(); const l=$('navLinks'); if(l.classList.contains('open')) closeNavMenu(); else openNavMenu(); });
+  document.addEventListener('click',e=>{ const l=$('navLinks'); if(!l||!l.classList.contains('open')) return;
+    if(l.contains(e.target)||(e.target.id&&e.target.id==='navToggle')) return; closeNavMenu(); });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ const open=[].slice.call(document.querySelectorAll('.modal-bg.open')); open.forEach(closeModal); closeNavMenu(); }
+  });
+  window.addEventListener('resize',()=>{ if(window.innerWidth>940) closeNavMenu(); });
+  window.addEventListener('beforeunload',e=>{ if(assessmentActive && !assessmentPaused && currentSection==='flow'){ e.preventDefault(); e.returnValue=''; } });
+}
+function wireExitFlow(){
+  const act=()=>{
+    if(!assessmentActive){ navTo('landing'); return; }
+    pauseAssessment(); navTo('landing');
+    toast('Paused — use the Resume bar to continue anytime.');
+  };
+  const a=$('exitFlow'), b=$('exitFlowPlain');
+  if(a) a.addEventListener('click',act);
+  if(b) b.addEventListener('click',act);
+  const r=$('rbResume'), d=$('rbDiscard');
+  if(r) r.addEventListener('click',resumeAssessment);
+  if(d) d.addEventListener('click',discardAssessment);
+}
+let _errCount=0;
+function showErrorBanner(msg){
+  const b=$('errorBanner'); if(!b) return;
+  const m=$('errorBannerMsg'); if(m && msg) m.textContent=msg;
+  b.classList.add('on');
+}
+function wireErrorBanner(){
+  const b=$('errorBanner'); if(!b) return;
+  const c=$('errorBannerClose'); if(c) c.addEventListener('click',()=>b.classList.remove('on'));
+  const r=$('errorBannerReload'); if(r) r.addEventListener('click',()=>location.reload());
+  window.addEventListener('error',ev=>{ if(_errCount++>2) return; showErrorBanner((ev&&ev.message?String(ev.message).slice(0,150):'An unexpected error occurred')+' — the rest of the page still works.'); });
+  window.addEventListener('unhandledrejection',()=>{ if(_errCount++>2) return; showErrorBanner('A background request failed — grading and AI answers fall back to the local simulator.'); });
+}
+function renderResume(){
+  const card=$('resumeCard'); if(!card) return;
+  const attempts=getAttempts(); const id=getIdentity();
+  if(!attempts.length){ card.hidden=true; return; }
+  const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
+  const nm=$('rcName'), bs=$('rcBest'), rn=$('rcRuns');
+  if(nm) nm.textContent=(id&&(id.name||id.handle))||'Guest';
+  if(bs) bs.textContent=best.toFixed(2)+' · '+tierOf(best);
+  if(rn) rn.textContent=String(attempts.length);
+  card.hidden=false;
+}
+function syncNavLocks(){
+  const coach=document.querySelector('a[data-nav="coach"]');
+  if(coach){ const locked=!entitlements.has('TQ_COACH'); coach.classList.toggle('lockednav',locked); coach.classList.toggle('pro',locked);
+    coach.title = locked ? 'TQ Coach · part of TQ Pro' : 'Personalized training plan'; }
+}
+function syncPrivacyButtons(){
+  const id=getIdentity(); const p=(id&&id.privacy)||'private';
+  document.querySelectorAll('.privacy-btn').forEach(b=>b.classList.toggle('active', b.dataset.p===p));
+}
+let _resizeTimer=null;
+function wireResizeCharts(){
+  window.addEventListener('resize',()=>{
+    clearTimeout(_resizeTimer);
+    _resizeTimer=setTimeout(()=>{
+      if(currentSection==='dashboard') drawChart(currentRange);
+      else if(currentSection==='enterprise') refreshEnterprise();
+      else if(currentSection==='admin') refreshAdmin();
+    },220);
+  });
+}
+function initUX(){
+  injectSectionBars(); wireNav(); wireExitFlow(); wireErrorBanner(); wireResizeCharts();
+  const rc1=$('rcResume'), rc2=$('rcDash');
+  if(rc1) rc1.addEventListener('click',()=>startAssessment('gym',false));
+  if(rc2) rc2.addEventListener('click',()=>{ refreshDashboard(); navTo('dashboard'); });
+  const f1=$('faqStartBtn'), f2=$('faqPassportBtn');
+  if(f1) f1.addEventListener('click',()=>navTo('modeSelect'));
+  if(f2) f2.addEventListener('click',()=>{ renderPassport(); navTo('passportView'); });
+  const ci=$('chalInput'); if(ci) ci.addEventListener('input',e=>{ const c=$('chalCount'); if(c) c.textContent=String((e.target.value.trim().match(/\S+/g)||[]).length); });
+  const sn=$('signupName'); if(sn) sn.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('signupBtn').click(); } });
+  const cc=$('claimCode'); if(cc) cc.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('claimDo').click(); } });
+  document.querySelectorAll('.range-btn').forEach(b=>{ b.setAttribute('aria-pressed', b.classList.contains('active')?'true':'false'); b.title='Show the last '+(b.dataset.r==='0'?'all':b.dataset.r+' days')+' of practice'; });
+  document.querySelectorAll('.privacy-btn').forEach(b=>b.setAttribute('aria-pressed', b.classList.contains('active')?'true':'false'));
+  renderResume(); syncNavLocks(); syncPrivacyButtons();
+  if(!STORAGE_OK) storageWarning();
+}
 function boot(){
-  initStartButton(); initEnterprise(); renderLeaderboard(); refreshProUI(); refreshIdentityUI(); renderPassport(); navTo('landing');
+  initStartButton(); initEnterprise(); refreshProUI(); refreshIdentityUI(); renderPassport();
+  initUX(); navTo('landing');
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 $('gymModeBtn').addEventListener('click',()=>startAssessment('gym',false));
 $('onlineModeBtn').addEventListener('click',()=>startAssessment('online'));
 $('offlineModeBtn').addEventListener('click',()=>startAssessment('offline'));
 $('practiceBtn').addEventListener('click',()=>startAssessment('gym',false));
-$('howBtn').addEventListener('click',()=>{ const el=document.getElementById('how'); if(el) el.scrollIntoView({behavior:'smooth'}); });
+$('howBtn').addEventListener('click',()=>{ const el=document.getElementById('how'); if(el) el.scrollIntoView({behavior:REDUCE_MOTION?'auto':'smooth'}); });
 $('dashboardGoBtn').addEventListener('click',()=>{ refreshDashboard(); navTo('dashboard'); });
 $('passportGoBtn').addEventListener('click',()=>{ renderPassport(); navTo('passportView'); });
 $('againBtn').addEventListener('click',()=>{ startAssessment(flowMode, lastFull); });
-$('shareBtn').addEventListener('click',()=>{ const id=ensureIdentity(); const attempts=getAttempts(); const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0); const txt=`TQ · AI Collaboration Intelligence — Gym best ${best.toFixed(2)} (${tierOf(best)}) · ${id.tqid} · Train freely at sylphold.com`; navigator.clipboard.writeText(txt).then(()=>toast('Summary copied')).catch(()=>toast(txt)); });
-const navMap={'landing':'landing','dashboard':'dashboard','identity':'account','passport':'passportView','cert':'cert','enterprise':'enterprise'};
-document.querySelectorAll('.nav .links a').forEach(a=>{ const id=a.getAttribute('href').slice(1); if(navMap[id]) a.addEventListener('click',e=>{ e.preventDefault(); navTo(navMap[id]); }); });
-document.querySelector('a[href="#passportView"]').addEventListener('click',e=>{ e.preventDefault(); renderPassport(); navTo('passportView'); });
+$('shareBtn').addEventListener('click',()=>{
+  const id=ensureIdentity(); const attempts=getAttempts(); const best=attempts.reduce((m,a)=>Math.max(m,a.tq||0),0);
+  const txt=`TQ · AI Collaboration Intelligence — Gym best ${best.toFixed(2)} (${tierOf(best)}) · ${id.tqid} · Train freely at sylphold.com`;
+  copyText(txt).then(ok=>{
+    toast(ok?'Shareable summary copied to your clipboard.':'Copy blocked by the browser — the summary is shown below.',ok?'ok':'err');
+    if(!ok) console.log(txt);
+  });
+});
 // Certification Center → open Certificate view
-(function(){ const b=document.createElement('button'); })();
-document.querySelectorAll('#cert .cta-row').forEach(()=>{});
-$('onlineCertBtn').addEventListener('click',()=>{}); // (already wired above)
-// add "View Certificate" entry from Certification Center
 (function(){
   const certSection=$('cert');
   if(certSection && !document.getElementById('viewCertBtn')){
@@ -2331,8 +2891,7 @@ $('onlineCertBtn').addEventListener('click',()=>{}); // (already wired above)
     document.getElementById('viewCertBtn').addEventListener('click',()=>{ renderCertificate(); navTo('certificate'); });
   }
 })();
-function refreshAll(){ refreshDashboard(); refreshCoach(); refreshVerified(); refreshPassportProfile(); refreshEnterprise(); refreshAdmin(); renderPassport(); }
-window.addEventListener('error', ()=>{ const flow=document.getElementById('flow'); if(flow && flow.style.display==='block') return; const landing=document.getElementById('landing'); if(landing) landing.style.display='block'; });
+function refreshAll(){ refreshDashboard(); refreshCoach(); refreshVerified(); refreshPassportProfile(); refreshEnterprise(); refreshAdmin(); renderPassport(); renderResume(); syncNavLocks(); }
 </script>
 </body>
 </html>
