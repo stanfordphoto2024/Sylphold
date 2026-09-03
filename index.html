@@ -16,30 +16,43 @@
     --line:rgba(212,175,55,.30); --line-soft:rgba(255,255,255,.08);
     --gold:#d4af37; --gold-2:#f0d98c; --gold-3:#e9cd6f; --gold-deep:#c9a227; --gold-dim:#8a742c;
     --ink:#eaf0fb; --muted:#aab9cd; --faint:#7f8fa8;
-    --t-common:#94a3b8; --t-uncommon:#34d399; --t-rare:#60a5fa; --t-epic:#f0d98c;
-    --gym:#38bdf8; --online:#f0d98c; --offline:#34d399;
+    /* rarity ramp — heraldic metals, no off-theme azure */
+    --t-common:#9aa8b8; --t-uncommon:#4ec9a0; --t-rare:#d9925f; --t-epic:#f0d98c;
+    /* three levels: platinum (gym) · gold (online) · emerald (offline) */
+    --gym:#cfd9d4; --gym-2:#eef3f1; --gym-deep:#a8b6b0; --gym-ink:#0d1620;
+    --online:#f0d98c; --offline:#34d399;
     --grad-gold:linear-gradient(135deg,#f6e7a8 0%,#e9cd6f 28%,#d4af37 52%,#f0d98c 72%,#c9a227 100%);
+    --grad-plat:linear-gradient(135deg,#f7faf9 0%,#e2eae7 26%,#cfd9d4 52%,#eef3f1 74%,#a8b6b0 100%);
+    --grad-emer:linear-gradient(135deg,#6ee7b7 0%,#34d399 34%,#10b981 62%,#0f9d7e 100%);
+    /* rhythm + proportion tokens */
+    --maxw:1160px; --gut:clamp(16px,4vw,34px); --header-h:66px;
+    --s1:6px; --s2:10px; --s3:14px; --s4:20px; --s5:28px; --s6:40px;
+    --r-sm:10px; --r-md:14px; --r-lg:18px;
+    --shadow-1:0 10px 28px rgba(0,0,0,.34); --shadow-2:0 22px 56px rgba(0,0,0,.48);
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{
     font-family:'Inter',system-ui,sans-serif; color:var(--ink); min-height:100vh;
     background:
-      radial-gradient(1200px 620px at 50% -12%, rgba(212,175,55,.12), transparent 60%),
-      radial-gradient(1000px 560px at 88% 112%, rgba(64,120,214,.10), transparent 60%),
+      radial-gradient(1200px 620px at 50% -12%, rgba(212,175,55,.13), transparent 60%),
+      radial-gradient(1000px 560px at 88% 112%, rgba(120,140,160,.10), transparent 60%),
       radial-gradient(900px 500px at 12% 108%, rgba(212,175,55,.05), transparent 60%),
       linear-gradient(180deg, var(--navy-2), var(--navy-0) 42%);
     background-attachment:fixed;
+    overflow-x:clip;
   }
   h1,h2,h3,.serif{font-family:'Cinzel',serif; letter-spacing:.04em}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 var(--gut)}
   a{color:var(--gold-2);text-decoration:none}
   button{font-family:inherit;cursor:pointer}
+  img,svg,textarea,table{max-width:100%}
   .gold-text{background:var(--grad-gold);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .platinum-text{background:var(--grad-plat);-webkit-background-clip:text;background-clip:text;color:transparent}
 
   /* ---------- header ---------- */
-  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(4,7,15,.74);border-bottom:1px solid var(--line)}
-  .nav{display:flex;align-items:center;gap:14px;padding:12px 0;flex-wrap:wrap}
+  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(4,7,15,.78);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;gap:14px;padding:10px 0;flex-wrap:wrap;min-height:46px}
   .brand{display:flex;align-items:center;gap:12px;min-width:0;flex:0 1 auto}
   .logo-chip{width:46px;height:46px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:radial-gradient(circle at 50% 35%, #12203a, #05080f 78%);border:1px solid var(--line);display:grid;place-items:center}
   .logo-chip img{width:100%;height:100%;object-fit:cover}
@@ -55,25 +68,27 @@
   .icon-btn:hover{color:var(--gold-2);border-color:var(--line)}
 
   /* ---------- hero ---------- */
-  .hero{text-align:center;padding:60px 0 34px}
-  .hero .logo-big{width:172px;height:172px;margin:0 auto 20px;border-radius:50%;background:radial-gradient(circle at 50% 32%, #14233d, #05080f 80%);border:1px solid var(--line);display:grid;place-items:center;position:relative;animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+  .hero{text-align:center;padding:clamp(34px,6vw,62px) 0 clamp(26px,4vw,38px)}
+  .hero .logo-big{width:clamp(116px,20vw,168px);height:clamp(116px,20vw,168px);margin:0 auto clamp(14px,2.4vw,22px);border-radius:50%;background:radial-gradient(circle at 50% 32%, #14233d, #05080f 80%);border:1px solid var(--line);display:grid;place-items:center;position:relative;animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
   .hero .logo-big::after{content:"";position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle, rgba(212,175,55,.18), transparent 65%);z-index:-1;animation:pulse 4.5s ease-in-out infinite}
   .hero .logo-big img{width:100%;height:100%;object-fit:cover}
   @keyframes pulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
   @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
-  .hero h1{font-size:clamp(30px,5vw,52px);font-weight:700;color:#fff}
+  .hero h1{font-size:clamp(27px,4.6vw,50px);font-weight:700;color:#fff;line-height:1.14;text-wrap:balance}
   .hero h1 em{font-style:normal;font-weight:800}
-  .hero p.sub{max-width:700px;margin:16px auto 0;color:var(--muted);font-size:16px;line-height:1.75}
-  .cta-row{display:flex;gap:14px;justify-content:center;margin-top:30px;flex-wrap:wrap}
-  .btn{border:none;border-radius:10px;padding:14px 28px;font-size:15px;font-weight:600;letter-spacing:.02em;transition:transform .15s, box-shadow .2s, background .2s, border-color .2s}
+  .hero p.sub{max-width:680px;margin:clamp(12px,2vw,18px) auto 0;color:var(--muted);font-size:clamp(14px,1.35vw,16px);line-height:1.75;text-wrap:pretty}
+  .cta-row{display:flex;gap:12px;justify-content:center;margin-top:clamp(20px,3vw,30px);flex-wrap:wrap}
+  .btn{border:none;border-radius:var(--r-sm);padding:13px 26px;font-size:15px;font-weight:600;letter-spacing:.02em;transition:transform .15s, box-shadow .2s, background .2s, border-color .2s}
   .btn:active{transform:translateY(1px)}
   .btn-gold{background:var(--grad-gold);color:#1a1405;box-shadow:0 6px 24px rgba(212,175,55,.3)}
   .btn-gold:hover{box-shadow:0 8px 34px rgba(212,175,55,.5);transform:translateY(-1px)}
   .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
   .btn-ghost:hover{border-color:var(--gold);color:var(--gold-2)}
-  .btn-gym{background:linear-gradient(180deg,#5aa2ff,#2b6ac8);color:#fff;box-shadow:0 6px 24px rgba(79,142,247,.28)}
+  .btn-gym{background:var(--grad-plat);color:var(--gym-ink);box-shadow:0 6px 24px rgba(207,217,212,.22)}
+  .btn-gym:hover{box-shadow:0 8px 32px rgba(207,217,212,.38);transform:translateY(-1px)}
   .btn-online{background:var(--grad-gold);color:#1a1405;box-shadow:0 6px 24px rgba(212,175,55,.3)}
-  .btn-offline{background:linear-gradient(180deg,#3ee0a4,#0f9d7e);color:#04231c;box-shadow:0 6px 24px rgba(52,211,153,.26)}
+  .btn-offline{background:var(--grad-emer);color:#04231c;box-shadow:0 6px 24px rgba(52,211,153,.26)}
+  .btn-offline:hover{box-shadow:0 8px 32px rgba(52,211,153,.42);transform:translateY(-1px)}
   .btn[disabled]{opacity:.5;cursor:default;transform:none}
   .pill-row{display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap}
   .pill{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line-soft);border-radius:999px;padding:7px 14px}
@@ -81,40 +96,40 @@
   .pill.gym b{color:var(--gym)} .pill.online b{color:var(--online)} .pill.offline b{color:var(--offline)}
 
   /* ---------- mode select ---------- */
-  .mode-select{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
-  .mode-card{position:relative;background:linear-gradient(165deg, rgba(255,255,255,.05), rgba(4,7,15,.6));border:1px solid var(--line-soft);border-radius:16px;padding:26px 22px;text-align:left;transition:transform .25s, border-color .25s, box-shadow .25s;overflow:hidden}
-  .mode-card:hover{transform:translateY(-4px);border-color:var(--line);box-shadow:0 14px 40px rgba(0,0,0,.4)}
-  .mode-card .mc-ring{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-size:28px;margin-bottom:14px;border:1px solid var(--line);background:radial-gradient(circle at 50% 35%, #14233d, #05080f 80%)}
+  .mode-select{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:clamp(12px,1.6vw,18px);margin-top:26px}
+  .mode-card{position:relative;background:linear-gradient(165deg, rgba(255,255,255,.05), rgba(4,7,15,.6));border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(18px,2.2vw,26px) clamp(16px,2vw,22px);text-align:left;transition:transform .25s, border-color .25s, box-shadow .25s;overflow:hidden;display:flex;flex-direction:column}
+  .mode-card:hover{transform:translateY(-4px);border-color:var(--line);box-shadow:var(--shadow-2)}
+  .mode-card .mc-ring{width:clamp(52px,7vw,64px);height:clamp(52px,7vw,64px);border-radius:50%;display:grid;place-items:center;font-size:clamp(22px,3vw,28px);margin-bottom:14px;border:1px solid var(--line);background:radial-gradient(circle at 50% 35%, #14233d, #05080f 80%)}
   .mode-card .mc-cap{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
-  .mode-card h3{font-size:20px;color:#fff;margin:6px 0 8px}
-  .mode-card p{font-size:13px;color:var(--muted);line-height:1.65;min-height:58px}
+  .mode-card h3{font-size:clamp(17px,1.8vw,20px);color:#fff;margin:6px 0 8px}
+  .mode-card p{font-size:13px;color:var(--muted);line-height:1.65}
   .mode-card .mc-meta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px}
   .mode-card .mc-meta span{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:4px 10px}
-  .mode-card .mc-btn{width:100%}
-  .mode-card.gym .mc-ring{color:var(--gym)} .mode-card.online .mc-ring{color:var(--online)} .mode-card.offline .mc-ring{color:var(--offline)}
+  .mode-card .mc-btn{width:100%;margin-top:auto}
+  .mode-card.gym .mc-ring{color:var(--gym);border-color:rgba(207,217,212,.42)} .mode-card.online .mc-ring{color:var(--online)} .mode-card.offline .mc-ring{color:var(--offline)}
   .mode-note{text-align:center;font-size:12px;color:var(--faint);margin-top:16px}
 
   /* ---------- sections ---------- */
-  section.block{padding:44px 0}
-  .kicker{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
-  .sec-title{font-size:28px;color:#fff;margin-bottom:8px}
-  .sec-sub{color:var(--muted);max-width:700px;line-height:1.7;font-size:14.5px}
-  .how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
-  .how-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:24px;transition:border-color .25s, transform .25s}
+  section.block{padding:clamp(30px,4.4vw,52px) 0}
+  .kicker{font-size:clamp(10px,1.1vw,11px);letter-spacing:.34em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  .sec-title{font-size:clamp(21px,2.7vw,29px);color:#fff;margin-bottom:8px;line-height:1.22;text-wrap:balance}
+  .sec-sub{color:var(--muted);max-width:72ch;line-height:1.7;font-size:clamp(13.5px,1.25vw,14.8px);text-wrap:pretty}
+  .how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:clamp(12px,1.6vw,18px);margin-top:30px}
+  .how-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:clamp(18px,2vw,24px);transition:border-color .25s, transform .25s}
   .how-card:hover{border-color:var(--line);transform:translateY(-3px)}
   .how-card .n{font-family:'Cinzel',serif;color:var(--gold);font-size:14px;letter-spacing:.2em}
   .how-card h3{font-size:17px;color:#fff;margin:10px 0 8px}
   .how-card p{font-size:13.5px;color:var(--muted);line-height:1.65}
-  .split{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:24px}
-  .split-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:22px}
+  .split{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:clamp(14px,1.8vw,22px);margin-top:24px}
+  .split-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:clamp(18px,2vw,22px)}
   .split-card h3{font-size:16px;color:#fff;margin-bottom:10px}
   .split-card p{font-size:13.5px;color:var(--muted);line-height:1.65}
   .split-card .tag{display:inline-block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:4px 10px;border-radius:99px;border:1px solid;margin-bottom:8px}
-  .tag.gym{color:var(--gym);border-color:var(--gym)} .tag.online{color:var(--online);border-color:var(--online)} .tag.offline{color:var(--offline);border-color:var(--offline)}
+  .tag.gym{color:var(--gym);border-color:var(--gym-deep)} .tag.online{color:var(--online);border-color:var(--online)} .tag.offline{color:var(--offline);border-color:var(--offline)}
 
   /* ---------- passport ---------- */
   .passport-hero{text-align:center;margin-top:20px}
-  .pp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
+  .pp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:clamp(12px,1.6vw,16px);margin-top:26px}
   .pp-stage{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:24px;text-align:center;transition:border-color .25s}
   .pp-stage .n{font-family:'Cinzel',serif;font-size:26px;font-weight:700}
   .pp-stage .cap{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted);margin-top:4px}
@@ -138,34 +153,28 @@
   .chain-note code{font-family:ui-monospace,monospace;font-size:11px;color:var(--gold-2)}
 
   /* ---------- dashboard ---------- */
-  .dash{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:20px}
-  .panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:22px}
+  .dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:clamp(14px,1.7vw,18px);margin-top:20px}
+  .panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(16px,2vw,22px)}
   .panel h3{font-size:14px;color:#fff;letter-spacing:.06em;margin-bottom:12px}
-  .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-  .stat{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:10px;padding:12px}
-  .stat .v{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:#fff}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr));gap:12px}
+  .stat{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:12px}
+  .stat .v{font-family:'Cinzel',serif;font-size:clamp(21px,2.4vw,26px);font-weight:700;color:#fff;line-height:1.1}
   .stat .k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:4px}
   .skill-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
-  .skill-row .nm{width:210px;color:var(--muted);flex:0 0 auto}
-  .skill-row .bar{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .skill-row .nm{width:clamp(92px,30%,190px);color:var(--muted);flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .skill-row .bar{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;min-width:40px}
   .skill-row .bar i{display:block;height:100%;background:var(--grad-gold)}
-  .skill-row .val{width:46px;text-align:right;font-family:ui-monospace,monospace;color:var(--gold-2)}
-  .gap-card{background:rgba(212,175,55,.06);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:18px}
+  .skill-row .val{width:42px;text-align:right;font-family:ui-monospace,monospace;color:var(--gold-2);flex:0 0 auto}
+  .gap-card{background:rgba(212,175,55,.06);border:1px solid var(--line);border-radius:var(--r-md);padding:clamp(14px,1.8vw,20px);margin-top:18px}
   .gap-card p{font-size:13.5px;color:var(--muted);line-height:1.7}
-  .chart{width:100%;height:230px;margin-top:16px;background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:12px;padding:14px;position:relative}
+  .chart{width:100%;height:clamp(180px,24vw,230px);margin-top:16px;background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:12px;padding:14px;position:relative}
   .chart svg{width:100%;height:100%}
-  .range-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .range-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
   .range-btn{background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:99px;padding:6px 14px;font-size:12px}
   .range-btn.active{color:var(--gold-2);border-color:var(--gold)}
 
-  /* ---------- coach / challenge ---------- */
-  .coach-box{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:22px;margin-top:20px}
-  .coach-box .msg{background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:12px;padding:16px;font-size:13.5px;line-height:1.75;color:#c6d2e4;white-space:pre-wrap}
-  .coach-plan{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
-  .coach-day{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:10px;padding:12px}
-  .coach-day .d{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
-  .coach-day .s{font-size:13px;color:var(--ink);margin-top:6px}
-  .chal{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:22px;margin-top:20px}
+  /* ---------- challenge ---------- */
+  .chal{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(16px,2vw,22px);margin-top:20px}
   .chal-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
   .chal-top .badge{font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--gold-2)}
   .lb-mini{width:100%;border-collapse:collapse;margin-top:10px}
@@ -173,10 +182,10 @@
   .lb-mini tr.you td{background:rgba(212,175,55,.07)}
 
   /* ---------- verified / passport profile / career ---------- */
-  .creds{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
-  .cred{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:20px}
+  .creds{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:clamp(14px,1.7vw,18px);margin-top:20px}
+  .cred{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:clamp(16px,1.8vw,20px)}
   .cred .type{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
-  .cred .score{font-family:'Cinzel',serif;font-size:34px;font-weight:700;color:#fff;margin:8px 0}
+  .cred .score{font-family:'Cinzel',serif;font-size:clamp(26px,3.2vw,34px);font-weight:700;color:#fff;margin:8px 0;line-height:1.1}
   .cred .status{font-size:11px;color:var(--muted)}
   .cred .status b{color:var(--t-uncommon)}
   .cred.online .type{color:var(--online)} .cred.offline .type{color:var(--offline)}
@@ -188,10 +197,10 @@
   .privacy-row{display:flex;gap:10px;margin-top:16px}
   .privacy-row button{background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:99px;padding:6px 14px;font-size:12px}
   .privacy-row button.active{color:var(--gold-2);border-color:var(--gold)}
-  .ent-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px}
-  .ent-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:20px}
+  .ent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:16px;margin-top:20px}
+  .ent-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:20px}
   .ent-card .v{font-family:'Cinzel',serif;font-size:30px;font-weight:700;color:#fff}
-  .admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+  .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:14px;margin-top:20px}
   .admin-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:16px}
   .admin-card .v{font-size:22px;font-weight:700;color:var(--gold-2);font-family:'Cinzel',serif}
   .admin-card .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px}
@@ -202,15 +211,15 @@
 
   /* ---------- flow ---------- */
   #flow{display:none}
-  .progress-row{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+  .progress-row{display:flex;align-items:center;gap:clamp(10px,1.6vw,14px);margin-bottom:22px}
   .progress-row .lbl{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
   .bar{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
   .bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--grad-gold);transition:width .5s cubic-bezier(.2,.7,.2,1)}
-  .task-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:30px;animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+  .task-card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(18px,3vw,30px);animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
   .task-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
   .suit-chip{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2);border:1px solid var(--line);border-radius:999px;padding:6px 14px}
-  .task-card h2{font-size:24px;color:#fff;margin-bottom:12px}
-  .task-body{color:#c6d2e4;line-height:1.75;font-size:15px;background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:12px;padding:18px 20px}
+  .task-card h2{font-size:clamp(19px,2.4vw,25px);color:#fff;margin-bottom:12px;line-height:1.25}
+  .task-body{color:#c6d2e4;line-height:1.75;font-size:clamp(13.8px,1.3vw,15px);background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:12px;padding:clamp(14px,2vw,18px) clamp(14px,2.2vw,20px)}
   .task-body .hint{display:block;margin-top:12px;font-size:12.5px;color:var(--faint)}
   .prompt-box{margin-top:20px}
   .prompt-box label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
@@ -223,47 +232,49 @@
   .timer-bar .tt{font-family:ui-monospace,monospace;font-size:20px;color:var(--gold-2)}
   .submit-row{display:flex;align-items:center;gap:16px;margin-top:20px;flex-wrap:wrap}
   .submit-row .note{font-size:12px;color:var(--faint)}
-  .grade-wrap{display:grid;grid-template-columns:1fr 320px;gap:22px;margin-top:24px}
-  .grade-panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:24px}
+  .grade-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:clamp(14px,1.8vw,22px);margin-top:24px}
+  .grade-wrap>*:nth-child(2){min-width:0}
+  @media (min-width:1000px){ .grade-wrap{grid-template-columns:minmax(0,1fr) minmax(280px,330px)} }
+  .grade-panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(16px,2vw,24px);min-width:0}
   .req-row{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-radius:10px;margin-bottom:8px;font-size:13.5px;opacity:0;transform:translateY(8px);animation:rise .45s cubic-bezier(.2,.7,.2,1) forwards}
   .req-row.ok{background:rgba(52,211,153,.08);color:#bfe9d6}
   .req-row.no{background:rgba(248,113,113,.08);color:#f3c1c1}
   .req-row .ev{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
-  .formula{margin-top:16px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);background:rgba(0,0,0,.3);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;line-height:1.8}
+  .formula{margin-top:16px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);background:rgba(0,0,0,.3);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;line-height:1.8;overflow-x:auto}
   .formula b{color:var(--gold-2)}
-  .judge-note{margin-top:12px;font-size:12.5px;color:var(--muted);background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.28);border-radius:10px;padding:10px 12px;line-height:1.6}
+  .judge-note{margin-top:12px;font-size:12.5px;color:var(--muted);background:rgba(217,146,95,.08);border:1px solid rgba(217,146,95,.3);border-radius:10px;padding:10px 12px;line-height:1.6}
   .judge-note b{color:var(--t-rare)}
   .judge-note:empty{display:none}
   .score-hero{text-align:center;padding:6px 0 14px}
-  .score-hero .val{font-family:'Cinzel',serif;font-size:56px;font-weight:700;color:#fff;line-height:1}
+  .score-hero .val{font-family:'Cinzel',serif;font-size:clamp(42px,5.4vw,56px);font-weight:700;color:#fff;line-height:1}
   .score-hero .cap{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-top:8px}
   .tier-badge{display:inline-block;margin-top:14px;padding:7px 20px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;border:1px solid}
-  .t-Common{color:var(--t-common);border-color:var(--t-common);background:rgba(148,163,184,.08)}
-  .t-Uncommon{color:var(--t-uncommon);border-color:var(--t-uncommon);background:rgba(52,211,153,.08)}
-  .t-Rare{color:var(--t-rare);border-color:var(--t-rare);background:rgba(96,165,250,.08)}
+  .t-Common{color:var(--t-common);border-color:var(--t-common);background:rgba(154,168,184,.08)}
+  .t-Uncommon{color:var(--t-uncommon);border-color:var(--t-uncommon);background:rgba(78,201,160,.08)}
+  .t-Rare{color:var(--t-rare);border-color:var(--t-rare);background:rgba(217,146,95,.09)}
   .t-Epic{color:var(--t-epic);border-color:var(--t-epic);background:rgba(240,217,140,.1);box-shadow:0 0 24px rgba(212,175,55,.35)}
-  .ai-body{min-height:120px;font-size:13.5px;line-height:1.75;color:#c6d2e4;white-space:pre-wrap;background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:12px;padding:16px}
+  .ai-body{min-height:120px;font-size:13.5px;line-height:1.75;color:#c6d2e4;white-space:pre-wrap;background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:12px;padding:16px;overflow-wrap:anywhere}
   .ai-body .cursor{display:inline-block;width:8px;height:15px;background:var(--gold);vertical-align:-2px;animation:blink 1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  .next-row{display:flex;justify-content:flex-end;margin-top:22px}
-  .skill-dims{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:16px}
+  .next-row{display:flex;justify-content:flex-end;gap:12px;margin-top:22px;flex-wrap:wrap}
+  .skill-dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:8px;margin-top:16px}
   .skill-dims .d{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;font-size:12.5px}
   .skill-dims .d b{color:var(--gold-2)}
 
-  .deck{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}
-  .skill-card{position:relative;border-radius:16px;padding:22px;overflow:hidden;background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(4,7,15,.55));border:1.5px solid var(--line-soft);transform:rotateY(90deg);opacity:0;transition:transform .7s cubic-bezier(.2,.7,.2,1), opacity .5s}
+  .deck{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:clamp(12px,1.6vw,18px);margin-top:26px}
+  .skill-card{position:relative;border-radius:var(--r-lg);padding:clamp(16px,1.8vw,22px);overflow:hidden;background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(4,7,15,.55));border:1.5px solid var(--line-soft);transform:rotateY(90deg);opacity:0;transition:transform .7s cubic-bezier(.2,.7,.2,1), opacity .5s}
   .skill-card.minted{transform:rotateY(0);opacity:1}
-  .skill-card::before{content:"";position:absolute;inset:0;border-radius:16px;padding:1.5px;background:linear-gradient(160deg,var(--sc,#d4af37),transparent 55%);-webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+  .skill-card::before{content:"";position:absolute;inset:0;border-radius:var(--r-lg);padding:1.5px;background:linear-gradient(160deg,var(--sc,#d4af37),transparent 55%);-webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
   .skill-card.epic{box-shadow:0 0 34px rgba(212,175,55,.28)}
-  .skill-card .sc-top{display:flex;justify-content:space-between;align-items:flex-start}
+  .skill-card .sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
   .skill-card .sc-icon{font-size:30px}
   .skill-card .sc-suit{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:10px}
-  .skill-card .sc-score{font-family:'Cinzel',serif;font-size:40px;font-weight:700;color:#fff;margin-top:6px}
-  .skill-card .sc-tier{font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;padding:4px 12px;border-radius:99px;border:1px solid}
+  .skill-card .sc-score{font-family:'Cinzel',serif;font-size:clamp(30px,3.6vw,40px);font-weight:700;color:#fff;margin-top:6px;line-height:1.05}
+  .skill-card .sc-tier{font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;padding:4px 12px;border-radius:99px;border:1px solid;white-space:nowrap}
   .skill-card .sc-conf{font-size:11px;color:var(--muted);margin-top:6px}
   .skill-card .sc-bar{height:5px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:14px;overflow:hidden}
   .skill-card .sc-bar i{display:block;height:100%;width:0;background:var(--sc,#d4af37);transition:width 1s .3s cubic-bezier(.2,.7,.2,1)}
-  .skill-card .sc-meta{font-size:11px;color:var(--faint);margin-top:10px}
+  .skill-card .sc-meta{font-size:11px;color:var(--faint);margin-top:10px;overflow-wrap:anywhere}
   .result-head{text-align:center;padding:26px 0 10px}
   .seal{display:inline-flex;align-items:center;gap:12px;margin-top:18px;border:1px solid var(--line);border-radius:999px;padding:8px 22px 8px 10px;background:rgba(0,0,0,.3)}
   .seal .logo-chip{width:36px;height:36px}
@@ -317,21 +328,23 @@
   .org-toolbar select:focus{border-color:var(--gold)}
   .org-toolbar .spacer{flex:1}
   .org-toolbar .pill{font-size:10.5px;padding:5px 11px}
-  .ent-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
-  .ent-kpi{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:16px 18px}
-  .ent-kpi .v{font-family:'Cinzel',serif;font-size:30px;font-weight:700;color:#fff;line-height:1}
+  .ent-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:clamp(10px,1.3vw,14px);margin-top:18px}
+  .ent-kpi{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:clamp(13px,1.6vw,18px)}
+  .ent-kpi .v{font-family:'Cinzel',serif;font-size:clamp(23px,2.8vw,30px);font-weight:700;color:#fff;line-height:1}
   .ent-kpi .k{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:6px}
   .ent-kpi .d{font-size:11.5px;margin-top:6px;color:var(--faint)}
   .ent-kpi .d.up{color:var(--t-uncommon)} .ent-kpi .d.down{color:#f87171}
   .ent-kpi .spark{margin-top:8px;height:26px;width:100%}
   .ent-kpi .spark svg{width:100%;height:26px}
-  .ent-2col{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-top:18px}
-  .ent-3col{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
-  .ent-panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px;padding:20px}
+  .ent-2col{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:clamp(12px,1.6vw,18px);margin-top:18px}
+  .ent-3col{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:clamp(12px,1.6vw,18px);margin-top:18px}
+  .ent-panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(14px,1.8vw,20px);min-width:0}
   .ent-panel h3{font-size:13.5px;color:#fff;letter-spacing:.05em;margin-bottom:4px}
   .ent-panel .sub{font-size:11.5px;color:var(--faint);margin-bottom:14px;line-height:1.5}
-  .ent-chart{width:100%;height:210px}
+  .ent-chart{width:100%;height:clamp(160px,20vw,210px)}
   .ent-chart svg{width:100%;height:100%}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px -2px 0}
+  .table-wrap>table{min-width:440px}
   .ent-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted)}
   .ent-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
   .ent-table{width:100%;border-collapse:collapse;margin-top:6px}
@@ -343,11 +356,11 @@
   .ent-table tr.clickable:hover{background:rgba(212,175,55,.06)}
   .ent-table .delta.up{color:var(--t-uncommon)} .ent-table .delta.down{color:#f87171}
   .ent-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12.5px}
-  .ent-bar-row .nm{width:150px;color:var(--muted);flex:0 0 auto}
-  .ent-bar-row .bar{flex:1;height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .ent-bar-row .nm{width:clamp(88px,17vw,150px);color:var(--muted);flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ent-bar-row .bar{flex:1;height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;min-width:36px}
   .ent-bar-row .bar i{display:block;height:100%;background:var(--grad-gold)}
-  .ent-bar-row .val{width:38px;text-align:right;font-family:ui-monospace,monospace;color:var(--gold-2)}
-  .ent-bar-row .bench{width:64px;text-align:right;font-size:10.5px;color:var(--faint)}
+  .ent-bar-row .val{width:38px;text-align:right;font-family:ui-monospace,monospace;color:var(--gold-2);flex:0 0 auto}
+  .ent-bar-row .bench{width:64px;text-align:right;font-size:10.5px;color:var(--faint);flex:0 0 auto}
   .ent-bar-row .bench.below{color:#f87171} .ent-bar-row .bench.above{color:var(--t-uncommon)}
   .pill-ok{color:var(--t-uncommon);border:1px solid rgba(52,211,153,.4);border-radius:99px;padding:2px 9px;font-size:10px;letter-spacing:.08em}
   .pill-warn{color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:2px 9px;font-size:10px;letter-spacing:.08em}
@@ -362,21 +375,21 @@
   .toggle input:checked + .track{background:rgba(212,175,55,.35);border-color:var(--gold)}
   .toggle input:checked + .track::after{transform:translateX(16px);background:var(--gold-2)}
   .toggle .lbl{font-size:12px;color:var(--muted)}
-  .admin-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
-  .admin-kpi{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;padding:16px}
-  .admin-kpi .v{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--gold-2)}
+  .admin-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:clamp(10px,1.3vw,14px);margin-top:18px}
+  .admin-kpi{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:clamp(12px,1.5vw,16px)}
+  .admin-kpi .v{font-family:'Cinzel',serif;font-size:clamp(20px,2.4vw,26px);font-weight:700;color:var(--gold-2);line-height:1.1}
   .admin-kpi .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:5px}
   .admin-kpi .d{font-size:11px;color:var(--faint);margin-top:4px}
   .funnel{margin-top:6px}
-  .funnel .stage{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:12.5px}
-  .funnel .stage .nm{width:150px;color:var(--muted);flex:0 0 auto}
-  .funnel .stage .track{flex:1;height:22px;border-radius:7px;background:rgba(255,255,255,.05);overflow:hidden;position:relative}
+  .funnel .stage{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px}
+  .funnel .stage .nm{width:clamp(84px,15vw,150px);color:var(--muted);flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .funnel .stage .track{flex:1;height:22px;border-radius:7px;background:rgba(255,255,255,.05);overflow:hidden;position:relative;min-width:40px}
   .funnel .stage .track i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold-2));border-radius:7px}
-  .funnel .stage .num{width:110px;text-align:right;font-family:ui-monospace,monospace;color:var(--ink)}
+  .funnel .stage .num{width:clamp(72px,10vw,110px);text-align:right;font-family:ui-monospace,monospace;color:var(--ink);flex:0 0 auto}
   .funnel .stage .num small{color:var(--faint)}
-  .retention-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px}
+  .retention-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(104px,100%),1fr));gap:10px;margin-top:6px}
   .ret-card{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:12px;padding:14px;text-align:center}
-  .ret-card .v{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:#fff}
+  .ret-card .v{font-family:'Cinzel',serif;font-size:clamp(19px,2.2vw,24px);font-weight:700;color:#fff}
   .ret-card .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px}
   .psych-table{width:100%;border-collapse:collapse;margin-top:6px}
   .psych-table th{text-align:left;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:8px 10px;border-bottom:1px solid var(--line-soft)}
@@ -387,14 +400,14 @@
   .g-good{color:var(--gold-2);border-color:var(--line)}
   .g-marginal{color:var(--gold-2);border-color:var(--line);opacity:.8}
   .g-poor{color:#f87171;border-color:rgba(248,113,113,.4)}
-  @media (max-width:860px){.ent-kpis,.admin-kpis{grid-template-columns:repeat(2,1fr)}.ent-2col,.ent-3col{grid-template-columns:1fr}.retention-grid{grid-template-columns:repeat(2,1fr)}}
-  @media (max-width:560px){.ent-kpis,.admin-kpis{grid-template-columns:1fr}.ent-bar-row .nm{width:110px}.funnel .stage .nm{width:100px}.funnel .stage .num{width:80px}}
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-scroll>table{min-width:420px}
 
   /* ================= CERTIFICATE (heraldic, print) ================= */
   .cert-toolbar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:18px}
   .cert-scroll{margin-top:24px;display:flex;justify-content:center}
   .cert{
-    position:relative;width:1000px;max-width:100%;aspect-ratio:1.414/1;
+    position:relative;width:1000px;max-width:100%;aspect-ratio:1.414/1;container-type:inline-size;
     background:
       radial-gradient(120% 120% at 50% 0%, #12203a 0%, #0b1424 42%, #05080f 100%);
     border:1px solid var(--gold-deep);
@@ -403,41 +416,40 @@
     font-family:'EB Garamond',Georgia,serif;
     overflow:hidden;
   }
-  .cert .frame{position:absolute;inset:16px;border:1.5px solid var(--gold);border-radius:4px;pointer-events:none}
-  .cert .frame::after{content:"";position:absolute;inset:8px;border:1px solid rgba(212,175,55,.4);border-radius:2px}
-  .cert .corner{position:absolute;width:46px;height:46px;border:2px solid var(--gold);opacity:.9}
-  .cert .corner.tl{top:26px;left:26px;border-right:none;border-bottom:none}
-  .cert .corner.tr{top:26px;right:26px;border-left:none;border-bottom:none}
-  .cert .corner.bl{bottom:26px;left:26px;border-right:none;border-top:none}
-  .cert .corner.br{bottom:26px;right:26px;border-left:none;border-top:none}
+  .cert .frame{position:absolute;inset:16px;inset:min(16px,1.7cqw);border:1.5px solid var(--gold);border-radius:4px;pointer-events:none}
+  .cert .frame::after{content:"";position:absolute;inset:8px;inset:min(8px,.85cqw);border:1px solid rgba(212,175,55,.4);border-radius:2px}
+  .cert .corner{position:absolute;width:46px;height:46px;width:min(46px,4.8cqw);height:min(46px,4.8cqw);border:2px solid var(--gold);opacity:.9}
+  .cert .corner.tl{top:26px;left:26px;top:min(26px,2.7cqw);left:min(26px,2.7cqw);border-right:none;border-bottom:none}
+  .cert .corner.tr{top:26px;right:26px;top:min(26px,2.7cqw);right:min(26px,2.7cqw);border-left:none;border-bottom:none}
+  .cert .corner.bl{bottom:26px;left:26px;bottom:min(26px,2.7cqw);left:min(26px,2.7cqw);border-right:none;border-top:none}
+  .cert .corner.br{bottom:26px;right:26px;bottom:min(26px,2.7cqw);right:min(26px,2.7cqw);border-left:none;border-top:none}
   .cert-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:5% 9%}
-  .cert-seal{width:132px;height:132px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%, #14233d, #05080f 82%);border:1px solid var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.18), 0 0 30px rgba(212,175,55,.25);display:grid;place-items:center;margin-bottom:14px}
+  .cert-seal{width:132px;height:132px;width:min(132px,13.4cqw);height:min(132px,13.4cqw);border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 35%, #14233d, #05080f 82%);border:1px solid var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.18), 0 0 30px rgba(212,175,55,.25);display:grid;place-items:center;margin-bottom:14px;margin-bottom:1.4cqw}
   .cert-seal img{width:100%;height:100%;object-fit:cover}
-  .cert-brand{font-family:'Cinzel',serif;font-weight:800;letter-spacing:.34em;font-size:26px;margin-bottom:2px}
-  .cert-sub{font-family:'Cinzel',serif;letter-spacing:.32em;font-size:11px;color:var(--gold-2);text-transform:uppercase}
-  .cert-rule{display:flex;align-items:center;gap:12px;margin:16px 0 10px;color:var(--gold)}
-  .cert-rule .line{width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
+  .cert-brand{font-family:'Cinzel',serif;font-weight:800;letter-spacing:.34em;font-size:26px;font-size:2.7cqw;margin-bottom:2px}
+  .cert-sub{font-family:'Cinzel',serif;letter-spacing:.32em;font-size:11px;font-size:1.15cqw;color:var(--gold-2);text-transform:uppercase}
+  .cert-rule{display:flex;align-items:center;gap:12px;gap:1.2cqw;margin:16px 0 10px;margin:1.6cqw 0 1cqw;color:var(--gold)}
+  .cert-rule .line{width:120px;width:12cqw;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
   .cert-rule .line.r{background:linear-gradient(90deg,var(--gold),transparent)}
-  .cert-rule .star{font-size:14px}
-  .cert-title{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.18em;font-size:30px;color:#fff;margin:4px 0 2px}
-  .cert-lead{font-size:15px;color:var(--muted);font-style:italic;margin-bottom:14px}
-  .cert-name{font-family:'Cinzel',serif;font-weight:700;font-size:34px;color:var(--gold-2);letter-spacing:.04em;border-bottom:1px solid var(--line);padding-bottom:8px;min-width:52%;margin-bottom:14px}
-  .cert-body{font-size:15.5px;color:#d5deee;line-height:1.7;max-width:760px;margin-bottom:16px}
-  .cert-body .big{font-family:'Cinzel',serif;font-weight:700;font-size:24px;color:#fff}
-  .cert-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:18px}
-  .cert-chips span{font-family:'Inter',sans-serif;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
-  .cert-sign{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;width:100%;max-width:760px;margin-top:auto}
+  .cert-rule .star{font-size:14px;font-size:1.45cqw}
+  .cert-title{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.18em;font-size:30px;font-size:3cqw;color:#fff;margin:4px 0 2px}
+  .cert-lead{font-size:15px;font-size:1.55cqw;color:var(--muted);font-style:italic;margin-bottom:14px;margin-bottom:1.4cqw}
+  .cert-name{font-family:'Cinzel',serif;font-weight:700;font-size:34px;font-size:3.4cqw;color:var(--gold-2);letter-spacing:.04em;border-bottom:1px solid var(--line);padding-bottom:8px;padding-bottom:.8cqw;min-width:52%;margin-bottom:14px;margin-bottom:1.4cqw}
+  .cert-body{font-size:15.5px;font-size:1.58cqw;color:#d5deee;line-height:1.7;max-width:76cqw;margin-bottom:16px;margin-bottom:1.6cqw}
+  .cert-body .big{font-family:'Cinzel',serif;font-weight:700;font-size:24px;font-size:2.45cqw;color:#fff}
+  .cert-chips{display:flex;gap:10px;gap:1cqw;flex-wrap:wrap;justify-content:center;margin-bottom:18px;margin-bottom:1.8cqw}
+  .cert-chips span{font-family:'Inter',sans-serif;font-size:10.5px;font-size:1.08cqw;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-2);border:1px solid var(--line);border-radius:99px;padding:5px 12px;padding:.5cqw 1.2cqw}
+  .cert-sign{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;gap:3cqw;width:100%;max-width:76cqw;margin-top:auto}
   .cert-sign .col{flex:1;text-align:center}
-  .cert-sign .sig{font-family:'Cinzel',serif;font-style:italic;font-size:22px;color:#fff;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px}
-  .cert-sign .lbl{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
-  .cert-qr{width:74px;height:74px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px;display:grid;place-items:center}
+  .cert-sign .sig{font-family:'Cinzel',serif;font-style:italic;font-size:22px;font-size:2.25cqw;color:#fff;border-bottom:1px solid var(--line);padding-bottom:6px;padding-bottom:.6cqw;margin-bottom:6px;margin-bottom:.6cqw}
+  .cert-sign .lbl{font-family:'Inter',sans-serif;font-size:10px;font-size:1cqw;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  .cert-qr{width:74px;height:74px;width:min(74px,7.5cqw);height:min(74px,7.5cqw);border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px;display:grid;place-items:center}
   .cert-qr svg{width:100%;height:100%}
-  .cert-verify{font-family:'Inter',sans-serif;font-size:10px;color:var(--faint);margin-top:14px;letter-spacing:.06em}
+  .cert-verify{font-family:'Inter',sans-serif;font-size:10px;font-size:1cqw;color:var(--faint);margin-top:14px;margin-top:1.4cqw;letter-spacing:.06em}
   .cert-verify code{color:var(--gold-2);font-family:ui-monospace,monospace}
-  .cert-watermark{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel',serif;font-weight:800;font-size:240px;color:rgba(212,175,55,.04);letter-spacing:.1em;pointer-events:none;user-select:none}
+  .cert-watermark{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel',serif;font-weight:800;font-size:240px;font-size:24cqw;color:rgba(212,175,55,.04);letter-spacing:.1em;pointer-events:none;user-select:none}
 
-  @media (max-width:860px){.how-grid,.deck,.split,.creds,.admin-grid,.pp-grid,.mode-select{grid-template-columns:1fr 1fr}.dash,.ent-grid{grid-template-columns:1fr}.grade-wrap{grid-template-columns:1fr}.coach-plan{grid-template-columns:1fr}}
-  @media (max-width:560px){.how-grid,.deck,.split,.creds,.admin-grid,.dash,.ent-grid,.pp-grid,.mode-select{grid-template-columns:1fr}.hero{padding-top:44px}.skill-row .nm{width:150px}}
+  /* the auto-fit grids above handle every viewport; no fixed column overrides needed */
 
   /* ================= UX LAYER · focus, wayfinding, feedback, a11y ================= */
   :focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
@@ -496,7 +508,7 @@
   @media (pointer:coarse){ .btn,.range-btn,.flag,.privacy-btn,.back-btn,.icon-btn,.nav-toggle{min-height:44px} .icon-btn,.nav-toggle{min-width:44px} }
 
   /* flow: sticky timer + exit + draft */
-  .timer-bar{position:sticky;top:71px;z-index:30;background:rgba(6,11,22,.94);backdrop-filter:blur(10px);border:1px solid var(--line-soft);border-radius:12px;padding:10px 14px;margin-bottom:16px}
+  .timer-bar{position:sticky;top:calc(var(--header-h) + 8px);z-index:30;background:rgba(6,11,22,.94);backdrop-filter:blur(10px);border:1px solid var(--line-soft);border-radius:12px;padding:10px 14px;margin-bottom:16px}
   .timer-bar .tt{min-width:74px;text-align:right}
   .timer-bar.warn{border-color:var(--line);background:rgba(30,22,6,.9)}
   .timer-bar.warn .tt{color:var(--gold-3)}
@@ -513,7 +525,7 @@
   .req-row .ev{margin-left:18px}
 
   /* paused-assessment resume bar (replaces leave/confirm popups) */
-  .resume-bar{position:sticky;top:71px;z-index:40;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;
+  .resume-bar{position:sticky;top:var(--header-h);z-index:40;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;
     padding:10px 20px;font-size:13px;color:var(--ink);
     background:linear-gradient(90deg,rgba(212,175,55,.16),rgba(212,175,55,.05) 55%,rgba(212,175,55,.16));
     border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -532,8 +544,9 @@
   .toast.ok{color:#bfe9d6;border-color:rgba(52,211,153,.4)}
 
   /* modals */
-  .modal{position:relative;max-height:min(86vh,760px);overflow:auto}
-  .modal-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:none;border:1px solid var(--line-soft);color:var(--muted);font-size:14px;line-height:1}
+  .modal{position:relative;width:min(520px,100%);max-height:min(86vh,780px);overflow:auto;padding:clamp(20px,3.4vw,28px);border-radius:var(--r-lg)}
+  .modal-wide{width:min(760px,100%)}
+  .modal-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:none;border:1px solid var(--line-soft);color:var(--muted);font-size:14px;line-height:1;z-index:2}
   .modal-x:hover{color:var(--gold-2);border-color:var(--line)}
   .modal h3{padding-right:34px}
   .modal .field-label{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
@@ -570,6 +583,164 @@
     header,.toast,.modal-bg,.sec-bar,.backend-note,.cert-toolbar,.cta-row,.pill-row{display:none!important}
     body{background:#fff;color:#111}
   }
+
+  /* ============================================================
+     TQ COACH · real training engine
+     ============================================================ */
+  .coach-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));gap:clamp(14px,1.8vw,20px);margin-top:18px;align-items:start}
+  @media (min-width:1080px){ .coach-grid{grid-template-columns:minmax(0,1.55fr) minmax(310px,1fr)} }
+  .coach-main,.coach-side{display:flex;flex-direction:column;gap:clamp(14px,1.8vw,20px);min-width:0}
+  .coach-panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--r-lg);padding:clamp(16px,1.9vw,22px);min-width:0}
+  .coach-panel.solid{background:linear-gradient(165deg,rgba(255,255,255,.055),rgba(4,7,15,.55))}
+  .cp-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .cp-head h3{font-size:15px;color:#fff;letter-spacing:.05em;margin:0}
+  .cp-head .cp-meta{margin-left:auto;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .cp-note{font-size:12.5px;color:var(--faint);line-height:1.6;margin-top:12px}
+
+  /* status strip */
+  .coach-status{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(148px,100%),1fr));gap:1px;margin-top:20px;
+    background:var(--line-soft);border:1px solid var(--line-soft);border-radius:var(--r-lg);overflow:hidden}
+  .coach-status .st{background:rgba(6,11,22,.72);padding:14px 16px;min-width:0}
+  .coach-status .st .k{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)}
+  .coach-status .st .v{font-family:'Cinzel',serif;font-size:clamp(18px,2.2vw,23px);font-weight:700;color:#fff;margin-top:5px;line-height:1.15}
+  .coach-status .st .v small{font-family:'Inter',sans-serif;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.02em}
+  .coach-status .st .d{font-size:11px;color:var(--faint);margin-top:3px}
+  .coach-status .st .d.up{color:var(--t-uncommon)} .coach-status .st .d.down{color:#f87171}
+  .coach-status .st.cta{display:flex;flex-direction:column;justify-content:center;gap:8px;background:rgba(212,175,55,.07)}
+  .coach-status .st.cta .btn{width:100%}
+
+  /* readiness ring */
+  .ring{position:relative;width:64px;height:64px;flex:0 0 auto}
+  .ring svg{width:64px;height:64px;transform:rotate(-90deg)}
+  .ring .trk{fill:none;stroke:rgba(255,255,255,.09);stroke-width:5}
+  .ring .val{fill:none;stroke:url(#coachRingGrad);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.2,.7,.2,1)}
+  .ring .lbl{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:var(--gold-2)}
+
+  /* onboarding guide */
+  .coach-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:12px;margin-top:18px;
+    background:rgba(212,175,55,.05);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px}
+  .coach-guide[hidden]{display:none}
+  .cg-step{display:flex;gap:11px;align-items:flex-start;min-width:0}
+  .cg-step .n{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold-2);border:1px solid var(--line);background:rgba(212,175,55,.1)}
+  .cg-step .t{font-size:13px;color:var(--ink);line-height:1.55}
+  .cg-step .t b{color:var(--gold-2)}
+  .cg-step .t span{display:block;color:var(--faint);font-size:12px;margin-top:2px}
+  .guide-x{align-self:start;background:none;border:none;color:var(--faint);font-size:12px;padding:4px 6px;border-radius:6px}
+  .guide-x:hover{color:var(--gold-2)}
+
+  /* focus cards */
+  .focus-list{display:flex;flex-direction:column;gap:10px}
+  .focus-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;
+    background:rgba(0,0,0,.26);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:12px 14px;transition:border-color .2s}
+  .focus-card:hover{border-color:var(--line)}
+  .focus-card .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:19px;background:rgba(255,255,255,.05);border:1px solid var(--line-soft)}
+  .focus-card .body{min-width:0}
+  .focus-card .nm{font-size:13.5px;color:#fff;font-weight:600}
+  .focus-card .why{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .focus-card .meter{height:5px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden;position:relative}
+  .focus-card .meter i{position:absolute;left:0;top:0;bottom:0;background:var(--grad-gold);border-radius:99px}
+  .focus-card .meter u{position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(255,255,255,.55);opacity:.7}
+  .focus-card .nums{text-align:right;flex:0 0 auto}
+  .focus-card .sc{font-family:'Cinzel',serif;font-size:19px;font-weight:700;color:#fff;line-height:1}
+  .focus-card .tr{font-size:11px;margin-top:3px;font-family:ui-monospace,monospace}
+  .focus-card .tr.up{color:var(--t-uncommon)} .focus-card .tr.down{color:#f87171} .focus-card .tr.flat{color:var(--faint)}
+  .focus-card .go{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+
+  /* weekly plan */
+  .day-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(216px,100%),1fr));gap:10px}
+  .day-card{position:relative;display:flex;flex-direction:column;gap:8px;background:rgba(0,0,0,.26);border:1px solid var(--line-soft);
+    border-radius:var(--r-md);padding:13px 14px;transition:border-color .2s, background .2s;min-width:0}
+  .day-card:hover{border-color:var(--line)}
+  .day-card .top{display:flex;align-items:center;gap:8px}
+  .day-card .when{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+  .day-card .mins{margin-left:auto;font-size:10px;color:var(--faint);font-family:ui-monospace,monospace}
+  .day-card .goal{font-size:13.5px;color:#fff;line-height:1.45;font-weight:500}
+  .day-card .beh{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .day-card .beh b{color:var(--gold-2);font-weight:600}
+  .day-card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+  .day-card .row .btn{padding:8px 14px;font-size:12.5px;min-height:36px}
+  .day-card.done{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.05)}
+  .day-card.done .goal{color:#bfe9d6}
+  .day-card.done::after{content:"✓";position:absolute;top:11px;right:12px;color:var(--t-uncommon);font-size:13px;font-weight:700}
+  .day-card.done .mins{opacity:.6}
+  .day-card.today{border-color:var(--gold);box-shadow:0 0 0 1px rgba(212,175,55,.25), 0 10px 30px rgba(0,0,0,.35)}
+  .day-card .sk{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)}
+  .day-card .sk .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+
+  /* technique list */
+  .tech-list{display:flex;flex-direction:column;gap:8px}
+  .tech-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;
+    background:rgba(0,0,0,.24);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:10px 12px;color:var(--ink);font-size:13px;transition:border-color .2s, transform .15s}
+  .tech-item:hover{border-color:var(--line);transform:translateX(2px)}
+  .tech-item .ic{font-size:16px}
+  .tech-item .tx{min-width:0}
+  .tech-item .tt{color:#fff;font-weight:600;font-size:12.8px;line-height:1.35}
+  .tech-item .ts{color:var(--faint);font-size:11px;margin-top:2px}
+  .tech-item .rd{font-size:10px;color:var(--t-uncommon);letter-spacing:.1em;text-transform:uppercase}
+  .tech-item.read .tt{color:var(--muted)}
+
+  .tech-example{margin-top:14px;display:grid;gap:10px}
+  .tx-block{border-radius:var(--r-sm);padding:12px 14px;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+  .tx-block .lab{display:block;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}
+  .tx-bad{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.28);color:#f3c1c1}
+  .tx-bad .lab{color:#fca5a5}
+  .tx-good{background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.3);color:#bfe9d6}
+  .tx-good .lab{color:var(--t-uncommon)}
+  .tx-steps{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .tx-steps li{display:flex;gap:10px;font-size:13px;color:var(--muted);line-height:1.55}
+  .tx-steps li .b{flex:0 0 auto;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:700;
+    color:var(--gold-2);border:1px solid var(--line);background:rgba(212,175,55,.09)}
+
+  /* ask the coach */
+  .ask-box{display:flex;gap:8px;flex-wrap:wrap}
+  .ask-box input{flex:1 1 180px;min-width:0;background:#050a14;border:1px solid var(--line-soft);border-radius:var(--r-sm);color:var(--ink);
+    padding:11px 13px;font-size:14px;outline:none;min-height:44px}
+  .ask-box input:focus{border-color:var(--gold)}
+  .ask-box .btn{padding:11px 18px;font-size:13.5px}
+  .ask-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  .ask-chip{background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:99px;padding:6px 12px;font-size:11.5px;transition:.18s}
+  .ask-chip:hover{color:var(--gold-2);border-color:var(--line)}
+  .ask-answer{margin-top:12px;background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:14px 15px;
+    font-size:13.2px;line-height:1.7;color:#c6d2e4;white-space:pre-wrap;overflow-wrap:anywhere}
+  .ask-answer:empty{display:none}
+  .ask-answer b{color:var(--gold-2);font-weight:600}
+  .ask-answer .act{display:block;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);color:var(--muted);font-size:12.5px;white-space:normal}
+  .ask-answer .act b{color:var(--gold-2)}
+
+  /* small buttons + chips */
+  .btn-sm{padding:9px 15px;font-size:12.5px;min-height:36px;border-radius:9px}
+  .btn-quiet{background:rgba(255,255,255,.04);border:1px solid var(--line-soft);color:var(--muted)}
+  .btn-quiet:hover{color:var(--gold-2);border-color:var(--line)}
+  .sk-chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;letter-spacing:.06em;color:var(--muted);
+    border:1px solid var(--line-soft);border-radius:99px;padding:3px 9px}
+  .sk-chip .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+
+  /* coach empty state */
+  .coach-empty{text-align:left;padding:clamp(18px,3vw,30px);display:grid;gap:14px;justify-items:start}
+  .coach-empty h3{font-size:18px;color:#fff}
+  .coach-empty p{font-size:13.5px;color:var(--muted);line-height:1.7;max-width:62ch}
+  .coach-empty .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px;width:100%}
+  .coach-empty .stp{background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:14px}
+  .coach-empty .stp .n{font-family:'Cinzel',serif;color:var(--gold);font-size:12px;letter-spacing:.2em}
+  .coach-empty .stp .t{font-size:13.5px;color:#fff;margin-top:6px}
+  .coach-empty .stp .d{font-size:12px;color:var(--faint);margin-top:4px;line-height:1.55}
+
+  /* coach feedback on the result screen */
+  .coach-feedback{background:linear-gradient(165deg,rgba(212,175,55,.09),rgba(0,0,0,.26));border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:clamp(16px,2vw,22px);margin-top:20px}
+  .coach-feedback h3{font-size:14px;color:#fff;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .coach-feedback .body{font-size:13.5px;color:#d5deee;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+  .coach-feedback .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .delta-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-family:ui-monospace,monospace;
+    border-radius:99px;padding:3px 10px;border:1px solid}
+  .delta-pill.up{color:var(--t-uncommon);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.07)}
+  .delta-pill.down{color:#fca5a5;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.07)}
+  .delta-pill.flat{color:var(--muted);border-color:var(--line-soft)}
+
+  /* nav marker: a drill is waiting */
+  .links a.navcoach{position:relative;padding-right:4px}
+  .links a.navcoach.due::after{content:"";position:absolute;top:2px;right:-3px;width:6px;height:6px;border-radius:50%;
+    background:var(--gold-2);box-shadow:0 0 0 3px rgba(212,175,55,.18);animation:pulse 2.8s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -804,17 +975,54 @@
 
   <!-- ======================= COACH ======================= -->
   <section class="block" id="coach" style="display:none">
-    <div class="kicker">TQ Coach · TQ Pro</div>
-    <h2 class="sec-title">Personalized Training</h2>
-    <p class="sec-sub">The coach analyzes your practice history, skill profile, mistakes, improvement trend, and TQ Gap — then produces a plan. It never exposes hidden chain-of-thought.</p>
-    <div class="coach-box" id="coachBox">
-      <div class="msg" id="coachMsg">Loading your training analysis…</div>
-      <div class="coach-plan" id="coachPlan"></div>
+    <div class="kicker">TQ Coach · your training engine</div>
+    <h2 class="sec-title">Your training plan</h2>
+    <p class="sec-sub">The coach reads your own graded responses — domain by domain, requirement by requirement — then gives you one technique and one short drill per day. Everything is computed on this device; nothing is sent anywhere.</p>
+
+    <div class="coach-empty panel" id="coachEmpty" hidden></div>
+
+    <div id="coachReady" hidden>
+      <div class="coach-status" id="coachStatus"></div>
+      <div class="coach-guide" id="coachGuide"></div>
+      <div class="coach-grid">
+        <div class="coach-main">
+          <div class="coach-panel">
+            <div class="cp-head"><h3>Where your TQ is leaking</h3><span class="cp-meta" id="coachFocusMeta"></span></div>
+            <div class="focus-list" id="coachFocus"></div>
+            <p class="cp-note" id="coachEvidence"></p>
+          </div>
+          <div class="coach-panel">
+            <div class="cp-head"><h3>This week&rsquo;s plan</h3><span class="cp-meta" id="coachPlanMeta"></span></div>
+            <div class="day-grid" id="coachPlan"></div>
+            <p class="cp-note">Each drill is a real TQ task graded by the same engine as the Gym, and it counts toward your history. A day takes about four minutes. The plan is rebuilt from your latest results every Monday.</p>
+          </div>
+        </div>
+        <aside class="coach-side">
+          <div class="coach-panel solid">
+            <div class="cp-head"><h3>Ask the coach</h3><span class="cp-meta">answers from your data</span></div>
+            <div class="ask-box">
+              <label class="sr-only" for="coachAskInput">Ask the coach a question</label>
+              <input id="coachAskInput" placeholder="e.g. Why is my Verification low?" autocomplete="off" maxlength="160" />
+              <button class="btn btn-gold" id="coachAskBtn" type="button">Ask</button>
+            </div>
+            <div class="ask-chips" id="coachChips"></div>
+            <div class="ask-answer" id="coachAnswer" role="status" aria-live="polite"></div>
+          </div>
+          <div class="coach-panel">
+            <div class="cp-head"><h3>Techniques</h3><span class="cp-meta">30-second lessons</span></div>
+            <div class="tech-list" id="coachTech"></div>
+          </div>
+        </aside>
+      </div>
     </div>
+
     <div class="cta-row" style="margin-top:20px">
-      <button class="btn btn-gold" id="dailyChallengeBtn">Complete Today's Daily Challenge</button>
-      <button class="btn btn-ghost" id="coachRefreshBtn">Refresh Analysis</button>
+      <button class="btn btn-gold" id="coachDrillBtn" hidden>Start today&rsquo;s drill →</button>
+      <button class="btn btn-ghost" id="dailyChallengeBtn">Daily Challenge</button>
+      <button class="btn btn-quiet btn-sm" id="coachRefreshBtn" title="Rebuild the weekly plan from your most recent results">Recompute my plan</button>
+      <button class="btn btn-quiet btn-sm" id="coachProBtn" data-open="proModal">About TQ Pro</button>
     </div>
+    <div class="backend-note">🧭 <b>How the coach works:</b> it computes your per-domain vector, the C/E/F/D factors, the exact requirements you keep missing and your difficulty ceiling from your own attempts (<code>attempts[]</code> + <code>coach[]</code> in localStorage), then generates a deterministic weekly plan. No hidden chain-of-thought, no network call.</div>
   </section>
 
   <!-- ======================= CHALLENGE ======================= -->
@@ -834,6 +1042,7 @@
       </div>
       <div id="chalResult" style="margin-top:18px">
         <div class="lb-mini"><table><tbody id="chalLb"></tbody></table></div>
+        <div class="cp-note" style="margin-top:8px">🧪 <b>Local demo:</b> the other three rows are a seeded cohort, not real people. The challenge score is stored separately from your Gym history and does not change your TQ.</div>
       </div>
     </div>
   </section>
@@ -986,7 +1195,7 @@
         <div class="ent-chart"><svg id="entAdoptionChart"></svg></div>
         <div class="ent-legend">
           <span><i style="background:#f0d98c"></i>Weekly active rate</span>
-          <span><i style="background:#38bdf8"></i>Assessment completion</span>
+          <span><i style="background:#5fc7c1"></i>Assessment completion</span>
           <span><i style="background:#34d399"></i>Certification pass rate</span>
         </div>
       </div>
@@ -1012,20 +1221,20 @@
       <div class="ent-panel">
         <h3>Department Scorecard</h3>
         <div class="sub">Click a row to drill in. Sorted by average TQ.</div>
-        <table class="ent-table"><thead><tr><th>Dept</th><th class="num">Head</th><th class="num">Part.</th><th class="num">Avg TQ</th><th class="num">Δ</th></tr></thead><tbody id="entDepts"></tbody></table>
+        <div class="table-wrap"><table class="ent-table"><thead><tr><th>Dept</th><th class="num">Head</th><th class="num">Part.</th><th class="num">Avg TQ</th><th class="num">Δ</th></tr></thead><tbody id="entDepts"></tbody></table></div>
       </div>
     </div>
 
     <div class="ent-panel" style="margin-top:18px">
       <h3>Program Health &amp; Next-Best Actions</h3>
       <div class="sub">Threshold-based alerts generated from the current filter. Each maps to an owner and action.</div>
-      <table class="ent-table"><thead><tr><th>Status</th><th>Signal</th><th>Owner</th><th>Recommended action</th></tr></thead><tbody id="entActions"></tbody></table>
+      <div class="table-wrap"><table class="ent-table"><thead><tr><th>Status</th><th>Signal</th><th>Owner</th><th>Recommended action</th></tr></thead><tbody id="entActions"></tbody></table></div>
     </div>
 
     <div class="ent-panel" style="margin-top:18px" id="entMembersPanel">
       <h3>Individual Members <span class="pill-risk" style="margin-left:8px">Restricted</span></h3>
       <div class="sub">Least-privilege: individual scores are masked unless your role includes <code>member:read_pii</code> and the reveal toggle is on.</div>
-      <table class="ent-table"><thead><tr><th>Member</th><th>Dept</th><th>Role</th><th class="num">TQ</th><th>Cert</th><th>Last active</th></tr></thead><tbody id="entMembers"></tbody></table>
+      <div class="table-wrap"><table class="ent-table"><thead><tr><th>Member</th><th>Dept</th><th>Role</th><th class="num">TQ</th><th>Cert</th><th>Last active</th></tr></thead><tbody id="entMembers"></tbody></table></div>
     </div>
 
     <div class="backend-note">🏢 <b>Demo:</b> org data is a seeded synthetic population (deterministic per org) clearly marked as demo. Production: <code>Organization → OrganizationMember → OrganizationAssessment → aggregate analytics</code> with least-privilege roles, row-level security, and a <code>member:read_pii</code> scope gate. Metrics (WAU, utilization, funnel, retention) are computed from the seeded event stream, not hard-coded.</div>
@@ -1073,7 +1282,7 @@
     <div class="ent-panel" style="margin-top:18px">
       <h3>Psychometric Layer · live calibration</h3>
       <div class="sub">Cronbach's α (internal consistency), item discrimination D = p<sub>upper</sub> − p<sub>lower</sub> (top/bottom 27%), and evaluator agreement. Computed from real attempts where ≥3 exist; otherwise flagged <span class="pill-warn">insufficient data</span>. Benchmarks: α &gt; .70 acceptable · D ≥ .40 excellent · below .20 poor.</div>
-      <table class="psych-table"><thead><tr><th>Domain</th><th class="num">n</th><th class="num">α</th><th class="num">Discrim. D</th><th>Grade</th></tr></thead><tbody id="admPsych"></tbody></table>
+      <div class="table-wrap"><table class="psych-table"><thead><tr><th>Domain</th><th class="num">n</th><th class="num">α</th><th class="num">Discrim. D</th><th>Grade</th></tr></thead><tbody id="admPsych"></tbody></table></div>
       <div class="ent-2col" style="margin-top:16px">
         <div class="ent-panel" style="border:none;padding:0">
           <h3 style="font-size:12.5px">Evaluator Agreement (Krippendorff-style)</h3>
@@ -1175,6 +1384,7 @@
     </div>
     <div class="confidence-box" id="resultConfidence"></div>
     <div class="deck" id="deck"></div>
+    <div class="coach-feedback" id="coachFeedback" hidden></div>
     <div class="cta-row" style="margin-top:30px">
       <button class="btn btn-gold" id="dashboardGoBtn">Go to Dashboard</button>
       <button class="btn btn-ghost" id="passportGoBtn">Open TQ Passport</button>
@@ -1251,7 +1461,7 @@
   <div class="modal">
     <button class="modal-x" data-close aria-label="Close TQ Pro dialog">✕</button>
     <h3 id="proTitle">TQ Pro</h3>
-    <p>Don't just measure your TQ — improve it. TQ Pro includes TQ Coach, advanced analytics, personalized training, daily challenges, weekly plans, benchmarking, TQ Gap analysis, and TQ Passport features.</p>
+    <p><b style="color:var(--gold-2)">TQ Coach is free</b> — the diagnosis, the weekly plan and the drills are yours without paying. TQ Pro is the depth on top: longitudinal analytics, cohort benchmarking, TQ Gap analysis against your verified result, exportable reports and team dashboards.</p>
     <div class="stat-grid" style="margin-bottom:14px">
       <div class="stat"><div class="v" id="proMonthly">$9.99</div><div class="k">Monthly</div></div>
       <div class="stat"><div class="v" id="proAnnual">$79.00</div><div class="k">Annual</div></div>
@@ -1277,6 +1487,20 @@
     <div class="row">
       <button class="btn btn-ghost" id="claimCancel" style="padding:10px 18px;font-size:13px">Cancel</button>
       <button class="btn btn-gold" id="claimDo" style="padding:10px 24px;font-size:13px">Claim</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= TECHNIQUE MODAL ======================= -->
+<div class="modal-bg" id="techModal" role="dialog" aria-modal="true" aria-labelledby="techTitle">
+  <div class="modal modal-wide">
+    <button class="modal-x" data-close aria-label="Close technique">✕</button>
+    <h3 id="techTitle">Technique</h3>
+    <p class="sec-sub" id="techGist"></p>
+    <div id="techBody"></div>
+    <div class="row" style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn btn-ghost" data-close type="button" style="padding:10px 18px;font-size:13px">Close</button>
+      <button class="btn btn-gold" id="techTryBtn" type="button" style="padding:10px 22px;font-size:13px;margin-left:auto">Try it in a drill →</button>
     </div>
   </div>
 </div>
@@ -1358,20 +1582,20 @@ function ensureIdentity(){
   return id;
 }
 function saveAttempt(a){ DB.push('attempts', {...a, attempt_id:uid('ATT'), timestamp:new Date().toISOString(), data_source:'PRACTICE'}); }
-function getAttempts(){ return DB.get('attempts')||[]; }
+function getAttempts(){ const a = DB.get('attempts'); return Array.isArray(a) ? a.filter(x=>x && typeof x==='object' && typeof x.tq==='number') : []; }
 function saveCertAttempt(a){ DB.push('certAttempts', {...a, attempt_id:uid('CA'), timestamp:new Date().toISOString(), data_source:'CERTIFICATION'}); }
-function getCertAttempts(){ return DB.get('certAttempts')||[]; }
+function getCertAttempts(){ const a = DB.get('certAttempts'); return Array.isArray(a) ? a.filter(x=>x && typeof x==='object' && typeof x.tq==='number') : []; }
 
 const DOMAINS = [
-  {id:'problem_formulation', name:'Problem Formulation', icon:'🧭', color:'#4f8ef7', subs:['Goal Definition','Problem Decomposition','Constraint Identification','Requirement Clarity','Ambiguity Reduction']},
-  {id:'context_engineering', name:'Context Engineering', icon:'🗂️', color:'#38bdf8', subs:['Context Selection','Context Organization','Context Prioritization','Context Compression','Context Updating']},
+  {id:'problem_formulation', name:'Problem Formulation', icon:'🧭', color:'#8ea9c9', subs:['Goal Definition','Problem Decomposition','Constraint Identification','Requirement Clarity','Ambiguity Reduction']},
+  {id:'context_engineering', name:'Context Engineering', icon:'🗂️', color:'#5fc7c1', subs:['Context Selection','Context Organization','Context Prioritization','Context Compression','Context Updating']},
   {id:'ai_instruction', name:'AI Instruction', icon:'📝', color:'#f0d98c', subs:['Instruction Clarity','Task Specification','Output Specification','Constraint Design','Iterative Refinement']},
   {id:'collaborative_reasoning', name:'Collaborative Reasoning', icon:'🤝', color:'#a78bfa', subs:['Hypothesis Formation','Iterative Reasoning','Alternative Exploration','Error Correction','Delegation']},
   {id:'ai_output_evaluation', name:'AI Output Evaluation', icon:'🔎', color:'#34d399', subs:['Relevance','Logical Consistency','Hallucination Detection','Contradiction Detection','Quality Assessment']},
   {id:'verification', name:'Verification', icon:'✅', color:'#22c55e', subs:['Fact Checking','Source Evaluation','Independent Reasoning','Cross Verification','Confidence Calibration']},
   {id:'human_judgment', name:'Human Judgment', icon:'⚖️', color:'#f59e0b', subs:['Decision Quality','Risk Recognition','Tradeoff Analysis','Uncertainty Management','Final Responsibility']},
   {id:'ai_workflow_design', name:'AI Workflow Design', icon:'🛠️', color:'#f472b6', subs:['Tool Selection','Model Selection','Workflow Construction','Multi-step Processes','Human/AI Task Allocation']},
-  {id:'ai_adaptability', name:'AI Adaptability', icon:'🔄', color:'#60a5fa', subs:['Learning From AI','Strategy Adjustment','Failure Recovery','Prompt Adaptation','Transfer']},
+  {id:'ai_adaptability', name:'AI Adaptability', icon:'🔄', color:'#9fb8d1', subs:['Learning From AI','Strategy Adjustment','Failure Recovery','Prompt Adaptation','Transfer']},
   {id:'collaboration_efficiency', name:'Collaboration Efficiency', icon:'⚡', color:'#fb7185', subs:['Communication Efficiency','Information Density','Iteration Efficiency','Avoidance of Waste','Effective AI Utilization']}
 ];
 function getSkills(){ const s = DB.get('skills'); if(s && s.length) return s; return DOMAINS; }
@@ -1517,16 +1741,440 @@ function computeBadges(){
   const earned = BADGE_DEFS.filter(b=>{ if(b.id==='passport') return gym&&online&&offline; if(b.need>=1.35) return best >= b.need; if(b.need>=1&&b.need<100) return attempts.length >= b.need; return false; });
   return earned.map(b=>b.name);
 }
-function coachAnalysis(){
-  const attempts=getAttempts(); if(!attempts.length) return {msg:'Complete a practice to receive your personalized training analysis.', plan:[]};
-  const best = attempts.reduce((m,a)=>Math.max(m,a.tq||0),0); const avg = attempts.reduce((s,a)=>s+(a.tq||0),0)/attempts.length;
-  let weakest=null, strongest=null; const acc={};
-  attempts.forEach(a=>{ const ss=a.skillScores||{}; for(const s in ss){ acc[s]=(acc[s]||[]).concat([ss[s]]); } });
-  for(const s in acc){ const m=acc[s].reduce((a,b)=>a+b,0)/acc[s].length; if(!weakest||m<weakest.m) weakest={s,m}; if(!strongest||m>strongest.m) strongest={s,m}; }
-  const msg = `You are strong at ${strongest?strongest.s:'AI Instruction'}, but your ${weakest?weakest.s:'Verification'} performance is significantly lower.\n\nYour next training focus should be ${weakest?weakest.s:'Verification'}. Practice TQ ${best.toFixed(2)} · average ${avg.toFixed(2)} over ${attempts.length} attempts.`;
-  const plan = [ {d:'Monday', s:'Problem Formulation'},{d:'Tuesday', s:weakest?weakest.s:'Verification'},{d:'Wednesday', s:'Context Engineering'},{d:'Thursday', s:'Human Judgment'},{d:'Friday', s:'Integrated Challenge'},{d:'Weekend', s:'Free Practice'} ];
-  return {msg, plan};
+/* ============================================================
+   TQ COACH · diagnosis → weekly plan → real drill → feedback
+   Everything is computed locally from the learner's own attempts.
+   ============================================================ */
+const SUIT2DOMAIN = {planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',
+  life:'Human Judgment',sales:'Collaboration Efficiency',evaluation:'AI Output Evaluation',judgment:'Human Judgment',workflow:'AI Workflow Design',
+  adversarial:'AI Output Evaluation',transfer:'AI Adaptability',verification:'Verification',context:'Context Engineering',instruction:'AI Instruction',
+  collaborative:'Collaborative Reasoning'};
+function domainOfTask(task){ return SUIT2DOMAIN[task && task.suit] || 'AI Instruction'; }
+function domainMeta(name){ return DOMAINS.find(d=>d.name===name) || {name:name, icon:'◆', color:'#d4af37', subs:[]}; }
+function hx(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function mean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+function dayKey(v){ const d = v instanceof Date ? v : new Date(v||Date.now());
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function weekKey(){ const t=new Date(); const x=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+  x.setDate(x.getDate()-((x.getDay()+6)%7)); return 'W'+dayKey(x); }
+function hashNum(s){ let h=2166136261; for(let i=0;i<String(s).length;i++){ h^=String(s).charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+const WEEKDAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function shortDate(d){ return WEEKDAYS[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate(); }
+
+/* ---------- coach store ---------- */
+function coachStore(){
+  let s = DB.get('coach');
+  if(!s || typeof s!=='object' || Array.isArray(s)) s = {};
+  if(typeof s.week!=='string') s.week='';
+  if(!Array.isArray(s.plan)) s.plan=[];
+  if(!s.read || typeof s.read!=='object') s.read={};
+  if(!s.streak || typeof s.streak!=='object') s.streak={count:0,last:''};
+  if(typeof s.guideSeen!=='boolean') s.guideSeen=false;
+  return s;
 }
+function saveCoachStore(s){ DB.set('coach', s); }
+function coachActiveDays(){
+  const set=new Set();
+  getAttempts().forEach(a=>{ if(a && a.timestamp) set.add(dayKey(a.timestamp)); });
+  const st=coachStore().streak||{}; if(st.last) set.add(st.last);
+  return set;
+}
+function coachStreak(){
+  const days=coachActiveDays(); let count=0; const d=new Date();
+  if(!days.has(dayKey(d))) d.setDate(d.getDate()-1);
+  while(days.has(dayKey(d)) && count<400){ count++; d.setDate(d.getDate()-1); }
+  return {count:count, total:days.size};
+}
+
+/* ---------- diagnosis ---------- */
+function coachDiagnose(){
+  const at = getAttempts(); const n = at.length;
+  const best = at.reduce((m,a)=>Math.max(m,a.tq||0),0);
+  const avg = mean(at.map(a=>a.tq||0));
+  const trend = n>=2 ? mean(at.slice(-3).map(a=>a.tq||0)) - mean(at.slice(0,Math.max(1,Math.ceil(n/2))).map(a=>a.tq||0)) : 0;
+  const buckets={};
+  at.forEach(a=>{ const ss=(a && a.skillScores)||{}; for(const s in ss){ (buckets[s]=buckets[s]||[]).push(ss[s]); } });
+  const domains = Object.keys(buckets).map(name=>{
+    const v=buckets[name]; const m=mean(v); const k=Math.min(3,v.length);
+    const meta=domainMeta(name);
+    return {name:name, mean:m, n:v.length, trend:mean(v.slice(-k))-mean(v.slice(0,k)), icon:meta.icon, color:meta.color, subs:meta.subs};
+  }).sort((a,b)=>a.mean-b.mean);
+  const withF = at.filter(a=>typeof a.F==='number');
+  const factors = {
+    coverage: mean(at.map(a=>typeof a.Cfinal==='number'?a.Cfinal:(a.acc||0))),
+    form: mean(withF.map(a=>a.F)),
+    originality: mean(withF.map(a=>a.E)),
+    density: mean(withF.map(a=>a.d||1))
+  };
+  const miss={};
+  at.forEach(a=>{ (a.missed||[]).forEach(l=>{ miss[l]=(miss[l]||0)+1; }); });
+  const behaviors = Object.keys(miss).map(k=>({label:k, count:miss[k]})).sort((a,b)=>b.count-a.count);
+  const levelled = at.filter(a=>a && a.level);
+  const passed = levelled.filter(a=>(a.tq||0)>=0.95);
+  const ceiling = passed.length ? Math.max.apply(null, passed.map(a=>a.level)) : 0;
+  const abilityLevel = clamp(Math.round(1 + avg*4.6), 1, 9);
+  const streak = coachStreak();
+  const focus = domains.slice(0, Math.min(3, domains.length));
+  return {n:n, best:best, avg:avg, trend:trend, domains:domains, focus:focus, factors:factors, behaviors:behaviors,
+    ceiling:ceiling, abilityLevel:abilityLevel, streak:streak, readiness:clamp(n/5,0,1),
+    weakest:domains[0]||null, strongest:domains[domains.length-1]||null, last:at[n-1]||null,
+    days:coachActiveDays().size, levelled:levelled.length};
+}
+/* what is actually costing the learner points, in plain words */
+function coachLever(d){
+  if(!d.n) return null;
+  const f=d.factors, cand=[];
+  if(f.coverage) cand.push({k:'coverage', v:f.coverage, msg:'Your responses leave required elements out. Coverage is the single heaviest multiplier in the score — answer every part the task asks for before adding anything clever.'});
+  if(f.form && f.form<0.82) cand.push({k:'form', v:f.form, msg:'Your responses are thin relative to what the task needs. Add the missing specifics: numbers, constraints, format, and what to do on failure.'});
+  if(f.originality && f.originality<1) cand.push({k:'originality', v:f.originality, msg:'You are pasting the task statement back at the AI instead of adding your own context. Restate in your words and supply facts the task did not give you.'});
+  if(f.density && f.density<0.93) cand.push({k:'density', v:f.density, msg:'Filler is diluting your prompts ("please", "I think", "can you"). Strip it — density is measured and scored.'});
+  cand.sort((a,b)=>a.v-b.v);
+  return cand[0]||null;
+}
+
+/* ---------- technique library (30-second lessons) ---------- */
+const TECHNIQUES = [
+  {id:'pf-constraints', domain:'Problem Formulation', name:'Constraint-first brief', minutes:3,
+   gist:'State the fixed facts — budget, deadline, audience, stack — before you ask for anything. The AI cannot respect a constraint you never gave it.',
+   steps:['List the 3 facts that must not change.','Say what "done" looks like.','Ask it to flag every assumption it had to make.'],
+   bad:'Write me a launch plan.',
+   good:'Product: HydraOne smart bottle. Budget $150k, hard deadline Mar 31, no retail partners yet. Produce a phased go-to-market plan with milestones, owners, and the top 3 risks with mitigations. List any assumption you had to make.',
+   why:'Coverage is scored per required element. Constraints are the elements most learners skip.'},
+  {id:'pf-ambiguity', domain:'Problem Formulation', name:'Ambiguity kill-list', minutes:3,
+   gist:'Before prompting, write down what is undecided about the task — then decide it or explicitly ask the AI to propose options.',
+   steps:['Write the ambiguities you noticed.','Decide the ones you can.','Hand the rest over as an explicit question.'],
+   bad:'Make the app faster.',
+   good:'Goal: reduce p95 API latency on the orders report from 40s to under 2s. Baseline measured on PostgreSQL 15, 2M rows, index on order_date already added. Deliver: ranked root causes, the fix for each, and how to verify. If scope is wrong, say so before answering.',
+   why:'Ambiguity reduction is a scored sub-skill of Problem Formulation.'},
+  {id:'ce-signal', domain:'Context Engineering', name:'Signal-only context', minutes:3,
+   gist:'Include only facts that change the decision. Context is a budget, not a wish.',
+   steps:['Pick the 5 facts that change the answer.','Delete everything that would not change it.','Say what to ignore on purpose.'],
+   bad:'Here is my whole project, read it all and tell me what to do.',
+   good:'Context that matters: PostgreSQL 15, orders table 2M rows, index on order_date only, report runs nightly, 40s runtime. Ignore the frontend. Diagnose the query, not the app.',
+   why:'Context Selection and Prioritization are graded; noise costs you both coverage and density.'},
+  {id:'ce-compress', domain:'Context Engineering', name:'Compression without loss', minutes:4,
+   gist:'When the window is tight, compress by decision-critical categories — never by length alone.',
+   steps:['Name the categories that must survive.','Compress each to one line.','State what you accepted losing.'],
+   bad:'Summarize this 40-page contract.',
+   good:'Compress this contract to brief an AI. Keep only: parties, term, liability caps, termination triggers, data obligations. One line each. Then list what you dropped so I can check nothing decision-critical is gone.',
+   why:'A lossy summary you cannot audit is worse than no summary.'},
+  {id:'ai-contract', domain:'AI Instruction', name:'Output contract', minutes:3,
+   gist:'Specify the shape of the answer: sections, length, tone, and what to never do. Consistent output requires a contract, not a request.',
+   steps:['Define the exact fields and order.','Set a hard length limit.','Add one prohibition.'],
+   bad:'Rewrite support replies to be nicer.',
+   good:'Rewrite each support reply. Rules: max 3 sentences, no jargon, plain-English, ends with the customer\'s next step and a date. Never promise a refund. Return only the rewritten text.',
+   why:'Output Specification is scored — and a contract makes the result reusable.'},
+  {id:'ai-onevar', domain:'AI Instruction', name:'One variable at a time', minutes:2,
+   gist:'When an answer is wrong, change one thing per iteration so you learn which change worked.',
+   steps:['Name the single defect in the output.','Change only the instruction that caused it.','Ask for the same task again.'],
+   bad:'That\'s wrong, do it again differently.',
+   good:'The previous answer ignored the budget constraint. Keep everything else identical; only add: "allocate the $150k across phases with percentages that sum to 100%".',
+   why:'Iterative Refinement is graded on directed correction, not re-rolling.'},
+  {id:'cr-loop', domain:'Collaborative Reasoning', name:'Draft → critique → revise', minutes:4,
+   gist:'Single-shot answers are shallow because nobody critiques them. Make the AI critique its own draft before you read the result.',
+   steps:['Ask for an approach.','Ask it to attack that approach.','Ask for the revised version only.'],
+   bad:'How should I forecast next quarter?',
+   good:'Step 1: propose a forecasting approach for a product with no history. Step 2: list the 3 weakest points of your own approach. Step 3: give the revised approach only — and say what changed.',
+   why:'This is the highest-leverage habit in the whole Gym: it lifts reasoning and evaluation at once.'},
+  {id:'cr-alts', domain:'Collaborative Reasoning', name:'Three before one', minutes:3,
+   gist:'Ask for three genuinely different options before you commit to any. Alternatives expose assumptions.',
+   steps:['Request 3 structurally different options.','Require the tradeoff of each.','Then pick, with a reason.'],
+   bad:'Should we build this in-house?',
+   good:'Give 3 structurally different ways to cover this capability (build, buy, hybrid). For each: cost, time-to-value, and the main risk. Then recommend one and say what would change your mind.',
+   why:'Alternative Exploration is a scored sub-skill; one-option thinking hides risk.'},
+  {id:'oe-ledger', domain:'AI Output Evaluation', name:'Claim ledger', minutes:4,
+   gist:'Turn prose into a list of claims, and mark each supported, unsupported, or contradictory. Evaluating becomes mechanical instead of vibes.',
+   steps:['Extract every factual claim.','Mark supported / unsupported / contradicted.','Act only on the supported ones.'],
+   bad:'This looks about right, thanks.',
+   good:'Extract the factual claims in this answer as a list. For each, mark SUPPORTED (with the evidence given), UNSUPPORTED, or CONTRADICTED by another claim. Then rewrite the recommendation using only SUPPORTED claims.',
+   why:'Hallucination and contradiction detection are both graded from exactly this move.'},
+  {id:'oe-sweep', domain:'AI Output Evaluation', name:'Contradiction sweep', minutes:3,
+   gist:'Check that the numbers point the same way. If costs fall while headcount, prices and volume are flat, something is inconsistent.',
+   steps:['Re-state each number with its direction.','Ask which two numbers cannot both be true.','Request the reconciliation data.'],
+   bad:'The report says costs fell 15%.',
+   good:'The report claims costs fell 15% while headcount, unit prices and volume were flat or up. Those cannot all hold. Identify the inconsistency, list the data needed to reconcile it, and withhold the conclusion until then.',
+   why:'Naming the inconsistency is worth more coverage than restating the report.'},
+  {id:'vf-tiers', domain:'Verification', name:'Source tiering', minutes:3,
+   gist:'Rank sources by how much they can be trusted, then decide which claims to keep and which to verify before use.',
+   steps:['Tier each source: primary, secondary, marketing, anonymous.','Keep only claims the top tier supports.','Name the check for the rest.'],
+   bad:'The AI cited four sources, so it must be right.',
+   good:'Rank these 4 sources by reliability: peer-reviewed paper, vendor marketing page, blog post, anonymous forum. Keep only claims the paper supports; for the rest, state the specific check I should run before using them.',
+   why:'Source Evaluation and Confidence Calibration are both graded here.'},
+  {id:'vf-threshold', domain:'Verification', name:'Threshold before looking', minutes:3,
+   gist:'Decide what would change your mind before you check. It stops you from accepting the first confident answer.',
+   steps:['Write the confidence you need to act.','Write the evidence that would provide it.','Only then verify.'],
+   bad:'Is this regulation passed? Tell me yes or no.',
+   good:'Two systems disagree on whether the EU regulation passed. Before answering, state what primary source and date would settle it, then check that source and give a confidence level with the reason.',
+   why:'Verification is scored on method, not on guessing right.'},
+  {id:'hj-memo', domain:'Human Judgment', name:'Decision memo with conditions', minutes:4,
+   gist:'Decide, state the conditions that would reverse the decision, and name who owns the outcome. Uncertainty is fine; abdication is not.',
+   steps:['State the decision in one line.','List 2-3 conditions that would flip it.','Name the owner and the review date.'],
+   bad:'I\'m not sure, what do you think I should do?',
+   good:'Decision: do not cut R&D 30% this quarter. Conditions that would change this: confirmed market decline over two quarters, or a cash runway under 9 months. Owner: me, reviewed at the next board. Interim: freeze discretionary spend instead.',
+   why:'Decision Quality, Uncertainty Management and Final Responsibility are all graded in one move.'},
+  {id:'hj-reversible', domain:'Human Judgment', name:'Reversibility test', minutes:3,
+   gist:'Reversible decisions should be fast. Irreversible ones need guardrails, confirmation, and a rollback path.',
+   steps:['Mark the decision reversible or not.','For irreversible: add a confirmation step.','Define the rollback before you act.'],
+   bad:'The agent can delete the old records to clean up, right?',
+   good:'Deleting production data is irreversible. Keep the cleanup but require: dry-run report first, human confirmation on the exact row count, soft-delete with 30-day restore. I own the policy; the agent never gets delete rights by default.',
+   why:'Risk Recognition plus Final Responsibility — the top-tier Gym items test exactly this.'},
+  {id:'wd-split', domain:'AI Workflow Design', name:'Human / AI split table', minutes:4,
+   gist:'Design the workflow by assigning each step to AI, human, or both — and say why. Task allocation is the design.',
+   steps:['List the steps in order.','Assign each to AI, human, or both.','Justify every human gate.'],
+   bad:'Use AI to automate our newsletter.',
+   good:'Design a weekly newsletter pipeline from raw notes. For each step (draft, fact-check, edit, publish) state: AI / human / both, and why. Add a verification gate before publish and a fallback if fact-checking fails.',
+   why:'Human/AI Task Allocation is a named sub-skill; tables score it cleanly.'},
+  {id:'wd-gate', domain:'AI Workflow Design', name:'Gate and fallback', minutes:3,
+   gist:'Every AI workflow needs a place where bad output stops, and a defined path when it does.',
+   steps:['Pick the one gate that matters.','Define what passes it.','Define what happens when it fails.'],
+   bad:'The bot should answer from our docs.',
+   good:'Support bot answers only from our docs. Gate: no answer without a retrieved citation — otherwise refuse and route to a human. Log every answer, citation, and refusal. Weekly review of refusals to find doc gaps.',
+   why:'Verification steps and fallbacks are required elements in the workflow items.'},
+  {id:'ad-autopsy', domain:'AI Adaptability', name:'Failure autopsy', minutes:3,
+   gist:'"That\'s wrong" makes models double down. Pinpoint the specific error, supply grounding evidence, and reframe the request.',
+   steps:['Quote the exact wrong sentence.','Supply the evidence that refutes it.','Re-ask with the corrected frame.'],
+   bad:'That\'s wrong, try again.',
+   good:'Your step 3 is wrong: the API allows 60 req/min per key, so 10k/hour exceeds it — our retry loop amplifies the 429s. Given that, propose a fix comparing exponential backoff, batching, and key rotation, and say which you would pick.',
+   why:'Failure Recovery and Prompt Adaptation are graded on the specificity of the correction.'},
+  {id:'ad-transfer', domain:'AI Adaptability', name:'Transfer with a delta list', minutes:4,
+   gist:'When you move a method to a new domain, state what carries over, what breaks, and what you must learn first.',
+   steps:['Name the method you already trust.','List what does not carry over.','Add the new verification step.'],
+   bad:'I\'m good at prompting, so this new field will be easy.',
+   good:'I use hypothesis-driven AI debugging in web apps. Transferring to biomedical literature review: what carries over is the loop; what breaks is ground truth — papers disagree and citation counts are not evidence. New step: verify against primary sources before synthesis.',
+   why:'Transfer is graded on naming the limits of your own method.'},
+  {id:'ce-density', domain:'Collaboration Efficiency', name:'Density pass', minutes:2,
+   gist:'Remove every word that does not change the answer. Density is measured, and filler is subtracted from your form factor.',
+   steps:['Delete politeness scaffolding.','Delete hedges ("I think", "maybe").','Keep numbers and constraints.'],
+   bad:'Hi! Please, if you don\'t mind, I think maybe you could kind of help me write a bit of a plan?',
+   good:'Produce a 3-phase launch plan for HydraOne. Budget $150k, deadline Mar 31. Output: phases, milestones, risk table.',
+   why:'Same information, a third of the tokens — and a measurably higher form factor.'},
+  {id:'ce-budget', domain:'Collaboration Efficiency', name:'Iteration budget', minutes:2,
+   gist:'Decide in advance how many rounds you will spend and what "good enough" means, so you stop when you are done.',
+   steps:['Set a max round count.','Define the acceptance test.','Stop when it passes.'],
+   bad:'Keep going until it\'s better.',
+   good:'Two rounds maximum. Acceptance: the plan names owners, sums the budget to 100%, and includes a risk section. If round 2 passes, stop and output the final version.',
+   why:'Iteration Efficiency and Avoidance of Waste are the two sub-skills most learners never touch.'}
+];
+function techniquesFor(domain){ return TECHNIQUES.filter(t=>t.domain===domain); }
+function techniqueById(id){ return TECHNIQUES.find(t=>t.id===id)||null; }
+function pickTechnique(domain, seed){
+  const list = techniquesFor(domain).length ? techniquesFor(domain) : TECHNIQUES.slice(0,1);
+  return list[hashNum(domain+'|'+seed) % list.length];
+}
+
+/* ---------- weekly plan ---------- */
+const PLAN_PATTERN=[0,1,0,2,1,0,2];
+function buildPlan(diag, wk){
+  const pool = diag.focus.length ? diag.focus.map(d=>d.name) : ['Problem Formulation','Verification','AI Instruction'];
+  const today=new Date(); const base=new Date(today.getFullYear(),today.getMonth(),today.getDate()-((today.getDay()+6)%7));
+  const out=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(base.getFullYear(),base.getMonth(),base.getDate()+i);
+    const isWeekend = d.getDay()===0 || d.getDay()===6;
+    const name = pool[PLAN_PATTERN[i % PLAN_PATTERN.length] % pool.length];
+    const meta = domainMeta(name);
+    const tech = isWeekend ? null : pickTechnique(name, wk+':'+i);
+    const sub = meta.subs.length ? meta.subs[(hashNum(wk+':'+i+':'+name))%meta.subs.length] : 'Core practice';
+    const level = clamp(diag.abilityLevel + (i%3===2?1:0) - (i%3===0?1:0), 1, 10);
+    out.push({ id:wk+':'+i, i:i, dateKey:dayKey(d), label:shortDate(d), weekend:isWeekend,
+      domain:name, icon:meta.icon, color:meta.color, sub:sub, level:level,
+      techId:tech?tech.id:'', minutes:tech?tech.minutes+2:6,
+      goal:tech?tech.name:'Mixed set — choose your own weakest domain',
+      done:false, best:0 });
+  }
+  return out;
+}
+function coachPlan(diag){
+  const wk=weekKey(); const store=coachStore();
+  if(store.week!==wk || store.plan.length!==7){
+    store.week=wk; store.plan=buildPlan(diag, wk); saveCoachStore(store);
+  }
+  const todayK=dayKey();
+  const logRaw=DB.get('coachLog'); const log=Array.isArray(logRaw)?logRaw.filter(x=>x&&typeof x==='object'):[];
+  store.plan.forEach(day=>{
+    const rec=log.find(l=>l.dayId===day.id);
+    day.done = !!rec; day.best = rec? (rec.tq||0) : 0;
+    day.isToday = day.dateKey===todayK;
+    day.past = day.dateKey < todayK;
+  });
+  return {store:store, plan:store.plan, week:wk};
+}
+function planProgress(plan){ const done=plan.filter(d=>d.done).length; return {done:done, total:plan.length, pct:Math.round(done/plan.length*100)}; }
+function nextPlanDay(plan){
+  const todayK=dayKey();
+  return plan.find(d=>d.isToday && !d.done) || plan.find(d=>d.dateKey<=todayK && !d.done) || plan.find(d=>!d.done) || null;
+}
+function pickDrillTask(domain, level, dayId){
+  const pool = GYM_TASKS.filter(t=>domainOfTask(t)===domain);
+  const src = pool.length ? pool : GYM_TASKS.slice();
+  const used = {};
+  getAttempts().slice(-8).forEach(a=>{ if(a.title) used[a.title]=1; });
+  const ranked = src.slice().sort((a,b)=>{
+    const ua=used[a.title]?1:0, ub=used[b.title]?1:0;
+    if(ua!==ub) return ua-ub;
+    return Math.abs(a.level-level)-Math.abs(b.level-level);
+  });
+  return ranked[hashNum(dayId) % Math.min(3, ranked.length)] || ranked[0];
+}
+
+/* ---------- drill runner (reuses the real grading engine) ---------- */
+let drillCtx=null;
+function startDrill(day){
+  if(!day) return;
+  if(assessmentActive && (flowMode==='online'||flowMode==='offline')){
+    toast('Finish or pause your certification first — a drill would replace it.','err'); navTo('flow'); return;
+  }
+  if(assessmentActive && deck.length===0 && queue.length && qi===0 && flowMode==='gym'){
+    toast('A practice is already running — this drill will replace it.');
+  }
+  const task = day.weekend
+    ? (function(){ const d=coachDiagnose(); const dn=(d.weakest&&d.weakest.name)||'Verification'; return pickDrillTask(dn, day.level, day.id+'-x'); })()
+    : pickDrillTask(day.domain, day.level, day.id);
+  if(!task){ toast('No drill available yet — take a Gym practice first.','err'); return; }
+  ensureIdentity();
+  drillCtx = { dayId:day.id, domain:day.domain, level:day.level, techId:day.techId||'', goal:day.goal, before:coachDiagnose() };
+  const t2 = Object.assign({}, task, {drillLevel:day.level});
+  startAssessment('gym', false, { pool:[Object.assign({}, t2)], drill:drillCtx });
+  const tech = day.techId ? techniqueById(day.techId) : null;
+  toast('Coach drill · '+(tech?tech.name+' — ':'')+'one task, about '+(day.minutes||5)+' minutes.','ok');
+}
+function startCheckup(){
+  ensureIdentity(); drillCtx=null;
+  const pool = GYM_TASKS.slice().sort((a,b)=>a.level-b.level).slice(0,2);
+  startAssessment('gym', false, { pool:pool.map(t=>Object.assign({},t)), label:'Coach check-up' });
+  toast('Two short tasks — the coach needs these to build your plan.','ok');
+}
+function completeDrill(avgScore, domainName){
+  const store=coachStore(); const day=store.plan.find(d=>d.id===drillCtx.dayId);
+  const rec={ dayId:drillCtx.dayId, domain:domainName||drillCtx.domain, tq:avgScore||0, at:new Date().toISOString(), techId:drillCtx.techId||'' };
+  DB.push('coachLog', rec);
+  if(day){ day.done=true; day.best=avgScore||0; }
+  const k=dayKey(); const st=store.streak||{count:0,last:''};
+  if(st.last!==k){ st.count = (st.last===dayKey(new Date(Date.now()-864e5))) ? (st.count||0)+1 : 1; st.last=k; }
+  store.streak=st; saveCoachStore(store);
+  DB.push('events',{type:'coach_drill_completed', domain:rec.domain, at:rec.at});
+}
+
+/* ---------- coach feedback after any graded set ---------- */
+function coachFeedback(deck, flowModeName){
+  const d=coachDiagnose();
+  if(!deck || !deck.length) return null;
+  const doms={};
+  deck.forEach(c=>{ const n=domainOfTask({suit:c.suit}); (doms[n]=doms[n]||[]).push(c.score); });
+  const lines=[]; const deltas=[];
+  Object.keys(doms).forEach(n=>{
+    const now=mean(doms[n]);
+    const prior=d.domains.find(x=>x.name===n);
+    const base=prior? prior.mean : null;
+    if(base!==null && prior.n>1){
+      const diff=now-base;
+      deltas.push({name:n, diff:diff, now:now, base:base});
+      const pct = base>0 ? Math.round(diff/base*100) : Math.round(diff*100);
+      if(Math.abs(diff)<0.02) lines.push('• '+n+': held steady at '+Math.round(now*100)+' — repeat this domain on a harder level to break through.');
+      else if(diff>0) lines.push('• '+n+': up '+Math.abs(pct)+'% versus your own average ('+Math.round(base*100)+' → '+Math.round(now*100)+'). Locked in.');
+      else lines.push('• '+n+': '+Math.abs(pct)+'% below your average — this is now your cheapest point gain.');
+    } else {
+      lines.push('• '+n+': first clean reading at '+Math.round(now*100)+' — the coach will track it from here.');
+    }
+  });
+  const lever=coachLever(d);
+  const low = deck.filter(c=>c.missed && c.missed.length);
+  const miss={};
+  low.forEach(c=>c.missed.forEach(m=>{ miss[m]=(miss[m]||0)+1; }));
+  const topMiss=Object.keys(miss).sort((a,b)=>miss[b]-miss[a])[0];
+  if(topMiss) lines.push('• Most-missed requirement this round: "'+topMiss+'" — make that a habit and it stops costing you.');
+  if(lever) lines.push('• Biggest lever right now — '+lever.k+': '+(lever.msg.match(/^[^.]*\./)||[lever.k])[0]);
+  const next=lines.slice(0,3).join('\n');
+  const drill = d.focus[0];
+  const cta = drill ? 'Next: a 4-minute ' + drill.name + ' drill will move your average the most.' : 'Next: run one more practice so the coach can see a trend.';
+  return { text:next+'\n\n'+cta, deltas:deltas, focus:drill||null };
+}
+
+/* ---------- ask the coach (grounded, deterministic) ---------- */
+const COACH_INTENTS = [
+  {id:'focus', k:['what should i practice','what to practice','where do i start','where should i','what should i do','next','focus','priority','which skill','what now'], need:'n'},
+  {id:'fast', k:['fastest','quickest','biggest','most improve','quick win','efficient','shortest time','best return','biggest gain'], need:'n'},
+  {id:'trend', k:['am i improving','getting better','progress','trend','improved','getting worse','stuck','plateau','stagnant'], need:'n'},
+  {id:'plan', k:['my plan','this week','weekly','schedule','how far','streak','done with'], need:'n'},
+  {id:'why', k:['why is my','why am i','why so low','why low','weak in','struggling','bad at'], need:'n'},
+  {id:'what', k:['what is tq','what is a tq','explain tq','how is tq','how is it scored','what does the score','what does my score','what does my tq','tq mean','tq calculated','formula','how do you grade','how do you score','scoring','tier'], need:'none'},
+  {id:'time', k:['how long','how many times','how much practice','when will i','how many sessions','enough practice'], need:'n'},
+  {id:'domain', k:['verification','problem formulation','context','instruction','reasoning','evaluation','judgment','workflow','adaptability','efficiency','claim','hallucination','sources'], need:'n'},
+  {id:'certify', k:['certif','passport','verified','offline','exam','test me'], need:'none'},
+  {id:'greet', k:['hello','hi ','thanks','thank you','hey','good morning'], need:'none'}
+];
+function coachDomainExplain(name, d){
+  const dom=d.domains.find(x=>x.name===name);
+  if(!dom) return 'You have not been scored on '+name+' yet. It covers: '+domainMeta(name).subs.join(', ')+'. A Gym practice touches every domain, so one practice is enough to get a first reading.';
+  const tech=pickTechnique(name,'ask');
+  const subs=domainMeta(name).subs;
+  return name+' is at '+Math.round(dom.mean*100)+' from '+dom.n+' scored task'+(dom.n>1?'s':'')+'. It covers '+subs.slice(0,3).join(', ')+' — the weakest signal for you is usually the last one you bother to write down.\n\nTry: "'+tech.name+'" — '+tech.gist;
+}
+function askCoach(qRaw){
+  const d=coachDiagnose();
+  const q=' '+(qRaw||'').toLowerCase().replace(/[?!.]/g,' ')+' ';
+  if(!q.trim()||q.trim()===' ') return {text:'Ask me anything about your training — for example: "what should I practice today?" or "why is my Verification low?"'};
+  let best=null, bestScore=0;
+  COACH_INTENTS.forEach(it=>{ let s=0; it.k.forEach(kw=>{ if(q.indexOf(kw)>=0) s+=kw.trim().split(/\s+/).length; });
+    if(it.need==='n' && !d.n) s=0;
+    if(s>bestScore){ bestScore=s; best=it; } });
+  if(!best) return {text:'I answer questions about your own practice data. Try one of these:\n• What should I practice today?\n• Why is my score low?\n• What is the fastest way to improve?\n• What does my TQ score actually mean?', chips:true};
+  switch(best.id){
+    case 'focus': {
+      if(!d.n) return {text:'You have no scored practice yet, so there is nothing to advise on. Run the two-task check-up — about 4 minutes — and I will build your plan from real data.', action:{label:'Run the check-up →', kind:'checkup'}};
+      const f=d.focus[0]; const s=d.strongest;
+      return {text:'Start with '+f.name+' at '+Math.round(f.mean*100)+'. It is your lowest domain across '+f.n+' scored task'+(f.n>1?'s':'')+(f.trend<-0.01?' and it is still slipping':'')+'. Your strongest is '+(s?s.name:'—')+' at '+Math.round((s?s.mean:0)*100)+', so it needs maintenance, not attention.',
+        action:{label:'Start the '+f.name+' drill →', kind:'drill', domain:f.name}};
+    }
+    case 'fast': {
+      if(!d.n) return {text:'Practise first — the fastest improvement is different for every learner and I only know you from your own data.'};
+      const lever=coachLever(d); const f=d.focus[0];
+      const t=[];
+      if(lever) t.push('Your cheapest point gain is not a skill, it is a habit: '+lever.msg);
+      t.push('Then do one 4-minute drill in '+f.name+' ('+Math.round(f.mean*100)+'). Two drills in your weakest domain beat ten random practices for moving the average.');
+      return {text:t.join('\n\n'), action:{label:'Do the '+f.name+' drill now →', kind:'drill', domain:f.name}};
+    }
+    case 'trend': {
+      if(d.n<2) return {text:'I need at least two scored practices to see a trend. You have '+d.n+'. One more and I can tell you whether you are actually improving.'};
+      const pct = d.avg>0 ? Math.round(d.trend/d.avg*100) : 0;
+      const dir = d.trend>0.015 ? 'improving' : (d.trend<-0.015 ? 'slipping' : 'flat');
+      return {text:'Last three practices average '+(d.avg+d.trend).toFixed(2)+' against your earlier baseline of '+d.avg.toFixed(2)+' — that is '+pct+'%, so you are '+dir+'.\n\nYou have practised on '+d.days+' day'+(d.days>1?'s':'')+' and your streak is '+d.streak.count+'. '+(dir==='flat'?'Flat usually means you are re-running tasks at the same difficulty — the plan raises your level automatically.':'')};
+    }
+    case 'plan': {
+      const p=coachPlan(d); const pr=planProgress(p.plan); const nx=nextPlanDay(p.plan);
+      return {text:'This week: '+pr.done+' of '+pr.total+' sessions done ('+pr.pct+'%). Streak '+d.streak.count+' day'+(d.streak.count===1?'':'s')+'.\n\n'+(nx? 'Next up: '+nx.goal+' — '+nx.domain+', level '+nx.level+', about '+nx.minutes+' minutes.' : 'Week complete. Everything on the plan is done — that is worth protecting, so keep the streak alive.'),
+        action: nx? {label:'Start '+nx.goal+' →', kind:'drill', dayId:nx.id} : null};
+    }
+    case 'why': {
+      const named=COACH_INTENTS.find(i=>i.id==='domain') && d.domains.find(x=>q.indexOf(' '+x.name.toLowerCase()+' ')>=0 || q.indexOf(x.name.toLowerCase())>=0);
+      if(named) return {text:coachDomainExplain(named.name,d)};
+      if(!d.focus.length) return {text:'Nothing is scored yet, so nothing is low. Run the check-up first.'};
+      const f=d.focus[0], lever=coachLever(d);
+      return {text:d.focus.map(x=>x.name+' '+Math.round(x.mean*100)).join(' · ')+'.\n\nYour score is C × E × F × (0.5+0.5·D): coverage of what was asked, originality versus the task text, form (specificity and density), then domain integrity. '+(lever?lever.msg:'')+'\n\n'+f.name+' is where a small fix moves the whole number.',
+        action:{label:'Show me how — '+pickTechnique(f.name,'why').name+' →', kind:'tech', techId:pickTechnique(f.name,'why').id}};
+    }
+    case 'what':
+      return {text:'TQ is not an IQ. It is one number for how well you collaborate with AI: TQ = C × E × F × (0.5 + 0.5·D).\n\nC — coverage: did you address everything the task asked for?\nE — originality: are you adding your own thinking instead of echoing the prompt?\nF — form: is the response specific and dense enough to be useful?\nD — domain integrity: did the ten capability domains move together?\n\nTiers: below 0.80 Common, 0.80 Uncommon, 1.20 Rare, 1.60 Epic. Gym scores are practice scores — they are never merged with certified or verified results.'};
+    case 'time': {
+      if(!d.n) return {text:'Give me five scored practices and I can estimate your trajectory. Until then any number I gave you would be invented.'};
+      const target=1.20; const gap=Math.max(0,target-d.avg);
+      return {text:'You average '+d.avg.toFixed(2)+' over '+d.n+' practices, best '+d.best.toFixed(2)+', currently reaching level '+(d.ceiling||d.abilityLevel)+' of 10.\n\nTo reach Rare (1.20) you need +'+gap.toFixed(2)+'. Learners on this path typically close that in 8–15 focused practices — focused means one domain per session with the technique applied, not repeating the Gym at random. Two sessions a day of focused drills beats eight of casual ones.'};
+    }
+    case 'domain': {
+      const hit=d.domains.find(x=>q.indexOf(x.name.toLowerCase())>=0) || (d.focus[0]? d.domains.find(x=>x.name===d.focus[0].name):null);
+      if(!hit) return {text:'You have not been scored on that domain yet. One Gym practice produces a reading for all ten.'};
+      return {text:coachDomainExplain(hit.name,d), action:{label:'Practise '+hit.name+' →', kind:'drill', domain:hit.name}};
+    }
+    case 'certify':
+      return {text:'Three separate results, never averaged: Gym (practice, free, unlimited) → Online Certified (adaptive, controlled) → Offline Verified (proctored, identity-checked). Train until your Gym average is stable, then certify. Your Gym best is '+d.best.toFixed(2)+'; a stable average within ±0.10 across five practices is a sensible signal you are ready for Online.'};
+    case 'greet':
+      return {text:'Here is where you are: Gym best '+d.best.toFixed(2)+', average '+d.avg.toFixed(2)+' across '+d.n+' practice'+(d.n===1?'':'s')+'. '+(d.focus[0]? 'Weakest domain right now: '+d.focus[0].name+' at '+Math.round(d.focus[0].mean*100)+'.':''),
+        action:d.n? {label:'What should I practise? →', kind:'ask', q:'what should I practice'} : {label:'Run the check-up →', kind:'checkup'}};
+  }
+  return {text:'I answer questions about your own practice data. Try one of these:\n• What should I practice today?\n• Why is my score low?\n• What is the fastest way to improve?', chips:true};
+}
+const COACH_CHIPS = ['What should I practice today?','Why is my score low?','Fastest way to improve?','Am I actually improving?','What does my TQ mean?'];
 
 const REDUCE_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 let _toastTimer=null;
@@ -1603,7 +2251,7 @@ function syncNav(section){
 function onSectionEnter(section){
   try{
     if(section==='dashboard'){ refreshDashboard(); }
-    else if(section==='coach'){ refreshCoach(); }
+    else if(section==='coach'){ refreshCoach(); DB.push('events',{type:'coach_opened', at:new Date().toISOString()}); }
     else if(section==='cert'){ refreshCert(); }
     else if(section==='passportView'){ renderPassport(); }
     else if(section==='passportProfile'){ refreshPassportProfile(); syncPrivacyButtons(); }
@@ -1974,21 +2622,28 @@ const OFFLINE_TASKS=[
   sim:'End-to-end verified pipeline: 1) data validation — schema + quality checks + lineage. 2) modeling — documented method. 3) verification gate — sanity bounds, cross-check vs prior, second-method reconciliation; no unverified figure passes. 4) human analyst sign-off before board delivery. 5) provenance — every number traceable to source + code for reproducibility. False conclusions are blocked at the gate, not caught downstream.'}
 ];
 
-let queue=[], qi=0, deck=[], flowMode='gym', flowLevel='gym', flowType='prompt';
+let queue=[], qi=0, deck=[], flowMode='gym', flowLevel='gym', flowType='prompt', flowLabel='';
 let certTimer=null, certRemaining=0, lastFull=false, assessmentActive=false, assessmentPaused=false, submitting=false;
 const QUICK_GYM = 3;
 const CERT_SECONDS = 35*60;
 function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-function startAssessment(mode, full){
+function startAssessment(mode, full, opts){
+  opts = opts || {};
+  if(!opts.drill) drillCtx = null;   /* a plain Gym/cert run must never inherit a coach drill */
   ensureIdentity(); flowMode=mode; lastFull = (mode==='gym') ? !!full : false;
+  flowLabel = opts.label || (opts.drill ? 'Coach drill' : '');
   let pool;
-  if(mode==='online'){ pool = pickAdaptive(ONLINE_TASKS, 6); }
+  if(opts.pool && opts.pool.length){ pool = opts.pool.slice(); }
+  else if(mode==='online'){ pool = pickAdaptive(ONLINE_TASKS, 6); }
   else if(mode==='offline'){ pool = pickAdaptive(OFFLINE_TASKS, 6); }
   else { const n = full ? GYM_TASKS.length : QUICK_GYM; pool = shuffle(GYM_TASKS).slice(0,n).sort((a,b)=>a.level-b.level); }
   queue=pool.map(t=>({...t})); qi=0; deck=[]; submitting=false; assessmentActive=true; assessmentPaused=false;
-  $('flowMode').textContent = mode==='online' ? 'Online · Certified' : mode==='offline' ? 'Offline · Verified' : 'Gym · Practice';
+  $('flowMode').textContent = mode==='online' ? 'Online · Certified' : mode==='offline' ? 'Offline · Verified'
+    : (opts.drill ? 'Coach · Drill' : opts.label ? 'Coach · '+opts.label : 'Gym · Practice');
   $('scoreCap').textContent = mode==='online' ? 'Online Certified TQ' : mode==='offline' ? 'Verified TQ' : 'Practice TQ';
-  setFlowNote();
+  setFlowNote(opts.drill ? 'Coach drill · graded exactly like the Gym and added to your history · <span class="kbd">⌘/Ctrl</span> + <span class="kbd">Enter</span> to submit'
+    : (!opts.drill && opts.label==='Coach check-up') ? 'Coach check-up · 2 short tasks to build your diagnosis · <span class="kbd">⌘/Ctrl</span> + <span class="kbd">Enter</span> to submit'
+    : null);
   if(mode==='online'||mode==='offline'){
     $('timerBar').style.display='flex'; $('exitFlowPlain').style.display='none';
     certRemaining=CERT_SECONDS; renderTimer(); clearInterval(certTimer);
@@ -2009,6 +2664,7 @@ function pauseAssessment(){
   if(!assessmentActive) return;
   if(certTimer){ clearInterval(certTimer); certTimer=null; }
   assessmentPaused=true;
+  updateResumeBar();
 }
 function resumeAssessment(){
   if(!assessmentActive) return;
@@ -2023,7 +2679,7 @@ function discardAssessment(){
   updateResumeBar();
   toast(label+' discarded — tasks you already submitted are still saved.','err');
 }
-function assessmentLabel(){ return flowMode==='online'?'Online certification':flowMode==='offline'?'Verified assessment':'TQ Gym practice'; }
+function assessmentLabel(){ return flowMode==='online'?'Online certification':flowMode==='offline'?'Verified assessment':(flowLabel||'TQ Gym practice'); }
 function updateResumeBar(){
   const bar=$('resumeBar'); if(!bar) return;
   const show = assessmentActive && currentSection!=='flow';
@@ -2081,10 +2737,7 @@ function renderTask(){
   announce(`Task ${qi+1} of ${queue.length}. ${task.title}. ${getDomainName(task)}. Difficulty ${task.level} of 10.`);
   try{ $('promptInput').focus({preventScroll:true}); }catch(e){ try{ $('promptInput').focus(); }catch(e2){} }
 }
-function getDomainName(task){
-  const map={planning:'Problem Formulation',lookup:'Context Engineering',creative:'AI Instruction',technical:'AI Output Evaluation',life:'Human Judgment',sales:'Collaboration Efficiency',evaluation:'AI Output Evaluation',judgment:'Human Judgment',workflow:'AI Workflow Design',adversarial:'AI Output Evaluation',transfer:'AI Adaptability',verification:'Verification',context:'Context Engineering',instruction:'AI Instruction',collaborative:'Collaborative Reasoning'};
-  return map[task.suit]||'AI Instruction';
-}
+function getDomainName(task){ return domainOfTask(task); }
 let _draftTimer=null;
 $('promptInput').addEventListener('input',e=>{
   const v=e.target.value;
@@ -2129,14 +2782,21 @@ async function submitCurrent(empty=false){
     const tb=$('tierBadge'); tb.textContent=g.tier; tb.className='tier-badge t-'+g.tier;
     const dimsEl=$('skillDims'); dimsEl.innerHTML='';
     Object.entries(g.dims).slice(0,6).forEach(([k,v])=>{ const d=document.createElement('div'); d.className='d'; d.innerHTML=`<b>${k}</b> — ${(v*100).toFixed(0)}`; dimsEl.appendChild(d); });
+    const missed = g.results.filter(r=>!r.ok).map(r=>r.label);
+    const taskLevel = task.drillLevel || task.level || 1;
     if(flowMode==='gym'){
-      saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v3', scoring_version:'2'});
+      saveAttempt({tqid:ensureIdentity().tqid, suit:task.suit, domain:getDomainName(task), title:task.title, level:taskLevel,
+        tq:g.tq, acc:g.Cfinal, tier:g.tier, C:g.C, Cfinal:g.Cfinal, E:g.E, F:g.F, D:g.D, d:g.d, echo:g.echo, missed:missed,
+        skillScores:g.dims, assessment_version:'1', item_bank_version:'gym-v3', scoring_version:'2',
+        coach: drillCtx? drillCtx.dayId : null });
       DB.push('events',{type:'practice_completed', at:new Date().toISOString()});
     } else {
-      saveCertAttempt({tqid:ensureIdentity().tqid, level:flowMode, suit:task.suit, title:task.title, tq:g.tq, acc:g.Cfinal, tier:g.tier, skillScores:g.dims, item_pool:flowMode==='offline'?'OFFLINE_SECURE_POOL':'ONLINE_POOL', data_source:'CERTIFICATION'});
+      saveCertAttempt({tqid:ensureIdentity().tqid, level:flowMode, suit:task.suit, domain:getDomainName(task), title:task.title, itemLevel:taskLevel,
+        tq:g.tq, acc:g.Cfinal, tier:g.tier, C:g.C, Cfinal:g.Cfinal, E:g.E, F:g.F, D:g.D, missed:missed, skillScores:g.dims,
+        item_pool:flowMode==='offline'?'OFFLINE_SECURE_POOL':'ONLINE_POOL', data_source:'CERTIFICATION'});
       DB.push('events',{type:flowMode+'_task_completed', at:new Date().toISOString()});
     }
-    deck.push({suit:task.suit, score:g.tq, tier:g.tier});
+    deck.push({suit:task.suit, domain:getDomainName(task), score:g.tq, tier:g.tier, missed:missed, level:taskLevel});
     const badge=$('modelBadge'), body=$('aiBody'); badge.textContent='connecting…'; body.innerHTML='<span class="cursor"></span>';
     aiPromise.then(res=>typeInto(body,res.text,badge,res.source));
     announce(`Task graded. TQ ${g.tq.toFixed(2)}, tier ${g.tier}. ${qi+1>=queue.length?'Last task — open your profile.':'Next task available.'}`);
@@ -2161,25 +2821,56 @@ document.addEventListener('keydown',e=>{
 function showResult(){
   navTo('result');
   const overall=deck.length?deck.reduce((s,c)=>s+c.score,0)/deck.length:0, tier=tierOf(overall);
+  const wasDrill = !!drillCtx;
   $('overallTier').textContent=tier;
   const conf=estimateConfidence(deck.length, deck.length?deck.reduce((s,c)=>s+(c.score-overall)*(c.score-overall),0)/deck.length:0);
   $('overallConf').textContent=(conf*100).toFixed(0)+'%';
-  $('resultKicker').textContent = flowMode==='online' ? 'Online Certification Complete' : flowMode==='offline' ? 'Verified Assessment Complete' : 'Assessment Complete';
-  $('resultTitle').textContent = flowMode==='online' ? 'Your Certified Online TQ' : flowMode==='offline' ? 'Your Verified TQ' : 'Your TQ Skill Profile';
+  $('resultKicker').textContent = flowMode==='online' ? 'Online Certification Complete' : flowMode==='offline' ? 'Verified Assessment Complete'
+    : wasDrill ? 'Coach Drill Complete' : 'Assessment Complete';
+  $('resultTitle').textContent = flowMode==='online' ? 'Your Certified Online TQ' : flowMode==='offline' ? 'Your Verified TQ'
+    : wasDrill ? 'Drill result' : 'Your TQ Skill Profile';
   const ov=$('overallVal'); if(ov) ov.textContent=overall.toFixed(2);
   $('certId').textContent='Record SYL-'+Math.random().toString(36).slice(2,8).toUpperCase();
-  $('resultConfidence').innerHTML = `Confidence: <b style="color:var(--gold-2)">${(conf*100).toFixed(0)}%</b> · Evidence: ${deck.length} tasks · ${flowMode==='gym'?'Gym score (not certified)':flowMode==='online'?'Certified Online TQ':'Verified TQ'}. Percentile requires a defined reference population — reported once calibration data exists.`;
+  $('resultConfidence').innerHTML = `Confidence: <b style="color:var(--gold-2)">${(conf*100).toFixed(0)}%</b> · Evidence: ${deck.length} task${deck.length===1?'':'s'} · ${flowMode==='gym'?(wasDrill?'Coach drill — counts as practice':'Gym score (not certified)'):flowMode==='online'?'Certified Online TQ':'Verified TQ'}. Percentile requires a defined reference population — reported once calibration data exists.`;
   const deckEl=$('deck'); deckEl.innerHTML=''; const skills=getSkills();
+  const diag=coachDiagnose(); const byName={};
+  deck.forEach(c=>{ if(c.domain) byName[c.domain]=mean((byName[c.domain]||[]).concat([c.score])); });
   skills.forEach((d,i)=>{
-    const sVal = 0.35 + overall*0.4 + (i%5)*0.05;
+    const hist=diag.domains.find(x=>x.name===d.name);
+    const sVal = (d.name in byName) ? byName[d.name] : (hist? hist.mean : 0.35 + overall*0.4 + (i%5)*0.05);
+    const fresh = d.name in byName;
     const card=document.createElement('div'); card.className='skill-card minted'; card.style.setProperty('--sc',d.color);
-    card.innerHTML=`<div class="sc-top"><span class="sc-icon">${d.icon}</span><span class="sc-tier t-${tierOf(sVal)}" style="background:transparent">${tierOf(sVal)}</span></div><div class="sc-suit">${d.name}</div><div class="sc-score">${(sVal*100).toFixed(0)}</div><div class="sc-conf">confidence ${(estimateConfidence(deck.length,i%3)*100).toFixed(0)}%</div><div class="sc-bar"><i></i></div><div class="sc-meta">${d.subs.slice(0,3).join(' · ')}</div>`;
+    card.innerHTML=`<div class="sc-top"><span class="sc-icon">${d.icon}</span><span class="sc-tier t-${tierOf(sVal)}" style="background:transparent">${tierOf(sVal)}</span></div><div class="sc-suit">${d.name}</div><div class="sc-score">${(sVal*100).toFixed(0)}</div><div class="sc-conf">${fresh?'this session · ':''}confidence ${(estimateConfidence(deck.length+(hist?hist.n:0),i%3)*100).toFixed(0)}%</div><div class="sc-bar"><i></i></div><div class="sc-meta">${d.subs.slice(0,3).join(' · ')}</div>`;
     deckEl.appendChild(card);
     setTimeout(()=>{ card.querySelector('.sc-bar i').style.width=Math.min(100,sVal*100)+'%'; },100+i*90);
   });
   if(flowMode==='online'){ const cred=issueCredential('ONLINE_CERTIFIED', overall, {assessment_type:'online_certified', assessment_version:'1', confidence:conf}); blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); }
   else if(flowMode==='offline'){ const cred=issueCredential('OFFLINE_VERIFIED', overall, {assessment_type:'offline_verified', assessment_version:'1', confidence:conf, identity_verified:true, proctored:true}); blockchain.createAttestation(cred).then(()=>blockchain.confirmAttestation(cred)); }
+  if(wasDrill){ completeDrill(overall, (deck[0]&&deck[0].domain)||drillCtx.domain); }
+  renderCoachFeedback(deck, wasDrill);
   refreshAll();
+}
+function renderCoachFeedback(deck, wasDrill){
+  const box=$('coachFeedback'); if(!box) return;
+  const fb=coachFeedback(deck, flowMode);
+  if(!fb){ box.hidden=true; box.innerHTML=''; return; }
+  const pills=(fb.deltas||[]).slice(0,3).map(x=>{
+    const cls=Math.abs(x.diff)<0.02?'flat':(x.diff>0?'up':'down');
+    const arrow=cls==='up'?'▲':(cls==='down'?'▼':'▬');
+    return `<span class="delta-pill ${cls}">${arrow} ${hx(x.name)} ${Math.round(x.base*100)}→${Math.round(x.now*100)}</span>`;
+  }).join('');
+  const focus=fb.focus;
+  box.hidden=false;
+  box.innerHTML=`<h3>${wasDrill?'Coach · drill debrief':'Coach · what this changed'} ${pills}</h3>
+    <div class="body">${hx(fb.text)}</div>
+    <div class="row">
+      ${focus?`<button class="btn btn-gold btn-sm" id="cfNextBtn" type="button">Next: ${hx(focus.name)} drill →</button>`:''}
+      ${focus?`<button class="btn btn-quiet btn-sm" id="cfTechBtn" type="button">Show me how</button>`:''}
+      <button class="btn btn-quiet btn-sm" id="cfPlanBtn" type="button">Open my plan</button>
+    </div>`;
+  const b1=$('cfNextBtn'); if(b1) b1.addEventListener('click',()=>{ const p=coachPlan(coachDiagnose()); const day=p.plan.find(d=>d.domain===focus.name&&!d.done)||nextPlanDay(p.plan); startDrill(day||p.plan[0]); });
+  const b2=$('cfTechBtn'); if(b2) b2.addEventListener('click',()=>openTechnique(pickTechnique(focus.name,'cf').id));
+  const b3=$('cfPlanBtn'); if(b3) b3.addEventListener('click',()=>navTo('coach'));
 }
 
 function renderPassport(){
@@ -2225,7 +2916,18 @@ function refreshDashboard(){
   skills.forEach((d)=>{ const vals=acc[d.name]||[0]; const m=vals.reduce((a,b)=>a+b,0)/vals.length; const row=document.createElement('div'); row.className='skill-row'; row.innerHTML=`<span class="nm">${d.name}</span><div class="bar"><i style="width:${(m*100).toFixed(0)}%"></i></div><span class="val">${(m*100).toFixed(0)}</span>`; sp.appendChild(row); });
   let wk=null;
   for(const s in acc){ const m=acc[s].reduce((a,b)=>a+b,0)/acc[s].length; if(!wk||m<wk.m)wk={s,m}; }
-  $('weakest').innerHTML = wk?`<div class="skill-row"><span class="nm">${wk.s}</span><div class="bar"><i style="width:${(wk.m*100).toFixed(0)}%"></i></div><span class="val">${(wk.m*100).toFixed(0)}</span></div><p style="font-size:13px;color:var(--muted);margin-top:8px">Your largest opportunity is <b style="color:var(--gold-2)">${wk.s}</b>. Focused practice here will raise your TQ fastest.</p>`:'<p style="font-size:13px;color:var(--muted)">Complete a practice to see your profile.</p>';
+  const weakestEl=$('weakest');
+  if(wk){
+    const cd=coachDiagnose(); const f=cd.focus[0];
+    const tech=f?pickTechnique(f.name,'dash'):null;
+    weakestEl.innerHTML=`<div class="skill-row"><span class="nm">${wk.s}</span><div class="bar"><i style="width:${(wk.m*100).toFixed(0)}%"></i></div><span class="val">${(wk.m*100).toFixed(0)}</span></div>`
+      +`<p style="font-size:13px;color:var(--muted);margin-top:8px">Your largest opportunity is <b style="color:var(--gold-2)">${wk.s}</b>${tech?` — try <b style="color:var(--gold-2)">${tech.name}</b>`:''}. A four-minute coach drill here moves your average faster than another full practice.</p>`
+      +`<div class="range-row"><button class="range-btn active" id="dashCoachBtn" type="button">Open my coach →</button>${tech?`<button class="range-btn" data-tech="${tech.id}" id="dashTechBtn" type="button">Show me how</button>`:''}</div>`;
+    const cb=$('dashCoachBtn'); if(cb) cb.addEventListener('click',()=>navTo('coach'));
+    const tb=$('dashTechBtn'); if(tb) tb.addEventListener('click',()=>openTechnique(tech.id));
+  } else {
+    weakestEl.innerHTML='<p style="font-size:13px;color:var(--muted)">Complete a practice to see your profile.</p>';
+  }
   const verified=getActiveCredentials().filter(c=>c.credential_type==='OFFLINE_VERIFIED').reduce((m,c)=>Math.max(m,c.score),0);
   $('gapBody').innerHTML = verified>0 ? `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} · Verified ${verified.toFixed(2)} · Gap ${Math.max(0,best-verified).toFixed(2)}</p><p style="font-size:12px;color:var(--faint);margin-top:6px">A gap is not automatically evidence of cheating — it can reflect environment, difficulty, or anxiety.</p>` : `<p style="font-size:13.5px">Gym best ${best.toFixed(2)} — no Verified TQ yet.</p><p style="font-size:12px;color:var(--faint);margin-top:6px">Complete the Offline stage to establish your gap.</p>`;
   drawChart(currentRange);
@@ -2256,18 +2958,268 @@ function drawChart(range){
     `<text x="${W-30}" y="14" fill="#f0d98c" font-size="11" text-anchor="end">latest ${last.y.toFixed(2)}</text>`;
 }
 document.querySelectorAll('.range-btn').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('.range-btn').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');}); b.classList.add('active'); b.setAttribute('aria-pressed','true'); currentRange=+b.dataset.r; drawChart(currentRange); }));
+/* ---------- coach UI ---------- */
+function coachRingSVG(pct){
+  const r=26, c=2*Math.PI*r, off=c*(1-clamp(pct,0,100)/100);
+  return '<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="coachRingGrad" x1="0" y1="0" x2="1" y2="1">'
+    +'<stop offset="0" stop-color="#f0d98c"/><stop offset="1" stop-color="#c9a227"/></linearGradient></defs>'
+    +'<circle class="trk" cx="32" cy="32" r="'+r+'"/>'
+    +'<circle class="val" cx="32" cy="32" r="'+r+'" stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'"/></svg>'
+    +'<span class="lbl">'+Math.round(pct)+'</span>';
+}
+function domainMissed(name){
+  const m={};
+  getAttempts().forEach(a=>{
+    const dn=a.domain||domainOfTask({suit:a.suit});
+    if(dn===name) (a.missed||[]).forEach(l=>{ m[l]=(m[l]||0)+1; });
+  });
+  const k=Object.keys(m).sort((x,y)=>m[y]-m[x]);
+  return k.length? k[0] : '';
+}
+function coachFocusWhy(f,d,i){
+  const bits=[];
+  const avg = (d.domains.length? mean(d.domains.map(x=>x.mean)) : f.mean)*100;
+  const mine=Math.round(f.mean*100);
+  if(i===0) bits.push('Lowest of your '+d.domains.length+' scored domains at '+mine+'.');
+  else{
+    const gap=Math.round(avg-mine);
+    bits.push(gap>=2 ? mine+' — '+gap+' below your domain average of '+Math.round(avg)+'.'
+                     : (gap<=-2 ? mine+' — above your domain average, but the weakest still drag the score.'
+                                : mine+' — right on your domain average of '+Math.round(avg)+'.'));
+  }
+  const miss = f.n>=2 ? domainMissed(f.name) : '';
+  if(miss) bits.push('You most often skip: "'+miss+'".');
+  else if(f.n<=1) bits.push('Only one reading so far — one more practice sharpens this.');
+  if(f.n>=4 && f.trend>0.02) bits.push('It is climbing, keep the drill.');
+  else if(f.n>=4 && f.trend<-0.02) bits.push('It has slipped recently — the drill below reverses it.');
+  return bits.join(' ');
+}
+function renderCoachStatus(d, pr, nx){
+  const el=$('coachStatus'); if(!el) return;
+  const conf=Math.round(d.readiness*100);
+  const confTxt = d.n>=5 ? 'High · '+d.n+' practices scored' : d.n>=3 ? 'Medium · '+d.n+' practices' : 'Low · '+d.n+' practice'+(d.n===1?'':'s')+', more data = better advice';
+  const tCls=d.trend>0.015?'up':(d.trend<-0.015?'down':'');
+  const tTxt=(d.trend>=0?'+':'')+(d.trend*100).toFixed(0)+' vs your baseline';
+  el.innerHTML =
+    '<div class="st"><div class="k">Coach confidence</div><div class="v" style="display:flex;align-items:center;gap:12px">'
+      +'<div class="ring">'+coachRingSVG(conf)+'</div><span style="font-size:11.5px;color:var(--muted);line-height:1.45">'+hx(confTxt)+'</span></div></div>'
+   + '<div class="st"><div class="k">Gym best</div><div class="v">'+d.best.toFixed(2)+' <small>'+tierOf(d.best)+'</small></div><div class="d">level ceiling '+(d.ceiling||d.abilityLevel)+' / 10</div></div>'
+   + '<div class="st"><div class="k">Average TQ</div><div class="v">'+d.avg.toFixed(2)+' <small>'+tierOf(d.avg)+'</small></div><div class="d '+tCls+'">'+hx(tTxt)+'</div></div>'
+   + '<div class="st"><div class="k">Streak</div><div class="v">'+d.streak.count+' <small>day'+(d.streak.count===1?'':'s')+'</small></div><div class="d">practised on '+d.streak.total+' day'+(d.streak.total===1?'':'s')+'</div></div>'
+   + '<div class="st"><div class="k">This week</div><div class="v">'+pr.done+' / '+pr.total+'</div><div class="d">'+pr.pct+'% of the plan done</div></div>'
+   + '<div class="st cta"><div class="k">Next up</div><div style="font-size:12.5px;color:var(--ink);line-height:1.45">'
+      +(nx? hx(nx.goal)+' · '+hx(nx.domain.split(' ')[0])+' · ≈'+nx.minutes+' min' : 'Plan complete — add a practice to regenerate it')+'</div>'
+      +(nx? '<button class="btn btn-gold btn-sm" id="coachGoBtn" type="button">Start now →</button>' : '')+'</div>';
+  const g=$('coachGoBtn'); if(g) g.addEventListener('click',()=>startDrill(nx));
+}
+function renderCoachGuide(d){
+  const el=$('coachGuide'); if(!el) return;
+  const store=coachStore();
+  if(store.guideSeen){ el.hidden=true; el.innerHTML=''; return; }
+  el.hidden=false;
+  el.innerHTML =
+    '<div class="cg-step"><span class="n">1</span><div class="t"><b>Read your diagnosis</b><span>The three domains costing you the most, with the evidence.</span></div></div>'
+   + '<div class="cg-step"><span class="n">2</span><div class="t"><b>Learn the technique</b><span>A 30-second card with a bad example and a good one.</span></div></div>'
+   + '<div class="cg-step"><span class="n">3</span><div class="t"><b>Run the drill</b><span>One real task, ≈4 minutes, graded like the Gym.</span></div></div>'
+   + '<button class="guide-x" id="coachGuideX" type="button" aria-label="Dismiss the coach guide">Got it ✕</button>';
+  const x=$('coachGuideX');
+  if(x) x.addEventListener('click',()=>{ const s=coachStore(); s.guideSeen=true; saveCoachStore(s); el.hidden=true; el.innerHTML=''; });
+}
+function renderCoachFocus(d){
+  const el=$('coachFocus'); if(!el) return;
+  const meta=$('coachFocusMeta'), ev=$('coachEvidence');
+  if(!d.focus.length){ el.innerHTML='<p class="cp-note">No domain readings yet.</p>'; return; }
+  if(meta) meta.textContent=d.domains.length+' domains scored';
+  el.innerHTML=d.focus.map((f,i)=>{
+    const pct=Math.round(f.mean*100), target=Math.round(clamp(f.mean+0.15,0,1)*100);
+    const tr=f.trend>0.02?'up':(f.trend<-0.02?'down':'flat');
+    const trTxt=tr==='up'?('▲ '+Math.round(Math.abs(f.trend)*100)):tr==='down'?('▼ '+Math.round(Math.abs(f.trend)*100)):'▬ steady';
+    const tech=pickTechnique(f.name,'focus'+i);
+    return '<div class="focus-card">'
+      +'<div class="ic" style="color:'+f.color+'">'+f.icon+'</div>'
+      +'<div class="body"><div class="nm">'+hx(f.name)+'</div><div class="why">'+hx(coachFocusWhy(f,d,i))+'</div>'
+      +'<div class="meter"><i style="width:'+pct+'%"></i><u style="left:'+Math.min(97,target)+'%"></u></div>'
+      +'<div class="go"><button class="btn btn-gold btn-sm" type="button" data-drill-domain="'+hx(f.name)+'">Drill →</button>'
+      +'<button class="btn btn-quiet btn-sm" type="button" data-tech="'+tech.id+'">'+hx(tech.name)+'</button></div></div>'
+      +'<div class="nums"><div class="sc">'+pct+'</div><div class="tr '+tr+'">'+trTxt+'</div>'
+      +'<div style="font-size:10px;color:var(--faint);margin-top:3px">'+f.n+' task'+(f.n>1?'s':'')+'</div></div></div>';
+  }).join('');
+  if(ev){
+    const lever=coachLever(d); const f=d.factors;
+    const weakKey = lever ? ({'coverage':'coverage','originality':'originality','form':'form','density':'density'})[lever.k]||lever.k : '';
+    const part=(k,label,val)=>'<span'+(k===weakKey?' style="color:var(--gold-2);font-weight:600"':'')+'>'+label+' '+val.toFixed(2)+(k===weakKey?' ← weakest':'')+'</span>';
+    ev.innerHTML='<span style="color:var(--faint)">Score = C × E × F × (0.5+0.5·D).</span> Yours — '
+      +part('coverage','coverage',f.coverage)+' · '+part('originality','originality',f.originality)+' · '+part('form','form',f.form||1)
+      +(lever? '. '+hx(lever.msg):'')
+      +(d.behaviors[0]? ' Most-missed requirement overall: "'+hx(d.behaviors[0].label)+'" ('+d.behaviors[0].count+'×).' : '');
+  }
+}
+function renderCoachPlan(d, plan, nx){
+  const el=$('coachPlan'); if(!el) return;
+  const meta=$('coachPlanMeta'); const pr=planProgress(plan);
+  if(meta) meta.textContent=pr.done+' of '+pr.total+' done';
+  const tomorrowKey=dayKey(new Date(Date.now()+864e5));
+  el.innerHTML=plan.map(day=>{
+    const tech=day.techId?techniqueById(day.techId):null;
+    const state=day.done?'done':(day.isToday?'today':'');
+    const when=day.isToday?'Today':(day.dateKey===tomorrowKey?'Tomorrow':day.label);
+    return '<div class="day-card '+state+'">'
+      +'<div class="top"><span class="when">'+hx(when)+(day.weekend?' · mixed':'')+'</span><span class="mins">≈'+day.minutes+' min</span></div>'
+      +'<span class="sk"><span class="dot" style="background:'+day.color+'"></span>'+hx(day.domain)+' · level '+day.level+'</span>'
+      +'<div class="goal">'+hx(day.goal)+'</div>'
+      +'<div class="beh">Train: <b>'+hx(day.sub)+'</b></div>'
+      +'<div class="row">'
+        +(day.done
+          ? '<span class="sk" style="color:var(--t-uncommon)">✓ done · '+(day.best||0).toFixed(2)+'</span>'
+          : '<button class="btn btn-gold btn-sm" type="button" data-drill-day="'+hx(day.id)+'">'+(day.past?'Catch up →':'Start →')+'</button>')
+        +(tech?'<button class="btn btn-quiet btn-sm" type="button" data-tech="'+tech.id+'">How</button>':'')
+      +'</div></div>';
+  }).join('');
+}
+function renderCoachTech(d){
+  const el=$('coachTech'); if(!el) return;
+  const store=coachStore();
+  const names=(d.focus.length?d.focus.map(f=>f.name):['Problem Formulation','Verification','AI Instruction']);
+  const list=[]; const seen={};
+  names.forEach((n,i)=>{ const t=pickTechnique(n,'rec'+i); if(t&&!seen[t.id]){ seen[t.id]=1; list.push(t); } });
+  TECHNIQUES.forEach(t=>{ if(list.length<5 && !seen[t.id]){ seen[t.id]=1; list.push(t); } });
+  el.innerHTML=list.slice(0,6).map(t=>{
+    const read=!!store.read[t.id]; const m=domainMeta(t.domain);
+    return '<button class="tech-item '+(read?'read':'')+'" type="button" data-tech="'+t.id+'" aria-label="Open technique: '+hx(t.name)+'">'
+      +'<span class="ic" style="color:'+m.color+'">'+m.icon+'</span>'
+      +'<span class="tx"><span class="tt">'+hx(t.name)+'</span><span class="ts">'+hx(t.domain)+' · ≈'+t.minutes+' min</span></span>'
+      +(read?'<span class="rd">read ✓</span>':'<span class="sk-chip"><span class="dot" style="background:'+m.color+'"></span>learn</span>')
+      +'</button>';
+  }).join('');
+}
+function renderCoachAskDefault(d){
+  const el=$('coachAnswer'); if(!el) return;
+  if(el.dataset.filled==='1') return;
+  const nx=nextPlanDay(coachPlan(d).plan);
+  el.dataset.filled='1';
+  el.innerHTML=(d.focus[0]
+    ? 'Weakest domain: <b>'+hx(d.focus[0].name)+'</b> at '+Math.round(d.focus[0].mean*100)+'. Average TQ <b>'+d.avg.toFixed(2)+'</b> over '+d.n+' practice'+(d.n===1?'':'s')+', streak '+d.streak.count+'.'
+    : 'Ask me anything about your training.')
+    + (nx? '<span class="act">Next on the plan: <b>'+hx(nx.goal)+'</b> — '+hx(nx.domain)+', ≈'+nx.minutes+' minutes.</span>' : '');
+  const chips=$('coachChips');
+  if(chips) chips.innerHTML=COACH_CHIPS.map(c=>'<button class="ask-chip" type="button" data-ask="'+hx(c)+'">'+hx(c)+'</button>').join('');
+}
+function askCoachUI(q){
+  const el=$('coachAnswer'); if(!el) return;
+  const inp=$('coachAskInput');
+  const question=(q|| (inp?inp.value:'') ||'').trim();
+  if(!question){ if(inp) inp.focus(); return; }
+  const r=askCoach(question);
+  el.dataset.filled='1';
+  let html=hx(r.text).replace(/&lt;b&gt;/g,'<b>').replace(/&lt;\/b&gt;/g,'</b>');
+  if(r.action){
+    const kind=r.action.kind==='drill'?'drill':r.action.kind==='tech'?'tech':r.action.kind==='checkup'?'checkup':'ask';
+    const val=r.action.techId||r.action.q||r.action.domain||r.action.dayId||'';
+    html+='<span class="act"><button class="btn btn-gold btn-sm" type="button" data-'+kind+'="'+hx(val)+'">'+hx(r.action.label)+'</button></span>';
+  }
+  el.innerHTML=html;
+  if(inp) inp.value='';
+  DB.push('events',{type:'coach_asked', at:new Date().toISOString()});
+}
+function openTechnique(id){
+  const t=techniqueById(id); if(!t) return;
+  const store=coachStore(); store.read[t.id]=true; saveCoachStore(store);
+  const title=$('techTitle'), gist=$('techGist'), body=$('techBody');
+  if(!title||!body) return;
+  const m=domainMeta(t.domain);
+  title.innerHTML='<span style="color:'+m.color+'">'+m.icon+'</span> '+hx(t.name);
+  gist.textContent=t.gist;
+  body.innerHTML='<div class="sk-chip" style="margin-top:4px"><span class="dot" style="background:'+m.color+'"></span>'+hx(t.domain)+' · ≈'+t.minutes+' min · '+hx(t.why)+'</div>'
+    +'<ol class="tx-steps">'+t.steps.map((s,i)=>'<li><span class="b">'+(i+1)+'</span><span>'+hx(s)+'</span></li>').join('')+'</ol>'
+    +'<div class="tech-example">'
+      +'<div class="tx-block tx-bad"><span class="lab">Typical — scores low</span>'+hx(t.bad)+'</div>'
+      +'<div class="tx-block tx-good"><span class="lab">Applied — scores high</span>'+hx(t.good)+'</div>'
+    +'</div>'
+    +'<p class="cp-note">'+hx(t.why)+'</p>';
+  const tryBtn=$('techTryBtn');
+  if(tryBtn){
+    tryBtn.onclick=()=>{ closeModal($('techModal'));
+      const p=coachPlan(coachDiagnose());
+      const day=p.plan.find(x=>x.techId===t.id && !x.done) || p.plan.find(x=>x.domain===t.domain && !x.done);
+      if(day){ startDrill(day); }
+      else { const d=coachDiagnose(); startDrill({id:'adhoc-'+Date.now(), domain:t.domain, level:d.abilityLevel, techId:t.id, goal:t.name, minutes:t.minutes+2, weekend:false}); }
+    };
+  }
+  openModal('techModal');
+  renderCoachTech(coachDiagnose());
+}
 function refreshCoach(){
-  if(!entitlements.has('TQ_COACH')){
-    $('coachMsg').textContent='TQ Coach is part of TQ Pro. Your TQ Gym practice stays free and unlimited forever — the coach adds a personalized plan on top of it.';
-    $('coachPlan').innerHTML='<div class="coach-day" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:180px;font-size:13px;color:var(--muted)">Start a 7-day trial to unlock the coach, weekly plans, TQ Gap analysis and advanced analytics.</div><button class="btn btn-gold" id="coachUnlockBtn" style="padding:10px 18px;font-size:13px">Unlock TQ Pro →</button></div>';
-    const ub=$('coachUnlockBtn'); if(ub) ub.addEventListener('click',()=>{ refreshProUI(); openModal('proModal'); });
+  const empty=$('coachEmpty'), ready=$('coachReady'), cta=$('coachDrillBtn');
+  if(!empty||!ready) return;
+  let d; try{ d=coachDiagnose(); }catch(e){ console.warn('[TQ] coach diagnose',e); return; }
+  if(!d.n){
+    empty.hidden=false; ready.hidden=true; if(cta) cta.hidden=true;
+    empty.innerHTML='<h3>The coach needs one practice to start</h3>'
+      +'<p>It does not guess. It reads your own graded responses — which requirements you missed, how specific you were, whether you echoed the task — and builds a weekly plan from that. Two short tasks are enough for a first plan.</p>'
+      +'<div class="steps">'
+        +'<div class="stp"><div class="n">STEP 1</div><div class="t">Run the check-up</div><div class="d">Two easy tasks, about 4 minutes. Graded instantly on this device.</div></div>'
+        +'<div class="stp"><div class="n">STEP 2</div><div class="t">Get your diagnosis</div><div class="d">Ten capability domains, ranked, with the evidence behind each.</div></div>'
+        +'<div class="stp"><div class="n">STEP 3</div><div class="t">Follow the plan</div><div class="d">One technique and one 4-minute drill per day. It adapts weekly.</div></div>'
+      +'</div>'
+      +'<div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-gold" id="coachCheckupBtn" type="button">Run the 4-minute check-up →</button>'
+      +'<button class="btn btn-ghost" data-nav="modeSelect" type="button">Open the TQ Gym instead</button></div>';
+    const cb=$('coachCheckupBtn'); if(cb) cb.addEventListener('click',startCheckup);
     return;
   }
-  const a=coachAnalysis(); $('coachMsg').textContent=a.msg;
-  $('coachPlan').innerHTML=a.plan.map(p=>`<div class="coach-day"><div class="d">${p.d}</div><div class="s">${p.s}</div></div>`).join('');
-  DB.push('events',{type:'coach_opened', at:new Date().toISOString()});
+  empty.hidden=true; ready.hidden=false;
+  const p=coachPlan(d), pr=planProgress(p.plan), nx=nextPlanDay(p.plan);
+  renderCoachStatus(d,pr,nx);
+  renderCoachGuide(d);
+  renderCoachFocus(d);
+  renderCoachPlan(d,p.plan,nx);
+  renderCoachTech(d);
+  renderCoachAskDefault(d);
+  syncCoachNav(nx);
+  if(cta){
+    cta.hidden=!nx;
+    if(nx) cta.textContent = nx.isToday ? "Start today's drill →" : 'Start the next drill →';
+    if(nx && !cta.__w){ cta.__w=true; cta.addEventListener('click',()=>{ const dd=coachStore().plan.find(x=>x.id===nx.id)||nx; startDrill(dd); }); }
+  }
 }
-$('coachRefreshBtn').addEventListener('click',()=>{ refreshCoach(); toast('Training analysis refreshed.'); });
+function syncCoachNav(nx){
+  const a=document.querySelector('a[data-nav="coach"]'); if(!a) return;
+  const due = !!nx && (!nx.past || nx.isToday || !nx.done);
+  a.classList.toggle('due', due && !nx.done);
+  a.title = due ? 'TQ Coach · '+(nx.isToday?'today':'a session')+' is waiting — '+nx.goal : 'TQ Coach · diagnosis, weekly plan and drills — free';
+}
+function coachResetPlan(){
+  const s=coachStore(); s.plan=[]; s.week=''; saveCoachStore(s);
+  const a=$('coachAnswer'); if(a){ a.dataset.filled=''; a.innerHTML=''; }
+  refreshCoach();
+  toast('Plan recomputed from your latest practice.','ok');
+}
+$('coachRefreshBtn').addEventListener('click',coachResetPlan);
+$('coachProBtn').addEventListener('click',()=>{ refreshProUI(); });
+$('coachAskBtn').addEventListener('click',()=>askCoachUI());
+$('coachAskInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); askCoachUI(); } });
+(function wireCoachDelegation(){
+  const sec=$('coach'); if(!sec) return;
+  sec.addEventListener('click',e=>{
+    const el=e.target && e.target.closest ? e.target.closest('[data-drill-day],[data-drill-domain],[data-tech],[data-ask]') : null;
+    if(!el) return;
+    if(el.hasAttribute('data-tech')){ e.preventDefault(); openTechnique(el.getAttribute('data-tech')); return; }
+    if(el.hasAttribute('data-ask')){ e.preventDefault(); askCoachUI(el.getAttribute('data-ask')); return; }
+    if(el.hasAttribute('data-drill-day')){ e.preventDefault();
+      const id=el.getAttribute('data-drill-day'); const day=coachStore().plan.find(x=>x.id===id); if(day) startDrill(day); return; }
+    if(el.hasAttribute('data-drill-domain')){ e.preventDefault();
+      const name=el.getAttribute('data-drill-domain'); const d=coachDiagnose();
+      startDrill({id:'adhoc-'+Date.now(), domain:name, level:d.abilityLevel, techId:pickTechnique(name,'ad').id, goal:pickTechnique(name,'ad').name, minutes:5, weekend:false});
+      return; }
+  });
+  const fb=$('coachFeedback');
+  if(fb) fb.addEventListener('click',e=>{
+    const el=e.target && e.target.closest ? e.target.closest('[data-drill],[data-tech],[data-checkup]') : null; if(!el) return;
+    if(el.hasAttribute('data-tech')){ openTechnique(el.getAttribute('data-tech')); return; }
+    if(el.hasAttribute('data-checkup')){ startCheckup(); return; }
+    if(el.hasAttribute('data-drill')){ const d=coachDiagnose(); const name=el.getAttribute('data-drill');
+      startDrill({id:'adhoc-'+Date.now(), domain:name, level:d.abilityLevel, techId:pickTechnique(name,'fb').id, goal:pickTechnique(name,'fb').name, minutes:5, weekend:false}); }
+  });
+})();
 $('chalBody').innerHTML='You received this AI-generated answer. Determine which claims should be verified and design a verification strategy.'+'<span class="hint" id="chalHint">Name the claims, the verification method, and the confidence threshold.</span>';
 $('chalPpl').textContent='1,284 participants';
 let chalBusy=false;
@@ -2529,7 +3481,7 @@ function refreshEnterprise(){
   const tqTrend=trend(avgTq*100/1.8, 8, true);
   const utilTrend=trend(util*100, 5, true);
   const kpis=[
-    {v:org.seats.toLocaleString(), k:'Purchased seats', d:`${org.industry} · since ${org.since}`, tr:utilTrend, col:'#38bdf8'},
+    {v:org.seats.toLocaleString(), k:'Purchased seats', d:`${org.industry} · since ${org.since}`, tr:utilTrend, col:'#5fc7c1'},
     {v:fmtPct(partRate), k:'Assessment participation', d:`${assessed} of ${enrolled} enrolled`, tr:wkTrend, col:'#f0d98c', up:true},
     {v:avgTq.toFixed(2), k:'Average TQ', d:`top 10%: ${top10} people`, tr:tqTrend, col:'#f0d98c', up:true},
     {v:fmtPct(util), k:'Seat utilization', d: util<0.5?'⚠ below 50% target':'on target', tr:utilTrend, col: util<0.5?'#f87171':'#34d399', up:util>=0.5}
@@ -2540,7 +3492,7 @@ function refreshEnterprise(){
   const wau = wkTrend.map(v=>Math.max(8,Math.min(96,v)));
   const comp= wau.map(v=>Math.max(10,Math.min(98,v*(0.9+rng()*0.2))));
   const pass= comp.map(v=>Math.max(15,Math.min(95,v*(0.45+rng()*0.2))));
-  lineChart($('entAdoptionChart'), [ {pts:wau,color:'#f0d98c',area:true,dots:true}, {pts:comp,color:'#38bdf8'}, {pts:pass,color:'#34d399',dash:true} ], {xLabels:weeks, unit:'%', maxY:100});
+  lineChart($('entAdoptionChart'), [ {pts:wau,color:'#f0d98c',area:true,dots:true}, {pts:comp,color:'#5fc7c1'}, {pts:pass,color:'#34d399',dash:true} ], {xLabels:weeks, unit:'%', maxY:100});
   const utilData = DEPTS.map(d=>{ const r=mulberry32(hashStr(entState.org+d)); const purchased=Math.round(org.seats/DEPTS.length); const active=Math.round(purchased*(0.34+r()*0.5)); return {d, purchased, active}; });
   const uSvg=$('entUtilChart'); uSvg.innerHTML='';
   const UW=uSvg.clientWidth||360, UH=uSvg.clientHeight||210, cols=utilData.length, bw=(UW-20)/cols;
@@ -2685,10 +3637,7 @@ function refreshProUI(){
   const sub=DB.get('subscription');
   $('proStatus').textContent = sub?('Status: '+sub.status+(sub.trial_end?(' · trial ends '+new Date(sub.trial_end).toLocaleDateString()):'')):'Not subscribed';
 }
-$('proUpsellBtn').addEventListener('click',()=>{
-  if(entitlements.has('TQ_COACH')){ refreshCoach(); navTo('coach'); }
-  else { refreshProUI(); openModal('proModal'); }
-});
+$('proUpsellBtn').addEventListener('click',()=>{ refreshCoach(); navTo('coach'); });
 $('proSubscribe').addEventListener('click',async()=>{
   const btn=$('proSubscribe'); btn.classList.add('loading'); btn.disabled=true;
   try{
@@ -2825,9 +3774,10 @@ function renderResume(){
   card.hidden=false;
 }
 function syncNavLocks(){
+  /* the coach is part of free training — diagnosis, plan and drills are never gated */
   const coach=document.querySelector('a[data-nav="coach"]');
-  if(coach){ const locked=!entitlements.has('TQ_COACH'); coach.classList.toggle('lockednav',locked); coach.classList.toggle('pro',locked);
-    coach.title = locked ? 'TQ Coach · part of TQ Pro' : 'Personalized training plan'; }
+  if(coach){ coach.classList.remove('lockednav','pro'); coach.classList.add('navcoach');
+    coach.title = 'TQ Coach · diagnosis, weekly plan and drills — free'; }
 }
 function syncPrivacyButtons(){
   const id=getIdentity(); const p=(id&&id.privacy)||'private';
@@ -2859,6 +3809,20 @@ function initUX(){
   document.querySelectorAll('.privacy-btn').forEach(b=>b.setAttribute('aria-pressed', b.classList.contains('active')?'true':'false'));
   renderResume(); syncNavLocks(); syncPrivacyButtons();
   if(!STORAGE_OK) storageWarning();
+  wireHeaderHeight();
+}
+/* keep sticky offsets exact at every viewport instead of hard-coding a pixel value.
+   --header-h is an OUTPUT only: nothing inside the header's own layout may read it,
+   otherwise the observer feeds back into the height it is measuring. */
+function wireHeaderHeight(){
+  const h=document.querySelector('header'); if(!h) return;
+  let last=0;
+  const apply=()=>{ const px=Math.round(h.getBoundingClientRect().height);
+    if(px>20 && px<400 && Math.abs(px-last)>1){ last=px; document.documentElement.style.setProperty('--header-h', px+'px'); } };
+  apply();
+  if(window.ResizeObserver){ try{ new ResizeObserver(apply).observe(h); }catch(e){ apply(); } }
+  window.addEventListener('resize', apply, {passive:true});
+  window.addEventListener('load', apply);
 }
 function boot(){
   initStartButton(); initEnterprise(); refreshProUI(); refreshIdentityUI(); renderPassport();
