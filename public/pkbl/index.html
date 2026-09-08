@@ -15,7 +15,17 @@
   --shadow:0 24px 70px rgba(0,0,0,.45);
   --safe-b:env(safe-area-inset-bottom,0px);
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* This surface is a game, not a document. A drag across the HUD or a double
+   tap on HIT used to paint the platform's blue selection box over the court,
+   so nothing here is selectable and nothing shows the long-press callout.
+   Form controls keep their own text handling; keyboard focus still gets a
+   ring (:focus-visible) so the menu stays reachable without a mouse. */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none}
+input,textarea,select{user-select:text;-webkit-user-select:text}
+:focus{outline:none}
+:focus-visible{outline:2px solid rgba(89,184,255,.7);outline-offset:2px}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff;
   font-family:Inter,"SF Pro Display",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
@@ -144,10 +154,8 @@ input[type=range]{width:150px}
 #prompt{position:absolute;left:50%;bottom:calc(15% + var(--safe-b));transform:translateX(-50%);padding:11px 20px;border-radius:999px;
   background:#000c;border:1px solid #fff2;font-weight:950;opacity:0;transition:opacity .15s;box-shadow:0 12px 35px rgba(0,0,0,.38);font-size:14px}
 #prompt.show{opacity:1}
-#powerWrap{position:absolute;left:50%;bottom:calc(12.4% + var(--safe-b));transform:translateX(-50%);width:min(260px,54vw);height:5px;
-  border-radius:9px;background:#ffffff14;overflow:hidden;opacity:0;transition:opacity .14s}
-#powerWrap.show{opacity:1}
-#powerBar{height:100%;width:0%;background:linear-gradient(90deg,#34efae,#ffd76a 62%,#ff6d7a);box-shadow:0 0 14px #20e0a088}
+/* The charge bar is gone: holding SHIFT still loads a heavier drive, it simply
+   no longer draws anything on screen. */
 #hint{position:absolute;left:16px;bottom:14px;font-size:11px;opacity:.6;line-height:1.7}
 .help{position:absolute;right:16px;bottom:14px;padding:10px 12px;font-size:10px;line-height:1.55;max-width:246px;opacity:.9}
 #reticle{position:absolute;left:50%;top:50%;width:88px;height:88px;margin:-44px;border:1px solid #ffffff1c;border-radius:50%;opacity:.22}
@@ -192,7 +200,6 @@ input[type=range]{width:150px}
   #score{font-size:22px}#scoreBox{min-width:0;padding:8px 11px}#statusBox{max-width:172px;padding:8px 11px}
   #sub{display:none}#status{font-size:12.5px}#teams{gap:6px}.tname{min-width:34px;font-size:9.5px}
   .menuGrid{grid-template-columns:1fr}.menuCard{padding:20px}.menuTitle{letter-spacing:-2px}
-  #powerWrap{bottom:calc(234px + var(--safe-b))}
   #prompt{bottom:calc(266px + var(--safe-b));font-size:12px;padding:9px 15px}
   #toast{top:calc(max(8px,env(safe-area-inset-top)) + 116px);bottom:auto;transform:translateX(-50%) translateY(-10px)}
   #toast.show{transform:translateX(-50%) translateY(0)}
@@ -201,7 +208,7 @@ input[type=range]{width:150px}
   #stick{width:122px;height:122px;left:14px;bottom:calc(22px + var(--safe-b))}
   #stick:before{inset:22px}#knob{width:54px;height:54px;margin:-27px}
   #drive{width:96px;height:96px;font-size:13px;bottom:calc(36px + var(--safe-b))}
-  #powerWrap{bottom:calc(192px + var(--safe-b))}#prompt{bottom:calc(218px + var(--safe-b))}
+  #prompt{bottom:calc(218px + var(--safe-b))}
   .help{display:none}
 }
 </style>
@@ -264,7 +271,6 @@ input[type=range]{width:150px}
   </div>
   <div id="announce"></div>
   <div id="prompt">SPACE TO SERVE</div>
-  <div id="powerWrap"><div id="powerBar"></div></div>
   <div id="reticle"><div class="dot"></div></div>
   <div id="hint">WASD move · SPACE hit / serve · SHIFT charge · P pause · R restart</div>
 </div>
