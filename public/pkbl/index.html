@@ -1336,6 +1336,16 @@ const servingHolds = (T) => {
   if (S.phase !== "rally" || !S.live) return true;              // setup · serve · dead
   return B.sideBounce[T === "player" ? "near" : "far"] < 1;     // return still to land
 };
+/* The serve is the RECEIVER's ball. From the moment it is struck until the
+ * return comes off a racket, the partner on that end — the hired pro included —
+ * neither claims it, runs for it nor swings at it. A serve aimed at your own
+ * half that your partner mops up is not coverage, it is your point going missing.
+ * Two deliberate exceptions: the player is never bound by it (swallowing a SPACE
+ * press reads far worse than a stolen ball), and neither is the player's body in
+ * demo mode, or an automated rally would stall on the very first shot. */
+const serveIsAnchored = () => (B.isServe && S.live && !!B.receiver);
+const notMyServe = (p) => serveIsAnchored() && p !== B.receiver &&
+  teamOf(p) === teamOf(B.receiver) && !(S.autoMe && p === me);
 
 /* ------------------------------------------------ doubles service model
  * Right / even court  : the server's own right-hand side (world +X for the
@@ -1895,6 +1905,9 @@ function strike(p, type) {
   if (S.phase === "serve") { if (p === me) doServe(); return; }
   if (S.phase === "setup") return;
   if (!S.live || S.phase !== "rally" || S.gameOver) return;
+  /* The serve is the receiver's ball: an AI partner does not chase over it. The
+     player is never refused — a swallowed swing key is worse than a stolen ball. */
+  if (p !== me && notMyServe(p)) { u.hitCd = Math.max(u.hitCd, 0.25); return; }
   if (u.hitCd > 0) { swingRefused(p); return; }
   if (type === "auto" || !type) type = autoShot(p);
   if (!inReach(p)) { swing(p, type); if (p === me) { swish(0.09, 0.012, 900, 0.7); S.swings++; } return; }
@@ -2145,7 +2158,10 @@ function aiThink(p, dt) {
   u.react = Math.max(0, u.react - dt);
   if (S.phase === "setup") { u.velocity.x = damp(u.velocity.x, 0, 8, dt); u.velocity.z = damp(u.velocity.z, 0, 8, dt); return; }
   const mates = team[T], partner = mates.find((q) => q !== p);
-  const ic = u.ic || B.icp[mySide];
+  /* The serve belongs to the receiver. When this player is the partner, the
+     ball is simply not its ball: no intercept to chase, no lead, no swing. */
+  const locked = notMyServe(p);
+  const ic = locked ? null : (u.ic || B.icp[mySide]);
   const ref = outReference();
   const goingOut = !!ref && !inCourt(ref.x, ref.z);
   const incoming = !!ic && sideOf(ic.z) === mySide && !goingOut;
@@ -2174,6 +2190,11 @@ function aiThink(p, dt) {
          player who actually has the ball to fetch leaves the back early. */
       const a = servingArea(T);
       tx = -a.xSign * CW * 0.26; tz = a.zOut * (HALF + SERVE_DEPTH * 0.8);
+    } else if (locked) {
+      /* The serve is arriving in the partner's half: hold the Kitchen line and let
+         the receiver take it — crashing in for their ball is the bug. */
+      tx = clamp(p.position.x, -CW * 0.44, CW * 0.44);
+      tz = (mySide === "near" ? 1 : -1) * (K + 2.4);
     } else if (ballNear && B.pred && Math.abs(B.pred.z) > K + 2.2 && front) {
       tx = p.position.x; tz = (mySide === "near" ? 1 : -1) * (K + 3.2);
     } else {
@@ -2194,6 +2215,7 @@ function aiThink(p, dt) {
   } else { u.velocity.x = damp(u.velocity.x, 0, 8, dt); u.velocity.z = damp(u.velocity.z, 0, 8, dt); }
 
   if (!S.live || S.phase !== "rally" || !mine) return;
+  if (locked) return;                                  // the serve is the receiver's
   if (sideOf(ball.position.z) !== mySide) return;
   if (twoBounceActive() && B.sideBounce[mySide] < 1) return;
   if (!inReach(p)) return;
@@ -2208,6 +2230,9 @@ function assignClaims() {
   const side = rt === "player" ? "near" : "far";
   const ref = outReference();
   if (ref && !inCourt(ref.x, ref.z)) { B.claim = null; return; }   // leaving it: it is out
+  /* While the ball is still the serve, the claim is the receiver's and nobody
+     else's — not the partner standing a metre closer, not the pro. */
+  if (serveIsAnchored() && teamOf(B.receiver) === rt) { B.claim = B.receiver; return; }
   B.claim = B.claims[side] || null;   // null => nobody can get there
 }
 function integratePlayers(dt) {
@@ -2270,6 +2295,9 @@ function updateIntercepts() {
     let best = null, bestScore = -Infinity, bestP = null;
     let fallback = null, fScore = -Infinity, fP = null;
     for (const q of team[sideTeam(side)]) {
+      /* The receiver's partner has no intercept to read while the serve is still
+         in the air: no target, no claim, nothing worth sprinting to. */
+      if (notMyServe(q)) { q.userData.ic = null; continue; }
       const ic = interceptFor(side, q);
       q.userData.ic = ic;
       if (!ic) continue;
