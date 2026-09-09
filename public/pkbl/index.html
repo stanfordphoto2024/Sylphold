@@ -252,7 +252,7 @@ input[type=range]{width:150px}
     <div id="settingsPanel" class="panelSection">
       <h2 class="sec">Settings</h2>
       <div class="optionRow"><div><label>Sound</label><small>Ball strike, bounce and score cues</small></div><div class="switch on" id="soundToggle" role="switch" aria-checked="true"></div></div>
-      <div class="optionRow"><div><label>Court guides</label><small>Predicted landing, aim box and service zones</small></div><div class="switch on" id="aimToggle" role="switch" aria-checked="true"></div></div>
+      <div class="optionRow"><div><label>Court guides</label><small>Predicted landing and service zones</small></div><div class="switch on" id="aimToggle" role="switch" aria-checked="true"></div></div>
       <div class="optionRow"><div><label>Auto return</label><small>Swings for you once the ball is in range</small></div><div class="switch on" id="assistToggle" role="switch" aria-checked="true"></div></div>
     </div>
 
@@ -1183,14 +1183,17 @@ const trail = new THREE.Points(trailGeo, new THREE.PointsMaterial({
 trail.frustumCulled = false; scene.add(trail);
 function trailReset() { for (let i = 0; i < TRAIL_N; i++) trailPos.set([ball.position.x, ball.position.y, ball.position.z], i * 3); }
 
-/* landing / aim markers */
+/* landing marker. The old amber "aim ring" that used to sit on the opponents'
+   court while you served is gone on purpose: its position came from shotTarget(),
+   which is full of rand(), so re-reading it every frame teleported the ring to a
+   new spot ~60 times a second — it read as a flickering circle skating around
+   the far court instead of as aim information. */
 function marker(ring, colour, size) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size),
     new THREE.MeshBasicMaterial({ map: ringTexture(ring), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
   m.rotation.x = -Math.PI / 2; m.position.y = 0.02; m.visible = false; scene.add(m); return m;
 }
 const landMark = marker("#8effd4", 0x20e0a0, 1.15);
-const aimMark = marker("#ffd76a", 0xffd76a, 1.35);
 
 /* ------------------------------------------------------------ particles
    There is no particle system in this build. A bouncing ball used to throw a
@@ -2607,14 +2610,6 @@ function updateMarkers() {
       } else if (S.footWarn) { S.footWarn = false; prompt("SPACE or HIT to serve · A / D shape the line"); }
     }
   }
-  const myTurn = (S.phase === "serve" && S.serveTeam === "player") ||
-    (S.live && B.pred && sideOf(B.pred.z) === "near" && B.claim === me);
-  aimMark.visible = !!PK.settings.aim && myTurn && !S.gameOver;
-  if (aimMark.visible) {
-    const t = shotTarget(me, "drive", 0.85, 0);
-    if (sideOf(t.z) === "far") { aimMark.position.set(t.x, 0.021, t.z); aimMark.rotation.z -= 0.03; }
-    else aimMark.visible = false;
-  }
 }
 function updateCrowd(dt) {
   cheer = damp(cheer, 0, 1.4, dt);
@@ -2895,7 +2890,7 @@ PK.on("pause", (v) => { if (!v) last = performance.now(); });
 PK.on("quality", applyQuality);
 PK.on("sound", (v) => { if (v) audioInit(); });
 PK.on("aim", (v) => {
-  if (!v) { landMark.visible = false; aimMark.visible = false; serveZone.visible = false; servePad.visible = false; }
+  if (!v) { landMark.visible = false; serveZone.visible = false; servePad.visible = false; }
 });
 PK.on("target", (v) => {
   S.target = v; const e = $("formatLabel");
