@@ -854,6 +854,260 @@ for (const [bx, bz, ry] of [[0, -HALF - 4.6, 0], [-CW / 2 - 3.4, 0, Math.PI / 2]
 box(0.5, 6.4, 0.5, mat(0x0b1118, 0.8, 0.3), -CW / 2 - 9, 3.2, -HALF - 9, false);
 box(0.5, 6.4, 0.5, mat(0x0b1118, 0.8, 0.3), CW / 2 + 9, 3.2, -HALF - 9, false);
 
+/* ------------------------------------------------------- court officials
+   The crew a championship match actually runs with — placed the way a
+   tennis court lays them out, scaled to this arena:
+     · Chair Umpire 主審    — high chair on the left of the net line
+     · Net Judge 網審       — low chair at the opposite end of the net
+     · Line Judges 線審 ×4  — white polos, attentive at the baseline corners
+     · Ball Kids 球童 ×4    — crouched at the outer corners, ball in hand
+     · Ball Cart 球車       — loaded, parked behind the far baseline
+   Figures are built facing +Z like the athletes; every head tracks the
+   live ball in updateStaff().                                                  */
+const OFF_INK = mat(0x151b21, 0.5, 0.0);
+const OFF_SHOE = mat(0x11161c, 0.58, 0.1);
+const OFF_STEEL = mat(0x39424d, 0.42, 0.75);
+const OFF_PAD = mat(0x1c2a3a, 0.82, 0.05);
+const UMPIRE_SHIRT = mat(0x1d2c3c, 0.82, 0.04);
+const UMPIRE_TROUSERS = mat(0x272f3a, 0.86, 0.03);
+const LINE_SHIRT = mat(0xe9eef3, 0.78, 0.02);
+const LINE_TROUSERS = mat(0x18222e, 0.86, 0.03);
+const KID_SHIRT = mat(0x17a67d, 0.78, 0.04, { emissive: 0x0c6b50, emissiveIntensity: 0.25 });
+const KID_SHORTS = mat(0x131a21, 0.86, 0.03);
+const CAP_WHITE = mat(0xf3f7fa, 0.6, 0.04);
+const CAP_NAVY = mat(0x16222f, 0.62, 0.04);
+
+function official(cfg) {
+  const s = cfg.scale || 1;
+  const skin = mat(cfg.skin, 0.72, 0.0);
+  const shirt = cfg.shirt, pants = cfg.pants, cap = cfg.cap || null;
+  const hair = mat(cfg.hair, 0.5, 0.1);
+  const P = cfg.pose || "stand";
+  /* limbs hang -Y so a NEGATIVE rotation.x swings them forward (+Z); the
+     torso is +Y so a POSITIVE lean pitches it forward.                       */
+  const A = P === "sit"    ? { hip: -1.45, knee: 1.52, lean: 0.10, sh: -0.72, el: -0.80, hipY: 0 }
+          : P === "crouch" ? { hip: -1.15, knee: 2.30, lean: 0.52, sh: -0.30, el: -0.45, hipY: 0.75 }
+          :                  { hip: -0.02, knee: 0.05, lean: 0.05, sh: -0.52, el: -1.02, hipY: 2.28 };
+  const g = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = A.hipY * s; g.add(hips);
+  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(0.24 * s, 0.27 * s, 0.30 * s, 12), pants);
+  pelvis.position.y = 0.02 * s; pelvis.scale.z = 0.82; pelvis.castShadow = true; hips.add(pelvis);
+
+  const torso = new THREE.Group(); torso.position.y = 0.12 * s; torso.rotation.x = A.lean; hips.add(torso);
+  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.27 * s, 0.52 * s, 5, 14), shirt);
+  chest.position.y = 0.62 * s; chest.scale.set(1.12, 1, 0.78); chest.castShadow = true; torso.add(chest);
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.66 * s, 0.18 * s, 0.30 * s), shirt);
+  yoke.position.y = 1.14 * s; yoke.scale.z = 0.84; yoke.castShadow = true; torso.add(yoke);
+  if (cfg.whistle) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.07 * s, 0.05 * s, 0.10 * s), mat(0xc9a13c, 0.35, 0.8));
+    w.position.set(0.07 * s, 0.62 * s, 0.23 * s); torso.add(w);
+  }
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.14 * s, 8), skin);
+  neck.position.y = 1.28 * s; torso.add(neck);
+  const head = new THREE.Group(); head.position.y = 1.40 * s; torso.add(head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.25 * s, 16, 12), skin);
+  skull.position.y = 0.26 * s; skull.scale.set(1, 1.05, 1); skull.castShadow = true; head.add(skull);
+  for (const sx of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032 * s, 8, 6), OFF_INK);
+    eye.position.set(sx * 0.09 * s, 0.28 * s, 0.21 * s); head.add(eye);
+  }
+  if (cap) {
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.262 * s, 14, 10, 0, 6.2832, 0, Math.PI * 0.52), cap);
+    crown.position.y = 0.28 * s; crown.scale.set(1.02, 1, 1.03); crown.castShadow = true; head.add(crown);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34 * s, 0.03 * s, 0.24 * s), cap);
+    visor.position.set(0, 0.278 * s, 0.23 * s); visor.rotation.x = 0.16; head.add(visor);
+    const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.252 * s, 12, 10, 0, 6.2832, Math.PI * 0.42, Math.PI * 0.4), hair);
+    hairBack.position.y = 0.26 * s; hairBack.rotation.x = 0.5; head.add(hairBack);
+  } else {
+    const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.262 * s, 14, 12, 0, 6.2832, 0, Math.PI * 0.62), hair);
+    hairCap.position.y = 0.27 * s; hairCap.rotation.x = -0.18; hairCap.scale.set(1.02, 1.04, 1.03); hairCap.castShadow = true; head.add(hairCap);
+  }
+
+  for (const sx of [-1, 1]) {
+    const arm = new THREE.Group(); arm.position.set(sx * 0.42 * s, 1.16 * s, 0);
+    arm.rotation.set(A.sh, 0, sx * 0.10);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.115 * s, 0.105 * s, 0.30 * s, 10), shirt);
+    sleeve.position.y = -0.14 * s; sleeve.castShadow = true; arm.add(sleeve);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.075 * s, 0.30 * s, 4, 8), skin);
+    up.position.y = -0.36 * s; up.castShadow = true; arm.add(up);
+    const fore = new THREE.Group(); fore.position.y = -0.56 * s;
+    fore.rotation.set(A.el, 0, -sx * (P === "stand" ? 0.55 : P === "sit" ? 0.30 : 0.15)); arm.add(fore);
+    const foreM = new THREE.Mesh(new THREE.CapsuleGeometry(0.065 * s, 0.28 * s, 4, 8), skin);
+    foreM.position.y = -0.22 * s; foreM.castShadow = true; fore.add(foreM);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.085 * s, 8, 6), skin);
+    hand.position.y = -0.42 * s; fore.add(hand);
+    torso.add(arm);
+
+    const leg = new THREE.Group(); leg.position.set(sx * 0.16 * s, -0.06 * s, 0); leg.rotation.x = A.hip;
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.115 * s, 0.44 * s, 4, 8), pants);
+    thigh.position.y = -0.36 * s; thigh.castShadow = true; leg.add(thigh);
+    const shin = new THREE.Group(); shin.position.y = -0.86 * s; shin.rotation.x = A.knee; leg.add(shin);
+    const calf = new THREE.Mesh(new THREE.CapsuleGeometry(0.095 * s, 0.42 * s, 4, 8), pants);
+    calf.position.y = -0.34 * s; calf.castShadow = true; shin.add(calf);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.17 * s, 0.10 * s, 0.36 * s), OFF_SHOE);
+    shoe.position.set(0, -0.66 * s, 0.09 * s); shoe.castShadow = true; shin.add(shoe);
+    hips.add(leg);
+  }
+  if (cfg.tablet) {   // chair umpire's scorecard on the lap
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.5 * s, 0.03 * s, 0.36 * s), mat(0xdde4ea, 0.6, 0.05));
+    t.position.set(0, 0.20 * s, 0.46 * s); t.rotation.x = -0.35; hips.add(t);
+  }
+  if (cfg.ball) {     // a ball kid with a ball ready in the right hand
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 10, 8),
+      mat(0xdff23a, 0.32, 0.02, { emissive: 0x93a800, emissiveIntensity: 0.5 }));
+    b.position.set(-0.28 * s, -0.52 * s, 0.55 * s); b.castShadow = true; hips.add(b);
+  }
+  return { g: g, head: head, eyeY: (A.hipY + 0.12 + 1.40 + 0.26) * s };
+}
+
+function umpireChair() {   // faces +Z; seat top returned so the figure sits on it
+  const g = new THREE.Group();
+  const SEAT = 3.35, HW = 0.66, dark = mat(0x151b22, 0.5, 0.4);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, SEAT, 8), OFF_STEEL);
+    leg.position.set(sx * HW, SEAT / 2, sz * HW); leg.castShadow = true; g.add(leg);
+  }
+  for (const sx of [-1, 1]) {
+    for (const r of [0.75, -0.75]) {
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.045, SEAT * 1.06, 0.045), OFF_STEEL);
+      brace.position.set(sx * HW, SEAT * 0.5, 0); brace.rotation.x = r; g.add(brace);
+    }
+  }
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 + 0.5, 0.12, HW * 2 + 0.5), dark);
+  deck.position.y = SEAT - 0.06; deck.castShadow = true; deck.receiveShadow = true; g.add(deck);
+  const cushion = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.16, 1.15), OFF_PAD);
+  cushion.position.y = SEAT + 0.08; cushion.castShadow = true; g.add(cushion);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.95, 0.14), OFF_PAD);
+  back.position.set(0, SEAT + 0.62, -0.55); back.castShadow = true; g.add(back);
+  for (const sx of [-1, 1]) {
+    const armr = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.09, 1.05), dark);
+    armr.position.set(sx * 0.68, SEAT + 0.62, -0.02); armr.castShadow = true; g.add(armr);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), OFF_STEEL);
+    post.position.set(sx * 0.68, SEAT + 0.36, 0.4); g.add(post);
+  }
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 8), OFF_STEEL);
+  foot.rotation.z = Math.PI / 2; foot.position.set(0, SEAT - 0.85, 0.95); g.add(foot);
+  for (let i = 0; i < 3; i++) {   // rear step ladder
+    const step = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.06, 0.34), dark);
+    step.position.set(0, 0.55 + i * 0.9, -1.05); step.castShadow = true; g.add(step);
+  }
+  return { g: g, seatY: SEAT + 0.16 };
+}
+
+function foldChair() {           // net judge chair, faces +Z
+  const g = new THREE.Group();
+  const SEAT = 1.02;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, SEAT, 6), OFF_STEEL);
+    leg.position.set(sx * 0.42, SEAT / 2, sz * 0.42); g.add(leg);
+  }
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.09, 0.92), OFF_PAD);
+  seat.position.y = SEAT; seat.castShadow = true; g.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.78, 0.08), OFF_PAD);
+  back.position.set(0, SEAT + 0.44, -0.46); back.rotation.x = -0.12; back.castShadow = true; g.add(back);
+  return { g: g, seatY: SEAT + 0.05 };
+}
+
+function ballCart() {
+  const g = new THREE.Group();
+  const dark = mat(0x151b22, 0.5, 0.4);
+  const hopper = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.52, 0.95, 16, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x243342, roughness: 0.7, metalness: 0.2, side: THREE.DoubleSide }));
+  hopper.position.y = 1.15; hopper.castShadow = true; g.add(hopper);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.045, 8, 24), OFF_STEEL);
+  rim.rotation.x = Math.PI / 2; rim.position.y = 1.62; g.add(rim);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.14, 16), dark);
+  base.position.y = 0.62; base.castShadow = true; g.add(base);
+  for (const sx of [-1, 1]) {
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.09, 8, 18), mat(0x0f141a, 0.8, 0.1));
+    wheel.position.set(sx * 0.62, 0.34, 0); wheel.castShadow = true; g.add(wheel);
+  }
+  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.35, 8), OFF_STEEL);
+  axle.rotation.z = Math.PI / 2; axle.position.y = 0.34; g.add(axle);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.5, 8), OFF_STEEL);
+  handle.position.set(0, 1.2, -0.75); handle.rotation.x = 0.55; g.add(handle);
+  const bm = mat(0xdff23a, 0.32, 0.02, { emissive: 0x93a800, emissiveIntensity: 0.5 });
+  const bg = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 10, 8), bm, 26);
+  const m4 = new THREE.Matrix4();
+  for (let i = 0; i < 26; i++) {
+    const a = i * 2.399, r = 0.14 + (i % 3) * 0.15;
+    m4.makeTranslation(Math.cos(a) * r, 1.52 + (i % 4) * 0.05, Math.sin(a) * r);
+    bg.setMatrixAt(i, m4);
+  }
+  bg.castShadow = true; g.add(bg);
+  return g;
+}
+
+const staff = [];
+function placeStaff(fig, x, y, z, tx, tz, opts) {
+  fig.g.position.set(x, y, z);
+  fig.g.rotation.y = Math.atan2(tx - x, tz - z);
+  scene.add(fig.g);
+  staff.push(Object.assign({ g: fig.g, head: fig.head, eyeY: fig.eyeY + y,
+    ph: Math.random() * 6.28, y0: y, sway: false, bob: false }, opts || {}));
+}
+
+/* Chair Umpire — high chair at the net line, court's left, facing the net */
+{
+  const chair = umpireChair();
+  chair.g.position.set(-9.35, 0, 0); chair.g.rotation.y = Math.PI / 2; scene.add(chair.g);
+  const fig = official({ skin: 0xe6bd93, hair: 0x2a2118, shirt: UMPIRE_SHIRT,
+    pants: UMPIRE_TROUSERS, cap: CAP_NAVY, pose: "sit", scale: 1.02, tablet: true });
+  placeStaff(fig, -9.35, chair.seatY, 0, 0, 0);
+  const refLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture("REFEREE", "#ffd76a"),
+    transparent: true, depthWrite: false, opacity: 0.85 }));
+  refLabel.scale.set(1.8, 0.5, 1); refLabel.position.set(-9.35, chair.seatY + fig.eyeY + 1.05, 0);
+  scene.add(refLabel);
+}
+/* Net Judge — low chair at the opposite end of the net, watching the tape */
+{
+  const chair = foldChair();
+  chair.g.position.set(8.8, 0, 0); chair.g.rotation.y = -Math.PI / 2; scene.add(chair.g);
+  const fig = official({ skin: 0xc79468, hair: 0x14100e, shirt: UMPIRE_SHIRT,
+    pants: UMPIRE_TROUSERS, cap: CAP_NAVY, pose: "sit", scale: 0.98 });
+  placeStaff(fig, 8.8, chair.seatY, 0, 0, 0);
+}
+/* Line Judges — the four baseline corners, hands in, weight ready */
+{
+  const LJ = [[-8.95, HALF + 1.55], [8.95, HALF + 1.55], [-8.95, -HALF - 1.55], [8.95, -HALF - 1.55]];
+  for (let i = 0; i < LJ.length; i++) {
+    const fig = official({ skin: SKINS[(i * 2 + 1) % SKINS.length], hair: HAIRS[(i * 3 + 1) % HAIRS.length],
+      shirt: LINE_SHIRT, pants: LINE_TROUSERS, cap: CAP_WHITE, pose: "stand",
+      scale: 1.0 + (i % 2) * 0.04, whistle: i % 2 === 0 });
+    placeStaff(fig, LJ[i][0], 0, LJ[i][1], 0, 0, { sway: true });
+  }
+}
+/* Ball Kids — crouched at the outer corners, ready to sprint in */
+{
+  const BK = [[-10.15, 19.4], [10.15, 19.4], [-10.15, -19.4], [10.15, -19.4]];
+  for (let i = 0; i < BK.length; i++) {
+    const fig = official({ skin: SKINS[(i * 3 + 2) % SKINS.length], hair: HAIRS[(i * 5 + 2) % HAIRS.length],
+      shirt: KID_SHIRT, pants: KID_SHORTS, cap: i % 2 ? CAP_NAVY : null, pose: "crouch",
+      scale: 0.8, ball: i % 2 === 0 });
+    placeStaff(fig, BK[i][0], 0, BK[i][1], 0, 0, { bob: true });
+  }
+}
+/* Ball Cart — loaded, parked behind the far baseline */
+{
+  const cart = ballCart();
+  cart.position.set(2.6, 0, -HALF - 3.6); cart.rotation.y = 0.4; scene.add(cart);
+}
+
+function updateStaff(dt) {
+  for (const o of staff) {
+    if (o.sway) o.g.rotation.z = Math.sin(S.time * 0.9 + o.ph) * 0.014;
+    if (o.bob) o.g.position.y = o.y0 + Math.abs(Math.sin(S.time * 1.7 + o.ph)) * 0.03;
+    if (!o.head) continue;
+    const dx = ball.position.x - o.g.position.x, dz = ball.position.z - o.g.position.z;
+    let yaw = Math.atan2(dx, dz) - o.g.rotation.y;
+    yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    const hd = Math.max(0.6, Math.sqrt(dx * dx + dz * dz));
+    const pitch = Math.atan2(o.eyeY - ball.position.y, hd);
+    o.head.rotation.y = damp(o.head.rotation.y, clamp(yaw, -1.2, 1.2), 4.5, dt);
+    o.head.rotation.x = damp(o.head.rotation.x, clamp(pitch, -0.4, 0.62), 4.5, dt);
+  }
+}
+
 /* ------------------------------------------------------------- athletes */
 /* Stylised anime-proportioned athletes: 6.8 heads tall, tapered torso, long
    legs, sculpted hair, large expressive eyes. The rig is authored facing +Z,
@@ -2799,7 +3053,7 @@ function stepGame(dt) {
    without touching WebGL, the loop below always runs both. */
 function stepGameOnly(dt) { stepGame(dt); }
 function renderPass(dt) {
-  animatePlayers(dt); updateBallVisual(dt); updateMarkers(); updateCrowd(dt);
+  animatePlayers(dt); updateBallVisual(dt); updateMarkers(); updateCrowd(dt); updateStaff(dt);
   stepHitMarks(dt); cameraUpdate(dt); updateHUD(); renderFrame();
 }
 function frame(dt) { stepGame(dt); renderPass(dt); }
