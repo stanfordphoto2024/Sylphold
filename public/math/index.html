@@ -276,8 +276,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-12 — 5 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 20-ui.js
+/* MathPath 2026-09-12 — 7 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -1458,6 +1458,20 @@ registerSkills([
   function nums(rng, lo, hi) { var a = []; for (var i = lo; i <= hi; i++) a.push(i); return shuffle(rng, a); }
   function objWord(n, rng) { return n === 1 ? 'one' : pick(rng, COUNT_OBJ); }
 
+
+  /* Rotating strategy lead-ins: the same template, different coaching words,
+   * so a five-year-old meets real phrasing variety rather than one sentence
+   * with new digits. */
+  var LEAD = ['', 'Look carefully: ', 'Count with me: ', 'Say it out loud: ',
+    'Try the picture first: ', 'Which one? '];
+  function withLead(fn, leads) {
+    return function (rng, lvl) {
+      var it = fn(rng, lvl), L = pick(rng, leads);
+      if (L && String(it.prompt).indexOf(L) !== 0) it.prompt = L + it.prompt;
+      return it;
+    };
+  }
+
   /* answer + plausible distractors -> shuffled I_choice (never duplicates) */
   function MC(rng, prompt, answer, wrongs, o) {
     var seen = {}, opts = [], idx = 0;
@@ -1599,7 +1613,7 @@ registerSkills([
   });
 
   /* -------------------------------------------------- K.CC.6-7 compare ----- */
-  G('k-cc-compare', function (rng, lvl) {
+  var genK_k_cc_compare = function (rng, lvl) {
     var hi = lvl <= 2 ? 6 : 10, a = R.int(rng, 1, hi), b = R.int(rng, 1, hi);
     if (chance(rng, 0.25)) b = a;
     var mode = R.int(rng, 0, lvl <= 2 ? 2 : 4);
@@ -1666,10 +1680,11 @@ registerSkills([
         'Answer: <b>' + other + '</b>.'],
       b: 0.3
     });
-  });
+  };
+  G('k-cc-compare', withLead(genK_k_cc_compare, LEAD));
 
   /* ------------------------------------------------- K.CC.2 sequence ------- */
-  G('k-cc-sequence', function (rng, lvl) {
+  var genK_k_cc_sequence = function (rng, lvl) {
     var hi = lvl <= 2 ? 10 : 20, len = lvl <= 2 ? 4 : R.int(rng, 4, 6);
     var start = R.int(rng, 1, Math.max(1, hi - len - 1));
     var seq = R.range(len).map(function (i) { return start + i; });
@@ -1729,7 +1744,8 @@ registerSkills([
       explain: ['Each step adds ' + jump + '.', jseq[2] + ' + ' + jump + ' = <b>' + jseq[3] + '</b>.'],
       b: jump === 10 ? 0.6 : 0.4
     });
-  });
+  };
+  G('k-cc-sequence', withLead(genK_k_cc_sequence, LEAD));
 
   /* ------------------------------------------- K.OA.1-5 add/sub within 5 --- */
   G('k-oa-add-sub-5', function (rng, lvl) {
@@ -1799,8 +1815,8 @@ registerSkills([
   });
 
   /* -------------------------------------------------- K.OA.4 make 10 ------- */
-  G('k-oa-make-ten', function (rng, lvl) {
-    var n = R.int(rng, lvl <= 2 ? 5 : 1, lvl <= 2 ? 9 : 9), mode = R.int(rng, 0, lvl <= 2 ? 2 : 4);
+  var genK_k_oa_make_ten = function (rng, lvl) {
+    var n = R.int(rng, lvl <= 2 ? 5 : 1, lvl <= 2 ? 9 : 9), mode = R.int(rng, 0, lvl <= 2 ? 3 : 6);
 
     if (mode === 0) {
       return I_num(n + ' + □ = 10', 10 - n, {
@@ -1844,6 +1860,26 @@ registerSkills([
         b: 0.8
       });
     }
+    if (mode === 5) {
+      var have = R.int(rng, 1, 9);
+      return I_num('The ten-frame already holds ' + have + ' counters. How many more to fill the frame of 10?',
+        10 - have, {
+          visual: V.tenframe(have, { frames: 1, label: have + ' in, ' + (10 - have) + ' to go' }),
+          teach: 'A full ten-frame is 10, so the empty squares tell you what is missing.',
+          explain: ['Counters in the frame: ' + have + '.', 'Empty squares: ' + (10 - have) + '.',
+            'So add <b>' + (10 - have) + '</b> more.']
+        });
+    }
+    if (mode === 6) {
+      var ok1 = R.int(rng, 1, 9), bad1 = R.int(rng, 1, 7), bad2 = cap(bad1 + 1, 1, 9);
+      return MC(rng, 'Pick the two number cards that make 10 together.', ok1 + ' and ' + (10 - ok1),
+        [bad1 + ' and ' + (bad1 + 2), bad2 + ' and ' + (bad2 + 2), '5 and 4'], {
+          teach: 'Pairs to 10 are worth memorising: 1-9, 2-8, 3-7, 4-6, 5-5.',
+          explain: ['Try each pair by adding.', ok1 + ' + ' + (10 - ok1) + ' = 10.',
+            'The pair that works is <b>' + ok1 + ' and ' + (10 - ok1) + '</b>.'],
+          b: 0.2
+        });
+    }
     var a2 = R.int(rng, 1, 8), b2 = 10 - a2;
     return I_bool(a2 + ' + ' + b2 + ' makes exactly 10 — true or false?', true, {
       visual: V.tenframe(a2, { frames: 1, label: a2 + ' + ' + b2 }),
@@ -1852,10 +1888,11 @@ registerSkills([
         'The frame is exactly full, so <b>true</b>.'],
       b: 0.1
     });
-  });
+  };
+  G('k-oa-make-ten', withLead(genK_k_oa_make_ten, LEAD));
 
   /* ------------------------------------------ K.OA.2 add/sub within 10 ----- */
-  G('k-oa-add-sub-10', function (rng, lvl) {
+  var genK_k_oa_add_sub_10 = function (rng, lvl) {
     var maxn = lvl <= 2 ? 6 : 10, mode = R.int(rng, 0, lvl <= 2 ? 3 : 5);
     var a = R.int(rng, 1, maxn), b = R.int(rng, 1, Math.max(1, maxn - a));
     var obj = objWord(a + b, rng);
@@ -1923,7 +1960,8 @@ registerSkills([
         'Total: <b>' + 3 * c + '</b>.'],
       b: 0.6
     });
-  });
+  };
+  G('k-oa-add-sub-10', withLead(genK_k_oa_add_sub_10, LEAD));
 
   /* --------------------------------------------- K.OA.2 stories within 10 -- */
   G('k-oa-word-10', function (rng, lvl) {
@@ -2181,7 +2219,7 @@ registerSkills([
   });
 
   /* ---------------------------------------------- K.MD.3 classify data ----- */
-  G('k-md-classify', function (rng, lvl) {
+  var genK_k_md_classify = function (rng, lvl) {
     var cats = [['red', 'blue'], ['circles', 'squares'], ['animals', 'plants'], ['buttons', 'beads'],
       ['shells', 'stones'], ['cars', 'trucks']];
     var c = R.pick(rng, cats), mode = R.int(rng, 0, lvl <= 2 ? 2 : 4);
@@ -2233,10 +2271,11 @@ registerSkills([
         'So the answer is <b>No</b>.'],
       b: 0.5
     });
-  });
+  };
+  G('k-md-classify', withLead(genK_k_md_classify, LEAD));
 
   /* ------------------------------------------------ K.G.1-4 shapes --------- */
-  G('k-g-shapes', function (rng, lvl) {
+  var genK_k_g_shapes = function (rng, lvl) {
     var flat = [['circle', 'round and flat, no corners'], ['square', '4 equal sides and 4 corners'],
       ['triangle', '3 sides and 3 corners'], ['rectangle', '4 sides, 4 corners, opposite sides equal'],
       ['hexagon', '6 sides']];
@@ -2295,7 +2334,1866 @@ registerSkills([
       explain: ['A ' + solid[0][0] + ' is solid.', 'A ' + f[0] + ' is flat.', 'They are not both flat → <b>No</b>.'],
       b: 0.4
     });
+  };
+  G('k-g-shapes', withLead(genK_k_g_shapes, LEAD));
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 91-gen-g1.js — Grade 1 generators (CA CCSSM 1.OA / 1.NBT / 1.MD / 1.G)
+ *
+ * Difficulty rule for every generator in this file
+ *   lvl 1-2  numbers inside 10-15, one step, no regrouping, the model is shown,
+ *            the unknown sits in the usual place, familiar context.
+ *   lvl 3    the standard grade-1 case: within 20 (or 100 for NBT), one
+ *            unknown, tidy numbers, a model still available.
+ *   lvl 4-5  within 20/100 with regrouping, unknown in ANY position, reverse
+ *            and judgement questions (true/false, "which is the better
+ *            estimate"), less familiar contexts, two related steps.
+ * Answers are always computed from the drawn numbers — never hardcoded.
+ * No answer units: grade 1 answers are bare numbers (units live in the prompt).
+ * ============================================================================= */
+(function () {
+  'use strict';
+
+  var pick = R.pick, sample = R.sample, shuffle = R.shuffle, chance = R.chance;
+
+  var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli', 'Rosa', 'Kai'];
+  var PRON = { Maya: 'she', Diego: 'he', Priya: 'she', Sam: 'they', Lin: 'they', Owen: 'he', Ava: 'she', Noah: 'he', Ivy: 'she', Eli: 'he', Rosa: 'she', Kai: 'they' };
+  var CTX = ['At the park', 'In the classroom', 'At the pet shelter', 'On the school bus', 'At the library',
+    'During recess', 'At the farm stand', 'In the gym', 'At the art table', 'By the playground'];
+  var OBJ = ['blocks', 'stickers', 'shells', 'pencil tips', 'stamps', 'buttons', 'apple slices', 'marbles',
+    'star cards', 'seeds', 'crayons', 'feathers', 'pattern blocks', 'seashells', 'erasers'];
+
+  function who(rng) { return pick(rng, WHO); }
+  function they(rng, w) { return PRON[w] || 'they'; }
+  function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function obj(rng) { return pick(rng, OBJ); }
+
+  /* answer + plausible distractors -> shuffled I_choice (never duplicates) */
+  function MC(rng, prompt, answer, wrongs, o) {
+    var seen = {}, opts = [];
+    var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
+    push(answer);
+    var extra = R.shuffle(rng, wrongs.filter(function (v) { return String(v) !== String(answer); }));
+    for (var i = 0; i < extra.length && opts.length < 5; i++) push(extra[i]);
+    var sh = R.shuffle(rng, opts);
+    return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
+  }
+  function near(n, lo, hi, k) {
+    var out = [], d = [-1, 1, -2, 2, -10, 10, -3, 3, -5, 5];
+    for (var i = 0; i < d.length && out.length < (k || 3); i++) {
+      var v = n + d[i];
+      if (v >= (lo == null ? 0 : lo) && v <= (hi == null ? 100 : hi) && v !== n) out.push(v);
+    }
+    return out;
+  }
+
+  /* Rotating strategy lead-ins: the same template asked with different coaching
+   * words, so the learner meets real phrasing variety, not the same sentence
+   * with new digits. */
+  var LEAD = ['', 'Do it in your head: ', 'Say your reasoning out loud: ',
+    'Draw or picture it if it helps: ', 'You know a trick for this: '];
+  function withLead(fn, leads) {
+    return function (rng, lvl) {
+      var it = fn(rng, lvl), L = pick(rng, leads);
+      if (L && String(it.prompt).indexOf(L) !== 0) it.prompt = L + it.prompt;
+      return it;
+    };
+  }
+
+  /* ============================================ 1.OA.1-2  ops within 20 ==== */
+  G('g1-oa-ops-20', function (rng, lvl) {
+    var big = lvl >= 4 ? 20 : (lvl >= 3 ? 15 : 10);
+    var a = R.int(rng, lvl >= 3 ? 6 : 2, big - 3), b = R.int(rng, 2, cap(big - a, 2, 9));
+    var w = who(rng), o1 = obj(rng), mode = R.int(rng, 0, lvl >= 4 ? 7 : 5);
+
+    if (mode === 0) {                                    /* add-to */
+      var th = they(rng, w); th = th.charAt(0).toUpperCase() + th.slice(1);
+      return I_num(pick(rng, CTX) + ', ' + w + ' has ' + a + ' ' + o1 + '. ' +
+        th + ' gets ' + b + ' more. How many ' + o1 + ' now?',
+        a + b, {
+          visual: V.tenframe(a + b, { label: 'count them all' }),
+          teach: 'Counting on from the bigger number is faster than starting again at 1.',
+          explain: ['Start at the bigger number, <b>' + Math.max(a, b) + '</b>.',
+            'Count on ' + Math.min(a, b) + ' more: ' + (Math.max(a, b) + 1) + ', ' + (Math.max(a, b) + 2) + ' …',
+            'So there are now <b>' + (a + b) + '</b>.'],
+          b: a + b > 12 ? 0.3 : -0.3
+        });
+    }
+    if (mode === 1) {                                    /* take-from */
+      var t = a + b;
+      return I_num(w + ' had ' + t + ' ' + o1 + '. ' + b + ' were used up. How many ' + o1 + ' are left?',
+        t - b, {
+          visual: V.tenframe(t - b, { frames: Math.ceil(t / 10), label: t + ' to start' }),
+          teach: 'Taking away means counting back from the starting number.',
+          explain: ['Start at ' + t + '.', 'Count back ' + b + ': ' + (t - 1) + ', ' + (t - 2) + ' …',
+            'Left with <b>' + (t - b) + '</b>.'],
+          b: t > 12 ? 0.2 : -0.4
+        });
+    }
+    if (mode === 2) {                                    /* compare — how many more */
+      var hi2 = cap(a + b, a + 2, big + 9), lo2 = a;
+      var more = hi2 - lo2;
+      return I_num(pick(rng, CTX) + ': ' + hi2 + ' ' + obj(rng) + ' and ' + lo2 + ' ' + obj(rng) +
+        '. How many more of the first group?', more, {
+          teach: 'To compare two numbers, count up from the smaller one to the bigger one.',
+          explain: ['The smaller number is ' + lo2 + ' and the bigger is ' + hi2 + '.',
+            'Count up from ' + lo2 + ' to ' + hi2 + ': that is ' + more + ' steps.',
+            'There are <b>' + more + '</b> more.'],
+          b: 0.2
+        });
+    }
+    if (mode === 3) {                                    /* make a ten */
+      var m1 = R.int(rng, 7, 9), m2 = cap(R.int(rng, 3, 9), 10 - m1, 12 - m1 + 3);
+      return MC(rng, 'Use make-ten: ' + m1 + ' + ' + m2 + ' = ?', m1 + m2,
+        [m1 + m2 + 1, m1 + m2 - 1, m1 + m2 + 10, m2 + 10], {
+          visual: V.tenframe(m1 + m2, { label: 'fill the first ten-frame' }),
+          teach: 'Move enough from the second number to make 10 first, then add the rest.',
+          explain: ['Take ' + (10 - m1) + ' from ' + m2 + ' to make ' + m1 + ' into 10.',
+            'That leaves ' + (m2 - (10 - m1)) + ' over.',
+            '10 + ' + (m2 - (10 - m1)) + ' = <b>' + (m1 + m2) + '</b>.'],
+          b: 0.1
+        });
+    }
+    if (mode === 4) {                                    /* missing addend story */
+      var tot = cap(a + b, 6, big + 6);
+      return I_num(w + ' wants ' + tot + ' ' + o1 + ' for the class. ' + w + ' already has ' + a +
+        '. How many more does ' + they(rng, w) + ' need?', tot - a, {
+          teach: 'A missing part is found by counting up from the part you know to the whole.',
+          explain: ['You know ' + a + ' and the total ' + tot + '.',
+            'Count up from ' + a + ' to ' + tot + '.',
+            'That is <b>' + (tot - a) + '</b> more.'],
+          b: 0.4
+        });
+    }
+    if (mode === 5) {                                    /* which equation matches */
+      var s = a + b;
+      return MC(rng, 'Ana has ' + a + ' ' + obj(rng) + ' and gets ' + b + ' more. Which equation matches?',
+        a + ' + ' + b + ' = ' + s, [a + ' - ' + b + ' = ' + (a - b), a + ' + ' + b + ' = ' + (s + 2), b + ' + ' + s + ' = ' + (b + s)], {
+          teach: 'Write the numbers in the order the story happens: start, change, result.',
+          explain: ['The story starts with ' + a + ' and adds ' + b + '.',
+            'The result is ' + s + '.',
+            'So the equation is <b>' + a + ' + ' + b + ' = ' + s + '</b>.'],
+          b: 0.3
+        });
+    }
+    if (mode === 6) {                                    /* true or false */
+      var c = cap(a + R.int(rng, 0, 2), 1, big + 5);
+      var claim = a + ' + ' + b + ' = ' + (chance(rng, 0.5) ? (a + b) : (a + b + 1));
+      return I_bool('Is this true?  ' + claim, claim.replace(/\s/g, '') === (a + ' + ' + b + '=' + (a + b)), {
+        teach: 'The equals sign means both sides have the same value, not "the answer comes next".',
+        explain: ['Compute the left side: ' + a + ' + ' + b + ' = ' + (a + b) + '.',
+          'The right side says ' + claim.split('=')[1].trim() + '.',
+          'They are ' + (claim.split('=')[1].trim() === String(a + b) ? 'the same, so it is <b>true</b>.' : 'different, so it is <b>false</b>.')]
+      });
+    }
+    /* mode 7 — number line jump */
+    var start = R.int(rng, 4, 13), jump = R.int(rng, 2, 7);
+    return I_num('Start at ' + start + ' on the number line and jump ' + jump + ' to the right. Where do you land?',
+      start + jump, {
+        visual: V.numline(0, cap(start + jump + 2, 10, 20), [{ x: start, label: 'start' }, { x: start + jump, arrow: true, label: 'land' }]),
+        teach: 'Adding means moving right on the number line; each jump is one more.',
+        explain: ['Begin at <b>' + start + '</b>.', 'Move ' + jump + ' steps right.',
+          'You land on <b>' + (start + jump) + '</b>.']
+      });
   });
+
+  /* ================================= 1.OA.3-4  properties, fact families === */
+  var gen_g1_oa_properties = function (rng, lvl) {
+    var a = R.int(rng, 2, lvl >= 3 ? 9 : 6), b = R.int(rng, 2, lvl >= 3 ? 9 : 7);
+    var s = a + b, mode = R.int(rng, 0, lvl >= 4 ? 6 : 4);
+
+    if (mode === 0) {                        /* commutative */
+      return MC(rng, 'Which equation shows the commutative (order) property for ' + a + ' + ' + b + ' = ' + s + '?',
+        b + ' + ' + a + ' = ' + s, [a + ' + ' + b + ' = ' + s, b + ' - ' + a + ' = ' + (b - a), a + ' + ' + s + ' = ' + (a + s)], {
+          teach: 'Changing the order of the addends does not change the sum.',
+          explain: ['The order property keeps the same two addends.',
+            'Swap them: ' + b + ' + ' + a + '.', 'The sum stays <b>' + s + '</b>.']
+        });
+    }
+    if (mode === 1) {                        /* fact family */
+      var other = s - a;
+      return MC(rng, 'You know ' + a + ' + ' + b + ' = ' + s + '. Which fact is in the same family?',
+        s + ' - ' + a + ' = ' + other, [s + ' + ' + a + ' = ' + (s + a), a + ' - ' + b + ' = ' + (a - b), b + ' + ' + b + ' = ' + (2 * b)], {
+          teach: 'Addition and subtraction undo each other, so three numbers make a family of facts.',
+          explain: ['The family uses ' + a + ', ' + b + ' and ' + s + '.',
+            'Starting from the total and taking one part away gives the other part.',
+            'So <b>' + s + ' - ' + a + ' = ' + other + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* associative */
+      var x = R.int(rng, 2, 5), y = R.int(rng, 2, 6), z = R.int(rng, 2, cap(10 - x - y, 2, 6));
+      return I_num('(' + x + ' + ' + y + ') + ' + z + ' = ' + x + ' + (? + ' + z + ')', y, {
+        teach: 'Grouping addends differently never changes the sum — that is the associative property.',
+        explain: ['Left side: ' + x + ' + ' + y + ' = ' + (x + y) + ', then + ' + z + ' = ' + (x + y + z) + '.',
+          'Right side must reach the same ' + (x + y + z) + '.',
+          'So ? = ' + (x + y + z) + ' - ' + x + ' - ' + z + ' = <b>' + y + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 3) {                        /* use a property to make it easy */
+      var m1 = R.int(rng, 8, 9), m2 = R.int(rng, 4, 9), adj = 10 - m1;
+      return MC(rng, 'Think of ' + m1 + ' + ' + m2 + ' as 10 + ' + (m2 - adj) + '. What is the sum?',
+        m1 + m2, [m1 + m2 + 1, m1 + m2 - 2, 10 + m2], {
+          teach: 'Making a ten first turns a hard sum into 10 plus a small number.',
+          explain: ['Move ' + adj + ' from ' + m2 + ' to ' + m1 + ' to make 10.',
+            'Now it is 10 + ' + (m2 - adj) + '.', 'Answer: <b>' + (m1 + m2) + '</b>.']
+        });
+    }
+    if (mode === 4) {                        /* doubles */
+      var d = R.int(rng, 3, 10);
+      return I_num('You know ' + d + ' + ' + d + ' = ' + (2 * d) + '. What is ' + d + ' + ' + (d + 1) + '?',
+        2 * d + 1, {
+          visual: V.array(2, d, { label: 'double ' + d }),
+          teach: 'A near-double is just the double plus one more.',
+          explain: ['Double ' + d + ' is ' + (2 * d) + '.', d + ' + ' + (d + 1) + ' is one more than that.',
+            'So the sum is <b>' + (2 * d + 1) + '</b>.']
+        });
+    }
+    if (mode === 5) {                        /* true/false about order */
+      var c1 = R.int(rng, 3, 9), c2 = R.int(rng, 3, 9);
+      return I_bool('Does ' + c1 + ' + ' + c2 + ' equal ' + c2 + ' + ' + c1 + '?', true, {
+        teach: 'Adding in either order gives the same total, so the two sums are always equal.',
+        explain: ['Left: ' + c1 + ' + ' + c2 + ' = ' + (c1 + c2) + '.',
+          'Right: ' + c2 + ' + ' + c1 + ' = ' + (c1 + c2) + '.',
+          'Same total, so <b>yes</b>.']
+        });
+    }
+    /* mode 6 — which sum is the same */
+    var k = R.int(rng, 2, 8);
+    return MC(rng, 'Which has the same sum as ' + a + ' + ' + b + '?',
+      b + ' + ' + a, [a + ' + ' + (b + 1), (a + 1) + ' + ' + b, a + ' + ' + k], {
+        teach: 'Same addends in a different order — same sum.',
+        explain: ['The target sum is ' + s + '.', 'Check ' + b + ' + ' + a + ' = ' + s + '.',
+          'The others change an addend, so <b>' + b + ' + ' + a + '</b> is the match.']
+      });
+  };
+  G('g1-oa-properties', withLead(gen_g1_oa_properties, LEAD));
+
+  /* =============================== 1.OA.5-7  equal sign, find unknown ===== */
+  var gen_g1_oa_equals = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 6 : 3);
+    var a = R.int(rng, 2, lvl >= 4 ? 14 : 9), b = R.int(rng, 1, 9);
+
+    if (mode === 0) {                        /* balance both sides */
+      var l = a + b, r = cap(l - R.int(rng, 1, 4), 1, 20);
+      return I_num(l + ' = ' + r + ' + ?', l - r, {
+        visual: V.numberbond([r, l - r], l),
+        teach: 'Both sides of the equals sign must have the same total.',
+        explain: ['The left side is ' + l + '.', 'One part on the right is ' + r + '.',
+          'Missing part: ' + l + ' - ' + r + ' = <b>' + (l - r) + '</b>.'],
+        b: 0.2
+      });
+    }
+    if (mode === 1) {                        /* unknown first */
+      var tot = a + b;
+      return I_num('? + ' + b + ' = ' + tot, a, {
+        teach: 'The unknown can sit anywhere; count up from the number you know.',
+        explain: ['The total is ' + tot + ' and one addend is ' + b + '.',
+          'Count up from ' + b + ' to ' + tot + '.', 'The missing number is <b>' + a + '</b>.'],
+        b: -0.2
+      });
+    }
+    if (mode === 2) {                        /* subtraction unknown */
+      var st = cap(a + b, 6, 20), take = b;
+      return I_num(st + ' - ? = ' + (st - take), take, {
+        teach: 'In a subtraction, the missing subtrahend is the difference between the start and the answer.',
+        explain: ['Start ' + st + ', end ' + (st - take) + '.',
+          'How much was taken off? ' + st + ' - ' + (st - take) + ' = <b>' + take + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 3) {                        /* true/false equality of two expressions */
+      var p = R.int(rng, 3, 9), q = R.int(rng, 3, 9), adj = chance(rng, 0.5) ? 0 : 1;
+      var left = p + ' + ' + q, right = (p + 1) + ' + ' + (q - 1 + adj);
+      var lv = p + q, rv = p + 1 + q - 1 + adj;
+      return I_bool('Are the two sides equal?   ' + left + '  ○  ' + right, lv === rv, {
+        teach: 'Judge an equation by computing each side, never by how it looks.',
+        explain: ['Left side: ' + left + ' = ' + lv + '.', 'Right side: ' + right + ' = ' + rv + '.',
+          lv === rv ? 'Both sides are ' + lv + ', so <b>yes</b>.' : lv + ' is not ' + rv + ', so <b>no</b>.']
+      });
+    }
+    if (mode === 4) {                        /* choose the number that balances */
+      var tot2 = R.int(rng, 11, 18), p2 = R.int(rng, 2, 9);
+      return MC(rng, 'Which number makes ' + p2 + ' + ? = ' + tot2 + ' true?', tot2 - p2,
+        near(tot2 - p2, 0, 20, 3), {
+          teach: 'Test each choice by adding; only one makes both sides equal.',
+          explain: ['You need ' + tot2 + ' in total and already have ' + p2 + '.',
+            tot2 + ' - ' + p2 + ' = <b>' + (tot2 - p2) + '</b>.']
+        });
+    }
+    if (mode === 5) {                        /* three addends */
+      var x = R.int(rng, 2, 6), y = R.int(rng, 2, 6), z = R.int(rng, 2, 6);
+      return I_num(x + ' + ' + y + ' + ' + z + ' =', x + y + z, {
+        teach: 'Add two numbers first — making a ten inside three addends keeps it easy.',
+        explain: ['Look for a ten: ' + x + ' + ' + y + ' = ' + (x + y) + '.',
+          'Then add ' + z + ': ' + (x + y) + ' + ' + z + ' = <b>' + (x + y + z) + '</b>.'],
+        b: 0.2
+      });
+    }
+    /* mode 6 — compare two expressions */
+    var m = R.int(rng, 4, 14), n = R.int(rng, 4, 14), k1 = R.int(rng, 1, 6), k2 = R.int(rng, 1, 6);
+    return I_cmp(m + ' + ' + k1 + '  ○  ' + n + ' + ' + k2, m + k1, n + k2, {
+      teach: 'Compute both sides first, then choose the symbol that opens to the larger side.',
+      explain: ['Left: ' + m + ' + ' + k1 + ' = ' + (m + k1) + '.', 'Right: ' + n + ' + ' + k2 + ' = ' + (n + k2) + '.',
+        'Compare ' + (m + k1) + ' and ' + (n + k2) + ' — the symbol is <b>' +
+        ((m + k1) < (n + k2) ? '<' : (m + k1) > (n + k2) ? '>' : '=') + '</b>.']
+    });
+  };
+  G('g1-oa-equals', withLead(gen_g1_oa_equals, LEAD));
+
+  /* ============================== 1.OA.1  counting-on & compare stories === */
+  G('g1-oa-count', function (rng, lvl) {
+    var hi = lvl >= 4 ? 20 : (lvl >= 3 ? 15 : 12);
+    var a = R.int(rng, 5, hi - 4), b = R.int(rng, 2, cap(hi - a, 2, 9));
+    var w = who(rng), o1 = obj(rng), o2 = obj(rng), mode = R.int(rng, 0, lvl >= 4 ? 6 : 4);
+
+    if (mode === 0) {
+      return I_num('Count on: start at ' + a + ' and count on ' + b + ' more.', a + b, {
+        visual: V.numline(0, cap(a + b + 1, 10, 20), [{ x: a, label: 'start' }, { x: a + b, arrow: true }]),
+        teach: 'Keep the big number in your head and count on — you do not recount from 1.',
+        explain: ['Hold ' + a + ' in your head.', 'Count on ' + b + ' more.',
+          'The total is <b>' + (a + b) + '</b>.']
+      });
+    }
+    if (mode === 1) {
+      var big2 = cap(a + b, a + 2, hi + 5), sm = a;
+      return MC(rng, pick(rng, CTX) + ': ' + big2 + ' ' + o1 + ' or ' + sm + ' ' + o2 + ' — which group has more?',
+        big2 + ' ' + o1, [sm + ' ' + o2, 'they are the same', big2 + ' ' + o2], {
+          teach: 'Compare two numbers by their position on the number line, not by the size of the objects.',
+          explain: [big2 + ' comes after ' + sm + ' when counting.',
+            'So the bigger group is <b>' + big2 + ' ' + o1 + '</b>.']
+        });
+    }
+    if (mode === 2) {
+      var t = cap(a + b, 8, hi + 6);
+      return I_num('There were some ' + o1 + ' in the bag. ' + b + ' more went in and now there are ' + t +
+        '. How many ' + o1 + ' were in the bag at first?', t - b, {
+          teach: 'When the start is unknown, work backwards: total minus the change.',
+          explain: ['End: ' + t + '. Change: +' + b + '.', 'Undo it: ' + t + ' - ' + b + ' = <b>' + (t - b) + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 3) {
+      var d = cap(a - b, 1, hi);
+      return I_num(w + ' collected ' + a + ' ' + o1 + '. A friend collected ' + b + '. How many fewer did the friend collect?', d, {
+        teach: 'The difference tells how many fewer — count down from the bigger number.',
+        explain: ['Bigger: ' + a + ', smaller: ' + b + '.', a + ' - ' + b + ' = <b>' + d + '</b>.']
+      });
+    }
+    if (mode === 4) {
+      var tot3 = a + b;
+      return I_bool('Maya says ' + a + ' + ' + b + ' is the same as ' + tot3 + ' - ' + b + '. Is she right?', true, {
+        teach: 'A sum and the matching subtraction belong to the same fact family.',
+        explain: [a + ' + ' + b + ' = ' + tot3 + '.', tot3 + ' - ' + b + ' = ' + a + '.',
+          'Both give ' + a + ', so <b>yes</b>.']
+      });
+    }
+    if (mode === 5) {
+      var x = R.int(rng, 6, 14), y = cap(x + R.int(rng, -3, 3), 3, 20);
+      return I_cmp(x + ' + 3  ○  ' + y + ' + 2', x + 3, y + 2, {
+        teach: 'Do both sums first; then the comparison is just two numbers.',
+        explain: ['Left = ' + (x + 3) + '.', 'Right = ' + (y + 2) + '.',
+          'So the symbol is <b>' + ((x + 3) < (y + 2) ? '<' : (x + 3) > (y + 2) ? '>' : '=') + '</b>.']
+      });
+    }
+    /* mode 6 — same total */
+    var p = R.int(rng, 3, 9), q = R.int(rng, 3, 9);
+    return MC(rng, 'Which pair has the same total as ' + p + ' and ' + q + '?',
+      (p + 1) + ' and ' + (q - 1), [p + ' and ' + (q + 1), (p - 1) + ' and ' + q, (p + 2) + ' and ' + q], {
+        teach: 'Moving 1 from one number to the other keeps the total the same.',
+        explain: ['Target total: ' + (p + q) + '.', (p + 1) + ' + ' + (q - 1) + ' = ' + (p + q) + '.',
+          'So the answer is <b>' + (p + 1) + ' and ' + (q - 1) + '</b>.'],
+        b: 0.4
+      });
+  });
+
+  /* ================================== 1.NBT.1-3  count, read, compare 120 == */
+  G('g1-nbt-count-120', function (rng, lvl) {
+    var hi = lvl >= 4 ? 120 : (lvl >= 3 ? 60 : 30);
+    var n = R.int(rng, 5, hi - 5), mode = R.int(rng, 0, lvl >= 3 ? 7 : 4);
+    var WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+    function word(x) {
+      if (x < 20) return WORD[x];
+      var t = Math.floor(x / 10) * 10, o = x % 10;
+      var TY = { 20: 'twenty', 30: 'thirty', 40: 'forty', 50: 'fifty', 60: 'sixty', 70: 'seventy', 80: 'eighty', 90: 'ninety' };
+      return TY[t] + (o ? '-' + WORD[o] : '');
+    }
+
+    if (mode === 0) {                        /* missing in a sequence */
+      var st = R.int(rng, 2, hi - 12), seq = [], gap = R.int(rng, 0, 3);
+      for (var i = 0; i < 5; i++) seq.push(st + i);
+      var shown = seq.map(function (v, j) { return j === gap ? '___' : String(v); });
+      return I_num('Fill the missing number:  ' + shown.join(', '), st + gap, {
+        teach: 'In a counting sequence each step adds one more than the number before.',
+        explain: ['Read the numbers around the blank.', 'The number before it is ' + (st + gap - 1) + '.',
+          'One more is <b>' + (st + gap) + '</b>.']
+      });
+    }
+    if (mode === 1) {                        /* before / after */
+      var m2 = R.int(rng, 10, hi - 2), askAfter = chance(rng, 0.5);
+      return I_num('Which number comes right ' + (askAfter ? 'after' : 'before') + ' ' + m2 + '?',
+        askAfter ? m2 + 1 : m2 - 1, {
+          teach: 'The next number is one more; the previous number is one less.',
+          explain: ['Start at ' + m2 + '.', (askAfter ? 'One more is ' + (m2 + 1) : 'One less is ' + (m2 - 1)) + '.',
+            'The number is <b>' + (askAfter ? m2 + 1 : m2 - 1) + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* compare two numbers */
+      var p = R.int(rng, 12, hi), q = cap(p + R.int(rng, -18, 18), 1, hi);
+      return I_cmp(p + '  ○  ' + q, p, q, {
+        teach: 'Compare the tens digit first; only look at ones when the tens match.',
+        explain: [p + ' has ' + Math.floor(p / 10) + ' tens, ' + q + ' has ' + Math.floor(q / 10) + ' tens.',
+          'So ' + p + ' is ' + (p < q ? 'less' : p > q ? 'greater' : 'equal') + ' than ' + q + '.',
+          'Symbol: <b>' + (p < q ? '<' : p > q ? '>' : '=') + '</b>.']
+        });
+    }
+    if (mode === 3) {                        /* which is greater */
+      var x = R.int(rng, 21, hi), y = cap(x + R.int(rng, -9, 9), 1, hi);
+      if (x === y) y = cap(y + 3, 1, hi);
+      return MC(rng, 'Which number is greater?', Math.max(x, y), [Math.min(x, y), Math.max(x, y) + 10, Math.min(x, y) - 1], {
+        teach: 'On the number line, the number farther to the right is always greater.',
+        explain: [Math.max(x, y) + ' comes later when you count from 0.',
+          'So the greater number is <b>' + Math.max(x, y) + '</b>.']
+      });
+    }
+    if (mode === 4) {                        /* read the word */
+      var z = R.int(rng, 21, lvl >= 3 ? Math.min(hi, 99) : 39);
+      return MC(rng, 'Which numeral says "' + word(z) + '"?', z, [
+        +String(z).split('').reverse().join(''), z + 10, z - 1].filter(function (v) { return v > 0 && v !== z; }), {
+          teach: 'Say the tens part first, then the ones part — that tells you each digit.',
+          explain: ['"' + word(z) + '" has ' + Math.floor(z / 10) + ' tens and ' + (z % 10) + ' ones.',
+            'Written as a numeral that is <b>' + z + '</b>.']
+        });
+    }
+    if (mode === 5) {                        /* skip counting */
+      var step = pick(rng, [5, 10]), s0 = R.int(rng, 1, 6) * step;
+      var list = [s0, s0 + step, s0 + 2 * step], gapIdx = R.int(rng, 0, 2);
+      var shown2 = list.map(function (v, j) { return j === gapIdx ? '___' : String(v); });
+      return I_num('Skip counting by ' + step + 's:  ' + shown2.join(', '), s0 + gapIdx * step, {
+        teach: 'Skip counting adds the same amount each jump, so the pattern stays the same.',
+        explain: ['Each jump adds ' + step + '.', 'The missing jump lands on <b>' + (s0 + gapIdx * step) + '</b>.'],
+        b: step === 10 ? -0.2 : 0.3
+      });
+    }
+    if (mode === 6) {                        /* 10 more / 10 less */
+      var v2 = R.int(rng, 15, hi - 10), more = chance(rng, 0.5);
+      return I_num('What number is 10 ' + (more ? 'more' : 'less') + ' than ' + v2 + '?',
+        more ? v2 + 10 : v2 - 10, {
+          visual: V.blocks(Math.floor((more ? v2 + 10 : v2 - 10) / 100), Math.floor(((more ? v2 + 10 : v2 - 10) % 100) / 10), (more ? v2 + 10 : v2 - 10) % 10),
+          teach: 'Adding or taking 10 changes only the tens digit.',
+          explain: [v2 + ' has ' + Math.floor(v2 / 10) + ' tens.',
+            (more ? 'One more ten makes ' + (Math.floor(v2 / 10) + 1) : 'One less ten makes ' + (Math.floor(v2 / 10) - 1)) + ' tens.',
+            'The new number is <b>' + (more ? v2 + 10 : v2 - 10) + '</b>.']
+        });
+    }
+    /* mode 7 — true/false about order */
+    var b1 = R.int(rng, 20, hi - 1), b2 = b1 + 1;
+    var saysBefore = chance(rng, 0.5);
+    return I_bool('Is this true?  "' + b1 + ' comes right before ' + b2 + '"', true, {
+      teach: 'Consecutive numbers differ by exactly one.',
+      explain: [b1 + ' + 1 = ' + b2 + '.', 'So ' + b1 + ' does come right before ' + b2 + ' — <b>true</b>.']
+    });
+  });
+
+  /* ======================================== 1.NBT.2  tens and ones ========= */
+  var gen_g1_nbt_place = function (rng, lvl) {
+    var hi = lvl >= 3 ? 100 : 60;
+    var t = R.int(rng, 1, lvl >= 3 ? 9 : 5), o = R.int(rng, 0, 9), n = t * 10 + o;
+    var mode = R.int(rng, 0, lvl >= 4 ? 7 : 4);
+
+    if (mode === 0) {                        /* tens & ones of a number */
+      return I_parts('Look at ' + n + '. How many tens? How many ones?', ['tens', 'ones'],
+        [{ k: 'n', v: t }, { k: 'n', v: o }], {
+          visual: V.blocks(0, t, o),
+          teach: 'In a two-digit number the first digit counts tens and the second counts ones.',
+          explain: [n + ' is made of ' + t + ' tens, which is ' + (t * 10) + '.',
+            'Plus ' + o + ' ones.', 'So ' + t * 10 + ' + ' + o + ' = <b>' + n + '</b>.']
+        });
+    }
+    if (mode === 1) {                        /* build the number */
+      return MC(rng, 'Which number is ' + t + ' tens and ' + o + ' ones?', n,
+        [t * 10 + cap(o + 1, 0, 9), o * 10 + t, t * 10 + cap(o - 1, 0, 9)], {
+          visual: V.blocks(0, t, o),
+          teach: 'Tens tell you the first digit and ones tell you the second digit.',
+          explain: [t + ' tens = ' + (t * 10) + '.', o + ' ones = ' + o + '.',
+            'Together: <b>' + n + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* expanded form */
+      return I_num(t * 10 + ' + ' + o + ' =', n, {
+        teach: 'Expanded form shows the value of each digit before adding them.',
+        explain: ['The tens part is ' + (t * 10) + '.', 'The ones part is ' + o + '.',
+          'Add them: <b>' + n + '</b>.']
+      });
+    }
+    if (mode === 3) {                        /* value of a digit */
+      var dg = t, pos = chance(rng, 0.5);
+      return MC(rng, 'In the number ' + n + ', what is the value of the digit ' + dg + '?',
+        pos ? t * 10 : o, [dg, dg + 1, dg * 10 + 1].filter(function (v) { return v !== (pos ? t * 10 : o); }), {
+          teach: 'A digit means tens in the tens place and ones in the ones place.',
+          explain: ['In ' + n + ', ' + dg + ' is in the ' + (pos ? 'tens' : 'ones') + ' place.',
+            'So its value is <b>' + (pos ? t * 10 : o) + '</b>.'],
+          b: 0.4
+        });
+    }
+    if (mode === 4) {                        /* true/false place value */
+      var wrong = chance(rng, 0.5);
+      var claim = wrong ? (n + ' has ' + o + ' tens and ' + t + ' ones') : (n + ' has ' + t + ' tens and ' + o + ' ones');
+      return I_bool('Is this true?  "' + claim + '"', !wrong, {
+        teach: 'Swap the digits and you change the number — place decides value.',
+        explain: ['Read ' + n + ' from left to right.', 'Tens digit ' + t + ', ones digit ' + o + '.',
+          'The statement is <b>' + (!wrong ? 'true' : 'false') + '</b>.']
+        });
+    }
+    if (mode === 5) {                        /* which has more tens */
+      var t2 = cap(t + R.int(rng, -2, 3), 1, 9), o2 = R.int(rng, 0, 9), n2 = t2 * 10 + o2;
+      return MC(rng, 'Which number has more tens?', t > t2 ? n : (t2 > t ? n2 : pick(rng, [n, n2])),
+        [t > t2 ? n2 : n, t * 10 + ' and ' + t2 * 10].filter(function (v) { return String(v) !== String(t > t2 ? n : n2); }), {
+          teach: 'More tens means a bigger number, whatever the ones digit is.',
+          explain: [n + ' has ' + t + ' tens; ' + n2 + ' has ' + t2 + ' tens.',
+            '<b>' + (t >= t2 ? n : n2) + '</b> has more tens.']
+        });
+    }
+    if (mode === 6) {                        /* number bond tens/ones */
+      return I_num('A number bond shows ' + n + ' as ' + (t * 10) + ' and what?', o, {
+        visual: V.numberbond([t * 10, o], n),
+        teach: 'A number bond splits a number into its tens part and its ones part.',
+        explain: ['Whole: ' + n + '.', 'One part: ' + (t * 10) + '.',
+          'Other part: ' + n + ' - ' + (t * 10) + ' = <b>' + o + '</b>.']
+      });
+    }
+    /* mode 7 — what number is missing in the tens */
+    var t3 = R.int(rng, 2, 9), o3 = R.int(rng, 0, 9);
+    return I_num('___' + o3 + ' = ' + (t3 * 10 + o3) + '   (fill the tens digit)', t3, {
+      teach: 'The tens digit tells how many groups of ten the number contains.',
+      explain: [t3 * 10 + o3 + ' minus its ones ' + o3 + ' leaves ' + (t3 * 10) + '.',
+        (t3 * 10) + ' is ' + t3 + ' tens.', 'The missing digit is <b>' + t3 + '</b>.'],
+      b: 0.5
+    });
+  };
+  G('g1-nbt-place', withLead(gen_g1_nbt_place, LEAD));
+
+  /* =========================== 1.NBT.4-6  add & subtract within 100 ======= */
+  var gen_g1_nbt_add_100 = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 10 : 6);
+    var t1 = R.int(rng, 2, 8), o1 = R.int(rng, 0, 9), A = t1 * 10 + o1;
+    var t2 = R.int(rng, 1, 9), B = t2 * 10;
+
+    if (mode === 0) {                        /* multiples of ten */
+      var u1 = R.int(rng, 1, 8) * 10, u2 = R.int(rng, 1, cap(9 - u1 / 10, 1, 8)) * 10;
+      return I_num(u1 + ' + ' + u2 + ' =', u1 + u2, {
+        teach: 'Add the tens digits, then write a zero — tens behave like ones.',
+        explain: ['Ignore the zeros: ' + (u1 / 10) + ' + ' + (u2 / 10) + ' = ' + ((u1 + u2) / 10) + '.',
+          'Those are tens, so the sum is <b>' + (u1 + u2) + '</b>.'],
+        b: -0.3
+      });
+    }
+    if (mode === 1) {                        /* 2-digit + multiple of ten */
+      return I_num(A + ' + ' + B + ' =', A + B, {
+        visual: V.blocks(Math.floor((A + B) / 100), Math.floor(((A + B) % 100) / 10), (A + B) % 10),
+        teach: 'Add the tens to the tens and keep the ones the same.',
+        explain: [A + ' is ' + t1 + ' tens and ' + o1 + ' ones.',
+          'Add ' + t2 + ' tens: ' + (t1 + t2) + ' tens and ' + o1 + ' ones.',
+          'That is <b>' + (A + B) + '</b>.'],
+        b: o1 + (A + B) % 10 >= 10 ? 0.3 : -0.1
+      });
+    }
+    if (mode === 2) {                        /* 2-digit - multiple of ten */
+      var C = cap(A + B, 30, 99);
+      return I_num(C + ' - ' + B + ' =', C - B, {
+        teach: 'Taking away tens changes only the tens digit.',
+        explain: [C + ' has ' + Math.floor(C / 10) + ' tens.', 'Take away ' + t2 + ' tens → ' +
+          (Math.floor(C / 10) - t2) + ' tens.', 'Result: <b>' + (C - B) + '</b>.']
+      });
+    }
+    if (mode === 3) {                        /* regrouping sum at higher lvl */
+      var x = R.int(rng, 25, 58), y = R.int(rng, 15, cap(99 - x, 15, 40));
+      return I_num(x + ' + ' + y + ' =', x + y, {
+        teach: 'Add the tens, add the ones, then regroup the extra ten.',
+        explain: ['Tens: ' + Math.floor(x / 10) * 10 + ' + ' + Math.floor(y / 10) * 10 + ' = ' +
+          (Math.floor(x / 10) + Math.floor(y / 10)) * 10 + '.',
+          'Ones: ' + (x % 10) + ' + ' + (y % 10) + ' = ' + (x % 10 + y % 10) + '.',
+          'Together: <b>' + (x + y) + '</b>.'],
+        b: 0.6
+      });
+    }
+    if (mode === 4) {                        /* 100 more / less */
+      var v = R.int(rng, 5, 90), more = chance(rng, 0.5);
+      return I_num('What number is 100 ' + (more ? 'more' : 'less') + ' than ' + v + '?',
+        more ? v + 100 : v - 100, {
+          teach: 'Adding 100 only changes the hundreds digit.',
+          explain: [v + ' has no hundreds.', more ? 'Add 1 hundred → ' + (v + 100) : 'Take 1 hundred from ' + (v + 100) + ' → ' + v,
+            'Answer: <b>' + (more ? v + 100 : v - 100) + '</b>.']
+        });
+    }
+    if (mode === 5) {                        /* story, no units */
+      var s1 = R.int(rng, 20, 60), s2 = R.int(rng, 10, cap(99 - s1, 10, 30)), w = who(rng);
+      return I_num(pick(rng, CTX) + ', ' + w + ' counted ' + s1 + ' ' + obj(rng) + ' and a friend counted ' +
+        s2 + '. How many in all?', s1 + s2, {
+          teach: 'Finding a total of two groups means adding, no matter how big the numbers get.',
+          explain: ['Round ' + s1 + ' to the next ten: ' + (Math.ceil(s1 / 10) * 10) + '.',
+            'Then add the rest: ' + (Math.ceil(s1 / 10) * 10) + ' + ' + (s2 - (Math.ceil(s1 / 10) * 10 - s1)) + '.',
+            'Total: <b>' + (s1 + s2) + '</b>.'],
+          b: 0.2
+        });
+    }
+    if (mode === 6) {                        /* missing addend with tens */
+      var tot = R.int(rng, 40, 95), p = R.int(rng, 10, tot - 10);
+      return I_num(p + ' + ___ = ' + tot, tot - p, {
+        teach: 'Subtract the part you know from the total to find the missing part.',
+        explain: ['Total ' + tot + ', known part ' + p + '.', tot + ' - ' + p + ' = <b>' + (tot - p) + '</b>.']
+      });
+    }
+    if (mode === 7) {                        /* true/false mental math */
+      var k = R.int(rng, 2, 8) * 10, m = R.int(rng, 11, 45), right = m + k;
+      var claim = m + ' + ' + k + ' = ' + (chance(rng, 0.5) ? right : right + 10);
+      return I_bool('Mental math check — is this true?  ' + claim, claim === (m + ' + ' + k + ' = ' + right), {
+        teach: 'Add tens to tens: only the tens digit changes.',
+        explain: ['Left side: ' + m + ' + ' + k + ' = ' + right + '.',
+          'The statement says ' + claim.split('=')[1].trim() + '.',
+          'So it is <b>' + (claim === (m + ' + ' + k + ' = ' + right) ? 'true' : 'false') + '</b>.']
+        });
+    }
+    if (mode === 8) {                        /* take-away story, regrouping */
+      var start = R.int(rng, 42, 90), off = R.int(rng, 13, cap(start - 20, 13, 35)), w2 = who(rng);
+      return I_num(pick(rng, CTX) + ': ' + w2 + ' had ' + start + ' ' + obj(rng) + ' and gave away ' + off +
+        '. How many are left?', start - off, {
+          teach: 'Take the tens away first, then the ones; if the ones run out, ungroup a ten.',
+          explain: ['Start with ' + start + '.', 'Take ' + Math.floor(off / 10) * 10 + ' first: ' + (start - Math.floor(off / 10) * 10) + '.',
+            'Then take ' + (off % 10) + ' ones: <b>' + (start - off) + '</b>.'],
+          b: 0.6
+        });
+    }
+    if (mode === 9) {                        /* which sum is bigger, judgement */
+      var r1 = R.int(rng, 15, 55), r2 = R.int(rng, 10, 30), r3 = cap(r1 + R.int(rng, -12, 12), 12, 60), r4 = cap(r2 + R.int(rng, -12, 12), 5, 35);
+      return MC(rng, 'Without adding exactly, which is the bigger sum?', r1 + ' + ' + r2 + '  vs  ' + r3 + ' + ' + r4,
+        [r1 + ' + ' + r2, r3 + ' + ' + r4, 'they are equal'], {
+          teach: 'Compare the tens first — the pair with more tens usually has the bigger sum.',
+          explain: ['Tens on the left: ' + (Math.floor(r1 / 10) + Math.floor(r2 / 10)) + '.',
+            'Tens on the right: ' + (Math.floor(r3 / 10) + Math.floor(r4 / 10)) + '.',
+            'Exact sums: ' + (r1 + r2) + ' and ' + (r3 + r4) + ', so the bigger is <b>' +
+            ((r1 + r2) >= (r3 + r4) ? r1 + ' + ' + r2 : r3 + ' + ' + r4) + '</b>.'],
+          b: 0.5
+        });
+    }
+    /* mode 10 — compare two sums */
+    var p1 = R.int(rng, 20, 60), p2 = R.int(rng, 10, 30), q1 = cap(p1 + R.int(rng, -20, 20), 15, 70), q2 = R.int(rng, 10, 30);
+    return I_cmp(p1 + ' + ' + p2 + '  ○  ' + q1 + ' + ' + q2, p1 + p2, q1 + q2, {
+      teach: 'Estimate first: the side with the larger tens is usually larger.',
+      explain: ['Left total: ' + (p1 + p2) + '.', 'Right total: ' + (q1 + q2) + '.',
+        'Symbol: <b>' + ((p1 + p2) < (q1 + q2) ? '<' : (p1 + p2) > (q1 + q2) ? '>' : '=') + '</b>.'],
+      b: 0.4
+    });
+  };
+  G('g1-nbt-add-100', withLead(gen_g1_nbt_add_100, LEAD));
+
+  /* =========================== 1.MD.1-3  length, ordering, time =========== */
+  G('g1-md-length', function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 7 : 4);
+    var TOOLS = ['connecting cubes', 'pattern blocks', 'paper clips', 'square tiles', 'linking cubes'];
+    var THINGS = ['pencil', 'ribbon', 'book', 'spoon', 'leaf', 'string', 'crayon', 'desk'];
+    var tool = pick(rng, TOOLS), thing = pick(rng, THINGS);
+
+    if (mode === 0) {                        /* measure by iterating units */
+      var n = R.int(rng, 3, lvl >= 3 ? 12 : 8);
+      return I_num('Measure the ' + thing + ' with ' + tool + ': it takes ' + n + ' end to end. How many ' + tool + ' long is it?',
+        n, {
+          visual: V.area(1, n, { label: n + ' ' + tool + ' in a row, no gaps' }),
+          teach: 'Measuring means lining up identical units with no gaps and no overlaps, then counting them.',
+          explain: ['Line the ' + tool + ' up from one end of the ' + thing + '.',
+            'Count them: 1, 2, 3 …', 'The ' + thing + ' is <b>' + n + '</b> ' + tool + ' long.'],
+          b: n > 8 ? 0.2 : -0.3
+        });
+    }
+    if (mode === 1) {                        /* compare lengths */
+      var a = R.int(rng, 4, 12), b = cap(a + R.int(rng, -4, 4), 2, 14);
+      if (a === b) b = cap(b + 2, 2, 15);
+      var pair = sample(rng, THINGS, 2), t1n = pair[0], t2n = pair[1];
+      var longer = Math.max(a, b) === a ? t1n : t2n, shorter = longer === t1n ? t2n : t1n;
+      return MC(rng, 'A ' + t1n + ' measures ' + a + ' ' + tool + ' and a ' + t2n + ' measures ' + b +
+        ' ' + tool + '. Which is longer?', 'the ' + longer,
+        ['the ' + shorter, 'they are the same length', 'you cannot tell without measuring again'], {
+          teach: 'With the same measuring unit, the object that needs more units is longer.',
+          explain: ['Same unit, so compare the counts: ' + a + ' vs ' + b + '.',
+            Math.max(a, b) + ' is more, so <b>the ' + longer + '</b> is longer.']
+        });
+    }
+    if (mode === 2) {                        /* difference in units */
+      var x = R.int(rng, 6, 14), y = R.int(rng, 2, x - 1);
+      return I_num('The red ribbon is ' + x + ' ' + tool + ' long and the blue one is ' + y + ' ' + tool +
+        '. How many ' + tool + ' longer is the red ribbon?', x - y, {
+          visual: V.bar([{ v: x, label: 'red' }, { v: y, label: 'blue' }], { label: 'compare the bars' }),
+          teach: 'The difference in lengths is found by subtracting the smaller measurement.',
+          explain: ['Red: ' + x + ', blue: ' + y + '.', x + ' - ' + y + ' = <b>' + (x - y) + '</b>.']
+        });
+    }
+    if (mode === 3) {                        /* order three objects */
+      var l1 = R.int(rng, 3, 13), l2 = cap(l1 + R.int(rng, -4, 4), 2, 15), l3 = cap(l2 + R.int(rng, -5, 5), 2, 16);
+      var arr = shuffle(rng, [[l1, 'the pencil'], [l2, 'the spoon'], [l3, 'the leaf']]).sort(function (p, q) { return p[0] - q[0]; });
+      return MC(rng, 'Pencil ' + l1 + ' ' + tool + ', spoon ' + l2 + ' ' + tool + ', leaf ' + l3 +
+        ' ' + tool + '. Which is the shortest?', arr[0][1],
+        [arr[1][1], arr[2][1], arr[0][1] + ' and ' + arr[1][1] + ' tie'], {
+          teach: 'Order lengths by the number of units, smallest number = shortest object.',
+          explain: ['Sort the counts: ' + arr.map(function (p) { return p[0]; }).join(', ') + '.',
+            'Smallest is ' + arr[0][0] + ', so <b>' + arr[0][1] + '</b> is shortest.']
+        });
+    }
+    if (mode === 4) {                        /* clock: hour */
+      var hh = R.int(rng, 1, 12);
+      return MC(rng, 'The short hand points at ' + hh + ' and the long hand points at 12. What time is it?',
+        hh + ':00', [(hh % 12) + ':30', ((hh % 12) + 1) + ':00', hh + ':12'], {
+          visual: V.clock(hh, 0),
+          teach: 'When the minute hand points straight up at 12, it is exactly that hour.',
+          explain: ['Long hand on 12 means 0 minutes past.', 'Short hand on ' + hh + ' means hour ' + hh + '.',
+            'The time is <b>' + hh + ':00</b>.']
+        });
+    }
+    if (mode === 5) {                        /* clock: half past */
+      var h2 = R.int(rng, 1, 12);
+      return MC(rng, 'It is half past ' + h2 + '. Which clock shows the time?', h2 + ':30',
+        [h2 + ':00', ((h2 % 12) + 1) + ':30', h2 + ':06'], {
+          visual: V.clock(h2, 30),
+          teach: 'Half past means the minute hand has gone halfway round, to the 6.',
+          explain: ['Half past ' + h2 + ' = ' + h2 + ' hours and 30 minutes.',
+            'The hour hand sits halfway between ' + h2 + ' and ' + ((h2 % 12) + 1) + '.',
+            'Written time: <b>' + h2 + ':30</b>.'],
+          b: 0.3
+        });
+    }
+    if (mode === 6) {                        /* which unit is longer */
+      return MC(rng, 'Which measurement is longer?', '12 ' + pick(rng, ['cubes', 'tiles']),
+        ['8 ' + pick(rng, ['cubes', 'tiles']), '10 cubes', '9 tiles'], {
+          teach: 'With the same unit, a bigger number always means a longer length.',
+          explain: ['All answers use the same unit.', 'Compare the numbers: 12 is the biggest.',
+            'So <b>12 cubes</b> is longest.']
+        });
+    }
+    /* mode 7 — estimate */
+    var real = R.int(rng, 8, 18);
+    return MC(rng, 'You measure the desk with cubes and count ' + real + '. Which is the best estimate for the ' +
+      pick(rng, THINGS) + ' you measured?', real + ' cubes', [real + '0 cubes', Math.max(1, Math.round(real / 4)) + ' cubes', real * 3 + ' cubes'], {
+        teach: 'An estimate should be close to what you actually counted, not far off in size.',
+        explain: ['You counted ' + real + '.', 'The choices that are 4× or 10× that are far away.',
+          'The best estimate is <b>' + real + ' cubes</b>.'],
+        b: 0.4
+      });
+  });
+
+  /* =============================== 1.MD.4  picture graphs & data ========== */
+  G('g1-md-data', function (rng, lvl) {
+    var SETS = [
+      { all: 'favorite fruit', cats: ['apples', 'bananas', 'pears'] },
+      { all: 'pets at school', cats: ['dogs', 'cats', 'fish'] },
+      { all: 'ways to get to school', cats: ['walk', 'bus', 'car'] },
+      { all: 'favorite color', cats: ['red', 'blue', 'green'] },
+      { all: 'class jobs', cats: ['line leader', 'helper', 'reader'] }
+    ];
+    var set = pick(rng, SETS);
+    var v = [R.int(rng, 3, 12), R.int(rng, 1, 12), R.int(rng, 1, 12)];
+    var total = v[0] + v[1] + v[2], mode = R.int(rng, 0, lvl >= 3 ? 6 : 3);
+    var sorted = v.slice().sort(function (a, b) { return b - a; });
+    var maxI = v.indexOf(sorted[0]), minI = v.indexOf(sorted[sorted.length - 1]);
+
+    if (mode === 0) {
+      return MC(rng, 'The class graph of ' + set.all + ' shows ' + set.cats[0] + ' ' + v[0] + ', ' +
+        set.cats[1] + ' ' + v[1] + ', ' + set.cats[2] + ' ' + v[2] + '. Which was chosen most often?',
+        set.cats[maxI], [set.cats[minI], set.cats[(maxI + 1) % 3], 'all three were the same'], {
+          visual: V.bars(set.cats.map(function (c, i) { return { label: c, v: v[i] }; })),
+          teach: 'On a picture graph, the tallest row (most symbols) is the most frequent choice.',
+          explain: ['Compare ' + v.join(', ') + '.', 'The biggest count is ' + sorted[0] + '.',
+            'That is <b>' + set.cats[maxI] + '</b>.']
+        });
+    }
+    if (mode === 1) {
+      return I_num('The graph of ' + set.all + ' shows ' + set.cats[0] + ' ' + v[0] + ' and ' + set.cats[1] +
+        ' ' + v[1] + '. How many students chose one of those two?', v[0] + v[1], {
+          visual: V.bars([
+            { label: set.cats[0], v: v[0] },
+            { label: set.cats[1], v: v[1] }
+          ]),
+          teach: 'To find a total across categories, add the two counts.',
+          explain: ['Take the two counts: ' + v[0] + ' and ' + v[1] + '.', v[0] + ' + ' + v[1] + ' = <b>' + (v[0] + v[1]) + '</b>.']
+        });
+    }
+    if (mode === 2) {
+      var a = R.int(rng, 6, 14), b = R.int(rng, 2, a - 1);
+      return I_num('In the tally of ' + set.all + ', ' + set.cats[0] + ' got ' + a + ' marks and ' + set.cats[1] +
+        ' got ' + b + '. How many more marks for ' + set.cats[0] + '?', a - b, {
+          teach: 'How many more is the difference between the two counts.',
+          explain: ['Counts: ' + a + ' and ' + b + '.', a + ' - ' + b + ' = <b>' + (a - b) + '</b>.']
+        });
+    }
+    if (mode === 3) {
+      return I_bool('The graph shows ' + set.cats[0] + ' ' + v[0] + ' and ' + set.cats[1] + ' ' + v[1] +
+        '. Is ' + set.cats[0] + ' chosen more than ' + set.cats[1] + '?', v[0] > v[1], {
+          teach: 'Compare two categories by comparing their counts directly.',
+          explain: [set.cats[0] + ': ' + v[0] + '.', set.cats[1] + ': ' + v[1] + '.',
+            v[0] + (v[0] > v[1] ? ' is more than ' + v[1] : ' is not more than ' + v[1]) + ', so <b>' + (v[0] > v[1] ? 'yes' : 'no') + '</b>.']
+        });
+    }
+    if (mode === 4) {
+      var add = R.int(rng, 2, 5);
+      return I_num('If ' + add + ' more students voted for ' + set.cats[2] + ' (now ' + v[2] +
+        '), how many would ' + set.cats[2] + ' have?', v[2] + add, {
+          teach: 'More of a category means adding to that category’s count only.',
+          explain: ['Current count ' + v[2] + '.', 'Add ' + add + ': ' + v[2] + ' + ' + add + ' = <b>' + (v[2] + add) + '</b>.']
+        });
+    }
+    if (mode === 5) {
+      var tally = R.int(rng, 7, 17);
+      return I_num('A tally for ' + set.all + ' has ' + Math.floor(tally / 5) + ' groups of five and ' + (tally % 5) +
+        ' extra marks. How many votes is that?', tally, {
+          teach: 'Each crossed tally group counts as five, then add the loose marks.',
+          explain: [Math.floor(tally / 5) + ' groups of 5 = ' + Math.floor(tally / 5) * 5 + '.',
+            'Plus ' + (tally % 5) + ' loose marks.', 'Total <b>' + tally + '</b>.'],
+          b: 0.3
+        });
+    }
+    /* mode 6 — total class size */
+    return I_num('The graph of ' + set.all + ' shows ' + v[0] + ', ' + v[1] + ' and ' + v[2] +
+      '. How many votes were counted in all?', total, {
+        visual: V.table(set.cats, [v]),
+        teach: 'The total number of data points is the sum of all the category counts.',
+        explain: ['Add the first two: ' + (v[0] + v[1]) + '.', 'Then add ' + v[2] + '.',
+          'Total <b>' + total + '</b>.'],
+        b: 0.4
+      });
+  });
+
+  /* ================================ 1.G.1-2  shapes & composing ============ */
+  var gen_g1_g_shapes = function (rng, lvl) {
+    var FLAT = [
+      { n: 'triangle', sides: 3, corners: 3 }, { n: 'square', sides: 4, corners: 4 },
+      { n: 'rectangle', sides: 4, corners: 4 }, { n: 'hexagon', sides: 6, corners: 6 },
+      { n: 'circle', sides: 0, corners: 0 }
+    ];
+    var SOLIDS = ['cube', 'sphere', 'cylinder', 'cone', 'rectangular prism'];
+    var mode = R.int(rng, 0, lvl >= 3 ? 7 : 4);
+    var sh = pick(rng, FLAT), sol = pick(rng, SOLIDS);
+
+    if (mode === 0) {
+      return MC(rng, 'I am thinking of a flat shape with ' + sh.sides + ' sides and ' + sh.corners +
+        ' corners. What is it?', sh.n, FLAT.filter(function (f) { return f.n !== sh.n; }).map(function (f) { return f.n; }), {
+          teach: 'You can name a shape from its defining attributes: sides and corners.',
+          explain: ['Count what the riddle says: ' + sh.sides + ' sides, ' + sh.corners + ' corners.',
+            'Only the <b>' + sh.n + '</b> matches both.']
+        });
+    }
+    if (mode === 1) {
+      var other = pick(rng, FLAT.filter(function (f) { return f.n !== sh.n && f.sides > 0; }));
+      return I_num('How many more sides does a ' + other.n + ' have than a triangle?', other.sides - 3, {
+        teach: 'Compare shapes by counting the same attribute on each one.',
+        explain: ['A ' + other.n + ' has ' + other.sides + ' sides.', 'A triangle has 3.',
+          other.sides + ' - 3 = <b>' + (other.sides - 3) + '</b>.']
+      });
+    }
+    if (mode === 2) {
+      return MC(rng, 'Put two identical squares side by side. What shape do they make?', 'rectangle',
+        ['square', 'triangle', 'hexagon'], {
+          visual: V.area(1, 2, { label: 'two squares joined' }),
+          teach: 'Combining shapes makes a new shape whose sides come from the outside edges.',
+          explain: ['Each square has 4 sides.', 'Joined, the shared edge hides inside.',
+            'The outline is a <b>rectangle</b>.']
+        });
+    }
+    if (mode === 3) {
+      return MC(rng, 'Which solid has a circular flat face and rolls?', 'cylinder',
+        SOLIDS.filter(function (s) { return s !== 'cylinder'; }), {
+          teach: 'Solids are named by their faces: flat circular faces let a solid roll or stack.',
+          explain: ['A cylinder has 2 circular flat faces.', 'It rolls on its curved surface.',
+            'Answer: <b>cylinder</b>.']
+        });
+    }
+    if (mode === 4) {
+      return I_bool('Is a ' + sh.n + ' a shape with ' + (sh.sides + 1) + ' sides?', false, {
+        teach: 'Use the defining attributes, not the way the shape is turned or coloured.',
+        explain: ['A ' + sh.n + ' has ' + sh.sides + ' sides.', 'The statement says ' + (sh.sides + 1) + '.',
+          'So it is <b>false</b>.']
+      });
+    }
+    if (mode === 5) {
+      var two = pick(rng, ['two identical triangles', 'two identical rectangles', 'two identical squares']);
+      var ans = two === 'two identical squares' ? 'rectangle' : (two === 'two identical rectangles' ? 'a larger rectangle' : 'a larger triangle or a rectangle');
+      return MC(rng, 'Which can be made from ' + two + ' put together?', ans,
+        ['a circle', 'a hexagon with 6 equal sides', 'a sphere'], {
+          teach: 'New shapes are built by matching whole edges of the smaller shapes.',
+          explain: ['Match whole edges, not corners.', two + ' can form <b>' + ans + '</b>.',
+            'A circle or sphere cannot, because those need curves.']
+        });
+    }
+    if (mode === 6) {
+      return MC(rng, 'Which object is shaped like a ' + sol + '?',
+        pick(rng, {
+          cube: ['a dice', 'a Rubik’s cube', 'a sugar cube'],
+          sphere: ['a basketball', 'a marble', 'a soap bubble'],
+          cylinder: ['a can of soup', 'a battery', 'a roll of tape'],
+          cone: ['a party hat', 'an ice-cream cone', 'a traffic cone'],
+          'rectangular prism': ['a book', 'a shoe box', 'a refrigerator']
+        }[sol]),
+        ['a flat drawing of a star', 'a jump rope', 'a sheet of paper'], {
+          teach: 'A solid is a 3-D object; its name comes from its faces and curved surface.',
+          explain: ['Think about what the object is like in 3-D.', 'It matches a <b>' + sol + '</b>.']
+        });
+    }
+    /* mode 7 — count attributes of a solid */
+    var faces = { cube: 6, sphere: 1, cylinder: 3, cone: 2, 'rectangular prism': 6 }[sol];
+    return I_num('How many faces does a ' + sol + ' have (count the curved surface as a face)?', faces, {
+      teach: 'Faces are the flat or curved surfaces a solid is made of.',
+      explain: ['Name each surface of the ' + sol + '.', 'Counting them gives <b>' + faces + '</b>.'],
+      b: 0.3
+    });
+  };
+  G('g1-g-shapes', withLead(gen_g1_g_shapes, LEAD));
+
+  /* ==================================== 1.G.3  halves & equal parts ======== */
+  G('g1-g-parts', function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 6 : 3);
+    var FOODS = ['pizza', 'candy bar', 'orange', 'pancake', 'sandwich', 'pie'];
+    var food = pick(rng, FOODS);
+
+    if (mode === 0) {
+      return MC(rng, 'A ' + food + ' is cut into 4 equal parts. What is one part called?', 'a fourth',
+        ['a half', 'a third', 'a whole'], {
+          teach: 'The number of equal parts names each part: 2 parts → halves, 3 → thirds, 4 → fourths.',
+          explain: ['Count the equal parts: 4.', 'Each one is one of four equal shares.',
+            'So one part is <b>a fourth</b>.']
+        });
+    }
+    if (mode === 1) {
+      var d = pick(rng, [2, 3, 4]), n = R.int(rng, 1, d);
+      return I_frac('The ' + food + ' is split into ' + d + ' equal parts and ' + n + ' are taken. What fraction is taken?',
+        n, d, {
+          visual: V.frac({ n: n, d: d, label: food }),
+          teach: 'The bottom number counts the equal parts; the top number counts the parts taken.',
+          explain: ['Equal parts: ' + d + ' → the bottom number is ' + d + '.',
+            'Parts taken: ' + n + ' → the top number is ' + n + '.',
+            'The fraction is <b>' + mixedStr(n, d) + '</b>.'],
+          b: d === 4 ? 0.2 : -0.2
+        });
+    }
+    if (mode === 2) {
+      return MC(rng, 'Which cut gives equal shares?', '2 pieces that are exactly the same size',
+        ['2 pieces where one is much bigger', '3 pieces of different sizes', '4 pieces torn off'], {
+          teach: 'Fractions only work when the whole is split into equal-sized parts.',
+          explain: ['Equal shares must match exactly.', 'Only <b>2 pieces that are exactly the same size</b> are equal shares.']
+        });
+    }
+    if (mode === 3) {
+      return I_bool('Two halves of the same ' + food + ' make one whole ' + food + '.', true, {
+        teach: 'Two equal halves always combine to make one whole.',
+        explain: ['Each half is 1 of 2 equal parts.', '1 + 1 = 2 parts out of 2.',
+          'That is the whole — <b>true</b>.']
+      });
+    }
+    if (mode === 4) {
+      return MC(rng, 'Same-size ' + food + 's: is a half of one bigger than a fourth of the other?', 'a half',
+        ['a fourth', 'they are the same size', 'there is no way to tell'], {
+          teach: 'Splitting the same whole into more parts makes each part smaller.',
+          explain: ['A half comes from 2 parts; a fourth comes from 4 parts.',
+            'More parts means smaller parts.', 'So <b>a half</b> is bigger.']
+        });
+    }
+    if (mode === 5) {
+      var dd = pick(rng, [2, 3, 4, 6]);
+      return I_num('A ' + food + ' is cut into equal parts, each one a sixth. Into how many parts was it cut?',
+        dd === 6 ? 6 : 6, {
+          visual: V.frac({ n: 1, d: 6, label: 'one sixth' }),
+          teach: 'The name of the share tells you how many equal parts the whole was cut into.',
+          explain: ['A sixth is one part of six equal parts.', 'Count the parts in the model: 6.',
+            'It was cut into <b>6</b> parts.']
+        });
+    }
+    /* mode 6 — how many parts to make a whole */
+    var unit = pick(rng, ['halves', 'thirds', 'fourths']), need = { halves: 2, thirds: 3, fourths: 4 }[unit];
+    return I_num('How many ' + unit + ' make one whole ' + food + '?', need, {
+      teach: 'The denominator counts how many of that share fill one whole.',
+      explain: ['One ' + unit.replace(/s$/, '') + ' is 1 of ' + need + ' parts.',
+        'You need all ' + need + ' of them.', 'Answer: <b>' + need + '</b>.']
+    });
+  });
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 92-gen-g2.js — Grade 2 generators (CA CCSSM 2.OA / 2.NBT / 2.MD / 2.G)
+ *
+ * Difficulty rule for every generator in this file
+ *   lvl 1-2  within 20-100 with no regrouping, one step, models shown,
+ *            the unknown in the usual position, familiar context.
+ *   lvl 3    the standard grade-2 case: within 100-1000 with regrouping where
+ *            the standard asks for it, tidy numbers, one unknown.
+ *   lvl 4-5  two-step problems, unknown in any position, judgement
+ *            (true/false, "which estimate is best"), measurement comparisons,
+ *            less familiar contexts.
+ * Answers are always computed from the drawn numbers — never hardcoded.
+ * ============================================================================= */
+(function () {
+  'use strict';
+
+  var pick = R.pick, sample = R.sample, shuffle = R.shuffle, chance = R.chance;
+
+  var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli', 'Rosa', 'Kai'];
+  var CTX = ['At the craft table', 'At the school fair', 'On the field trip', 'In the reading corner',
+    'At the pet shelter', 'In the gym', 'At the farmers market', 'During art class', 'At the bus stop',
+    'In the school garden'];
+  var OBJ = ['buttons', 'stickers', 'seeds', 'pencil sharpeners', 'shell necklaces', 'origami cranes',
+    'trading cards', 'friendship bracelets', 'glow sticks', 'mini erasers', 'straw bundles', 'postcards'];
+
+  function who(rng) { return pick(rng, WHO); }
+  function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function obj(rng) { return pick(rng, OBJ); }
+  function ctx(rng) { return pick(rng, CTX); }
+
+  /* Rotating strategy lead-ins — real phrasing variety, not new digits. */
+  var LEAD = ['', 'Do it in your head: ', 'Say your reasoning out loud: ',
+    'Draw or picture it if it helps: ', 'You know a trick for this: ', 'Watch out for the trap: '];
+  function withLead(fn, leads) {
+    return function (rng, lvl) {
+      var it = fn(rng, lvl), L = pick(rng, leads);
+      if (L && String(it.prompt).indexOf(L) !== 0) it.prompt = L + it.prompt;
+      return it;
+    };
+  }
+
+  function MC(rng, prompt, answer, wrongs, o) {
+    var seen = {}, opts = [];
+    var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
+    push(answer);
+    var extra = R.shuffle(rng, wrongs.filter(function (v) { return String(v) !== String(answer); }));
+    for (var i = 0; i < extra.length && opts.length < 5; i++) push(extra[i]);
+    var sh = R.shuffle(rng, opts);
+    return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
+  }
+  function near(n, lo, hi, k) {
+    var out = [], d = [-10, 10, -1, 1, -2, 2, -100, 100, -5, 5];
+    for (var i = 0; i < d.length && out.length < (k || 3); i++) {
+      var v = n + d[i];
+      if (v >= (lo == null ? 0 : lo) && v <= (hi == null ? 1000 : hi) && v !== n) out.push(v);
+    }
+    return out;
+  }
+  function hms(h, m) { return h + ':' + ('0' + m).slice(-2); }
+  function coin(n, name) {
+    var word = n === 1 ? name : (name === 'penny' ? 'pennies' : name + 's');
+    return (n === 0 ? 'no' : String(n)) + ' ' + word;
+  }
+
+  /* ============================ 2.OA.1-2  within 100, fluency to 20 ======= */
+  var gen_g2_oa_add_sub = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : 6);
+    var w = who(rng), o1 = obj(rng);
+
+    if (mode === 0) {                        /* fluency within 20 */
+      var a = R.int(rng, 6, 15), b = R.int(rng, 4, cap(20 - a, 4, 9));
+      return I_num(a + ' + ' + b + ' =', a + b, {
+        teach: 'Make a ten first, then add the rest — it is faster than counting on.',
+        explain: ['Take ' + (10 - Math.min(a, b)) + ' from the bigger number to make the smaller one 10.',
+          'Now it is 10 + ' + (Math.max(a, b) - (10 - Math.min(a, b))) + '.',
+          'Sum: <b>' + (a + b) + '</b>.'],
+        b: -0.4
+      });
+    }
+    if (mode === 1) {                        /* subtraction within 20 */
+      var s = R.int(rng, 12, 18), t = R.int(rng, 4, 9);
+      return I_num(s + ' - ' + t + ' =', s - t, {
+        teach: 'Break the number you are subtracting so you land on a ten first.',
+        explain: ['Go to the ten: ' + s + ' - ' + (s - 10) + ' = 10.',
+          'Still to take: ' + (t - (s - 10)) + '.', 'So 10 - ' + (t - (s - 10)) + ' = <b>' + (s - t) + '</b>.'],
+        b: -0.2
+      });
+    }
+    if (mode === 2) {                        /* add within 100, no regroup */
+      var x = R.int(rng, 21, 64), y = R.int(rng, 12, cap(99 - x, 12, 30));
+      return I_num(x + ' + ' + y + ' =', x + y, {
+        teach: 'Add the tens, then the ones, then combine the two partial sums.',
+        explain: ['Tens: ' + Math.floor(x / 10) * 10 + ' + ' + Math.floor(y / 10) * 10 + ' = ' +
+          (Math.floor(x / 10) + Math.floor(y / 10)) * 10 + '.',
+          'Ones: ' + (x % 10) + ' + ' + (y % 10) + ' = ' + (x % 10 + y % 10) + '.',
+          'Total: <b>' + (x + y) + '</b>.'],
+        b: -0.1
+      });
+    }
+    if (mode === 3) {                        /* regrouping subtraction */
+      var m = R.int(rng, 42, 91), n = R.int(rng, 15, cap(m - 20, 15, 38));
+      return I_num(m + ' - ' + n + ' =', m - n, {
+        teach: 'If the ones are not enough, ungroup one ten into 10 ones before subtracting.',
+        explain: ['Ones: ' + (m % 10) + ' - ' + (n % 10) + (m % 10 < n % 10 ? ' needs a regroup.' : ' is fine.'),
+          'Tens: ' + Math.floor(m / 10) + ' - ' + Math.floor(n / 10) + ' (adjust if you regrouped).',
+          'Difference: <b>' + (m - n) + '</b>.'],
+        b: 0.5
+      });
+    }
+    if (mode === 4) {                        /* missing addend */
+      var tot = R.int(rng, 40, 96), p = R.int(rng, 11, tot - 11);
+      return I_num(p + ' + ___ = ' + tot, tot - p, {
+        teach: 'A missing addend is found by subtracting the part you know from the whole.',
+        explain: ['Whole: ' + tot + ', known part: ' + p + '.', tot + ' - ' + p + ' = <b>' + (tot - p) + '</b>.']
+      });
+    }
+    if (mode === 5) {                        /* compare / how many more */
+      var b1 = R.int(rng, 35, 90), b2 = cap(b1 - R.int(rng, 8, 30), 5, 89);
+      return I_num(ctx(rng) + ': ' + b1 + ' ' + o1 + ' were counted and ' + b2 + ' were counted in a second group. How many more in the first group?',
+        b1 - b2, {
+          visual: V.bar([{ v: b1, label: 'group 1' }, { v: b2, label: 'group 2' }]),
+          teach: 'The comparison difference is found by subtracting the smaller count from the larger.',
+          explain: ['Bigger count ' + b1 + ', smaller ' + b2 + '.', b1 + ' - ' + b2 + ' = <b>' + (b1 - b2) + '</b>.']
+        });
+    }
+    if (mode === 6) {                        /* even/odd sum judgement */
+      var e1 = R.int(rng, 2, 20) * 2, o2 = R.int(rng, 0, 9) * 2 + 1;
+      return I_bool('Without adding, is ' + e1 + ' + ' + o2 + ' an even number?', false, {
+        teach: 'Even + odd is always odd — the odd one is left without a partner.',
+        explain: [e1 + ' is even, ' + o2 + ' is odd.', 'Even + odd always gives an odd total.',
+          'The sum is ' + (e1 + o2) + ', which is <b>odd</b>, so the answer is No.']
+      });
+    }
+    if (mode === 7) {                        /* two-step: add then take */
+      var st = R.int(rng, 30, 70), add = R.int(rng, 12, 28), off = R.int(rng, 15, 35);
+      return I_num(w + ' collected ' + st + ' ' + o1 + ', then ' + add + ' more turned up. ' + w +
+        ' gave ' + off + ' away. How many are left?', st + add - off, {
+          teach: 'Two-step problems are solved in the order the story happens.',
+          explain: ['First: ' + st + ' + ' + add + ' = ' + (st + add) + '.',
+            'Then: ' + (st + add) + ' - ' + off + ' = <b>' + (st + add - off) + '</b>.'],
+          b: 0.6
+        });
+    }
+    if (mode === 8) {                        /* which fact helps */
+      var k = R.int(rng, 6, 14);
+      return MC(rng, 'Which related fact helps you solve ' + (k + 15) + ' - ' + k + ' = ?',
+        k + ' + 15 = ' + (k + 15), [k + ' + ' + (k + 15) + ' = ' + (2 * k + 15), (k + 15) + ' + 15 = ' + (k + 30), k + ' - 15 = ' + (k - 15)], {
+          teach: 'Every subtraction belongs to an addition fact family with the same three numbers.',
+          explain: ['The three numbers are ' + k + ', 15 and ' + (k + 15) + '.',
+            'The addition fact ' + k + ' + 15 = ' + (k + 15) + ' tells you the answer.',
+            'So <b>' + k + ' + 15 = ' + (k + 15) + '</b> is the helper fact.']
+        });
+    }
+    if (mode === 9) {                        /* true/false about a sum */
+      var p = R.int(rng, 24, 68), q = R.int(rng, 12, 29), truth = chance(rng, 0.5) ? p + q : p + q + 10;
+      return I_bool('Is this true?  ' + p + ' + ' + q + ' = ' + truth, truth === p + q, {
+        teach: 'Estimate with the tens first — a sum that is off by exactly 10 is a place-value slip.',
+        explain: ['Tens: ' + Math.floor(p / 10) * 10 + ' + ' + Math.floor(q / 10) * 10 + '.',
+          'Exact: ' + p + ' + ' + q + ' = ' + (p + q) + '.',
+          'The statement is <b>' + (truth === p + q ? 'true' : 'false') + '</b>.']
+        });
+    }
+    /* mode 10 — money-free equal difference */
+    var u = R.int(rng, 30, 60), v = u + R.int(rng, 10, 30), mid = u + Math.round((v - u) / 2);
+    return I_num(u + ' + ___ = ' + v, v - u, {
+      teach: 'The gap between two numbers is the number you must add to reach the larger one.',
+      explain: ['Count up the tens first: ' + u + ' + ' + (Math.floor((v - u) / 10) * 10) + ' = ' + (u + Math.floor((v - u) / 10) * 10) + '.',
+        'Then the ones.', 'The gap is <b>' + (v - u) + '</b>.']
+    });
+  };
+  G('g2-oa-add-sub', withLead(gen_g2_oa_add_sub, LEAD));
+
+  /* ======================= 2.OA.3-4  even/odd, skip counting, arrays ====== */
+  var gen_g2_oa_arrays = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 8 : 4);
+    var r = R.int(rng, 2, lvl >= 4 ? 10 : 5), c = R.int(rng, 2, lvl >= 4 ? 10 : 5);
+
+    if (mode === 0) {                        /* array as repeated addition */
+      return I_num('An array has ' + r + ' rows with ' + c + ' in each row. How many in all?', r * c, {
+        visual: V.array(r, c, { label: r + ' rows of ' + c }),
+        teach: 'An array is equal groups lined up in rows, so repeated addition counts it.',
+        explain: ['Each row has ' + c + ' and there are ' + r + ' rows.',
+          'Add ' + c + ' ' + r + ' times: ' + Array.apply(null, { length: r }).map(function () { return c; }).join(' + ') + '.',
+          'Total <b>' + (r * c) + '</b>.']
+      });
+    }
+    if (mode === 1) {                        /* repeated addition to array */
+      var k = R.int(rng, 3, 6);
+      return MC(rng, 'Which array matches ' + k + ' + ' + k + ' + ' + k + '?', '3 rows of ' + k,
+        [k + ' rows of 3', '3 rows of ' + (k + 1), k + ' rows of ' + k], {
+          visual: V.array(3, k, { label: '3 rows of ' + k }),
+          teach: 'The number of terms tells the rows; the size of each term tells the columns.',
+          explain: ['Three equal terms mean 3 rows.', 'Each term is ' + k + ', so ' + k + ' per row.',
+            'That is <b>3 rows of ' + k + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* skip counting */
+      var step = pick(rng, [2, 5, 10]), s0 = R.int(rng, 1, 8) * step, gap = R.int(rng, 0, 3);
+      var seq = [];
+      for (var i = 0; i < 5; i++) seq.push(s0 + i * step);
+      var shown = seq.map(function (v, j) { return j === gap ? '___' : String(v); });
+      return I_num('Skip counting by ' + step + 's:  ' + shown.join(', '), s0 + gap * step, {
+        teach: 'Each jump in a skip-counting pattern adds the same number.',
+        explain: ['The pattern adds ' + step + ' every time.', 'The number before the blank is ' + (s0 + (gap - 1) * step) + '.',
+          'Add ' + step + ': <b>' + (s0 + gap * step) + '</b>.'],
+        b: step === 10 ? -0.3 : 0.2
+      });
+    }
+    if (mode === 3) {                        /* even or odd by pairing */
+      var n = R.int(rng, 7, 24);
+      return MC(rng, 'Is ' + n + ' even or odd? Think about making pairs.', (n % 2 ? 'odd' : 'even'),
+        [(n % 2 ? 'even' : 'odd'), 'both even and odd', 'neither even nor odd'], {
+          visual: V.array(Math.floor(n / 2), 2, { label: Math.floor(n / 2) + ' pairs, remainder ' + (n % 2) }),
+          teach: 'A number is even when its objects can be paired with none left over.',
+          explain: ['Make pairs of 2.', n + ' makes ' + Math.floor(n / 2) + ' pairs with ' + (n % 2) + ' left over.',
+            'So ' + n + ' is <b>' + (n % 2 ? 'odd' : 'even') + '</b>.']
+        });
+    }
+    if (mode === 4) {                        /* parity of a sum */
+      var a = R.int(rng, 2, 9) * 2, b = R.int(rng, 2, 9) * 2;
+      return I_bool('Is ' + a + ' + ' + b + ' even?', true, {
+        teach: 'Even + even is always even: two sets of pairs still pair up exactly.',
+        explain: [a + ' pairs up exactly, and so does ' + b + '.', 'Together they still pair up.',
+          a + ' + ' + b + ' = ' + (a + b) + ', which is <b>even</b>.']
+      });
+    }
+    if (mode === 5) {                        /* array total with missing row */
+      var cols = R.int(rng, 3, 9), tot = cols * R.int(rng, 2, 8);
+      return I_num('An array has ' + cols + ' in each row and ' + tot + ' counters in all. How many rows?', tot / cols, {
+        teach: 'Rows = total ÷ number in each row; arrays are equal groups.',
+        explain: ['Each row holds ' + cols + '.', 'Count how many groups of ' + cols + ' fit in ' + tot + '.',
+          'That is <b>' + (tot / cols) + '</b> rows.'],
+        b: 0.4
+      });
+    }
+    if (mode === 6) {                        /* which is the faster count */
+      var big = R.int(rng, 4, 9) * 10;
+      return MC(rng, 'Which is the fastest way to count ' + big + ' coins?', 'count by 10s',
+        ['count by 1s', 'count by 3s', 'count by 7s'], {
+          teach: 'Skip counting by a factor of the total takes the fewest jumps.',
+          explain: [big + ' is made of tens.', 'Counting by 10s takes only ' + (big / 10) + ' jumps.',
+            'So <b>count by 10s</b> is fastest.']
+        });
+    }
+    if (mode === 7) {                        /* odd/even from digits */
+      var tens = R.int(rng, 1, 9), ones = R.int(rng, 0, 9), nn = tens * 10 + ones;
+      return I_bool('The number ' + nn + ' is even because its ones digit is ' + ones + '.', ones % 2 === 0, {
+        teach: 'Only the ones digit decides even or odd — tens always come in pairs.',
+        explain: ['Every ten can be split into two equal fives, so tens never leave a leftover.',
+          'Look at the ones digit: ' + ones + '.', 'So ' + nn + ' is <b>' + (ones % 2 ? 'odd' : 'even') + '</b>.'],
+        b: 0.3
+      });
+    }
+    /* mode 8 — array from a story */
+    var rows = R.int(rng, 3, 6), per = R.int(rng, 4, 9);
+    return I_num(ctx(rng) + ', chairs are set in ' + rows + ' rows of ' + per + '. How many chairs are there?',
+      rows * per, {
+        visual: V.array(rows, per),
+        teach: 'Equal rows of equal size are counted by adding the row size once per row.',
+        explain: ['Row size ' + per + ', rows ' + rows + '.',
+          'Add ' + per + ' ' + rows + ' times.', 'Total <b>' + (rows * per) + '</b>.'],
+        b: 0.2
+      });
+  };
+  G('g2-oa-arrays', withLead(gen_g2_oa_arrays, LEAD));
+
+  /* ==================== 2.NBT.1-3  hundreds, tens, ones; compare ========== */
+  var gen_g2_nbt_place_1000 = function (rng, lvl) {
+    var h = R.int(rng, 1, lvl >= 3 ? 9 : 4), t = R.int(rng, 0, 9), o = R.int(rng, 0, 9);
+    var n = h * 100 + t * 10 + o, mode = R.int(rng, 0, lvl >= 3 ? 8 : 4);
+
+    if (mode === 0) {
+      return I_parts('What does ' + n + ' have?', ['hundreds', 'tens', 'ones'],
+        [{ k: 'n', v: h }, { k: 'n', v: t }, { k: 'n', v: o }], {
+          visual: V.blocks(h, t, o),
+          teach: 'Each place is ten times the place to its right: 10 ones make a ten, 10 tens make a hundred.',
+          explain: [n + ' is ' + h + ' hundreds = ' + (h * 100) + '.',
+            'Plus ' + t + ' tens = ' + (t * 10) + ' and ' + o + ' ones.',
+            'Check: ' + (h * 100) + ' + ' + (t * 10) + ' + ' + o + ' = <b>' + n + '</b>.']
+        });
+    }
+    if (mode === 1) {
+      return MC(rng, 'Which number is ' + h + ' hundreds, ' + t + ' tens and ' + o + ' ones?', n,
+        [h * 100 + o * 10 + t, (h + 1) * 100 + t * 10 + o, h * 100 + t * 10 + cap(o - 1, 0, 9)], {
+          visual: V.blocks(h, t, o),
+          teach: 'Write the digits in place order: hundreds, then tens, then ones.',
+          explain: [h + ' hundreds = ' + (h * 100) + '.', t + ' tens and ' + o + ' ones = ' + (t * 10 + o) + '.',
+            'Together <b>' + n + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* compare 3-digit */
+      var h2 = cap(h + R.int(rng, -2, 2), 1, 9), t2 = R.int(rng, 0, 9), o2 = R.int(rng, 0, 9), n2 = h2 * 100 + t2 * 10 + o2;
+      return I_cmp(n + '  ○  ' + n2, n, n2, {
+        teach: 'Compare three-digit numbers from left to right: hundreds first, then tens, then ones.',
+        explain: ['Hundreds: ' + h + ' vs ' + h2 + '.', h === h2 ? 'Tens: ' + t + ' vs ' + t2 + '.' : 'The hundreds already decide it.',
+          'Symbol: <b>' + (n < n2 ? '<' : n > n2 ? '>' : '=') + '</b>.']
+        });
+    }
+    if (mode === 3) {                        /* skip counting by 100s */
+      var s0 = R.int(rng, 1, 5) * 100, gap = R.int(rng, 0, 3), seq = [];
+      for (var i = 0; i < 4; i++) seq.push(s0 + i * 100);
+      var shown = seq.map(function (v, j) { return j === gap ? '___' : String(v); });
+      return I_num('Counting by hundreds:  ' + shown.join(', '), s0 + gap * 100, {
+        teach: 'Counting by hundreds changes only the hundreds digit.',
+        explain: ['Each step adds 100.', 'The number before the blank is ' + (s0 + (gap - 1) * 100) + '.',
+          'Next hundred: <b>' + (s0 + gap * 100) + '</b>.']
+      });
+    }
+    if (mode === 4) {                        /* 100 more / less */
+      var more = chance(rng, 0.5);
+      return I_num('What number is 100 ' + (more ? 'more' : 'less') + ' than ' + n + '?', more ? n + 100 : n - 100, {
+        visual: V.blocks(Math.floor((more ? n + 100 : n - 100) / 100), Math.floor(((more ? n + 100 : n - 100) % 100) / 10), (more ? n + 100 : n - 100) % 10),
+        teach: 'Adding or removing 100 changes only the hundreds place.',
+        explain: [n + ' has ' + h + ' hundreds.', (more ? 'One more hundred makes ' + (h + 1) : 'One less hundred makes ' + (h - 1)) + '.',
+          'New number: <b>' + (more ? n + 100 : n - 100) + '</b>.']
+      });
+    }
+    if (mode === 5) {                        /* value of a digit */
+      var which = pick(rng, ['hundreds', 'tens', 'ones']);
+      var val = which === 'hundreds' ? h * 100 : which === 'tens' ? t * 10 : o;
+      var dg = which === 'hundreds' ? h : which === 'tens' ? t : o;
+      return MC(rng, 'In ' + n + ', what is the value of the ' + which + ' digit (' + dg + ')?', val,
+        [dg, dg + 10, dg * 10 + 1].filter(function (v) { return v !== val; }), {
+          teach: 'A digit’s value is the digit times the value of its place.',
+          explain: [dg + ' sits in the ' + which + ' place.', 'So its value is ' + dg + ' × ' +
+            (which === 'hundreds' ? 100 : which === 'tens' ? 10 : 1) + '.', 'Value: <b>' + val + '</b>.'],
+          b: 0.4
+        });
+    }
+    if (mode === 6) {                        /* greatest from digits */
+      var d1 = R.int(rng, 1, 9), d2 = R.int(rng, 0, 9), d3 = R.int(rng, 0, 9);
+      var ds = shuffle(rng, [d1, d2, d3]).sort(function (a, b) { return b - a; });
+      var greatest = ds[0] * 100 + ds[1] * 10 + ds[2];
+      return MC(rng, 'Use the digit cards ' + ds[0] + ', ' + ds[1] + ', ' + ds[2] + ' once each to make the greatest number.',
+        greatest, [ds[2] * 100 + ds[1] * 10 + ds[0], ds[1] * 100 + ds[0] * 10 + ds[2], greatest - 10], {
+          teach: 'To make the greatest number, put the largest digit in the highest place.',
+          explain: ['Digits sorted: ' + ds.join(', ') + '.', 'Biggest digit goes in the hundreds place.',
+            'Greatest number: <b>' + greatest + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 7) {                        /* true/false place value */
+      var wrong = chance(rng, 0.5);
+      var claim = wrong ? (n + ' has ' + t + ' hundreds') : (n + ' has ' + h + ' hundreds, which is worth ' + (h * 100));
+      return I_bool('Is this true?  "' + claim + '"', !wrong, {
+        teach: 'The leftmost digit of a three-digit number counts hundreds.',
+        explain: ['Read ' + n + ' left to right.', 'Hundreds digit ' + h + ', worth ' + (h * 100) + '.',
+          'So the statement is <b>' + (!wrong ? 'true' : 'false') + '</b>.']
+        });
+    }
+    /* mode 8 — number bond of hundreds */
+    var hundredPart = h * 100, rest = t * 10 + o;
+    return I_num(n + ' = ' + hundredPart + ' + what?', rest, {
+      visual: V.numberbond([hundredPart, rest], n),
+      teach: 'Splitting a number into hundreds and the rest makes mental adding and subtracting easier.',
+      explain: ['Whole ' + n + ', one part ' + hundredPart + '.', n + ' - ' + hundredPart + ' = <b>' + rest + '</b>.']
+    });
+  };
+  G('g2-nbt-place-1000', withLead(gen_g2_nbt_place_1000, LEAD));
+
+  /* ============================ 2.NBT.4  rounding ========================= */
+  var gen_g2_nbt_round = function (rng, lvl) {
+    var to10 = chance(rng, 0.6), mode = R.int(rng, 0, lvl >= 3 ? 6 : 3);
+    var n = to10 ? R.int(rng, 11, lvl >= 3 ? 989 : 89) : R.int(rng, 101, 899);
+    var step = to10 ? 10 : 100;
+    var lo = Math.floor(n / step) * step, hi = lo + step, mid = lo + step / 2;
+    var r = n - lo >= step / 2 ? hi : lo;
+
+    if (mode === 0) {
+      return I_num('Round ' + n + ' to the nearest ' + step + '.', r, {
+        visual: V.numline(lo, hi, [{ x: n, label: String(n) }, { x: mid, label: String(mid) }], { label: 'nearest ' + step }),
+        teach: 'Compare the distance to each neighbour: at exactly halfway we round up.',
+        explain: ['' + n + ' lies between ' + lo + ' and ' + hi + '.',
+          'Halfway is ' + mid + ', and ' + n + ' is ' + (n - lo) + ' past ' + lo + '.',
+          'Nearest ' + step + ': <b>' + r + '</b>.'],
+        b: n % step === step / 2 ? 0.4 : 0
+      });
+    }
+    if (mode === 1) {
+      return MC(rng, 'Which is the nearest ' + step + ' to ' + n + '?', r,
+        [n % step >= step / 2 ? lo : hi, n + 1, n - 1], {
+          visual: V.numline(lo, hi, [{ x: n, arrow: true }]),
+          teach: 'The nearest multiple is the one with the smaller gap.',
+          explain: ['Gap down to ' + lo + ': ' + (n - lo) + '.', 'Gap up to ' + hi + ': ' + (hi - n) + '.',
+            'Smaller gap wins: <b>' + r + '</b>.']
+        });
+    }
+    if (mode === 2) {
+      return I_bool('Is ' + n + ' closer to ' + lo + ' than to ' + hi + '?', (n - lo) < (hi - n), {
+        teach: 'Judging closeness is the same as comparing the two gaps.',
+        explain: ['Down gap ' + (n - lo) + ', up gap ' + (hi - n) + '.',
+          (n - lo) < (hi - n) ? 'The lower neighbour is closer, so Yes.' : 'The lower neighbour is not closer, so No.']
+      });
+    }
+    if (mode === 3) {
+      var e1 = R.int(rng, 123, 789), e2 = R.int(rng, 118, 456);
+      var ra = Math.round(e1 / 100) * 100, rb = Math.round(e2 / 100) * 100;
+      return I_num('Estimate by rounding each number to the nearest 100:  ' + e1 + ' + ' + e2 + ' ≈', ra + rb, {
+        teach: 'Rounding each number first turns a hard sum into two easy hundreds.',
+        explain: [e1 + ' rounds to ' + ra + ' (tens digit ' + Math.floor((e1 % 100) / 10) + ').',
+          e2 + ' rounds to ' + rb + '.', 'Estimate: ' + ra + ' + ' + rb + ' = <b>' + (ra + rb) + '</b>.'],
+        b: 0.5
+      });
+    }
+    if (mode === 4) {
+      var cand = [lo, hi, mid];
+      return MC(rng, 'Which number is exactly halfway between ' + lo + ' and ' + hi + '?', mid,
+        [lo + 1, hi - 1, lo], {
+          teach: 'The halfway number is the midpoint of the two neighbours on the number line.',
+          explain: ['Neighbours are ' + lo + ' and ' + hi + '.', 'Half of ' + step + ' is ' + (step / 2) + '.',
+            'Halfway: <b>' + mid + '</b>.']
+        });
+    }
+    if (mode === 5) {
+      var given = R.int(rng, 1, 9) * 10 + 5;
+      var rr = Math.ceil(given / 10) * 10;
+      return I_bool('When ' + given + ' is rounded to the nearest 10 the result is ' + rr + '.', true, {
+        teach: 'A number ending in 5 is exactly halfway, and the rule is to round it up.',
+        explain: [given + ' is halfway between ' + (given - 5) + ' and ' + (given + 5) + '.',
+          'Halfway numbers round up.', 'So the rounded value is <b>' + rr + '</b>.'],
+        b: 0.3
+      });
+    }
+    /* mode 6 — what could it have been */
+    var r2 = R.int(rng, 2, 9) * 10;
+    return MC(rng, 'A number rounds to ' + r2 + ' when rounded to the nearest 10. Which number could it be?',
+      r2 - 3, [r2 + 7, r2 - 8, r2 + 6], {
+        teach: 'Only numbers within 4 of the multiple (or exactly 5 below) round to it.',
+        explain: ['Numbers from ' + (r2 - 5) + ' to ' + (r2 + 4) + ' round to ' + r2 + '.',
+          r2 - 3 + ' is inside that band, so <b>' + (r2 - 3) + '</b> works.'],
+        b: 0.6
+      });
+  };
+  G('g2-nbt-round', withLead(gen_g2_nbt_round, LEAD));
+
+  /* ================= 2.NBT.5-7  within 1000, two-step problems ============ */
+  var gen_g2_nbt_add_1000 = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 8 : 5);
+    var w = who(rng);
+
+    if (mode === 0) {                        /* add, no regroup */
+      var a = R.int(rng, 121, 640), b = R.int(rng, 111, cap(999 - a, 111, 300));
+      return I_num(a + ' + ' + b + ' =', a + b, {
+        teach: 'Add each place separately: hundreds, then tens, then ones.',
+        explain: ['Hundreds: ' + Math.floor(a / 100) + ' + ' + Math.floor(b / 100) + '.',
+          'Tens and ones: ' + (a % 100) + ' + ' + (b % 100) + ' = ' + (a % 100 + b % 100) + '.',
+          'Total <b>' + (a + b) + '</b>.'],
+        b: -0.2
+      });
+    }
+    if (mode === 1) {                        /* add with regrouping */
+      var c = R.int(rng, 246, 689), d = R.int(rng, 154, cap(999 - c, 154, 400));
+      return I_num(c + ' + ' + d + ' =', c + d, {
+        teach: 'When a place reaches 10, regroup it into the next place before continuing.',
+        explain: ['Ones: ' + (c % 10) + ' + ' + (d % 10) + ' = ' + (c % 10 + d % 10) + (c % 10 + d % 10 >= 10 ? ' → regroup a ten.' : '.'),
+          'Tens and hundreds follow, including any regrouped group.',
+          'Sum <b>' + (c + d) + '</b>.'],
+        b: 0.5
+      });
+    }
+    if (mode === 2) {                        /* subtract within 1000 */
+      var m = R.int(rng, 412, 940), n = R.int(rng, 118, cap(m - 120, 118, 400));
+      return I_num(m + ' - ' + n + ' =', m - n, {
+        teach: 'Subtract place by place; ungroup a ten or a hundred when the top digit is too small.',
+        explain: ['Ones: ' + (m % 10) + ' - ' + (n % 10) + (m % 10 < n % 10 ? ' needs ungrouping a ten.' : '.'),
+          'Then tens, then hundreds.', 'Difference <b>' + (m - n) + '</b>.'],
+        b: 0.6
+      });
+    }
+    if (mode === 3) {                        /* two-step story */
+      var s1 = R.int(rng, 140, 420), s2 = R.int(rng, 90, 260), s3 = R.int(rng, 120, 300);
+      return I_num(ctx(rng) + ': a school collected ' + s1 + ' cans on Monday and ' + s2 + ' on Tuesday. ' +
+        s3 + ' cans were delivered to the centre. How many cans are still to deliver?', s1 + s2 - s3, {
+          visual: V.bar([{ v: s1, label: 'Mon' }, { v: s2, label: 'Tue' }]),
+          teach: 'Find the total first, then take away the part already handled.',
+          explain: ['Total collected: ' + s1 + ' + ' + s2 + ' = ' + (s1 + s2) + '.',
+            'Delivered: ' + s3 + '.', 'Left: <b>' + (s1 + s2 - s3) + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 4) {                        /* missing part of a total */
+      var tot = R.int(rng, 500, 980), p = R.int(rng, 120, tot - 120);
+      return I_num(p + ' + ___ = ' + tot, tot - p, {
+        teach: 'The missing addend is the difference between the whole and the part you know.',
+        explain: ['Whole ' + tot + ', part ' + p + '.', tot + ' - ' + p + ' = <b>' + (tot - p) + '</b>.']
+      });
+    }
+    if (mode === 5) {                        /* compare three quantities */
+      var x1 = R.int(rng, 120, 480), x2 = cap(x1 + R.int(rng, -120, 160), 90, 620);
+      return MC(rng, ctx(rng) + ': ' + x1 + ' ' + obj(rng) + ' were made and ' + x2 + ' were sold. Which statement is true?',
+        x1 > x2 ? 'More were made than sold' : x1 < x2 ? 'More were sold than made' : 'The same number each time',
+        [x1 > x2 ? 'More were sold than made' : 'More were made than sold',
+        Math.abs(x1 - x2) + ' more were made than sold', 'nothing was sold'], {
+          teach: 'Compare the two totals before deciding which statement fits.',
+          explain: ['Made ' + x1 + ', sold ' + x2 + '.', 'Difference ' + Math.abs(x1 - x2) + '.',
+            'Since ' + x1 + (x1 > x2 ? ' > ' : x1 < x2 ? ' < ' : ' = ') + x2 + ', the true statement is the one matching that order.']
+        });
+    }
+    if (mode === 6) {                        /* 10 / 100 more & less mixed */
+      var v = R.int(rng, 214, 780);
+      return I_num('What number is 100 less and then 10 more than ' + v + '?', v - 100 + 10, {
+        teach: 'Do the changes one at a time; each place moves independently.',
+        explain: [v + ' - 100 = ' + (v - 100) + '.', (v - 100) + ' + 10 = <b>' + (v - 90) + '</b>.'],
+        b: 0.4
+      });
+    }
+    if (mode === 7) {                        /* true/false regrouping */
+      var p1 = R.int(rng, 235, 560), p2 = R.int(rng, 145, 320), truth = chance(rng, 0.5) ? p1 + p2 : p1 + p2 + 100;
+      return I_bool('Is this true?  ' + p1 + ' + ' + p2 + ' = ' + truth, truth === p1 + p2, {
+        teach: 'Estimate with hundreds first — being off by exactly 100 means a regrouping slip.',
+        explain: ['Hundreds estimate: ' + Math.floor(p1 / 100) * 100 + ' + ' + Math.floor(p2 / 100) * 100 + '.',
+          'Exact sum ' + (p1 + p2) + '.', 'Statement is <b>' + (truth === p1 + p2 ? 'true' : 'false') + '</b>.']
+        });
+    }
+    /* mode 8 — which number is the best estimate */
+    var real = R.int(rng, 380, 720);
+    return MC(rng, 'The library has ' + real + ' books. Which is the best estimate to the nearest hundred?',
+      Math.round(real / 100) * 100, [Math.floor(real / 100) * 100 - 100, Math.round(real / 100) * 100 + 200, real + 1], {
+        teach: 'Round to the nearest hundred by looking at the tens digit.',
+        explain: ['Tens digit is ' + Math.floor((real % 100) / 10) + '.',
+          (real % 100) >= 50 ? 'That is 50 or more, so round up.' : 'That is under 50, so round down.',
+          'Estimate <b>' + (Math.round(real / 100) * 100) + '</b>.'],
+        b: 0.3
+      });
+  };
+  G('g2-nbt-add-1000', withLead(gen_g2_nbt_add_1000, LEAD));
+
+  /* ==================== 2.MD.1-3  measuring with cm, m, in, ft ============ */
+  var gen_g2_md_units = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 7 : 4);
+    var UN = [
+      { u: 'centimeters', big: 'meters', per: 100, small: 'a fingernail', bigObj: 'a doorknob height' },
+      { u: 'inches', big: 'feet', per: 12, small: 'a button', bigObj: 'a step' }
+    ];
+    var un = pick(rng, UN), thing = pick(rng, ['pencil', 'book', 'jump rope', 'desk', 'sunflower', 'skateboard', 'water bottle']);
+
+    if (mode === 0) {
+      var n = R.int(rng, 6, lvl >= 3 ? 46 : 20);
+      return I_num('Measure the ' + thing + ' with a ruler: it lines up at ' + n + '. How many ' + un.u + ' long is it?',
+        n, {
+          teach: 'Read the ruler at the far end of the object, starting from the zero mark.',
+          explain: ['Line the ' + thing + ' up with the zero mark.', 'Read where the other end stops.',
+            'Length: <b>' + n + ' ' + un.u + '</b>.']
+        });
+    }
+    if (mode === 1) {
+      var a = R.int(rng, 12, 70), b = cap(a + R.int(rng, -20, 20), 5, 80);
+      if (a === b) b = cap(b + 7, 5, 90);
+      var pair = sample(rng, ['crayon', 'paint brush', 'glue stick', 'marker'], 2);
+      return I_num('A ' + pair[0] + ' is ' + Math.max(a, b) + ' ' + un.u + ' and a ' + pair[1] + ' is ' + Math.min(a, b) +
+        ' ' + un.u + '. How many ' + un.u + ' longer is the ' + pair[0] + '?', Math.max(a, b) - Math.min(a, b), {
+          visual: V.bar([{ v: Math.max(a, b), label: pair[0] }, { v: Math.min(a, b), label: pair[1] }]),
+          teach: 'The difference in length is the larger measurement minus the smaller one.',
+          explain: ['Longer: ' + Math.max(a, b) + ', shorter: ' + Math.min(a, b) + '.',
+            Math.max(a, b) + ' - ' + Math.min(a, b) + ' = <b>' + (Math.max(a, b) - Math.min(a, b)) + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* which unit fits */
+      return MC(rng, 'Which unit would you use to measure ' + pick(rng, ['the playground fence', 'the school bus', 'the hallway']) + '?',
+        un.big, [un.u, 'centimeters', 'inches'], {
+          teach: 'Use a small unit for short objects and a large unit for long distances.',
+          explain: ['The object is long, so a ruler in ' + un.u + ' would need too many repeats.',
+            '<b>' + un.big + '</b> is the sensible unit.']
+        });
+    }
+    if (mode === 3) {                        /* unit conversion, whole numbers */
+      var k = R.int(rng, 2, 9);
+      return I_num(k + ' ' + un.big + ' = how many ' + un.u + '?', k * un.per, {
+        teach: '1 ' + un.big + ' contains ' + un.per + ' ' + un.u + ', so multiply by ' + un.per + '.',
+        explain: ['1 ' + un.big + ' = ' + un.per + ' ' + un.u + '.', k + ' ' + un.big + ' = ' + k + ' × ' + un.per + '.',
+          'That is <b>' + (k * un.per) + ' ' + un.u + '</b>.'],
+        b: un.per === 12 ? 0.4 : 0.1
+      });
+    }
+    if (mode === 4) {                        /* estimate */
+      var real = R.int(rng, 14, 62);
+      return MC(rng, 'Estimate the ' + thing + ' in ' + un.u + ' before measuring. Which estimate is closest to ' + real + '?',
+        real, [real + 60, Math.max(1, real - 60), real * 4], {
+          teach: 'A good estimate uses an object you know: your hand, a pencil, a step.',
+          explain: ['Compare each choice with ' + real + '.', 'The choice nearest ' + real + ' is <b>' + real + '</b>.']
+        });
+    }
+    if (mode === 5) {                        /* measure start not at zero */
+      var from = R.int(rng, 1, 5), to = from + R.int(rng, 5, 24);
+      return I_num('A ' + thing + ' starts at the ' + from + ' mark on the ruler and ends at the ' + to +
+        ' mark. How many ' + un.u + ' long is it?', to - from, {
+          visual: V.numline(0, to + 2, [{ x: from, label: 'start' }, { x: to, label: 'end' }]),
+          teach: 'A measurement is the distance between the two marks, even if you do not start at zero.',
+          explain: ['End mark ' + to + ', start mark ' + from + '.', to + ' - ' + from + ' = <b>' + (to - from) + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 6) {                        /* true/false about units */
+      var claim = pick(rng, [
+        ['A ' + un.big + ' is longer than a ' + un.u, true],
+        ['A ' + un.u + ' is longer than a ' + un.big, false]
+      ]);
+      return I_bool('Is this true?  "' + claim[0] + '"', claim[1], {
+        teach: 'Bigger unit names mean fewer units are needed to measure the same object.',
+        explain: ['1 ' + un.big + ' = ' + un.per + ' ' + un.u + '.', 'So a ' + un.big + ' is the longer unit.',
+          'The statement is <b>' + (claim[1] ? 'true' : 'false') + '</b>.']
+        });
+    }
+    /* mode 7 — order by length */
+    var l = shuffle(rng, [['string', R.int(rng, 20, 80)], ['ribbon', R.int(rng, 20, 80)], ['lace', R.int(rng, 20, 80)]])
+      .sort(function (p, q) { return p[1] - q[1]; });
+    return MC(rng, 'String ' + l[0][1] + ' ' + un.u + ', ribbon ' + l[1][1] + ' ' + un.u + ', lace ' + l[2][1] +
+      ' ' + un.u + '. Which is the longest?', 'the ' + l[2][0], ['the ' + l[0][0], 'the ' + l[1][0], 'the ' + l[0][0] + ' and ' + l[1][0] + ' tie'], {
+        teach: 'Order measurements by their numbers when the unit is the same.',
+        explain: ['Sort: ' + l.map(function (p) { return p[1]; }).join(', ') + '.',
+          'Biggest is ' + l[2][1] + ', so <b>the ' + l[2][0] + '</b> is longest.']
+      });
+  };
+  G('g2-md-units', withLead(gen_g2_md_units, LEAD));
+
+  /* ======================== 2.MD.4-5  line plots =========================== */
+  var gen_g2_md_data = function (rng, lvl) {
+    var SETS = [
+      { t: 'how many books each student read', unit: 'books' },
+      { t: 'the length of pencils in centimeters', unit: 'cm' },
+      { t: 'how many pets each student has', unit: 'pets' },
+      { t: 'the height of sunflowers in centimeters', unit: 'cm' }
+    ];
+    var set = pick(rng, SETS);
+    var lo = R.int(rng, 1, 3), xs = [lo, lo + 1, lo + 2, lo + 3];
+    var counts = xs.map(function () { return R.int(rng, 1, 7); });
+    var total = counts.reduce(function (a, c) { return a + c; }, 0);
+    var mode = R.int(rng, 0, lvl >= 3 ? 6 : 3);
+    var maxC = Math.max.apply(null, counts), minC = Math.min.apply(null, counts);
+    var plot = { k: 'barchart', data: xs.map(function (x, i) { return { label: String(x), v: counts[i] }; }), opts: { label: set.t } };
+
+    if (mode === 0) {
+      return MC(rng, 'Line plot of ' + set.t + ': ' + xs.map(function (x, i) { return x + ' → ' + counts[i] + ' X'; }).join(', ') +
+        '. Which value happened most often?', String(xs[counts.indexOf(maxC)]),
+        [String(xs[counts.indexOf(minC)]), String(xs[(counts.indexOf(maxC) + 1) % xs.length]), 'they all tie'], {
+          visual: plot,
+          teach: 'On a line plot, the stack with the most X marks is the most frequent value.',
+          explain: ['Compare the stacks: ' + counts.join(', ') + '.', 'The tallest stack has ' + maxC + ' X marks.',
+            'That value is <b>' + xs[counts.indexOf(maxC)] + '</b>.']
+        });
+    }
+    if (mode === 1) {
+      var i1 = 0, i2 = 3;
+      return I_num('The line plot of ' + set.t + ' shows ' + counts[i1] + ' students at ' + xs[i1] + ' and ' +
+        counts[i2] + ' students at ' + xs[i2] + '. How many students are in those two columns?',
+        counts[i1] + counts[i2], {
+          visual: plot,
+          teach: 'Add the counts of the columns the question asks about.',
+          explain: ['Take ' + counts[i1] + ' and ' + counts[i2] + '.', counts[i1] + ' + ' + counts[i2] + ' = <b>' + (counts[i1] + counts[i2]) + '</b>.']
+        });
+    }
+    if (mode === 2) {
+      return I_num('On the ' + set.t + ' line plot, one value has ' + maxC + ' X marks and another has ' + minC +
+        '. How many more X marks in the taller stack?', maxC - minC, {
+          visual: plot,
+          teach: 'How many more is the difference between two stack heights.',
+          explain: ['Taller ' + maxC + ', shorter ' + minC + '.', maxC + ' - ' + minC + ' = <b>' + (maxC - minC) + '</b>.']
+        });
+    }
+    if (mode === 3) {
+      return I_bool('Does the line plot of ' + set.t + ' show ' + total + ' X marks in all?', true, {
+        teach: 'The total number of data points is the sum of all the stacks.',
+        explain: ['Stacks: ' + counts.join(' + ') + '.', 'Adding them gives ' + total + '.', 'So <b>true</b>.']
+      });
+    }
+    if (mode === 4) {
+      var addv = R.int(rng, 1, 3), at = R.int(rng, 0, 3);
+      return I_num('If ' + addv + ' more students were measured at value ' + xs[at] + ' (currently ' + counts[at] +
+        ' X marks), how many X marks would that value show?', counts[at] + addv, {
+          teach: 'New data points add to one stack only, so the total grows too.',
+          explain: ['Current stack ' + counts[at] + '.', 'Add ' + addv + ': <b>' + (counts[at] + addv) + '</b>.']
+        });
+    }
+    if (mode === 5) {
+      var span = xs[xs.length - 1] - xs[0];
+      return I_num('The line plot of ' + set.t + ' runs from ' + xs[0] + ' to ' + xs[xs.length - 1] +
+        '. What is the difference between the greatest and least measurement?', span, {
+          visual: plot,
+          teach: 'The spread of the data is the greatest value minus the least value.',
+          explain: ['Greatest ' + xs[xs.length - 1] + ', least ' + xs[0] + '.', xs[xs.length - 1] + ' - ' + xs[0] + ' = <b>' + span + '</b>.'],
+          b: 0.3
+        });
+    }
+    /* mode 6 — table to line plot */
+    return I_num('A table shows ' + xs[0] + ': ' + counts[0] + ', ' + xs[1] + ': ' + counts[1] + ', ' + xs[2] + ': ' + counts[2] +
+      '. If you draw a line plot, how many X marks go above ' + xs[1] + '?', counts[1], {
+        visual: V.table([set.unit, 'students'], [[String(xs[0]), String(counts[0])], [String(xs[1]), String(counts[1])], [String(xs[2]), String(counts[2])]]),
+        teach: 'Each row of the table becomes one stack whose height is its count.',
+        explain: ['Read the row for ' + xs[1] + '.', 'Its count is ' + counts[1] + '.',
+          'So <b>' + counts[1] + '</b> X marks go above ' + xs[1] + '.'],
+        b: 0.2
+      });
+  };
+  G('g2-md-data', withLead(gen_g2_md_data, LEAD));
+
+  /* =================== 2.MD.6-8  time to 5 min, money problems ============ */
+  var gen_g2_md_time_money = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 7 : 4);
+    var h = R.int(rng, 1, 12), m = pick(rng, [5, 10, 15, 20, 25, 35, 40, 45, 50, 55]);
+
+    if (mode === 0) {
+      return I_str('What time is shown? The hour hand is just past ' + h + ' and the minute hand points at ' + (m / 5) + '.',
+        [hms(h, m)], {
+          visual: V.clock(h, m),
+          teach: 'Each number the minute hand points to stands for 5 minutes.',
+          explain: ['Minute hand on ' + (m / 5) + ' means ' + (m / 5) + ' × 5 = ' + m + ' minutes.',
+            'The hour hand is past ' + h + '.', 'Time: <b>' + hms(h, m) + '</b>.'],
+          answerText: hms(h, m)
+        });
+    }
+    if (mode === 1) {
+      var after = R.int(rng, 1, 4) * 5;
+      var m2 = m + after, h2 = h + Math.floor(m2 / 60), m2r = m2 % 60;
+      return I_str('The clock shows ' + hms(h, m) + '. What time will it be in ' + after + ' minutes?',
+        [hms(h2, m2r)], {
+          teach: 'Add the minutes, and every 60 minutes roll one hour forward.',
+          explain: [m + ' + ' + after + ' = ' + m2 + ' minutes past the hour.',
+            m2 >= 60 ? 'That passes 60, so the hour moves on by 1.' : 'Still inside the same hour.',
+            'New time <b>' + hms(h2, m2r) + '</b>.'],
+          answerText: hms(h2, m2r), b: 0.3
+        });
+    }
+    if (mode === 2) {
+      var q0 = R.int(rng, 2, 5), d0 = R.int(rng, 1, 4), n0 = R.int(rng, 0, 3), p0 = R.int(rng, 0, 4);
+      var cents = q0 * 25 + d0 * 10 + n0 * 5 + p0;
+      return I_num('Count the coins: ' + coin(q0, 'quarter') + ', ' + coin(d0, 'dime') + ', ' + coin(n0, 'nickel') +
+        ' and ' + coin(p0, 'penny') + '. How many cents in total?', cents, {
+          visual: V.coins(q0, d0, n0, p0),
+          teach: 'Count the biggest coins first, then add on the smaller ones.',
+          explain: ['Quarters: ' + q0 + ' × 25 = ' + (q0 * 25) + '¢.',
+            'Dimes: ' + d0 + ' × 10 = ' + (d0 * 10) + '¢ and nickels: ' + n0 + ' × 5 = ' + (n0 * 5) + '¢.',
+            'Pennies: ' + p0 + '¢. Total <b>' + cents + '¢</b>.']
+        });
+    }
+    if (mode === 3) {
+      var q = R.int(rng, 1, 4), d = R.int(rng, 1, 4), n = R.int(rng, 0, 3), p = R.int(rng, 0, 4);
+      var tot = q * 25 + d * 10 + n * 5 + p;
+      return I_num('A purse holds ' + coin(q, 'quarter') + ', ' + coin(d, 'dime') + ', ' + coin(n, 'nickel') + ' and ' + coin(p, 'penny') + '. How many cents?',
+        tot, {
+          visual: V.coins(q, d, n, p),
+          teach: 'Count by the coin values: 25, then 10s, then 5s, then 1s.',
+          explain: ['Quarters: ' + q + ' × 25 = ' + (q * 25) + '.',
+            'Dimes and nickels: ' + (d * 10) + ' + ' + (n * 5) + '.', 'Pennies: ' + p + '. Total <b>' + tot + '¢</b>.']
+        });
+    }
+    if (mode === 4) {
+      var price = R.int(rng, 3, 19) * 10 + pick(rng, [0, 5]);
+      var paid = Math.ceil((price + 1) / 100) * 100;
+      return I_num('A notebook costs ' + price + '¢ and you pay with a dollar (100¢). How many cents of change?',
+        paid - price, {
+          visual: V.money((paid - price) / 100),
+          teach: 'Change is the difference between what you hand over and the price.',
+          explain: ['Paid ' + paid + '¢, price ' + price + '¢.', paid + ' - ' + price + ' = <b>' + (paid - price) + '¢</b>.'],
+          b: 0.4
+        });
+    }
+    if (mode === 5) {
+      var bills = R.int(rng, 1, 4), cost = bills * 100 - R.int(rng, 1, 9) * 10;
+      return MC(rng, 'A backpack costs $' + (cost / 100).toFixed(2) + '. Which combination pays exactly with bills only?',
+        '$' + (cost / 100).toFixed(2), ['$' + ((cost + 100) / 100).toFixed(2), '$' + ((cost - 100) / 100).toFixed(2), '$' + (cost / 100 + 0.5).toFixed(2)], {
+          visual: V.money(cost / 100),
+          teach: 'Match the total to the price: same dollars, same cents, no more and no less.',
+          explain: ['Price is $' + (cost / 100).toFixed(2) + '.', 'Check each total against it.',
+            'Exact payment: <b>$' + (cost / 100).toFixed(2) + '</b>.']
+        });
+    }
+    if (mode === 6) {
+      var startH = R.int(rng, 1, 9), dur = R.int(rng, 1, 3);
+      return I_num('Art class starts at ' + hms(startH, 0) + ' and lasts ' + dur + ' hours. What time does it end?',
+        startH + dur, {
+          visual: V.clock((startH + dur) % 12, 0),
+          teach: 'Whole hours just move the hour hand around the clock.',
+          explain: ['Start at hour ' + startH + '.', 'Move ' + dur + ' hours forward.',
+            'Ends at hour <b>' + (startH + dur) + '</b>.']
+        });
+    }
+    /* mode 7 — elapsed minutes on the clock face */
+    var m3 = pick(rng, [10, 15, 20, 25]), m4 = m3 + pick(rng, [5, 10, 15, 20]);
+    return I_num('The minute hand moves from the ' + (m3 / 5) + ' to the ' + (m4 / 5) + '. How many minutes pass?',
+      m4 - m3, {
+        visual: V.clock(h, m4),
+        teach: 'Each step from one number to the next on the clock face is 5 minutes.',
+        explain: ['From ' + (m3 / 5) + ' to ' + (m4 / 5) + ' is ' + ((m4 - m3) / 5) + ' steps.',
+          ((m4 - m3) / 5) + ' × 5 = <b>' + (m4 - m3) + '</b> minutes.']
+      });
+  };
+  G('g2-md-time-money', withLead(gen_g2_md_time_money, LEAD));
+
+  /* ============= 2.G.1-3  shapes by attribute, partitioning, shares ======== */
+  var gen_g2_g_shapes_frac = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 3 ? 7 : 4);
+    var QUAD = ['rectangle', 'square', 'rhombus', 'trapezoid'];
+    var q = pick(rng, QUAD), rows = R.int(rng, 2, 4), cols = R.int(rng, 2, 5);
+
+    if (mode === 0) {
+      return MC(rng, 'Which quadrilateral has 4 equal sides but is not required to have 4 right angles?', 'rhombus',
+        ['rectangle', 'trapezoid', 'square'], {
+          teach: 'Quadrilaterals are sorted by their attributes: equal sides, right angles, parallel sides.',
+          explain: ['A rhombus has 4 equal sides.', 'Only a square adds 4 right angles.',
+            'Answer: <b>rhombus</b>.']
+        });
+    }
+    if (mode === 1) {
+      return MC(rng, 'Which statement is true about a rectangle?', 'It has 4 right angles and 4 sides',
+        ['It has 3 sides', 'It has no right angles', 'It has 5 corners'], {
+          teach: 'A rectangle is a quadrilateral with four right angles.',
+          explain: ['Count the sides: 4.', 'Count the right angles: 4.', 'So the true statement is the first one.']
+        });
+    }
+    if (mode === 2) {                        /* partition a rectangle */
+      var parts = rows * cols;
+      return I_num('A rectangle is divided into ' + rows + ' rows of ' + cols + ' equal squares. Into how many equal parts is it divided?',
+        parts, {
+          visual: V.area(rows, cols, { label: rows + ' × ' + cols + ' equal squares' }),
+          teach: 'A grid of equal rows and columns partitions a rectangle into equal parts.',
+          explain: ['Rows: ' + rows + ', each with ' + cols + ' squares.', 'Add ' + cols + ' ' + rows + ' times.',
+            'Equal parts: <b>' + parts + '</b>.']
+        });
+    }
+    if (mode === 3) {                        /* equal shares */
+      var d = pick(rng, [2, 3, 4, 6]), n = R.int(rng, 1, d - 1);
+      return I_frac('A bar of chocolate with ' + d + ' equal pieces: you eat ' + n + '. What fraction did you eat?',
+        n, d, {
+          visual: V.frac({ n: n, d: d, label: 'chocolate bar' }),
+          teach: 'The equal pieces are the denominator; the pieces taken are the numerator.',
+          explain: ['Equal pieces ' + d + ' → bottom number.', 'Eaten ' + n + ' → top number.',
+            'Fraction eaten <b>' + mixedStr(n, d) + '</b>.']
+        });
+    }
+    if (mode === 4) {                        /* same whole, different shares */
+      return MC(rng, 'Two identical chocolate bars. One is cut into halves, one into fourths. Which single piece is bigger?',
+        'a half', ['a fourth', 'they are identical', 'cannot compare without weighing'], {
+          visual: V.frac([{ n: 1, d: 2, label: 'half' }, { n: 1, d: 4, label: 'fourth' }]),
+          teach: 'For the same whole, fewer equal parts means each part is larger.',
+          explain: ['Halves: 2 parts per whole.', 'Fourths: 4 parts per whole.', 'So <b>a half</b> is the bigger piece.']
+        });
+    }
+    if (mode === 5) {                        /* composing shapes */
+      return MC(rng, 'Two identical rectangles joined along their long sides make which shape?',
+        'a larger rectangle', ['a triangle', 'a circle', 'a hexagon with 6 equal sides'], {
+          visual: V.area(2, 4, { label: 'two rectangles joined' }),
+          teach: 'Joining shapes along whole edges creates a new shape whose area is the sum of the parts.',
+          explain: ['Match the long edges together.', 'The outline still has 4 right angles.',
+            'Result: <b>a larger rectangle</b>.']
+        });
+    }
+    if (mode === 6) {                        /* true/false equal shares */
+      var equal = chance(rng, 0.5);
+      return I_bool('Is this an equal share? "A ' + pick(rng, ['sandwich', 'pizza', 'candy bar']) + ' cut into ' +
+        (equal ? '4 pieces that are all the same size' : '4 pieces where one is much bigger than the others') + '"',
+        equal, {
+          teach: 'Fraction names only make sense when every part is the same size.',
+          explain: ['Check the pieces: ' + (equal ? 'all the same size.' : 'one piece is bigger.'),
+            'So it ' + (equal ? 'is' : 'is not') + ' an <b>equal share</b>.']
+        });
+    }
+    if (mode === 7) {                        /* attribute hunt */
+      return MC(rng, 'I have 4 sides, at least one pair of parallel sides, and no right angles. What am I?',
+        pick(rng, ['rhombus', 'trapezoid']), ['square', 'rectangle', 'pentagon'], {
+          teach: 'Defining attributes decide the name; colour, size and turning do not.',
+          explain: ['4 sides → a quadrilateral.', 'No right angles rules out the square and rectangle.',
+            'So I am a <b>rhombus or trapezoid</b>.']
+        });
+    }
+    /* mode 8 — fraction of a set */
+    var grp = R.int(rng, 3, 6) * 2, take = grp / 2;
+    return I_num(ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally between 2 children. How many does each child get?',
+      take, {
+        visual: V.bar([{ v: take, label: 'child 1' }, { v: take, label: 'child 2' }]),
+        teach: 'Halving a set splits it into two equal groups.',
+        explain: ['Total ' + grp + '.', 'Two equal groups means ' + grp + ' ÷ 2.', 'Each gets <b>' + take + '</b>.'],
+        b: 0.3
+      });
+  };
+  G('g2-g-shapes-frac', withLead(gen_g2_g_shapes_frac, LEAD));
 })();
 
 </script>
@@ -3484,4 +5382,3 @@ registerSkills([
 </script>
 </body>
 </html>
-
