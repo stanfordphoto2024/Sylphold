@@ -6465,6 +6465,21 @@ registerSkills([
   }
 
   /* --------------------------------------------------------------- queue -- */
+  /* An item the learner can never finish must not reach the screen: a card with
+   * an empty answer spec looks exactly like a frozen app. `next` drops it and
+   * asks for another one. */
+  function answerable(item) {
+    if (!item || !item.spec) return false;
+    var k = item.spec.k;
+    if (k === 'list') return !!(item.spec.vals && item.spec.vals.length);
+    if (k === 'choice') return optionList(item, 'choice').length >= 2 ||
+      (item.spec.text != null && String(item.spec.text).trim() !== '');
+    if (k === 'str') return !!(item.spec.pats && item.spec.pats.length);
+    if (k === 'n') return item.spec.v == null || isFinite(item.spec.v);
+    if (k === 'frac') return !!item.spec.d;
+    return true;
+  }
+
   function next() {
     S.attempts = 0; S.answered = false; S.revealed = false; S.picked = null;
     S.notes = []; S.lastRec = null; S.reteachDone = false;
@@ -6476,11 +6491,17 @@ registerSkills([
       renderItem(); renderHeader();
       return;
     }
-    if (S.queue.length) { S.item = S.queue.shift(); renderItem(); renderHeader(); return; }
+    if (S.queue.length) {
+      /* a queued reteach item that cannot be answered must not be shown */
+      var q = null;
+      while (S.queue.length) { q = S.queue.shift(); if (answerable(q)) break; q = null; }
+      if (q) { S.item = q; renderItem(); renderHeader(); return; }
+    }
     var opts = S.manual ? { skillId: S.manual, why: 'manual' } : null;
     var guard = 0, item = null;
     while (guard++ < 12 && !item) {
       try { item = E.nextItem(opts); } catch (e) { item = null; }
+      if (item && !answerable(item)) item = null;    // broken item: never shown to a learner
       if (!item && opts) { S.manual = null; opts = null; }
       if (!item && !opts) break;
     }
