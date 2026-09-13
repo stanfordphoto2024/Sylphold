@@ -276,8 +276,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-12 — 7 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 20-ui.js
+/* MathPath 2026-09-13 — 8 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -1166,13 +1166,27 @@ registerSkills([
     return L.length - 1;
   }
 
+  /* A skill is PLAYABLE only when a generator is registered for it. The ladder is
+     120 skills wide and content lands one band at a time, so the frontier very
+     often points at a skill that has no items yet (a learner who finishes Grade 2
+     lands exactly there). Routing there hands the UI a null item and the learner a
+     card with nothing to answer, so the sequencer keeps moving until it finds a
+     skill that really has items. */
+  function playable(id) { return !!root.SKILL_GEN[id]; }
+  function nearestPlayable(i) {
+    var L = root.SKILLS, j;
+    for (j = i; j < L.length; j++) if (playable(L[j].id)) return j;   // newest available first
+    for (j = i - 1; j >= 0; j--) if (playable(L[j].id)) return j;     // else consolidate behind
+    return -1;                                                        // nothing written yet
+  }
+
   function pickSkill(st, rng) {
     var L = root.SKILLS;
     /* 1) due review, when the learner is not a total beginner */
     var due = [];
     Object.keys(st.sk).forEach(function (id) {
       var s = st.sk[id];
-      if (s.a >= 3 && s.m >= 0.55 && s.due && s.due <= now()) due.push(id);
+      if (s.a >= 3 && s.m >= 0.55 && s.due && s.due <= now() && playable(id)) due.push(id);
     });
     if (due.length >= 2 && rng() < st.settings.reviewShare) {
       due.sort(function (a, b) { return st.sk[a].due - st.sk[b].due; });
@@ -1180,7 +1194,7 @@ registerSkills([
     }
     /* 2) a diagnosed gap gets reteached before anything new */
     var gaps = [];
-    Object.keys(st.sk).forEach(function (id) { if (statusOf(st.sk[id]) === 'gap') gaps.push(id); });
+    Object.keys(st.sk).forEach(function (id) { if (playable(id) && statusOf(st.sk[id]) === 'gap') gaps.push(id); });
     if (gaps.length && rng() < 0.55) {
       gaps.sort(function (a, b) { return SK_B(a) - SK_B(b); });
       return { id: gaps[0], why: 'gap' };
@@ -1188,7 +1202,9 @@ registerSkills([
     /* 3) frontier, with a small chance of previewing one skill ahead */
     var i = frontierIndex(st);
     if (rng() < 0.08 && i + 1 < L.length && statusOf(st.sk[L[i].id]) !== 'gap') i++;
-    return { id: L[i].id, why: 'frontier' };
+    var p = nearestPlayable(i);
+    if (p < 0) return { id: L[i].id, why: 'frontier' };   // no content anywhere: the UI says so honestly
+    return { id: L[p].id, why: p === i ? 'frontier' : (p > i ? 'ahead' : 'consolidate') };
   }
   function SK_B(id) { var s = root.SKILL_BY_ID[id]; return s ? s.b : 0; }
 
@@ -1288,12 +1304,25 @@ registerSkills([
   }
 
   /* ---------------------------------------------------------- diagnostic --- */
-  /* Adaptive: probe a skill with 3 items; move up/down the ladder by halves,
-     then refine in a 6-skill window. Ends with a readiness verdict. */
+  /* Adaptive: probe a skill with 3 items; move up/down by halves, then refine
+     around the boundary. Ends with a readiness verdict.
+     The bisection runs over the skills that actually HAVE items. Most of the
+     ladder has no content yet, and probing an empty skill used to ask for an
+     item, get none, and re-enter diagNext — which re-picked the same empty
+     skill. The probe never finished and the learner never got a question. */
+  function probePool() {
+    var L = root.SKILLS, pool = [];
+    for (var i = 0; i < L.length; i++) if (playable(L[i].id)) pool.push(i);
+    return pool;
+  }
+  function diagPool(D) {
+    if (!D.pool || !D.pool.length) D.pool = probePool();
+    return D.pool;
+  }
   function diagStart(st) {
-    var L = root.SKILLS;
+    var pool = probePool();
     st.diag = {
-      phase: 'search', lo: 0, hi: L.length - 1, cur: Math.floor(L.length / 2),
+      phase: 'search', lo: 0, hi: pool.length - 1, cur: Math.floor(pool.length / 2), pool: pool,
       asked: 0, limit: 26, results: [], skill: null, inSkill: 0, okInSkill: 0,
       seenSkill: {}, info: 0, se: 99, done: false, hist: []
     };
@@ -1302,35 +1331,43 @@ registerSkills([
   function diagNext(st) {
     var D = st.diag, L = root.SKILLS;
     if (!D || D.done) return null;
+    var pool = diagPool(D);
+    if (!pool.length) { diagFinish(st); return null; }        // nothing written yet — end honestly
     if (D.asked >= D.limit) { diagFinish(st); return null; }
-    if (!D.skill || D.inSkill >= 3) {
-      /* pick the next probe index */
-      if (D.phase === 'search') {
-        var mid = Math.floor((D.lo + D.hi) / 2);
-        if (D.seenSkill[D.cur] && D.phaseCount > 1) { /* continue */ }
-        D.cur = clamp(mid, 0, L.length - 1);
-      } else {
-        D.cur = clamp(D.refIdx || D.cur, 0, L.length - 1);
+    /* bounded loop, never recursion: if a probe position yields no item we drop
+       that position and carry on with the next one */
+    for (var step = 0; step <= pool.length + 2; step++) {
+      if (!D.skill || D.inSkill >= 3) {
+        if (D.phase === 'search') {
+          D.cur = clamp(Math.floor((D.lo + D.hi) / 2), 0, pool.length - 1);
+        } else {
+          D.cur = clamp(D.refIdx != null ? D.refIdx : D.cur, 0, pool.length - 1);
+        }
+        if (D.seenSkill[D.cur] && D.phase === 'search') {
+          /* both neighbours probed: switch to refine around the boundary */
+          D.phase = 'refine';
+          var b = clamp(D.lo + 1, 0, pool.length - 1);
+          D.refIdx = b; D.cur = b;
+        }
+        if (D.seenSkill[D.cur] > pool.length) break;          // exhausted the ladder
+        D.seenSkill[D.cur] = (D.seenSkill[D.cur] || 0) + 1;
+        D.skill = L[pool[D.cur]].id; D.inSkill = 0; D.okInSkill = 0;
       }
-      if (D.seenSkill[D.cur] && D.phase === 'search') {
-        /* both neighbours probed: switch to refine around the boundary */
-        D.phase = 'refine';
-        var b = Math.max(0, Math.min(D.lo + 1, L.length - 1));
-        D.refIdx = b; D.cur = b;
+      S(st, D.skill);
+      var lvl = 3, item = null, tries = 0;
+      while (!item && tries++ < 6) { try { item = root.genFor(D.skill, root.__rng || Math.random, lvl); } catch (e) { item = null; } }
+      if (item) {
+        item.diag = { idx: pool[D.cur], n: D.inSkill + 1 };
+        return item;
       }
-      D.seenSkill[D.cur] = (D.seenSkill[D.cur] || 0) + 1;
-      D.skill = L[D.cur].id; D.inSkill = 0; D.okInSkill = 0;
+      D.skill = null; D.inSkill = 0;                          // empty skill: move to the next probe
+      D.lo = Math.max(D.lo, D.cur + 1);
     }
-    var sk = L[D.cur], s = S(st, D.skill);
-    var lvl = clamp(3, 1, 5);
-    var item = null, tries = 0;
-    while (!item && tries++ < 6) { try { item = root.genFor(D.skill, root.__rng || Math.random, lvl); } catch (e) { item = null; } }
-    if (!item) { D.inSkill = 3; return diagNext(st); }
-    item.diag = { idx: D.cur, n: D.inSkill + 1 };
-    return item;
+    diagFinish(st);
+    return null;
   }
   function diagAnswer(st, item, ok) {
-    var D = st.diag, L = root.SKILLS;
+    var D = st.diag, top = diagPool(D).length - 1;
     if (!D || D.done) return null;
     var p = prob(st.theta, item.b);
     st.theta = clamp(st.theta + K_THETA * ((ok ? 1 : 0) - p), -10, 125);
@@ -1347,7 +1384,7 @@ registerSkills([
       D.hist.push({ idx: D.cur, id: D.skill, pass: pass, ok: D.okInSkill });
       if (D.phase === 'search') {
         if (pass) D.lo = D.cur + 1; else D.hi = D.cur - 1;
-        if (D.lo > D.hi) { D.phase = 'refine'; D.refIdx = clamp(D.hi, 0, L.length - 1); }
+        if (D.lo > D.hi) { D.phase = 'refine'; D.refIdx = clamp(D.hi, 0, top); }
       } else {
         if (pass) D.refIdx = D.cur + 1; else D.refIdx = D.cur - 1;
         if (D.asked >= D.limit - 4) diagFinish(st);
@@ -1589,7 +1626,7 @@ registerSkills([
         visual: V.bar([{ v: n, label: 'left' }, { v: arr[0], label: 'right' }]),
         teach: 'Count each group first, then compare the two totals.',
         explain: ['Left group: ' + n + '.', 'Right group: ' + arr[0] + '.',
-          n + ' vs ' + arr[0] + ' → ' + (n < arr[0] ? '<' : (n > arr[0] ? '>' : '='))],
+          n + ' vs ' + arr[0] + ' → ' + (n < arr[0] ? '&lt;' : (n > arr[0] ? '&gt;' : '='))],
         b: 0
       });
     }
@@ -1624,7 +1661,7 @@ registerSkills([
         visual: V.bar([{ v: a, label: 'left' }, { v: b, label: 'right' }]),
         teach: 'The open side of the symbol always faces the larger number.',
         explain: ['Count the left group: ' + a + '.', 'Count the right group: ' + b + '.',
-          a + ' vs ' + b + ' → ' + (a < b ? '<' : (a > b ? '>' : '='))],
+          a + ' vs ' + b + ' → ' + (a < b ? '&lt;' : (a > b ? '&gt;' : '='))],
         b: a === b ? 0.3 : -0.3
       });
     }
@@ -2107,7 +2144,7 @@ registerSkills([
         teach: 'Compare teen numbers by counting tens first, then ones.',
         explain: ['' + n + ' has ' + Math.floor(n / 10) + ' ten and ' + (n % 10) + ' ones.',
           '' + m + ' has ' + Math.floor(m / 10) + ' ten and ' + (m % 10) + ' ones.',
-          'So ' + n + ' ' + (n > m ? '>' : n < m ? '<' : '=') + ' ' + m + '.'],
+          'So ' + n + ' ' + (n > m ? '&gt;' : n < m ? '&lt;' : '=') + ' ' + m + '.'],
         b: 0.4
       });
     }
@@ -2248,7 +2285,7 @@ registerSkills([
       return I_cmp('Compare the groups: ' + a + ' ' + c[0] + ' and ' + b + ' ' + c[1] + '.', a, b, {
         visual: V.bars([{ label: c[0], v: a }, { label: c[1], v: b }], {}),
         teach: 'Comparing two category counts tells which group has more.',
-        explain: [c[0] + ': ' + a, c[1] + ': ' + b, 'Compare ' + a + ' and ' + b + ' → ' + (a > b ? '>' : a < b ? '<' : '='),
+        explain: [c[0] + ': ' + a, c[1] + ': ' + b, 'Compare ' + a + ' and ' + b + ' → ' + (a > b ? '&gt;' : a < b ? '&lt;' : '='),
           'There ' + (a > b ? 'are more ' + c[0] : a < b ? 'are more ' + c[1] : 'are the same number') + '.'],
         b: 0
       });
@@ -2639,7 +2676,7 @@ registerSkills([
       teach: 'Compute both sides first, then choose the symbol that opens to the larger side.',
       explain: ['Left: ' + m + ' + ' + k1 + ' = ' + (m + k1) + '.', 'Right: ' + n + ' + ' + k2 + ' = ' + (n + k2) + '.',
         'Compare ' + (m + k1) + ' and ' + (n + k2) + ' — the symbol is <b>' +
-        ((m + k1) < (n + k2) ? '<' : (m + k1) > (n + k2) ? '>' : '=') + '</b>.']
+        ((m + k1) < (n + k2) ? '&lt;' : (m + k1) > (n + k2) ? '&gt;' : '=') + '</b>.']
     });
   };
   G('g1-oa-equals', withLead(gen_g1_oa_equals, LEAD));
@@ -2696,7 +2733,7 @@ registerSkills([
       return I_cmp(x + ' + 3  ○  ' + y + ' + 2', x + 3, y + 2, {
         teach: 'Do both sums first; then the comparison is just two numbers.',
         explain: ['Left = ' + (x + 3) + '.', 'Right = ' + (y + 2) + '.',
-          'So the symbol is <b>' + ((x + 3) < (y + 2) ? '<' : (x + 3) > (y + 2) ? '>' : '=') + '</b>.']
+          'So the symbol is <b>' + ((x + 3) < (y + 2) ? '&lt;' : (x + 3) > (y + 2) ? '&gt;' : '=') + '</b>.']
       });
     }
     /* mode 6 — same total */
@@ -2748,7 +2785,7 @@ registerSkills([
         teach: 'Compare the tens digit first; only look at ones when the tens match.',
         explain: [p + ' has ' + Math.floor(p / 10) + ' tens, ' + q + ' has ' + Math.floor(q / 10) + ' tens.',
           'So ' + p + ' is ' + (p < q ? 'less' : p > q ? 'greater' : 'equal') + ' than ' + q + '.',
-          'Symbol: <b>' + (p < q ? '<' : p > q ? '>' : '=') + '</b>.']
+          'Symbol: <b>' + (p < q ? '&lt;' : p > q ? '&gt;' : '=') + '</b>.']
         });
     }
     if (mode === 3) {                        /* which is greater */
@@ -2985,7 +3022,7 @@ registerSkills([
     return I_cmp(p1 + ' + ' + p2 + '  ○  ' + q1 + ' + ' + q2, p1 + p2, q1 + q2, {
       teach: 'Estimate first: the side with the larger tens is usually larger.',
       explain: ['Left total: ' + (p1 + p2) + '.', 'Right total: ' + (q1 + q2) + '.',
-        'Symbol: <b>' + ((p1 + p2) < (q1 + q2) ? '<' : (p1 + p2) > (q1 + q2) ? '>' : '=') + '</b>.'],
+        'Symbol: <b>' + ((p1 + p2) < (q1 + q2) ? '&lt;' : (p1 + p2) > (q1 + q2) ? '&gt;' : '=') + '</b>.'],
       b: 0.4
     });
   };
@@ -3390,7 +3427,7 @@ registerSkills([
 
     if (mode === 0) {                        /* fluency within 20 */
       var a = R.int(rng, 6, 15), b = R.int(rng, 4, cap(20 - a, 4, 9));
-      return I_num(a + ' + ' + b + ' =', a + b, {
+      return I_num('What is ' + a + ' + ' + b + '?', a + b, {
         teach: 'Make a ten first, then add the rest — it is faster than counting on.',
         explain: ['Take ' + (10 - Math.min(a, b)) + ' from the bigger number to make the smaller one 10.',
           'Now it is 10 + ' + (Math.max(a, b) - (10 - Math.min(a, b))) + '.',
@@ -3400,7 +3437,7 @@ registerSkills([
     }
     if (mode === 1) {                        /* subtraction within 20 */
       var s = R.int(rng, 12, 18), t = R.int(rng, 4, 9);
-      return I_num(s + ' - ' + t + ' =', s - t, {
+      return I_num('What is ' + s + ' - ' + t + '?', s - t, {
         teach: 'Break the number you are subtracting so you land on a ten first.',
         explain: ['Go to the ten: ' + s + ' - ' + (s - 10) + ' = 10.',
           'Still to take: ' + (t - (s - 10)) + '.', 'So 10 - ' + (t - (s - 10)) + ' = <b>' + (s - t) + '</b>.'],
@@ -3614,7 +3651,7 @@ registerSkills([
       return I_cmp(n + '  ○  ' + n2, n, n2, {
         teach: 'Compare three-digit numbers from left to right: hundreds first, then tens, then ones.',
         explain: ['Hundreds: ' + h + ' vs ' + h2 + '.', h === h2 ? 'Tens: ' + t + ' vs ' + t2 + '.' : 'The hundreds already decide it.',
-          'Symbol: <b>' + (n < n2 ? '<' : n > n2 ? '>' : '=') + '</b>.']
+          'Symbol: <b>' + (n < n2 ? '&lt;' : n > n2 ? '&gt;' : '=') + '</b>.']
         });
     }
     if (mode === 3) {                        /* skip counting by 100s */
@@ -3761,7 +3798,7 @@ registerSkills([
 
     if (mode === 0) {                        /* add, no regroup */
       var a = R.int(rng, 121, 640), b = R.int(rng, 111, cap(999 - a, 111, 300));
-      return I_num(a + ' + ' + b + ' =', a + b, {
+      return I_num('What is ' + a + ' + ' + b + '?', a + b, {
         teach: 'Add each place separately: hundreds, then tens, then ones.',
         explain: ['Hundreds: ' + Math.floor(a / 100) + ' + ' + Math.floor(b / 100) + '.',
           'Tens and ones: ' + (a % 100) + ' + ' + (b % 100) + ' = ' + (a % 100 + b % 100) + '.',
@@ -4195,6 +4232,1437 @@ registerSkills([
   };
   G('g2-g-shapes-frac', withLead(gen_g2_g_shapes_frac, LEAD));
 })();
+
+</script>
+<script>
+/* =============================================================================
+ * 93-gen-g3.js — Grade 3 generators (CA CCSSM 3.OA / 3.NBT / 3.NF / 3.MD / 3.G)
+ *
+ * Difficulty rule for every generator in this file
+ *   lvl 1-2  one step, the model is drawn, facts inside 5 × 10 or within 100,
+ *            the unknown in the usual position, familiar context.
+ *   lvl 3    the standard grade-3 case: arrays and equal groups, facts to
+ *            10 × 10, one unknown, tidy numbers, denominators 2, 3, 4, 6, 8.
+ *   lvl 4-5  unknown in ANY position, two steps, judgement (true/false, "who is
+ *            right", "which is the better estimate"), non-obvious cases (same
+ *            perimeter different area, a letter for the unknown, order of
+ *            operations), less familiar contexts.
+ * Answers are always computed from the drawn numbers — never hardcoded.
+ * Answers stay bare numbers: the unit always lives in the prompt wording.
+ * ============================================================================= */
+(function () {
+  'use strict';
+
+  var pick = R.pick, sample = R.sample, shuffle = R.shuffle, chance = R.chance;
+
+  var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli', 'Rosa', 'Kai'];
+  var CTX = ['At the school fair', 'On the field trip', 'In the art room', 'At the pet shelter',
+    'In the reading corner', 'At the farmers market', 'During gym class', 'In the school garden',
+    'At the craft table', 'By the soccer field'];
+  var OBJ = ['stickers', 'seeds', 'crayons', 'star cards', 'marbles', 'pencil sharpeners',
+    'friendship bracelets', 'trading cards', 'origami cranes', 'glow sticks', 'mini erasers',
+    'straw bundles', 'postcards', 'apple slices'];
+
+  function who(rng) { return pick(rng, WHO); }
+  function ctx(rng) { return pick(rng, CTX); }
+  function obj(rng) { return pick(rng, OBJ); }
+  function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function plur(n, word) {
+    if (n === 1) return word;
+    if (/(s|x|z|ch|sh)$/.test(word)) return word + 'es';                   // boxes, jars? -> jars
+    if (/[^aeiou]y$/.test(word)) return word.slice(0, -1) + 'ies';
+    return word + 's';
+  }
+  function hms(mins) { var h = Math.floor(mins / 60) % 12; if (h === 0) h = 12; return h + ':' + ('0' + (mins % 60)).slice(-2); }
+
+  /* answer + plausible distractors -> shuffled I_choice (never duplicates) */
+  function MC(rng, prompt, answer, wrongs, o) {
+    var seen = {}, opts = [];
+    var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
+    push(answer);
+    var extra = R.shuffle(rng, (wrongs || []).filter(function (v) { return String(v) !== String(answer); }));
+    for (var i = 0; i < extra.length && opts.length < 5; i++) push(extra[i]);
+    var sh = R.shuffle(rng, opts);
+    return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
+  }
+  function near(n, lo, hi, k) {
+    var out = [], d = [-1, 1, -2, 2, -10, 10, -3, 3, -5, 5, -100, 100];
+    for (var i = 0; i < d.length && out.length < (k || 3); i++) {
+      var v = n + d[i];
+      if (v >= (lo == null ? 0 : lo) && v <= (hi == null ? 100 : hi) && v !== n) out.push(v);
+    }
+    return out;
+  }
+
+  /* Rotating strategy lead-ins: the same template asked with different coaching
+   * words, so the learner meets real phrasing variety, not the same sentence
+   * with new digits. */
+  var LEAD = ['', 'Sketch it first: ', 'Say your reasoning out loud: ',
+    'You know a trick for this: ', 'Watch out for the trap: ', 'Estimate before you answer: '];
+  function withLead(fn, leads) {
+    return function (rng, lvl) {
+      var it = fn(rng, lvl), L = pick(rng, leads);
+      if (L && String(it.prompt).indexOf(L) !== 0) it.prompt = L + it.prompt;
+      return it;
+    };
+  }
+
+  /* ==================== 3.OA.1-3  products, quotients & stories ============ */
+  /* lvl 1-2 groups and sizes to 5, array drawn, "how many in all".
+     lvl 3   facts to 10 x 10, partitive and measurement division, one unknown.
+     lvl 4-5 the unknown moves (find the groups, find the size), the learner
+             matches a story to an expression or judges a peer's claim. */
+  var gen_g3_oa_mult_meaning = function (rng, lvl) {
+    var big = lvl >= 4 ? 10 : (lvl >= 3 ? 8 : 5);
+    var g = R.int(rng, lvl >= 3 ? 3 : 2, big), k = R.int(rng, lvl >= 3 ? 3 : 2, big);
+    var tot = g * k, w = who(rng), o1 = obj(rng);
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 4);
+
+    if (mode === 0) {                        /* equal groups -> total */
+      return I_num(ctx(rng) + ', ' + g + ' ' + plur(g, 'bag') + ' hold ' + k + ' ' + o1 +
+        ' each. How many ' + o1 + ' in all?', tot, {
+          visual: V.array(g, k, { label: g + ' groups of ' + k }),
+          teach: 'Equal groups mean the same size over and over, so a product counts them all at once.',
+          explain: ['There are <b>' + g + '</b> groups and each holds <b>' + k + '</b>.',
+            'Add ' + g + ' copies of ' + k + ': ' + Array.apply(null, Array(g)).map(function (_, i) { return (i + 1) * k; }).join(', ') + '.',
+            'Or multiply: ' + g + ' × ' + k + ' = <b>' + tot + '</b>.'],
+          b: -0.4
+        });
+    }
+    if (mode === 1) {                        /* array -> total */
+      var r = cap(g, 2, 9), c = cap(k, 2, 9);
+      return I_num('A ' + pick(rng, ['garden plot', 'tray of cookies', 'seat chart', 'tile floor']) +
+        ' is arranged in ' + r + ' rows with ' + c + ' in each row. How many in all?', r * c, {
+          visual: V.array(r, c, { label: r + ' rows of ' + c }),
+          teach: 'An array is a rectangle of equal rows, so rows × columns counts every item.',
+          explain: ['Count the rows: <b>' + r + '</b>.', 'Each row has <b>' + c + '</b>.',
+            r + ' × ' + c + ' = <b>' + (r * c) + '</b>.'],
+          b: -0.2
+        });
+    }
+    if (mode === 2) {                        /* which story matches the product */
+      return MC(rng, 'Which story matches ' + g + ' × ' + k + '?',
+        w + ' has ' + g + ' jars with ' + k + ' marbles in each jar.',
+        [w + ' has ' + g + ' jars and ' + k + ' marbles in all, shared equally.',
+        w + ' had ' + tot + ' marbles and gave ' + k + ' away.',
+        w + ' has ' + g + ' jars with ' + k + ' marbles in the first jar only.'], {
+          teach: 'A product of equal groups needs the same amount in every group, repeated that many times.',
+          explain: ['In ' + g + ' × ' + k + ' the first number counts the groups and the second is the size of each.',
+            'So the story needs ' + g + ' jars that each hold ' + k + '.',
+            'That is <b>' + w + ' has ' + g + ' jars with ' + k + ' marbles in each jar.</b>']
+        });
+    }
+    if (mode === 3) {                        /* partitive division: find the size */
+      var d2 = cap(g, 2, 8), t2 = d2 * k;
+      return I_num(w + ' shares ' + t2 + ' ' + o1 + ' equally among ' + d2 + ' friends. How many does each friend get?',
+        t2 / d2, {
+          visual: V.array(d2, k, { label: t2 + ' split into ' + d2 + ' equal rows' }),
+          teach: 'Sharing equally means every share is the same size, which is what division undoes.',
+          explain: ['The total is <b>' + t2 + '</b> and there are <b>' + d2 + '</b> equal shares.',
+            'Ask: ' + d2 + ' groups of what make ' + t2 + '?',
+            d2 + ' × ' + (t2 / d2) + ' = ' + t2 + ', so each share is <b>' + (t2 / d2) + '</b>.'],
+          b: 0.1
+        });
+    }
+    if (mode === 4) {                        /* measurement division: find the groups */
+      var per = cap(k, 2, 9), nGroups = cap(g, 2, 9), tot4 = per * nGroups;
+      return I_num(tot4 + ' ' + obj(rng) + ' are packed into ' + plur(per, 'box') + ' of ' + per +
+        '. How many boxes are needed?', nGroups, {
+          teach: 'When the size of each group is fixed, division counts how many groups fit.',
+          explain: ['Each box holds <b>' + per + '</b> and there are <b>' + tot4 + '</b> to pack.',
+            'Count up by ' + per + 's until ' + tot4 + ': ' + per + ', ' + (per * 2) + ' …',
+            'That is ' + tot4 + ' ÷ ' + per + ' = <b>' + nGroups + '</b> boxes.'],
+          b: 0.3
+        });
+    }
+    if (mode === 5) {                        /* which equation matches the story */
+      var e = cap(g, 2, 9), f = cap(k, 2, 9);
+      return MC(rng, 'Story: ' + who(rng) + ' sets out ' + e + ' plates and puts ' + f + ' spoons on each plate. Which equation shows the spoons?',
+        's = ' + e + ' × ' + f, ['s = ' + e + ' + ' + f, 's = ' + e + ' × ' + f + ' + ' + e, 's = ' + f + ' ÷ ' + e], {
+          teach: 'Use a letter for the unknown and keep the operation the story describes.',
+          explain: ['There are <b>' + e + '</b> plates, each with <b>' + f + '</b> spoons.',
+            'Equal groups of spoons means multiply: ' + e + ' × ' + f + '.',
+            'So the equation is <b>s = ' + e + ' × ' + f + '</b>, which is ' + (e * f) + ' spoons.']
+        });
+    }
+    if (mode === 6) {                        /* judgement: same total, different grouping */
+      return I_bool('Is ' + g + ' × ' + k + ' the same total as ' + k + ' groups of ' + g + '?', true, {
+        visual: V.array(g, k, { label: g + ' rows of ' + k }),
+        teach: 'Turning an array on its side keeps the same total, so the order of the factors does not matter.',
+        explain: ['' + g + ' × ' + k + ' = ' + tot + '.', k + ' groups of ' + g + ' also totals ' + tot + '.',
+          'Same array, turned on its side, so <b>yes</b>.'],
+        b: 0.2
+      });
+    }
+    if (mode === 7) {                        /* which is more: two products */
+      var a1 = cap(g, 2, 9), b1 = cap(k, 2, 9), a2 = cap(a1 + R.int(rng, -2, 2), 2, 9), b2 = cap(b1 + R.int(rng, -2, 2), 2, 9);
+      return MC(rng, 'Which has the greater total: ' + a1 + ' × ' + b1 + ' or ' + a2 + ' × ' + b2 + '?',
+        a1 * b1 === a2 * b2 ? 'They are equal' : (a1 * b1 > a2 * b2 ? a1 + ' × ' + b1 : a2 + ' × ' + b2),
+        [a1 * b1 === a2 * b2 ? a1 + ' × ' + b1 : 'They are equal',
+        a1 * b1 === a2 * b2 ? a2 + ' × ' + b2 : (a1 * b1 > a2 * b2 ? a2 + ' × ' + b2 : a1 + ' × ' + b1)], {
+          teach: 'Find each total first; never guess from the size of the factors alone.',
+          explain: ['' + a1 + ' × ' + b1 + ' = ' + (a1 * b1) + '.', a2 + ' × ' + b2 + ' = ' + (a2 * b2) + '.',
+            (a1 * b1) === (a2 * b2) ? 'Both are ' + (a1 * b1) + ', so <b>they are equal</b>.'
+              : (a1 * b1) + (a1 * b1 > a2 * b2 ? ' > ' : ' < ') + (a2 * b2) + ', so <b>' +
+              ((a1 * b1) > (a2 * b2) ? a1 + ' × ' + b1 : a2 + ' × ' + b2) + '</b> is greater.'],
+          b: 0.4
+        });
+    }
+    if (mode === 8) {                        /* unknown number of groups */
+      var sz = cap(k, 2, 9), ng = cap(g, 2, 9), tot8 = sz * ng;
+      return I_num(tot8 + ' ' + obj(rng) + ' are lined up in rows of ' + sz + '. How many rows are there?', ng, {
+        visual: V.array(ng, sz, { label: tot8 + ' in rows of ' + sz }),
+        teach: 'A missing factor is found by asking what times the group size reaches the total.',
+        explain: ['Each row has <b>' + sz + '</b> and the total is <b>' + tot8 + '</b>.',
+          'Ask: ' + sz + ' × ? = ' + tot8 + '.',
+          sz + ' × ' + ng + ' = ' + tot8 + ', so there are <b>' + ng + '</b> rows.'],
+        b: 0.5
+      });
+    }
+    if (mode === 9) {                        /* spot the mismatched expression */
+      var m9 = cap(g, 3, 9), n9 = cap(k, 3, 9);
+      return MC(rng, 'Which expression has the same total as ' + m9 + ' × ' + n9 + '?',
+        n9 + ' × ' + m9, [m9 + ' + ' + n9, m9 + ' × ' + (n9 + 1)], {
+          teach: 'Swapping the factors keeps the total; adding one more group or adding instead changes it.',
+          explain: ['The target is ' + m9 + ' × ' + n9 + ' = ' + (m9 * n9) + '.',
+            'Swap the factors: ' + n9 + ' × ' + m9 + ' = ' + (n9 * m9) + ' — the same total.',
+            'So the match is <b>' + n9 + ' × ' + m9 + '</b>.']
+        });
+    }
+    /* mode 10 — draw your own context for a product */
+    var d10 = cap(g, 2, 9), s10 = cap(k, 2, 9);
+    return MC(rng, 'Which context can be written as ' + d10 + ' × ' + s10 + '?',
+      'Each table seats ' + s10 + ' students and there are ' + d10 + ' tables.',
+      ['There are ' + d10 + ' students and ' + s10 + ' more arrive.',
+      d10 + ' students each bring ' + s10 + ' one snack for the class.',
+      'A room has ' + d10 + ' tables and ' + s10 + ' chairs in total.'], {
+        teach: 'Look for equal groups of the same size — that is the only situation a product describes.',
+        explain: ['' + d10 + ' × ' + s10 + ' needs ' + d10 + ' groups of ' + s10 + '.',
+          'The tables context has ' + d10 + ' tables with the same ' + s10 + ' seats each.',
+          'So it is <b>Each table seats ' + s10 + ' students and there are ' + d10 + ' tables.</b>'],
+        b: 0.6
+      });
+  };
+  G('g3-oa-mult-meaning', withLead(gen_g3_oa_mult_meaning, LEAD));
+
+  /* ================= 3.OA.4-7  unknowns, properties, fluency =============== */
+  /* lvl 1-2 factors to 5, the unknown in front, one step.
+     lvl 3   facts to 10 x 10 in every position; division as an unknown factor.
+     lvl 4-5 properties used as strategies (distributive splits, associative
+             re-grouping), "which fact helps", and true/false about a family. */
+  var gen_g3_oa_facts = function (rng, lvl) {
+    var hi = lvl >= 4 ? 10 : (lvl >= 3 ? 9 : 5);
+    var a = R.int(rng, 2, hi), b = R.int(rng, 2, hi), p = a * b;
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 4);
+
+    if (mode === 0) {                        /* unknown factor */
+      return I_num(a + ' × ? = ' + p, b, {
+        teach: 'A missing factor is the division you already know: product ÷ known factor.',
+        explain: ['The product is <b>' + p + '</b> and one factor is <b>' + a + '</b>.',
+          'Ask: ' + a + ' groups of what make ' + p + '?',
+          p + ' ÷ ' + a + ' = <b>' + b + '</b>.'],
+        b: -0.3
+      });
+    }
+    if (mode === 1) {                        /* unknown dividend */
+      return I_num('? ÷ ' + b + ' = ' + a, p, {
+        teach: 'Division undoes multiplication, so multiply to find the missing dividend.',
+        explain: ['A number is split into ' + b + ' equal shares of ' + a + '.',
+          'Put it back together: ' + b + ' × ' + a + '.',
+          b + ' × ' + a + ' = <b>' + p + '</b>.'],
+        b: 0
+      });
+    }
+    if (mode === 2) {                        /* unknown divisor */
+      return I_num(p + ' ÷ ? = ' + a, b, {
+        teach: 'The missing divisor is the group size that makes the product with the answer.',
+        explain: ['' + p + ' is shared into equal groups of size ?, and each count is ' + a + '.',
+          'So ? × ' + a + ' = ' + p + '.',
+          p + ' ÷ ' + a + ' = <b>' + b + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 3) {                        /* division as an unknown-factor problem */
+      var q = cap(b, 2, 9), d3 = cap(a, 2, 9), prod3 = q * d3;
+      return MC(rng, 'To solve ' + prod3 + ' ÷ ' + d3 + ', which missing-factor question do you ask?',
+        d3 + ' × ? = ' + prod3, [d3 + ' + ? = ' + prod3, prod3 + ' × ? = ' + d3], {
+          teach: 'Every division answer is a missing factor in a matching multiplication.',
+          explain: ['' + prod3 + ' ÷ ' + d3 + ' asks for the size of ' + d3 + ' equal groups that make ' + prod3 + '.',
+            'That is the multiplication ' + d3 + ' × ? = ' + prod3 + '.',
+            'The answer is <b>' + d3 + ' × ? = ' + prod3 + '</b>, so the quotient is ' + q + '.']
+        });
+    }
+    if (mode === 4) {                        /* distributive split */
+      var m4 = cap(a, 4, 9), n4 = cap(b, 4, 9), split = cap(n4 - 5, 1, n4 - 1);
+      return I_num(m4 + ' × ' + n4 + ' = ' + m4 + ' × 5 + ' + m4 + ' × ?', n4 - 5, {
+        visual: V.area(m4, n4, { label: 'split the ' + n4 + ' columns into 5 and ' + (n4 - 5) }),
+        teach: 'Breaking a factor apart and adding the two products is the distributive property.',
+        explain: ['The full rectangle is ' + m4 + ' × ' + n4 + ' = ' + (m4 * n4) + '.',
+          'One part is ' + m4 + ' × 5 = ' + (m4 * 5) + '.',
+          'The rest needs ' + (m4 * n4) + ' - ' + (m4 * 5) + ' = ' + (m4 * (n4 - 5)) + ', which is ' + m4 + ' × <b>' + (n4 - 5) + '</b>.'],
+        b: 0.5
+      });
+    }
+    if (mode === 5) {                        /* associative: which is easier */
+      var x = R.int(rng, 2, 5), y = pick(rng, [2, 4, 5, 8]), z = pick(rng, [2, 4, 5]);
+      return MC(rng, 'Which makes ' + x + ' × ' + y + ' × ' + z + ' easiest?',
+        x + ' × (' + y + ' × ' + z + ')', ['(' + x + ' × ' + y + ') + ' + z, x + ' × (' + y + ' × ' + z + ')'], {
+          teach: 'Regroup three factors so one group is 10 or a fact you know by heart.',
+          explain: ['' + y + ' × ' + z + ' = ' + (y * z) + ', a fact that is easy to say.',
+            'Then ' + x + ' × ' + (y * z) + ' = ' + (x * y * z) + '.',
+            'So the easier path is <b>' + x + ' × (' + y + ' × ' + z + ')</b>.']
+        });
+    }
+    if (mode === 6) {                        /* fluency */
+      return I_num('What is ' + a + ' × ' + b + '?', p, {
+        visual: lvl <= 2 ? V.array(a, b, { label: a + ' rows of ' + b }) : null,
+        teach: 'Say the products of single digits from memory; check a doubtful one with an array.',
+        explain: ['This is a fact to know by heart: ' + a + ' × ' + b + '.',
+          'Count by ' + b + 's ' + a + ' times: ' + Array.apply(null, Array(a)).map(function (_, i) { return (i + 1) * b; }).join(', ') + '.',
+          'So ' + a + ' × ' + b + ' = <b>' + p + '</b>.'],
+        b: lvl >= 4 ? 0.2 : -0.5
+      });
+    }
+    if (mode === 7) {                        /* fact family true/false */
+      var lie = chance(rng, 0.5);
+      var claim = lie ? p + ' ÷ ' + a + ' = ' + (b + 1) : p + ' ÷ ' + a + ' = ' + b;
+      return I_bool('If ' + a + ' × ' + b + ' = ' + p + ', is ' + claim + ' also true?', !lie, {
+        teach: 'One multiplication and its two division facts always share the same three numbers.',
+        explain: ['' + p + ' ÷ ' + a + ' asks for the other factor.',
+          'The family is ' + a + ', ' + b + ' and ' + p + '.',
+          'So ' + p + ' ÷ ' + a + ' = ' + b + ', which makes the claim <b>' + (lie ? 'false' : 'true') + '</b>.'],
+        b: 0.2
+      });
+    }
+    if (mode === 8) {                        /* compare two products */
+      var a8 = cap(a, 3, 9), b8 = cap(b, 3, 9), c8 = cap(a8 + (chance(rng, 0.5) ? 1 : -1), 2, 9), d8 = cap(b8 - 1, 2, 9);
+      return I_cmp(a8 + ' × ' + b8 + '  ○  ' + c8 + ' × ' + d8, a8 * b8, c8 * d8, {
+        teach: 'Compare the products, not the factors: work each side out first.',
+        explain: ['Left: ' + a8 + ' × ' + b8 + ' = ' + (a8 * b8) + '.',
+          'Right: ' + c8 + ' × ' + d8 + ' = ' + (c8 * d8) + '.',
+          'So the symbol is <b>' + (a8 * b8 < c8 * d8 ? '&lt;' : (a8 * b8 > c8 * d8 ? '&gt;' : '=')) + '</b>.'],
+        b: 0.4
+      });
+    }
+    if (mode === 9) {                        /* which fact does not belong */
+      var f9 = cap(a, 3, 9), g9 = cap(b, 3, 9), t9 = f9 * g9;
+      return MC(rng, 'Which equation is NOT part of the ' + f9 + ', ' + g9 + ', ' + t9 + ' fact family?',
+        f9 + ' + ' + g9 + ' = ' + (f9 + g9), [t9 + ' ÷ ' + f9 + ' = ' + g9, g9 + ' × ' + f9 + ' = ' + t9], {
+          teach: 'A fact family has one multiplication, its commutative twin, and the two matching divisions.',
+          explain: ['The family of ' + f9 + ', ' + g9 + ' and ' + t9 + ' is ' + f9 + ' × ' + g9 + ' = ' + t9 +
+            ', ' + g9 + ' × ' + f9 + ' = ' + t9 + ', ' + t9 + ' ÷ ' + f9 + ' = ' + g9 + ' and ' + t9 + ' ÷ ' + g9 + ' = ' + f9 + '.',
+            'Adding ' + f9 + ' + ' + g9 + ' = ' + (f9 + g9) + ' uses different numbers, so <b>' + f9 + ' + ' + g9 + ' = ' + (f9 + g9) + '</b> does not belong.']
+        });
+    }
+    /* mode 10 — pattern in the multiplication table */
+    var n10 = R.int(rng, 2, 9);
+    return I_bool('Is 4 × ' + n10 + ' always an even number?', true, {
+      teach: 'A multiple of 4 splits into two equal even halves, so it is always even.',
+      explain: ['4 × ' + n10 + ' = ' + (4 * n10) + '.',
+        'Four groups of ' + n10 + ' can be split into two groups of ' + (2 * n10) + ' — two equal addends.',
+        'Anything that splits into two equal whole-number addends is even, so <b>yes</b>.'],
+      b: 0.6
+    });
+  };
+  G('g3-oa-facts', withLead(gen_g3_oa_facts, LEAD));
+
+  /* ============ 3.OA.8  two-step problems, letters, order of operations ==== */
+  /* lvl 1-2  two steps that follow the story order, both small numbers.
+     lvl 3    the standard two-step: multiply then add/subtract, or share then add.
+     lvl 4-5  write an equation with a letter, judge reasonableness by rounding,
+              order of operations and parentheses, and find the starting amount. */
+  var gen_g3_oa_twostep = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 6 : 3);
+    var w = who(rng), w2 = who(rng), o1 = obj(rng);
+
+    if (mode === 0) {                        /* packs then give away */
+      var packs = R.int(rng, 2, lvl >= 3 ? 8 : 4), per = R.int(rng, 2, 9), gave = R.int(rng, 1, cap(packs * per - 1, 1, 9));
+      return I_num(w + ' buys ' + packs + ' packs of ' + per + ' ' + o1 + '. ' + w + ' gives ' + gave +
+        ' away. How many ' + o1 + ' are left?', packs * per - gave, {
+          teach: 'Two-step problems are solved in the order the story happens, one question at a time.',
+          explain: ['First the total: ' + packs + ' × ' + per + ' = ' + (packs * per) + '.',
+            'Then the giveaway: ' + (packs * per) + ' - ' + gave + '.',
+            'Left with <b>' + (packs * per - gave) + '</b>.'],
+          b: -0.3
+        });
+    }
+    if (mode === 1) {                        /* share then add */
+      var sh = pick(rng, [2, 3, 4]), each1 = R.int(rng, 3, lvl >= 3 ? 12 : 8), tot = sh * each1, extra = R.int(rng, 2, 8);
+      return I_num(tot + ' ' + obj(rng) + ' are shared equally among ' + sh + ' children. Each child then adds ' + extra +
+        ' of their own. How many does each child have now?', each1 + extra, {
+          teach: 'Do the sharing first, then the adding — the story sets the order.',
+          explain: ['Share: ' + tot + ' ÷ ' + sh + ' = ' + each1 + '.', 'Add their own ' + extra + ': ' + each1 + ' + ' + extra + '.',
+            'Each child has <b>' + (each1 + extra) + '</b>.'],
+          b: 0.1
+        });
+    }
+    if (mode === 2) {                        /* money: two buys, change back */
+      var p1 = R.int(rng, 2, 9), p2 = R.int(rng, 2, 9), paid = pick(rng, [20, 50, 100]);
+      return I_num('A notebook costs $' + p1 + ' and a folder costs $' + p2 + '. ' + w + ' pays with a $' + paid +
+        ' bill. How many cents of change come back?', (paid - p1 - p2) * 100, {
+          teach: 'Add the costs first, then take that total away from the money handed over.',
+          explain: ['Cost: $' + p1 + ' + $' + p2 + ' = $' + (p1 + p2) + '.',
+            'Change in dollars: $' + paid + ' - $' + (p1 + p2) + ' = $' + (paid - p1 - p2) + '.',
+            'One dollar is 100 cents, so the change is <b>' + ((paid - p1 - p2) * 100) + '</b> cents.'],
+          b: 0.4
+        });
+    }
+    if (mode === 3) {                        /* which equation with a letter */
+      var g4 = R.int(rng, 2, 8), per4 = R.int(rng, 2, 9), add4 = R.int(rng, 2, 20);
+      return MC(rng, w + ' has ' + g4 + ' bags of ' + per4 + ' ' + o1 + ' and ' + add4 + ' loose ' + o1 +
+        '. Which equation finds the total t?', 't = ' + g4 + ' × ' + per4 + ' + ' + add4,
+        ['t = ' + g4 + ' + ' + per4 + ' + ' + add4, 't = ' + g4 + ' × (' + per4 + ' + ' + add4 + ')', 't = ' + add4 + ' - ' + g4 + ' × ' + per4], {
+          teach: 'A letter stands for the unknown; build the equation in the order the numbers act.',
+          explain: ['The bags give ' + g4 + ' × ' + per4 + ' = ' + (g4 * per4) + ' ' + o1 + '.',
+            'The loose ' + o1 + ' are added on: + ' + add4 + '.',
+            'So <b>t = ' + g4 + ' × ' + per4 + ' + ' + add4 + '</b>, which is ' + (g4 * per4 + add4) + '.']
+        });
+    }
+    if (mode === 4) {                        /* reasonableness */
+      var m5 = R.int(rng, 21, 49), n5 = R.int(rng, 21, 49);
+      var exact = m5 * n5;
+      return MC(rng, 'Without multiplying exactly, which is the best estimate of ' + m5 + ' × ' + n5 + '?',
+        Math.round(m5 / 10) * 10 * (Math.round(n5 / 10) * 10),
+        [Math.round(m5 / 10) * 10 * (Math.round(n5 / 10) * 10) + 100, Math.round(m5 / 10) * 10 * (Math.round(n5 / 10) * 10) - 100,
+        Math.round(m5 / 10) * 10 + Math.round(n5 / 10) * 10], {
+          teach: 'Round each factor to the nearest ten, then multiply the round numbers to estimate.',
+          explain: ['Round ' + m5 + ' to ' + (Math.round(m5 / 10) * 10) + ' and ' + n5 + ' to ' + (Math.round(n5 / 10) * 10) + '.',
+            'Multiply the rounded numbers: ' + (Math.round(m5 / 10) * 10) + ' × ' + (Math.round(n5 / 10) * 10) + ' = ' + (Math.round(m5 / 10) * 10 * Math.round(n5 / 10) * 10) + '.',
+            'The exact product is ' + exact + ', so the best estimate is <b>' + (Math.round(m5 / 10) * 10 * Math.round(n5 / 10) * 10) + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 5) {                        /* order of operations */
+      var x6 = R.int(rng, 2, 9), y6 = R.int(rng, 2, 9), z6 = R.int(rng, 2, 9);
+      return I_num(x6 + ' + ' + y6 + ' × ' + z6, x6 + y6 * z6, {
+        teach: 'Multiply or divide before you add or subtract, unless parentheses say otherwise.',
+        explain: ['Do the multiplication first: ' + y6 + ' × ' + z6 + ' = ' + (y6 * z6) + '.',
+          'Then add ' + x6 + ': ' + (y6 * z6) + ' + ' + x6 + '.',
+          'The expression equals <b>' + (x6 + y6 * z6) + '</b>.'],
+        b: 0.2
+      });
+    }
+    if (mode === 6) {                        /* parentheses change the answer */
+      var a7 = R.int(rng, 2, 8), b7 = R.int(rng, 2, 8), c7 = R.int(rng, 2, 5);
+      return I_num('(' + a7 + ' + ' + b7 + ') × ' + c7, (a7 + b7) * c7, {
+        teach: 'Parentheses first: whatever is inside them must be worked out before anything else.',
+        explain: ['Inside the parentheses: ' + a7 + ' + ' + b7 + ' = ' + (a7 + b7) + '.',
+          'Then multiply by ' + c7 + ': ' + (a7 + b7) + ' × ' + c7 + '.',
+          'The value is <b>' + ((a7 + b7) * c7) + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 7) {                        /* who is right */
+      var a8 = R.int(rng, 2, 9), b8 = R.int(rng, 2, 9), c8 = R.int(rng, 2, 9);
+      var right = a8 + b8 * c8, wrong = (a8 + b8) * c8;
+      return MC(rng, w2 + ' says ' + a8 + ' + ' + b8 + ' × ' + c8 + ' = ' + wrong + '. What did ' + w2 + ' do wrong?',
+        'Added ' + a8 + ' + ' + b8 + ' before multiplying', ['Multiplied ' + b8 + ' × ' + c8 + ' first', 'Added ' + c8 + ' last', 'Used the wrong product for ' + b8 + ' × ' + c8], {
+          teach: 'A wrong answer usually names the step that came too early — check the order first.',
+          explain: ['Correct order: ' + b8 + ' × ' + c8 + ' = ' + (b8 * c8) + ', then + ' + a8 + ' = ' + right + '.',
+            w2 + '\'s ' + wrong + ' comes from (' + a8 + ' + ' + b8 + ') × ' + c8 + ' = ' + wrong + '.',
+            'So the slip is <b>added ' + a8 + ' + ' + b8 + ' before multiplying</b>.'],
+          b: 0.7
+        });
+    }
+    if (mode === 8) {                        /* find the starting amount */
+      var out = R.int(rng, 2, 9), per9 = R.int(rng, 2, 6), left = R.int(rng, 3, 20);
+      return I_num(w + ' fills ' + out + ' boxes with ' + per9 + ' ' + obj(rng) + ' each and has ' + left +
+        ' left over. How many were there to start?', out * per9 + left, {
+          teach: 'Working backwards undoes each step: add back what was given away or left over.',
+          explain: ['The boxes hold ' + out + ' × ' + per9 + ' = ' + (out * per9) + '.',
+            'The ' + left + ' leftovers were part of the start too.',
+            out * per9 + ' + ' + left + ' = <b>' + (out * per9 + left) + '</b> to begin with.'],
+          b: 0.8
+        });
+    }
+    /* mode 9 — judge a rounded answer */
+    var a10 = R.int(rng, 101, 899), b10 = R.int(rng, 101, cap(999 - a10, 101, 899));
+    var sum = a10 + b10, est = Math.round(a10 / 100) * 100 + Math.round(b10 / 100) * 100;
+    return I_bool('Rounding to the nearest hundred, ' + a10 + ' + ' + b10 + ' is about ' + est + '.', true, {
+      teach: 'Round each number first, then add the round numbers to check an answer is reasonable.',
+      explain: ['' + a10 + ' rounds to ' + (Math.round(a10 / 100) * 100) + ', and ' + b10 + ' rounds to ' + (Math.round(b10 / 100) * 100) + '.',
+        'Add them: ' + (Math.round(a10 / 100) * 100) + ' + ' + (Math.round(b10 / 100) * 100) + ' = ' + est + '.',
+        'The exact sum is ' + sum + ', close to ' + est + ', so the estimate is <b>reasonable</b>.'],
+      b: 0.6
+    });
+  };
+  G('g3-oa-twostep', withLead(gen_g3_oa_twostep, LEAD));
+
+  /* ========= 3.NBT.1-3  rounding, add/sub within 1000, x multiples of 10 === */
+  /* lvl 1-2  round to the nearest 10 with a number line, add/sub within 100.
+     lvl 3    round to the nearest 100, add/sub within 1000 with regrouping,
+              a one-digit times a multiple of 10.
+     lvl 4-5  the missing number in a within-1000 sentence, the reverse of a
+              product, judgement about a rounded total or a rounded claim. */
+  var gen_g3_nbt_mult_div = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 3);
+    var w = who(rng);
+    /* ties are ambiguous for a third grader: keep them out of rounding draws */
+    function noTie10(n) { return n % 10 === 5 ? n + 1 : n; }
+    function noTie100(n) { return n % 100 === 50 ? n + 1 : n; }
+
+    if (mode === 0) {                        /* round to the nearest 10 */
+      var n1 = noTie10(R.int(rng, 11, lvl >= 3 ? 489 : 89));
+      var r1 = Math.round(n1 / 10) * 10;
+      return I_num('Round ' + n1 + ' to the nearest ten.', r1, {
+        visual: V.numline(n1 - (n1 % 10) - 1, n1 - (n1 % 10) + 11, [{ x: n1, arrow: true, label: String(n1) }], { label: 'which ten is closest?' }),
+        teach: 'Look at the ones digit: 4 or less rounds down, 5 or more rounds up.',
+        explain: ['The tens around ' + n1 + ' are ' + (n1 - (n1 % 10)) + ' and ' + (n1 - (n1 % 10) + 10) + '.',
+          'The ones digit is ' + (n1 % 10) + ', so we round ' + (n1 % 10 >= 5 ? 'up' : 'down') + '.',
+          n1 + ' rounds to <b>' + r1 + '</b>.'],
+        b: -0.3
+      });
+    }
+    if (mode === 1) {                        /* round to the nearest 100 */
+      var n2 = noTie100(R.int(rng, 150, 899));
+      var r2 = Math.round(n2 / 100) * 100;
+      return I_num('Round ' + n2 + ' to the nearest hundred.', r2, {
+        teach: 'Compare the number to the two hundreds around it and pick the closer one.',
+        explain: ['The hundreds around ' + n2 + ' are ' + (n2 - (n2 % 100)) + ' and ' + (n2 - (n2 % 100) + 100) + '.',
+          'The last two digits are ' + ('00' + (n2 % 100)).slice(-2) + ', which is ' + (n2 % 100 >= 50 ? 'at least 50' : 'less than 50') + '.',
+          'So ' + n2 + ' is nearer to <b>' + r2 + '</b>.'],
+        b: 0.1
+      });
+    }
+    if (mode === 2) {                        /* which number rounds to this */
+      var target = R.int(rng, 2, 9) * 100;
+      var inside = target + R.int(rng, -49, 49); inside = inside % 100 === 50 ? inside + 1 : inside;
+      if (Math.round(inside / 100) * 100 !== target) inside = target + 20;
+      return MC(rng, 'Which number rounds to ' + target + ' (to the nearest hundred)?', inside,
+        [target + 100 + R.int(rng, -40, 40), target - 100 + R.int(rng, -40, 40), target + R.int(rng, 51, 90)], {
+          teach: 'A number rounds to the nearest hundred if it is closer to that hundred than to either neighbour.',
+          explain: ['' + target + ' is the hundred we want, so the number must sit between ' + (target - 50) + ' and ' + (target + 50) + '.',
+            inside + ' is only ' + Math.abs(inside - target) + ' away from ' + target + '.',
+            'The other choices are nearer a different hundred, so the answer is <b>' + inside + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 3) {                        /* add within 1000 */
+      var a3 = R.int(rng, lvl >= 3 ? 148 : 13, lvl >= 3 ? 689 : 78), b3 = R.int(rng, lvl >= 3 ? 137 : 12, lvl >= 3 ? cap(999 - a3, 137, 689) : cap(99 - a3, 12, 78));
+      return I_num('What is ' + a3 + ' + ' + b3 + '?', a3 + b3, {
+        teach: 'Add the ones, then the tens, then the hundreds, trading up whenever a column reaches 10.',
+        explain: ['Ones: ' + (a3 % 10) + ' + ' + (b3 % 10) + ' = ' + (a3 % 10 + b3 % 10) + '.',
+          'Tens and hundreds next: ' + (a3 - a3 % 10) + ' + ' + (b3 - b3 % 10) + ' = ' + (a3 - a3 % 10 + b3 - b3 % 10) + '.',
+          'Total: <b>' + (a3 + b3) + '</b>.'],
+        b: 0
+      });
+    }
+    if (mode === 4) {                        /* subtract within 1000 */
+      var m4 = R.int(rng, lvl >= 3 ? 320 : 40, 940), s4 = R.int(rng, lvl >= 3 ? 118 : 12, lvl >= 3 ? cap(m4 - 100, 118, 640) : cap(m4 - 10, 12, 38));
+      return I_num('What is ' + m4 + ' - ' + s4 + '?', m4 - s4, {
+        teach: 'If a column is not big enough, ungroup one from the next place before subtracting.',
+        explain: ['Ones: ' + (m4 % 10) + ' - ' + (s4 % 10) + (m4 % 10 < s4 % 10 ? ' needs an ungroup.' : '.'),
+          'Take away the rest place by place.',
+          'The difference is <b>' + (m4 - s4) + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 5) {                        /* 1-digit x multiple of 10 */
+      var f5 = R.int(rng, 3, 9), t5 = R.int(rng, 2, 9) * 10;
+      return I_num('What is ' + f5 + ' × ' + t5 + '?', f5 * t5, {
+        teach: 'Multiply the tens digit and put the zero back: 3 tens × 4 is 12 tens.',
+        explain: ['Ignore the zero for a moment: ' + f5 + ' × ' + (t5 / 10) + ' = ' + (f5 * t5 / 10) + '.',
+          'That answer is in tens, so ' + (f5 * t5 / 10) + ' tens = ' + (f5 * t5) + '.',
+          f5 + ' × ' + t5 + ' = <b>' + (f5 * t5) + '</b>.'],
+        b: 0.1
+      });
+    }
+    if (mode === 6) {                        /* divide a multiple of 10 */
+      var d6 = R.int(rng, 2, 9), q6 = R.int(rng, 2, 9), prod6 = d6 * q6 * 10;
+      return I_num('What is ' + prod6 + ' ÷ ' + d6 + '?', prod6 / d6, {
+        teach: 'Cover the zero, do the small fact, then put the zero back.',
+        explain: ['' + prod6 + ' is ' + (prod6 / 10) + ' tens.',
+          (prod6 / 10) + ' tens ÷ ' + d6 + ' = ' + (prod6 / 10 / d6) + ' tens.',
+          (prod6 / 10 / d6) + ' tens = <b>' + (prod6 / d6) + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 7) {                        /* missing number in a big sentence */
+      var tot7 = R.int(rng, 400, 980), p7 = R.int(rng, 110, tot7 - 110);
+      return I_num(p7 + ' + ? = ' + tot7, tot7 - p7, {
+        teach: 'The missing part is the gap: subtract the part you know from the whole.',
+        explain: ['The whole is <b>' + tot7 + '</b> and one part is <b>' + p7 + '</b>.',
+          tot7 + ' - ' + p7 + ' = ' + (tot7 - p7) + '.',
+          'Check: ' + p7 + ' + ' + (tot7 - p7) + ' = ' + tot7 + ', so ? = <b>' + (tot7 - p7) + '</b>.'],
+        b: 0.4
+      });
+    }
+    if (mode === 8) {                        /* reverse product: which factor */
+      var f8 = R.int(rng, 3, 9), t8 = R.int(rng, 2, 9) * 10, pr8 = f8 * t8;
+      return MC(rng, 'Which is missing from ' + f8 + ' × ? = ' + pr8 + '?', t8,
+        [t8 / 10, t8 * 10, f8 * 10], {
+          teach: 'A missing factor is found by dividing the product by the factor you know.',
+          explain: [pr8 + ' ÷ ' + f8 + ' = ' + t8 + '.',
+            'Think in tens: ' + (pr8 / 10) + ' tens ÷ ' + f8 + ' = ' + (t8 / 10) + ' tens.',
+            'So ? = <b>' + t8 + '</b>.'],
+          b: 0.6
+        });
+    }
+    if (mode === 9) {                        /* judge a rounded sum */
+      var a9 = noTie100(R.int(rng, 210, 589)), b9 = noTie100(R.int(rng, 120, 389));
+      var est = Math.round(a9 / 100) * 100 + Math.round(b9 / 100) * 100, real = a9 + b9;
+      return I_bool('Is ' + a9 + ' + ' + b9 + ' about ' + est + ' (round each number to the nearest hundred)?', true, {
+        teach: 'Round first, then operate — an estimate tells you whether an exact answer is sensible.',
+        explain: ['' + a9 + ' rounds to ' + (Math.round(a9 / 100) * 100) + ' and ' + b9 + ' rounds to ' + (Math.round(b9 / 100) * 100) + '.',
+          'Add the rounded numbers: ' + est + '.',
+          'The exact sum is ' + real + ', which is only ' + Math.abs(real - est) + ' away, so the estimate is <b>yes</b>.'],
+        b: 0.7
+      });
+    }
+    /* mode 10 — nearest hundred, which is closer */
+    var n10 = noTie100(R.int(rng, 120, 880)), lo10 = n10 - (n10 % 100), hi10 = lo10 + 100;
+    return MC(rng, 'Which hundred is ' + n10 + ' closest to?', n10 % 100 < 50 ? lo10 : hi10,
+      [n10 % 100 < 50 ? hi10 : lo10, lo10 + 200], {
+        teach: 'Compare the distance to each hundred instead of just reading the hundreds digit.',
+        explain: [n10 + ' sits between ' + lo10 + ' and ' + hi10 + '.',
+          'It is ' + (n10 % 100) + ' above ' + lo10 + ' and ' + (100 - n10 % 100) + ' below ' + hi10 + '.',
+          'The shorter distance is to <b>' + (n10 % 100 < 50 ? lo10 : hi10) + '</b>.'],
+        b: 0.4
+      });
+  };
+  G('g3-nbt-mult-div', withLead(gen_g3_nbt_mult_div, LEAD));
+
+  /* ============== 3.NF.1-2  unit fractions & the fraction number line ====== */
+  /* Denominators stay in {2, 3, 4, 6, 8} — the grade-3 limit.
+     lvl 1-2  name the shaded part of a drawn model, unit fractions only.
+     lvl 3    a/b as a parts of size 1/b, place a fraction on the number line.
+     lvl 4-5  compare by size, judge unequal partitions, work backwards from a
+              point on the line. */
+  var FR_D = [2, 3, 4, 6, 8];
+  var gen_g3_nf_unit_frac = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 3);
+    var d = pick(rng, lvl >= 4 ? FR_D : FR_D.slice(0, 4));
+    var n = R.int(rng, 1, d - 1);
+    var food = pick(rng, ['pizza', 'chocolate bar', 'candy bar', 'pancake', 'sub sandwich', 'tray of brownies']);
+
+    if (mode === 0) {                        /* each part is 1/b */
+      return I_frac('A ' + food + ' is cut into ' + d + ' equal parts. What fraction is one part?', 1, d, {
+        visual: V.frac([{ n: 1, d: d, label: 'one part of ' + d }]),
+        teach: 'One whole split into b equal parts gives parts of size 1/b.',
+        explain: ['The whole is split into <b>' + d + '</b> equal parts.',
+          'The bottom number counts the equal parts, so one part is 1 out of ' + d + '.',
+          'One part is <b>' + 1 + '/' + d + '</b>.'],
+        b: -0.5
+      });
+    }
+    if (mode === 1) {                        /* read the model */
+      return I_frac('The model shows ' + n + ' of ' + d + ' equal parts shaded. What fraction is shaded?', n, d, {
+        answerText: n + '/' + d,
+        visual: V.frac([{ n: n, d: d }]),
+        teach: 'The numerator counts the parts you have; the denominator counts the equal parts in one whole.',
+        explain: ['Count the equal parts in the whole: <b>' + d + '</b>.',
+          'Count the shaded parts: <b>' + n + '</b>.',
+          'The shaded fraction is <b>' + n + '/' + d + '</b>.'],
+        b: -0.2
+      });
+    }
+    if (mode === 2) {                        /* story: eat some slices */
+      var eaten = R.int(rng, 1, d - 1);
+      return I_frac(w2say(rng) + ' eats ' + eaten + ' of the ' + d + ' equal slices of a ' + food +
+        '. What fraction of the ' + food + ' is left?', d - eaten, d, {
+        answerText: (d - eaten) + '/' + d,
+          visual: V.frac([{ n: d - eaten, d: d, label: 'what is left' }]),
+          teach: 'The leftover counts the same kind of parts, so it is another fraction with the same denominator.',
+          explain: ['The whole has <b>' + d + '</b> equal slices.', eaten + ' were eaten, so ' + d + ' - ' + eaten + ' = ' + (d - eaten) + ' are left.',
+            'Each slice is 1/' + d + ', so the leftover is <b>' + (d - eaten) + '/' + d + '</b>.'],
+          b: 0.2
+        });
+    }
+    if (mode === 3) {                        /* how many unit fractions */
+      return I_num('How many ' + 1 + '/' + d + ' pieces make ' + n + '/' + d + '?', n, {
+        visual: V.frac([{ n: n, d: d, label: n + ' pieces of size 1/' + d }]),
+        teach: 'Any fraction a/b is a copies of the unit fraction 1/b.',
+        explain: ['One piece is 1/' + d + '.', 'The numerator of ' + n + '/' + d + ' counts pieces of that size.',
+          'So ' + n + '/' + d + ' = ' + n + ' × 1/' + d + ' — that is <b>' + n + '</b> pieces.'],
+        b: 0
+      });
+    }
+    if (mode === 4) {                        /* place it on the number line */
+      return I_frac('Which fraction is marked on the number line from 0 to 1?', n, d, {
+        visual: V.numline(0, 1, [{ x: n / d, arrow: true, label: '?' }], { label: 'the whole is from 0 to 1' }),
+        teach: 'Mark off a lengths of size 1/b from 0; the endpoint is the number a/b.',
+        explain: ['The interval from 0 to 1 is split into <b>' + d + '</b> equal parts.',
+          'The arrow is ' + n + ' of those parts along from 0.',
+          'Each part is 1/' + d + ', so the point is <b>' + n + '/' + d + '</b>.'],
+        b: 0.4
+      });
+    }
+    if (mode === 5) {                        /* compare unit fractions */
+      var d2 = pick(rng, FR_D.filter(function (x) { return x !== d; }));
+      return I_cmp('Compare the two pieces:  1/' + d + '  ○  1/' + d2, 1 / d, 1 / d2, {
+        visual: V.frac([{ n: 1, d: d, label: '1/' + d }, { n: 1, d: d2, label: '1/' + d2 }]),
+        teach: 'The more parts a whole is cut into, the smaller each part — a bigger denominator means a smaller piece.',
+        explain: ['1/' + d + ' cuts the whole into ' + d + ' parts; 1/' + d2 + ' cuts it into ' + d2 + '.',
+          (1 / d) === (1 / d2) ? 'Same denominator, same size.' : ((1 / d) > (1 / d2) ? d + ' parts are bigger than ' + d2 + ' parts.' : d2 + ' parts are bigger than ' + d + ' parts.'),
+          'So the symbol is <b>' + (1 / d < 1 / d2 ? '&lt;' : (1 / d > 1 / d2 ? '&gt;' : '=')) + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 6) {                        /* same denominator compare */
+      var d3 = pick(rng, FR_D), n1 = R.int(rng, 1, d3 - 1), n2 = R.int(rng, 1, d3 - 1);
+      return I_cmp(n1 + '/' + d3 + '  ○  ' + n2 + '/' + d3, n1 / d3, n2 / d3, {
+        visual: V.frac([{ n: n1, d: d3, label: n1 + '/' + d3 }, { n: n2, d: d3, label: n2 + '/' + d3 }]),
+        teach: 'With the same denominator the parts are the same size, so more parts is the larger fraction.',
+        explain: ['Both fractions are made of pieces of size 1/' + d3 + '.',
+          n1 + ' pieces versus ' + n2 + ' pieces.',
+          'So the symbol is <b>' + (n1 < n2 ? '&lt;' : (n1 > n2 ? '&gt;' : '=')) + '</b>.'],
+        b: 0.1
+      });
+    }
+    if (mode === 7) {                        /* which is larger, judgement */
+      var dA = pick(rng, FR_D), dB = pick(rng, FR_D.filter(function (x) { return x !== dA; }));
+      return MC(rng, 'Which share is larger — 1/' + dA + ' or 1/' + dB + '?',
+        (1 / dA) === (1 / dB) ? 'They are equal' : ((1 / dA) > (1 / dB) ? '1/' + dA : '1/' + dB),
+        [(1 / dA) === (1 / dB) ? '1/' + dA : 'They are equal', (1 / dA) === (1 / dB) ? '1/' + dB : ((1 / dA) > (1 / dB) ? '1/' + dB : '1/' + dA)], {
+          visual: V.frac([{ n: 1, d: dA, label: '1/' + dA }, { n: 1, d: dB, label: '1/' + dB }]),
+          teach: 'Compare the size of one piece, not the two denominators standing alone.',
+          explain: ['Cutting the same whole into ' + dA + ' parts gives pieces of size 1/' + dA + '.',
+            'Cutting it into ' + dB + ' parts gives pieces of size 1/' + dB + '.',
+            (1 / dA) === (1 / dB) ? 'Same denominator, so <b>they are equal</b>.'
+              : 'Fewer parts means bigger pieces, so <b>' + ((1 / dA) > (1 / dB) ? '1/' + dA : '1/' + dB) + '</b> is larger.']
+        });
+    }
+    if (mode === 8) {                        /* unequal parts are not fractions */
+      var cuts = R.int(rng, 3, 6);
+      return I_bool('A ' + food + ' cut into ' + cuts + ' pieces of different sizes gives you ' + fracWord(cuts) + '.', false, {
+        teach: 'Fraction parts must be equal; unequal pieces are not unit fractions.',
+        explain: ['Fraction units only work when every part is the same size.',
+          'These ' + cuts + ' pieces are different sizes.',
+          'So they are <b>not</b> ' + fracWord(cuts) + '.'],
+        b: 0.5
+      });
+    }
+    if (mode === 9) {                        /* find the whole from the line */
+      var d9 = pick(rng, FR_D), n9 = R.int(rng, 2, d9 - 1) || 1;
+      return MC(rng, 'A ribbon is ' + n9 + '/' + d9 + ' of another ribbon of the same length. Which ribbon is longer?',
+        'the other ribbon', ['the ' + n9 + '/' + d9 + ' ribbon', 'they are the same length'], {
+          visual: V.frac([{ n: n9, d: d9, label: 'ribbon A' }, { n: d9, d: d9, label: 'ribbon B' }]),
+          teach: 'A fraction smaller than 1 whole describes a length shorter than the whole it refers to.',
+          explain: ['' + n9 + '/' + d9 + ' is ' + n9 + ' pieces of size 1/' + d9 + ', and a whole needs ' + d9 + ' of them.',
+            n9 + ' is less than ' + d9 + ', so that ribbon is shorter than the whole.',
+            'The longer one is <b>the other ribbon</b>.'],
+          b: 0.7
+        });
+    }
+    /* mode 10 — the arrow between two marks */
+    var d10 = pick(rng, FR_D), n10 = R.int(rng, 1, d10 - 1);
+    return MC(rng, 'On a number line from 0 to 1 split into ' + d10 + ' equal parts, which mark is the ' + n10 + 'th mark from 0?',
+      n10 + '/' + d10, ['1/' + n10, n10 + '/' + (n10 + 1), (d10 - n10) + '/' + d10], {
+        teach: 'Count equal parts from 0; the count is the numerator and the part size is the denominator.',
+        explain: ['Each mark is one more piece of size 1/' + d10 + '.',
+          'The ' + n10 + 'th mark is ' + n10 + ' pieces: ' + n10 + ' × 1/' + d10 + '.',
+          'That mark is <b>' + n10 + '/' + d10 + '</b>.'],
+        b: 0.4
+      });
+  };
+  function fracWord(d) { return ({ 2: 'halves', 3: 'thirds', 4: 'fourths', 6: 'sixths', 8: 'eighths' })[d] || (d + 'ths'); }
+  function w2say(rng) { return pick(rng, WHO); }
+  G('g3-nf-unit-frac', withLead(gen_g3_nf_unit_frac, LEAD));
+
+  /* ============ 3.NF.3  equivalence, wholes as fractions, comparing ======= */
+  /* lvl 1-2  read equivalent fractions off two matching models.
+     lvl 3    generate an equivalent fraction; recognise fractions equal to a
+              whole; compare same numerator or same denominator.
+     lvl 4-5  justify or reject an equivalence claim, work on the number line,
+              and compare fractions that refer to the same whole. */
+  var gen_g3_nf_equiv = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 3);
+    var d = pick(rng, [2, 3, 4, 6]), n = R.int(rng, 1, d - 1);
+    var k = pick(rng, [2, 3]), who3 = pick(rng, WHO);
+
+    if (mode === 0) {                        /* models that match */
+      return I_frac('Which fraction names the same shaded amount as ' + n + '/' + d + ' (use pieces of size 1/' + (d * k) + ')?', n * k, d * k, {
+        answerText: (n * k) + '/' + (d * k),
+        visual: V.frac([{ n: n, d: d, label: n + '/' + d }, { n: n * k, d: d * k, label: '? ' + k + '× finer' }]),
+        teach: 'Cutting every part into k smaller pieces multiplies both the numerator and the denominator by k, and the size stays the same.',
+        explain: ['Each of the ' + d + ' parts is cut into ' + k + ' pieces, so the whole now has ' + d * k + ' parts.',
+          'The shaded amount covers ' + n + ' × ' + k + ' = ' + (n * k) + ' of the small parts.',
+          'Same size, so <b>' + (n * k) + '/' + (d * k) + '</b> = ' + n + '/' + d + '.'],
+        b: 0
+      });
+    }
+    if (mode === 1) {                        /* which is equivalent */
+      return MC(rng, 'Which fraction is equivalent to ' + n + '/' + d + '?', (n * k) + '/' + (d * k),
+        [(n + 1) + '/' + (d + 1), n + '/' + (d * k), (n * k) + '/' + d], {
+          visual: V.frac([{ n: n, d: d, label: n + '/' + d }]),
+          teach: 'Multiply (or divide) the top and the bottom by the same number and the value does not change.',
+          explain: ['Multiply top and bottom of ' + n + '/' + d + ' by ' + k + ': ' + (n * k) + '/' + (d * k) + '.',
+            'Both models shade the same length.',
+            'So the equivalent fraction is <b>' + (n * k) + '/' + (d * k) + '</b>.']
+        });
+    }
+    if (mode === 2) {                        /* whole as a fraction */
+      var whole = R.int(rng, 2, 8);
+      return I_frac(who3 + ' cuts ' + whole + ' ' + pick(rng, ['granola bars', 'pizzas', 'candy bars']) +
+        ' into halves and eats every piece. Write the amount eaten as a fraction with denominator 2.', whole * 2, 2, {
+        answerText: (whole * 2) + '/2',
+          visual: V.frac(R.range(whole).map(function () { return { n: 2, d: 2 }; })),
+          teach: 'A whole number n is the fraction n/1, and any fraction whose top and bottom match equals 1 whole.',
+          explain: ['One whole has 2 halves, so ' + whole + ' wholes have ' + whole + ' × 2 = ' + (whole * 2) + ' halves.',
+            'Written as a fraction of one whole that is ' + (whole * 2) + '/2.',
+            'The amount eaten is <b>' + (whole * 2) + '/2</b>, which is ' + whole + ' wholes.'],
+          b: 0.3
+        });
+    }
+    if (mode === 3) {                        /* which fraction equals a whole number */
+      var w4 = R.int(rng, 2, 9), d4 = pick(rng, [2, 3, 4, 6, 8]);
+      return MC(rng, 'Which fraction equals ' + w4 + '?', (w4 * d4) + '/' + d4,
+        [w4 + '/' + d4, d4 + '/' + (w4 * d4), (w4 + d4) + '/' + d4], {
+          teach: 'A fraction equals a whole number when the numerator is that many copies of the denominator.',
+          explain: ['' + w4 + ' means ' + w4 + ' wholes, and each whole holds ' + d4 + ' parts of size 1/' + d4 + '.',
+            'That is ' + w4 + ' × ' + d4 + ' = ' + (w4 * d4) + ' parts.',
+            'So <b>' + (w4 * d4) + '/' + d4 + '</b> = ' + w4 + '.'],
+          b: 0.4
+        });
+    }
+    if (mode === 4) {                        /* same point on the line */
+      return I_bool(n + '/' + d + ' and ' + (n * k) + '/' + (d * k) + ' land on the same point of the number line.', true, {
+        visual: V.numline(0, 1, [{ x: n / d, arrow: true, label: n + '/' + d }, { x: (n * k) / (d * k), label: (n * k) + '/' + (d * k) }], { label: 'same point?' }),
+        teach: 'Two fractions are equivalent exactly when they name the same point on the number line.',
+        explain: ['' + n + '/' + d + ' is ' + n + ' ' + plur(n, 'step') + ' of size 1/' + d + ' from 0.',
+          (n * k) + '/' + (d * k) + ' is ' + (n * k) + ' ' + plur(n * k, 'step') + ' of size 1/' + (d * k) + ' — the same length, counted finer.',
+          'Both arrows land together, so <b>yes</b>.'],
+        b: 0.2
+      });
+    }
+    if (mode === 5) {                        /* same numerator compare */
+      var n5 = R.int(rng, 1, 3), d5 = pick(rng, FR_D), d5b = pick(rng, FR_D.filter(function (x) { return x !== d5; }));
+      return I_cmp(n5 + '/' + d5 + '  ○  ' + n5 + '/' + d5b, n5 / d5, n5 / d5b, {
+        visual: V.frac([{ n: n5, d: d5, label: n5 + '/' + d5 }, { n: n5, d: d5b, label: n5 + '/' + d5b }]),
+        teach: 'Same numerator means the same number of pieces, so the fraction with the bigger pieces is larger.',
+        explain: ['Both have ' + n5 + ' pieces.', 'A piece of size 1/' + d5 + ' is ' + (d5 < d5b ? 'bigger' : 'smaller') + ' than a piece of size 1/' + d5b + '.',
+          'So the symbol is <b>' + (n5 / d5 < n5 / d5b ? '&lt;' : (n5 / d5 > n5 / d5b ? '&gt;' : '=')) + '</b>.'],
+        b: 0.4
+      });
+    }
+    if (mode === 6) {                        /* reject the false equivalence */
+      var d7 = pick(rng, [2, 4, 6]), n7 = R.int(rng, 1, d7 - 1);
+      var fake = (n7 + 1) + '/' + (d7 + 1);
+      return MC(rng, 'Which fraction is NOT equivalent to ' + n7 + '/' + d7 + '?', fake,
+        [(n7 * 2) + '/' + (d7 * 2), (n7 * 3) + '/' + (d7 * 3)], {
+          visual: V.frac([{ n: n7, d: d7, label: n7 + '/' + d7 }, { n: n7 + 1, d: d7 + 1, label: fake }]),
+          teach: 'Adding the same number to top and bottom changes the value; only multiplying or dividing both keeps it.',
+          explain: ['Equivalent fractions come from multiplying or dividing top and bottom by the same number.',
+            'Adding 1 to both gives ' + fake + ', which is a different size.',
+            'The one that is not equivalent is <b>' + fake + '</b>.'],
+          b: 0.7
+        });
+    }
+    if (mode === 7) {                        /* how many parts make a whole */
+      var d8 = pick(rng, FR_D);
+      return I_num('How many pieces of size 1/' + d8 + ' fill exactly one whole?', d8, {
+        visual: V.frac([{ n: d8, d: d8, label: d8 + '/' + d8 + ' = 1 whole' }]),
+        teach: 'A whole is exactly d pieces of size 1/d, which is why d/d equals 1.',
+        explain: ['Each piece is 1/' + d8 + ' of the whole.', 'd/d equals one whole.',
+          'So it takes <b>' + d8 + '</b> pieces to fill the whole.'],
+        b: -0.2
+      });
+    }
+    if (mode === 8) {                        /* compare same whole, mixed forms */
+      var d9 = pick(rng, [4, 6, 8]), n9 = R.int(rng, 1, d9 - 1), k9 = pick(rng, [2, 3]);
+      return I_cmp(n9 + '/' + d9 + '  ○  ' + (n9 * k9) + '/' + (d9 * k9), n9 / d9, (n9 * k9) / (d9 * k9), {
+        visual: V.frac([{ n: n9, d: d9, label: n9 + '/' + d9 }, { n: n9 * k9, d: d9 * k9, label: (n9 * k9) + '/' + (d9 * k9) }]),
+        teach: 'Equivalent fractions compare as equal even though the digits differ.',
+        explain: ['Cut each of the ' + d9 + ' parts into ' + k9 + ' finer parts: ' + n9 + '/' + d9 + ' = ' + (n9 * k9) + '/' + (d9 * k9) + '.',
+          'The shaded lengths are identical.',
+          'So the symbol is <b>=</b>.'],
+        b: 0.5
+      });
+    }
+    if (mode === 9) {                        /* who is right about equivalence */
+      var dA = pick(rng, [2, 3, 4]), kA = pick(rng, [2, 3]), nA = R.int(rng, 1, dA - 1);
+      var okClaim = chance(rng, 0.5);
+      var shown = okClaim ? (nA * kA) + '/' + (dA * kA) : (nA + 1) + '/' + (dA * kA);
+      return MC(rng, who3 + ' says ' + nA + '/' + dA + ' = ' + shown + '. Is ' + who3 + ' right, and why?',
+        okClaim ? 'yes, both top and bottom were multiplied by ' + kA : 'no, the top was not multiplied by ' + kA,
+        [okClaim ? 'no, the top was not multiplied by ' + kA : 'yes, both top and bottom were multiplied by ' + kA,
+        'yes, both fractions have the same denominator'], {
+          visual: V.frac([{ n: nA, d: dA, label: nA + '/' + dA }, { n: parseInt(shown, 10), d: dA * kA, label: shown }]),
+          teach: 'Equivalence needs the same multiplier on top and bottom — matching denominators alone proves nothing.',
+          explain: ['' + nA + '/' + dA + ' × ' + kA + '/' + kA + ' = ' + (nA * kA) + '/' + (dA * kA) + '.',
+            'The fraction shown is ' + shown + ', whose numerator is ' + shown.split('/')[0] + '.',
+            shown.split('/')[0] === String(nA * kA)
+              ? 'Both were multiplied by ' + kA + ', so ' + who3 + ' is <b>right</b>.'
+              : 'The bottom was multiplied by ' + kA + ' but the top was not, so ' + who3 + ' is <b>wrong</b>.']
+        });
+    }
+    /* mode 10 — same whole rule */
+    var dB = pick(rng, [2, 4]), nB = R.int(rng, 1, dB - 1);
+    return I_bool('1/' + dB + ' of a small pizza is the same size as 1/' + dB + ' of a big pizza.', false, {
+      teach: 'Fractions only compare when they refer to the same whole.',
+      explain: ['Both fractions are one part of ' + dB + ' equal parts.',
+        'But the wholes are different sizes, so the parts are different sizes too.',
+        'Comparisons are only valid for the same whole, so <b>no</b>.'],
+      b: 0.8
+    });
+  };
+  G('g3-nf-equiv', withLead(gen_g3_nf_equiv, LEAD));
+
+  /* ============ 3.MD.5-8  area as tiling, area/perimeter problems ========= */
+  /* lvl 1-2  count the squares of a drawn rectangle, perimeter by adding.
+     lvl 3    area = length × width, perimeter of a rectangle, real contexts.
+     lvl 4-5  find a missing side from an area or a perimeter, decompose a
+              rectilinear figure, and trade area against perimeter. */
+  var gen_g3_md_perim_area = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 6 : 3);
+    var r = R.int(rng, lvl >= 4 ? 5 : 2, lvl >= 4 ? 9 : 6), c = R.int(rng, lvl >= 4 ? 5 : 2, lvl >= 4 ? 10 : 7);
+    var thing = pick(rng, ['garden', 'floor', 'bulletin board', 'sandbox', 'mural', 'rug', 'patio']);
+
+    if (mode === 0) {                        /* tile count -> area */
+      return I_num('The ' + thing + ' below is covered with ' + r + ' rows of ' + c +
+        ' unit squares. What is its area in square units?', r * c, {
+          visual: V.area(r, c, { label: r + ' rows of ' + c + ' unit squares' }),
+          teach: 'Area counts the unit squares that cover a figure with no gaps or overlaps.',
+          explain: ['There are <b>' + r + '</b> rows and <b>' + c + '</b> squares in each row.',
+            'Each square is 1 square unit, so rows × the number in each row counts them all.',
+            r + ' × ' + c + ' = <b>' + (r * c) + '</b> square units.'],
+          b: -0.4
+        });
+    }
+    if (mode === 1) {                        /* area by multiplication */
+      return I_num('A rectangular ' + thing + ' measures ' + r + ' units long and ' + c +
+        ' units wide. What is its area in square units?', r * c, {
+          visual: lvl <= 2 ? V.area(r, c, { label: 'count ' + r + ' rows of ' + c }) : null,
+          teach: 'Multiplying the side lengths counts the same squares that tiling would show.',
+          explain: ['The length is <b>' + r + '</b> and the width is <b>' + c + '</b>.',
+            'Picture ' + r + ' rows of ' + c + ' unit squares.',
+            r + ' × ' + c + ' = <b>' + (r * c) + '</b> square units.'],
+          b: -0.1
+        });
+    }
+    if (mode === 2) {                        /* perimeter by adding sides */
+      return I_num('Fencing a rectangular ' + thing + ' that is ' + r + ' units by ' + c +
+        ' units means adding all four sides. How many units of fence?', 2 * (r + c), {
+          teach: 'Perimeter is the distance around: every side is walked once and added.',
+          explain: ['A rectangle has two sides of ' + r + ' and two sides of ' + c + '.',
+            r + ' + ' + r + ' + ' + c + ' + ' + c + ' = ' + (2 * (r + c)) + '.',
+            'The perimeter is <b>' + (2 * (r + c)) + '</b> units.'],
+          b: 0.1
+        });
+    }
+    if (mode === 3) {                        /* missing side from the area */
+      var w4 = R.int(rng, 2, 9), area4 = w4 * c;
+      return I_num('A rectangular rug has an area of ' + area4 + ' square units and is ' + w4 +
+        ' units wide. How long is it?', c, {
+          visual: V.area(w4, c, { label: 'area ' + area4 + ' square units' }),
+          teach: 'Area is length × width, so a missing side is the area divided by the side you know.',
+          explain: ['Area = length × width, and the width is <b>' + w4 + '</b>.',
+            'Ask: ' + w4 + ' × ? = ' + area4 + '.',
+            area4 + ' ÷ ' + w4 + ' = <b>' + c + '</b> units long.'],
+          b: 0.4
+        });
+    }
+    if (mode === 4) {                        /* missing side from the perimeter */
+      var len5 = R.int(rng, 3, 12), wid5 = R.int(rng, 2, len5), per5 = 2 * (len5 + wid5);
+      return I_num('A rectangle has a perimeter of ' + per5 + ' units and a length of ' + len5 +
+        ' units. How wide is it?', wid5, {
+          teach: 'Two lengths and two widths make the perimeter, so take the two known lengths out first.',
+          explain: ['The two long sides are ' + len5 + ' + ' + len5 + ' = ' + (2 * len5) + '.',
+            'Left for the two widths: ' + per5 + ' - ' + (2 * len5) + ' = ' + (2 * wid5) + '.',
+            'One width is ' + (2 * wid5) + ' ÷ 2 = <b>' + wid5 + '</b> units.'],
+          b: 0.6
+        });
+    }
+    if (mode === 5) {                        /* which rectangle is bigger */
+      var r6 = cap(r, 2, 9), c6 = cap(c, 2, 9), r6b = cap(r6 + 1, 2, 10), c6b = cap(c6 - 1, 2, 10);
+      return MC(rng, 'Which rectangle covers more area: ' + r6 + ' by ' + c6 + ' or ' + r6b + ' by ' + c6b + '?',
+        r6 * c6 === r6b * c6b ? 'They are equal' : ((r6 * c6) > (r6b * c6b) ? r6 + ' by ' + c6 : r6b + ' by ' + c6b),
+        [r6 * c6 === r6b * c6b ? r6 + ' by ' + c6 : 'They are equal',
+        r6 * c6 === r6b * c6b ? r6b + ' by ' + c6b : ((r6 * c6) > (r6b * c6b) ? r6b + ' by ' + c6b : r6 + ' by ' + c6)], {
+          teach: 'Multiply both pairs of side lengths; a longer side does not guarantee more area.',
+          explain: ['' + r6 + ' × ' + c6 + ' = ' + (r6 * c6) + ' square units.',
+            r6b + ' × ' + c6b + ' = ' + (r6b * c6b) + ' square units.',
+            (r6 * c6) === (r6b * c6b) ? 'Equal areas, so <b>they are equal</b>.'
+              : 'The larger area is <b>' + ((r6 * c6) > (r6b * c6b) ? r6 + ' by ' + c6 : r6b + ' by ' + c6b) + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 6) {                        /* same perimeter, different area */
+      var p7 = 2 * (r + c), alt = cap(r + 2, 3, 12), altW = (p7 / 2) - alt;
+      if (altW < 1 || altW === c) { alt = cap(r + 1, 3, 12); altW = (p7 / 2) - alt; }
+      if (altW < 1 || altW === c) { alt = cap(r, 3, 12); altW = (p7 / 2) - alt; }
+      return MC(rng, 'A rectangle has perimeter ' + p7 + ' units. Which pair of sides has the SAME perimeter but a different area?',
+        alt + ' by ' + altW, [r + ' by ' + c, alt + ' by ' + c], {
+          teach: 'Perimeter fixes the sum of one length and one width; many pairs share that sum but cover different areas.',
+          explain: ['Perimeter ' + p7 + ' means length + width = ' + (p7 / 2) + '.',
+            r + ' + ' + c + ' = ' + (r + c) + ' and ' + alt + ' + ' + altW + ' = ' + (alt + altW) + ' — both work.',
+            'But ' + r + ' × ' + c + ' = ' + (r * c) + ' while ' + alt + ' × ' + altW + ' = ' + (alt * altW) +
+            ', so <b>' + alt + ' by ' + altW + '</b> has the same perimeter and a different area.'],
+          b: 0.9
+        });
+    }
+    if (mode === 7) {                        /* rectilinear figure, area is additive */
+      var topW = R.int(rng, 2, 6), botW = R.int(rng, 2, 6), h1 = R.int(rng, 2, 5), h2 = R.int(rng, 2, 5);
+      return I_num('An L-shaped ' + pick(rng, ['garden', 'floor', 'rug']) + ' splits into a ' + topW + ' by ' + h1 +
+        ' rectangle and a ' + botW + ' by ' + h2 + ' rectangle. What is its total area in square units?', topW * h1 + botW * h2, {
+          visual: V.table(['part', 'sides', 'area'], [['top', topW + ' × ' + h1, topW * h1], ['bottom', botW + ' × ' + h2, botW * h2]]),
+          teach: 'Area is additive: split a figure into rectangles and add the parts.',
+          explain: ['First rectangle: ' + topW + ' × ' + h1 + ' = ' + (topW * h1) + ' square units.',
+            'Second rectangle: ' + botW + ' × ' + h2 + ' = ' + (botW * h2) + ' square units.',
+            'Add the parts: ' + (topW * h1) + ' + ' + (botW * h2) + ' = <b>' + (topW * h1 + botW * h2) + '</b> square units.'],
+          b: 0.8
+        });
+    }
+    if (mode === 8) {                        /* distributive area model */
+      var h8 = cap(r, 3, 8), a8 = R.int(rng, 2, 5), b8 = R.int(rng, 2, 5);
+      return I_num('An area model splits a ' + h8 + ' × ' + (a8 + b8) + ' rectangle into ' + h8 + ' × ' + a8 +
+        ' and ' + h8 + ' × ?. What is the missing width?', b8, {
+          visual: V.frac([{ n: a8, d: a8 + b8, label: h8 + ' × ' + a8 }, { n: b8, d: a8 + b8, label: h8 + ' × ?' }]),
+          teach: 'The whole width is the sum of the two parts, which is the distributive property drawn.',
+          explain: ['The full rectangle is ' + h8 + ' × ' + (a8 + b8) + ' = ' + (h8 * (a8 + b8)) + ' square units.',
+            'The drawn part is ' + h8 + ' × ' + a8 + ' = ' + (h8 * a8) + '.',
+            'The rest is ' + (h8 * (a8 + b8) - h8 * a8) + ' square units, which is ' + h8 + ' × <b>' + b8 + '</b>.'],
+          b: 0.7
+        });
+    }
+    if (mode === 9) {                        /* area and perimeter can match */
+      var sq = pick(rng, [4, 6]);
+      return I_bool('A ' + sq + ' by ' + sq + ' square has the same NUMBER for its area (in square units) and its perimeter (in units).',
+        sq * sq === 2 * (sq + sq), {
+          visual: V.area(sq, sq, { label: sq + ' by ' + sq }),
+          teach: 'Area and perimeter measure different things, but for some side lengths the numbers happen to match.',
+          explain: ['Area: ' + sq + ' × ' + sq + ' = ' + (sq * sq) + ' square units.',
+            'Perimeter: ' + sq + ' + ' + sq + ' + ' + sq + ' + ' + sq + ' = ' + (2 * (sq + sq)) + ' units.',
+            (sq * sq) === (2 * (sq + sq)) ? 'Both numbers are ' + sq * sq + ', so <b>yes</b> — but the units are different.'
+              : sq * sq + ' and ' + (2 * (sq + sq)) + ' are different, so <b>no</b>.'],
+          b: 0.6
+        });
+    }
+    /* mode 10 — which fence length, read the drawing */
+    var r11 = cap(r, 2, 9), c11 = cap(c, 2, 9);
+    return MC(rng, 'A ' + thing + ' is ' + r11 + ' units by ' + c11 + ' units. Which is its perimeter?',
+      2 * (r11 + c11) + ' units', [r11 * c11 + ' units', r11 + c11 + ' units'], {
+        visual: V.area(r11, c11, { label: r11 + ' by ' + c11 }),
+        teach: 'Perimeter walks the outside edge; multiplying the sides would be counting the inside squares instead.',
+        explain: ['Walk around it: ' + r11 + ' + ' + c11 + ' + ' + r11 + ' + ' + c11 + '.',
+          'That is ' + (2 * (r11 + c11)) + ' units.',
+          'Multiplying would give the area ' + (r11 * c11) + ', which is the wrong measure, so the answer is <b>' + (2 * (r11 + c11)) + ' units</b>.'],
+        b: 0.3
+      });
+  };
+  G('g3-md-perim-area', withLead(gen_g3_md_perim_area, LEAD));
+
+  /* ====== 3.MD.1-2  time to the minute, liquid volume, mass in g and kg ==== */
+  /* lvl 1-2  read a clock, one-step add or subtract of litres / grams.
+     lvl 3    elapsed time in minutes, mixed g / kg and mL / L one-step problems.
+     lvl 4-5  find the starting time, choose the sensible unit, judge whether a
+              stated measure is reasonable. */
+  var gen_g3_md_measure = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 3);
+    var w = who(rng);
+
+    if (mode === 0) {                        /* read the clock */
+      var h0 = R.int(rng, 1, 11), m0 = pick(rng, [5, 10, 15, 20, 25, 35, 40, 45, 50, 55]);
+      var t0 = hms(h0 * 60 + m0);
+      return I_str('What time is shown on the clock?', [t0, t0 + ' pm'], {
+        visual: V.clock(h0, m0, { label: 'the long hand counts the minutes' }),
+        teach: 'The short hand shows the hour it has passed and the long hand counts minutes by fives.',
+        explain: ['The long hand is on ' + m0 + ' minutes, which is ' + (m0 / 5) + ' big numbers around.',
+          'The short hand has passed ' + h0 + '.',
+          'So the time is <b>' + t0 + '</b>.'],
+        answerText: t0, b: -0.3
+      });
+    }
+    if (mode === 1) {                        /* end time */
+      var sh = R.int(rng, 1, 9), sm = pick(rng, [0, 15, 20, 30, 40, 45]), dur = pick(rng, [15, 20, 30, 45, 60, 90]);
+      var endM = sh * 60 + sm + dur;
+      return I_str(w + '\'s reading time starts at ' + hms(sh * 60 + sm) + ' and lasts ' + dur +
+        ' minutes. What time does it end?', [hms(endM), hms(endM) + ' pm'], {
+          visual: V.numline(0, cap(dur + 30, 60, 150), [{ x: 0, label: 'start' }, { x: dur, arrow: true, label: 'end' }], { label: 'minutes elapsed' }),
+          teach: 'Add the minutes first; every 60 minutes moves the hour hand one whole number.',
+          explain: ['Start at ' + hms(sh * 60 + sm) + '.', 'Add ' + dur + ' minutes.',
+            (sh * 60 + sm) + ' + ' + dur + ' = ' + endM + ' minutes past 12, which is ' + hms(endM) + '.',
+            'It ends at <b>' + hms(endM) + '</b>.'],
+          answerText: hms(endM), b: 0.1
+        });
+    }
+    if (mode === 2) {                        /* duration */
+      var s2h = R.int(rng, 1, 8), s2m = pick(rng, [0, 15, 20, 30, 45]), dur2 = pick(rng, [20, 35, 45, 60, 75, 90]);
+      return I_num('The movie started at ' + hms(s2h * 60 + s2m) + ' and ended at ' + hms(s2h * 60 + s2m + dur2) +
+        '. How many minutes was it?', dur2, {
+          visual: V.numline(0, cap(dur2 + 20, 40, 120), [{ x: 0, label: 'start' }, { x: dur2, arrow: true, label: 'end' }], { label: 'count the minutes' }),
+          teach: 'Count up to the next hour first, then on to the end time; that total is the elapsed time.',
+          explain: ['From ' + hms(s2h * 60 + s2m) + ' to the next hour is ' + (60 - s2m) + ' minutes.',
+            'Then on to ' + hms(s2h * 60 + s2m + dur2) + '.',
+            'The film ran <b>' + dur2 + '</b> minutes.'],
+          b: 0.3
+        });
+    }
+    if (mode === 3) {                        /* find the start time */
+      var eh = R.int(rng, 3, 10), em = pick(rng, [0, 15, 30, 45]), dur3 = pick(rng, [25, 40, 55, 70, 90]);
+      var startM = eh * 60 + em - dur3;
+      return I_str('Soccer practice ended at ' + hms(eh * 60 + em) + ' after ' + dur3 +
+        ' minutes. What time did it start?', [hms(startM), hms(startM) + ' pm'], {
+          teach: 'Going backwards in time subtracts the minutes, borrowing an hour when needed.',
+          explain: ['End time ' + hms(eh * 60 + em) + ' is ' + (eh * 60 + em) + ' minutes past 12.',
+            'Subtract ' + dur3 + ': ' + (eh * 60 + em) + ' - ' + dur3 + ' = ' + startM + ' minutes.',
+            startM + ' minutes past 12 is <b>' + hms(startM) + '</b>.'],
+          answerText: hms(startM), b: 0.6
+        });
+    }
+    if (mode === 4) {                        /* litres, one step */
+      var l1 = R.int(rng, 2, 40), l2 = R.int(rng, 2, cap(99 - l1, 2, 40));
+      return I_num('The punch bowl holds ' + l1 + ' litres and ' + w + ' pours in ' + l2 +
+        ' more litres. How many litres now?', l1 + l2, {
+          visual: V.bar([{ v: l1, label: 'in the bowl' }, { v: l2, label: 'poured in' }], { label: 'litres' }),
+          teach: 'Volume in the same unit is added like any other quantity.',
+          explain: ['Both amounts are in litres, so add them.', l1 + ' + ' + l2 + ' = ' + (l1 + l2) + '.',
+            'The bowl holds <b>' + (l1 + l2) + '</b> litres.'],
+          b: -0.2
+        });
+    }
+    if (mode === 5) {                        /* grams, one step */
+      var g1 = R.int(rng, 200, 900), g2 = R.int(rng, 50, cap(g1 - 20, 50, 400));
+      return I_num('A bag of apples weighs ' + g1 + ' grams. ' + w + ' uses ' + g2 +
+        ' grams for a pie. How many grams are left?', g1 - g2, {
+          teach: 'Mass in the same unit is subtracted like any other quantity; grams stay grams.',
+          explain: ['Start with ' + g1 + ' grams and take away ' + g2 + '.',
+            g1 + ' - ' + g2 + ' = ' + (g1 - g2) + '.',
+            '<b>' + (g1 - g2) + '</b> grams are left.'],
+          b: 0.1
+        });
+    }
+    if (mode === 6) {                        /* which unit fits */
+      var item6 = pick(rng, [['a paper clip', 'grams'], ['a full bathtub of water', 'litres'], ['a textbook', 'grams'],
+        ['a big bag of dog food', 'kilograms'], ['a glass of milk', 'millilitres'], ['a newborn puppy', 'grams'],
+        ['the water in a fish tank', 'litres'], ['a backpack', 'kilograms']]);
+      return MC(rng, 'Which unit best measures ' + item6[0] + '?', item6[1],
+        ['grams', 'litres', 'millilitres', 'kilograms'].filter(function (u) { return u !== item6[1]; }).slice(0, 3), {
+          teach: 'Grams and millilitres are for small amounts, kilograms and litres for big ones.',
+          explain: ['We are measuring ' + item6[0] + ', so pick the unit whose size fits the amount.',
+            'A gram is about the mass of a paper clip; a litre is about 4 large bottles.',
+            'The best unit is <b>' + item6[1] + '</b>.']
+        });
+    }
+    if (mode === 7) {                        /* best estimate */
+      var thing7 = pick(rng, [['a dictionary', 1500, 'grams'], ['a feather', 2, 'grams'], ['a bag of flour', 2, 'kilograms'],
+        ['a pencil', 8, 'grams'], ['a water bottle', 500, 'millilitres'], ['a pumpkin', 4, 'kilograms']]);
+      return MC(rng, 'Which is the best estimate for ' + thing7[0] + '?', thing7[1] + ' ' + thing7[2],
+        [thing7[1] * 10 + ' ' + thing7[2], Math.max(1, Math.round(thing7[1] / 10)) + ' ' + thing7[2],
+        thing7[1] + ' ' + (thing7[2] === 'grams' ? 'kilograms' : 'grams')], {
+          teach: 'Anchor on one gram or one litre, then scale — the right size beats a precise-looking wrong number.',
+          explain: ['A gram is tiny and a kilogram is about the mass of a large textbook.',
+            'For ' + thing7[0] + ', ' + thing7[1] + ' ' + thing7[2] + ' is the sensible size.',
+            'Multiplying or dividing that by 10 overshoots, so the best estimate is <b>' + thing7[1] + ' ' + thing7[2] + '</b>.'],
+          b: 0.5
+        });
+    }
+    if (mode === 8) {                        /* kg vs g judgement */
+      var kg9 = R.int(rng, 2, 9);
+      return I_bool(kg9 + ' kilograms is more than ' + (kg9 * 1000) + ' grams.', false, {
+        teach: 'One kilogram is exactly 1000 grams, so changing units changes the number, not the mass.',
+        explain: ['1 kilogram = 1000 grams.', kg9 + ' kilograms = ' + kg9 + ' × 1000 = ' + (kg9 * 1000) + ' grams.',
+          'That is exactly the same mass, not more, so the answer is <b>no</b>.'],
+        b: 0.4
+      });
+    }
+    if (mode === 9) {                        /* minutes vs hours */
+      var hr = R.int(rng, 1, 3), extra = pick(rng, [15, 30, 45, 90, 120]);
+      return I_cmp(extra + ' minutes  ○  ' + hr + ' hours', extra, hr * 60, {
+        teach: 'Change both sides to the same unit before comparing.',
+        explain: ['' + hr + ' hours = ' + (hr * 60) + ' minutes.',
+          extra + ' minutes compared with ' + (hr * 60) + ' minutes.',
+          'So the symbol is <b>' + (extra < hr * 60 ? '&lt;' : (extra > hr * 60 ? '&gt;' : '=')) + '</b>.'],
+        b: 0.5
+      });
+    }
+    /* mode 10 — two beakers poured together */
+    var b10 = pick(rng, [120, 250, 340, 480, 560]), b10b = pick(rng, [130, 220, 360, 450, 270]);
+    return I_num('One beaker holds ' + b10 + ' millilitres and another holds ' + b10b +
+      ' millilitres. Both are poured into a jug. How many millilitres are in the jug?', b10 + b10b, {
+        visual: V.bars([{ label: 'beaker 1', v: b10 }, { label: 'beaker 2', v: b10b }], { yMax: 600, label: 'millilitres' }),
+        teach: 'Same unit on both measures means the amounts can be added straight away.',
+        explain: ['Both beakers are measured in millilitres.', b10 + ' + ' + b10b + ' = ' + (b10 + b10b) + '.',
+          'The jug holds <b>' + (b10 + b10b) + '</b> millilitres.'],
+        b: 0.2
+      });
+  };
+  G('g3-md-measure', withLead(gen_g3_md_measure, LEAD));
+
+  /* ============ 3.MD.3-4  scaled graphs and line plots with fractions ==== */
+  /* lvl 1-2  read one bar, how many more / less.
+     lvl 3    scaled bar graphs (each square stands for 5 or 10), two-step
+              totals, line plots marked in halves and fourths.
+     lvl 4-5  convert a scale into real counts and judge a claim about the data. */
+  var gen_g3_md_plots = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 3);
+    var cats = sample(rng, ['soccer', 'swimming', 'art', 'reading', 'chess', 'dance', 'gardening', 'cooking'], 4);
+    var scale = lvl >= 3 ? pick(rng, [5, 10]) : 1;
+    var squares = cats.map(function () { return R.int(rng, 2, 9); });
+    var vals = squares.map(function (s) { return s * scale; });
+    var data = cats.map(function (c, i) { return { label: c, v: vals[i] }; });
+    var glabel = pick(rng, ['favourite club', 'pets', 'books read', 'cans collected']);
+    var yTop = function (arr) { return Math.max(Math.max.apply(null, arr) * 1.2, scale); };
+
+    if (mode === 0) {                        /* read a bar */
+      var pick0 = R.int(rng, 0, 3);
+      return I_num('From the graph: how many ' + glabel + ' are ' + cats[pick0] + '?', vals[pick0], {
+        visual: V.bars(data, { yMax: yTop(vals), label: glabel }),
+        teach: 'Read the height of the bar against the scale, then say the number with its unit.',
+        explain: ['Find the bar labelled <b>' + cats[pick0] + '</b>.',
+          'Its top lines up with ' + vals[pick0] + ' on the scale.',
+          'So ' + cats[pick0] + ' has <b>' + vals[pick0] + '</b>.'],
+        b: -0.4
+      });
+    }
+    if (mode === 1) {                        /* how many more */
+      var hi1 = R.int(rng, 0, 3), lo1 = (hi1 + 1 + R.int(rng, 0, 2)) % 4;
+      if (vals[hi1] === vals[lo1]) vals[hi1] = vals[lo1] + scale;
+      return I_num('How many more ' + glabel + ' are ' + cats[hi1] + ' than ' + cats[lo1] + '?', Math.abs(vals[hi1] - vals[lo1]), {
+        visual: V.bars([data[hi1], data[lo1]], { yMax: yTop([vals[hi1], vals[lo1]]), label: 'compare the heights' }),
+        teach: 'A comparison question is a subtraction of the two bar values.',
+        explain: ['' + cats[hi1] + ' is ' + vals[hi1] + ' and ' + cats[lo1] + ' is ' + vals[lo1] + '.',
+          Math.max(vals[hi1], vals[lo1]) + ' - ' + Math.min(vals[hi1], vals[lo1]) + ' = ' + Math.abs(vals[hi1] - vals[lo1]) + '.',
+          'The difference is <b>' + Math.abs(vals[hi1] - vals[lo1]) + '</b>.'],
+        b: -0.1
+      });
+    }
+    if (mode === 2) {                        /* scale conversion */
+      var sq2 = R.int(rng, 3, 9);
+      return I_num('On a scaled bar graph each square stands for ' + scale + ' ' + glabel +
+        '. A bar is ' + sq2 + ' squares tall. How many is that?', sq2 * scale, {
+          visual: V.bars([{ label: cats[0], v: sq2 }], { yMax: 10, label: 'each square = ' + scale }),
+          teach: 'A scaled graph counts groups, so multiply the squares by the value of one square.',
+          explain: ['One square = ' + scale + '.', sq2 + ' squares = ' + sq2 + ' groups of ' + scale + '.',
+            sq2 + ' × ' + scale + ' = <b>' + (sq2 * scale) + '</b>.'],
+          b: 0.3
+        });
+    }
+    if (mode === 3) {                        /* two-step total from the graph */
+      var a3 = R.int(rng, 0, 3), b3 = (a3 + 1 + R.int(rng, 0, 2)) % 4;
+      return I_num('How many ' + glabel + ' are ' + cats[a3] + ' and ' + cats[b3] + ' together?', vals[a3] + vals[b3], {
+        visual: V.bars([data[a3], data[b3]], { yMax: yTop([vals[a3], vals[b3]]), label: 'two categories' }),
+        teach: 'A total uses every value, so read both bars before adding.',
+        explain: ['' + cats[a3] + ' = ' + vals[a3] + ', ' + cats[b3] + ' = ' + vals[b3] + '.',
+          vals[a3] + ' + ' + vals[b3] + ' = ' + (vals[a3] + vals[b3]) + '.',
+          'Together that is <b>' + (vals[a3] + vals[b3]) + '</b>.'],
+        b: 0.2
+      });
+    }
+    if (mode === 4) {                        /* most / least */
+      var maxI = vals.indexOf(Math.max.apply(null, vals));
+      return MC(rng, 'Which ' + glabel + ' is the most popular?', cats[maxI],
+        cats.filter(function (c, i) { return i !== maxI; }).slice(0, 3), {
+          visual: V.bars(data, { yMax: yTop(vals), label: glabel }),
+          teach: 'The tallest bar is the greatest value, whatever the scale happens to be.',
+          explain: ['Compare the four heights: ' + cats.map(function (c, i) { return c + ' ' + vals[i]; }).join(', ') + '.',
+            'The tallest is ' + cats[maxI] + ' at ' + vals[maxI] + '.',
+            'So the most popular is <b>' + cats[maxI] + '</b>.'],
+          b: 0
+        });
+    }
+    if (mode === 5) {                        /* line plot total */
+      var labels = ['0', '1', '2', '3'];
+      var marks = labels.map(function () { return R.int(rng, 1, 8); });
+      var total = marks.reduce(function (a, b) { return a + b; }, 0);
+      return I_num('A line plot of seed lengths is marked in half inches. How many seeds were measured in all?', total, {
+        visual: V.table(['length (in)', 'X marks'], labels.map(function (L, i) {
+          return [L, Array.apply(null, Array(marks[i])).map(function () { return '✕'; }).join(' ')];
+        })),
+        teach: 'Every X on a line plot is one measurement, so the total is the count of all the Xs.',
+        explain: ['Count the Xs above each mark: ' + labels.map(function (L, i) { return L + ' → ' + marks[i]; }).join(', ') + '.',
+          'Add them: ' + marks.join(' + ') + ' = ' + total + '.',
+          '<b>' + total + '</b> seeds were measured.'],
+        b: 0.2
+      });
+    }
+    if (mode === 6) {                        /* line plot: most common length */
+      var labels6 = ['1 1/2', '2', '2 1/2', '3'];
+      var marks6 = labels6.map(function () { return R.int(rng, 1, 9); });
+      var top6 = marks6.indexOf(Math.max.apply(null, marks6));
+      return MC(rng, 'The line plot shows pencil lengths in fourths of an inch. Which length was measured most often?',
+        labels6[top6], labels6.filter(function (_, i) { return i !== top6; }).slice(0, 3), {
+          visual: V.table(['length (in)', 'X marks'], labels6.map(function (L, i) {
+            return [L, Array.apply(null, Array(marks6[i])).map(function () { return '✕'; }).join(' ')];
+          })),
+          teach: 'The column with the most Xs is the most frequent measurement.',
+          explain: ['Count the Xs: ' + labels6.map(function (L, i) { return L + ' → ' + marks6[i]; }).join(', ') + '.',
+            'The most Xs sit above ' + labels6[top6] + ' (' + marks6[top6] + ' of them).',
+            'So the most common length is <b>' + labels6[top6] + '</b> inches.'],
+          b: 0.4
+        });
+    }
+    if (mode === 7) {                        /* judge a claim about the graph */
+      var hi7 = vals.indexOf(Math.max.apply(null, vals)), lo7 = vals.indexOf(Math.min.apply(null, vals));
+      if (vals[hi7] === vals[lo7]) vals[lo7] = vals[hi7] - scale;
+      var truthful = chance(rng, 0.5);
+      var claim = truthful ? cats[hi7] + ' has more than ' + cats[lo7] : cats[lo7] + ' has more than ' + cats[hi7];
+      return I_bool('From the graph: ' + claim + ' — true or false?', truthful, {
+        visual: V.bars(data, { yMax: yTop(vals), label: glabel }),
+        teach: 'Test a claim against the numbers on the graph, not against what you expect.',
+        explain: ['' + cats[hi7] + ' = ' + vals[hi7] + ' and ' + cats[lo7] + ' = ' + vals[lo7] + '.',
+          (truthful ? cats[hi7] : cats[lo7]) + ' is the larger value (' + Math.max(vals[hi7], vals[lo7]) + ').',
+          'So the claim is <b>' + (truthful ? 'true' : 'false') + '</b>.'],
+        b: 0.3
+      });
+    }
+    if (mode === 8) {                        /* difference on the line plot */
+      var labels8 = ['1/4', '1/2', '3/4', '1'];
+      var marks8 = labels8.map(function () { return R.int(rng, 3, 9); });
+      var hi8 = marks8.indexOf(Math.max.apply(null, marks8)), lo8 = marks8.indexOf(Math.min.apply(null, marks8));
+      if (hi8 === lo8) { marks8[(hi8 + 1) % 4] = marks8[hi8] - 2; lo8 = (hi8 + 1) % 4; }
+      return I_num('On a line plot marked in fourths, how many more measurements are above ' + labels8[hi8] +
+        ' than above ' + labels8[lo8] + '?', marks8[hi8] - marks8[lo8], {
+          visual: V.table(['measurement (in)', 'X marks'], labels8.map(function (L, i) {
+            return [L, Array.apply(null, Array(marks8[i])).map(function () { return '✕'; }).join(' ')];
+          })),
+          teach: 'Compare the counts of Xs; the fraction labels only name the columns.',
+          explain: ['Above ' + labels8[hi8] + ' there are ' + marks8[hi8] + ' Xs; above ' + labels8[lo8] + ' there are ' + marks8[lo8] + '.',
+            marks8[hi8] + ' - ' + marks8[lo8] + ' = ' + (marks8[hi8] - marks8[lo8]) + '.',
+            'That is <b>' + (marks8[hi8] - marks8[lo8]) + '</b> more measurements.'],
+          b: 0.5
+        });
+    }
+    /* mode 9 — scale reasoning the other way */
+    var sq9 = R.int(rng, 3, 9), total9 = sq9 * scale;
+    return MC(rng, 'Each square on a graph stands for ' + scale + ' ' + glabel +
+      '. If a category has ' + total9 + ', how many squares are drawn?', sq9,
+      [sq9 + 1, sq9 - 1, total9], {
+        visual: V.bars([{ label: cats[0], v: sq9 }], { yMax: 10, label: 'each square = ' + scale }),
+        teach: 'To draw a scaled bar, divide the real number by the value of one square.',
+        explain: ['One square = ' + scale + ', so the squares are ' + total9 + ' ÷ ' + scale + '.',
+          total9 + ' ÷ ' + scale + ' = ' + sq9 + '.',
+          'Draw <b>' + sq9 + '</b> squares.'],
+        b: 0.6
+      });
+  };
+  G('g3-md-plots', withLead(gen_g3_md_plots, LEAD));
+
+  /* ============ 3.G.1-2  quadrilateral hierarchy & equal-area parts ======== */
+  /* lvl 1-2  name shapes by attribute, partition into equal parts.
+     lvl 3    recognise the quadrilateral family and express each equal part as
+              a unit fraction of the whole.
+     lvl 4-5  judge hierarchy claims, and see that equal area does not need the
+              same outline. */
+  var QUAD = ['rhombus', 'rectangle', 'square', 'trapezoid'];
+  var NOT_QUAD = ['circle', 'triangle', 'pentagon', 'hexagon', 'oval'];
+  var gen_g3_g_shapes = function (rng, lvl) {
+    var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 3);
+    var parts = pick(rng, [2, 3, 4, 6, 8]);
+
+    if (mode === 0) {                        /* which are quadrilaterals */
+      var q0 = pick(rng, QUAD), bad0 = pick(rng, NOT_QUAD), bad0b = pick(rng, NOT_QUAD.filter(function (x) { return x !== bad0; }));
+      return MC(rng, 'Which shape is a quadrilateral?', q0, [bad0, bad0b], {
+        teach: 'A quadrilateral is any closed shape with exactly four straight sides.',
+        explain: ['Count straight sides: a ' + q0 + ' has four.',
+          'A ' + bad0 + ' and a ' + bad0b + ' do not have four straight sides.',
+          'So the quadrilateral is <b>' + q0 + '</b>.'],
+        b: -0.4
+      });
+    }
+    if (mode === 1) {                        /* the shared attribute */
+      return MC(rng, 'Rhombuses, rectangles and squares all belong to one bigger group. Which attribute defines that group?',
+        'four straight sides', ['four equal sides', 'four right angles', 'two pairs of equal sides'], {
+          teach: 'A shared attribute defines a category; extra attributes define smaller groups inside it.',
+          explain: ['Every rhombus, rectangle and square has four straight sides.',
+            'Only some of them have equal sides or right angles.',
+            'The attribute that defines the group <b>quadrilaterals</b> is <b>four straight sides</b>.']
+        });
+    }
+    if (mode === 2) {                        /* hierarchy true */
+      return I_bool('Every rectangle is a quadrilateral.', true, {
+        teach: 'Shapes inside a category keep the category attributes, so a rectangle is always a quadrilateral.',
+        explain: ['A quadrilateral needs four straight sides.', 'A rectangle has four straight sides and four right angles.',
+          'It meets the definition, so <b>yes</b>.'],
+        b: 0
+      });
+    }
+    if (mode === 3) {                        /* hierarchy false or true */
+      var claim3 = pick(rng, [['square', 'rhombus'], ['rectangle', 'triangle'], ['trapezoid', 'hexagon']]);
+      var isTrue3 = claim3[0] === 'square' && claim3[1] === 'rhombus';
+      return I_bool('Every ' + claim3[0] + ' is a ' + claim3[1] + '.', isTrue3, {
+        teach: 'Check the definition of the bigger group before you agree that a shape belongs to it.',
+        explain: ['A ' + claim3[1] + ' is defined by its own attributes.',
+          isTrue3 ? 'A square has four equal sides, which is exactly what a rhombus needs.'
+            : 'A ' + claim3[0] + ' does not have the attributes a ' + claim3[1] + ' needs.',
+          'So the claim is <b>' + (isTrue3 ? 'true' : 'false') + '</b>.'],
+        b: 0.5
+      });
+    }
+    if (mode === 4) {                        /* equal parts -> unit fraction */
+      return I_frac('A ' + pick(rng, ['rectangular garden', 'banner', 'chocolate bar', 'paper strip']) +
+        ' is divided into ' + parts + ' parts with equal area. What fraction of the whole is one part?', 1, parts, {
+        answerText: '1/' + parts,
+          visual: V.frac([{ n: 1, d: parts, label: 'one of ' + parts + ' equal-area parts' }]),
+          teach: 'Partitioning a shape into n equal-area parts makes each part 1/n of the whole.',
+          explain: ['The whole is split into <b>' + parts + '</b> parts of equal area.',
+            'One part is one of those ' + parts + ' equal pieces.',
+            'So one part is <b>1/' + parts + '</b> of the whole.'],
+          b: -0.2
+        });
+    }
+    if (mode === 5) {                        /* area of one part */
+      var area5 = parts * R.int(rng, 2, 6);
+      return I_num('A rectangle has an area of ' + area5 + ' square units and is cut into ' + parts +
+        ' parts with equal area. How many square units is each part?', area5 / parts, {
+          visual: V.frac([{ n: 1, d: parts, label: 'one part' }]),
+          teach: 'Equal-area parts divide the total area evenly, so each part is the area shared by the number of parts.',
+          explain: ['Total area is <b>' + area5 + '</b> square units in <b>' + parts + '</b> equal parts.',
+            area5 + ' ÷ ' + parts + ' = ' + (area5 / parts) + '.',
+            'Each part is <b>' + (area5 / parts) + '</b> square units.'],
+          b: 0.3
+        });
+    }
+    if (mode === 6) {                        /* shaded equal parts */
+      var n6 = R.int(rng, 1, parts - 1);
+      return I_frac('A shape is divided into ' + parts + ' parts of equal area and ' + n6 +
+        ' of them are shaded. What fraction is shaded?', n6, parts, {
+        answerText: n6 + '/' + parts,
+          visual: V.frac([{ n: n6, d: parts, label: n6 + ' of ' + parts }]),
+          teach: 'The fraction names how many equal-area parts you have out of how many make the whole.',
+          explain: ['The whole has <b>' + parts + '</b> equal-area parts.',
+            '<b>' + n6 + '</b> of them are shaded.',
+            'The shaded fraction is <b>' + n6 + '/' + parts + '</b>.'],
+          b: 0
+        });
+    }
+    if (mode === 7) {                        /* equal area, different shape */
+      return I_bool('Two parts of the same shape can have the same area even if they look different.', true, {
+        teach: 'Area counts the square units inside, so different-looking parts can still match in area.',
+        explain: ['A long thin part and a squat part can each cover the same number of unit squares.',
+          'Area does not depend on the outline, only on how much is covered.',
+          'So <b>yes</b>, they can be equal in area.'],
+        b: 0.6
+      });
+    }
+    if (mode === 8) {                        /* the most-restricted shape */
+      var s8 = pick(rng, QUAD);
+      return MC(rng, 'Which quadrilateral must have four right angles AND four equal sides?', 'square',
+        [s8 === 'square' ? 'rectangle' : s8, s8 === 'square' ? 'rhombus' : 'trapezoid'], {
+          teach: 'More attributes mean a smaller group: four right angles and four equal sides leaves only squares.',
+          explain: ['Four right angles: rectangles and squares qualify.',
+            'Four equal sides as well: only the square still qualifies.',
+            'The shape is the <b>square</b>.'],
+          b: 0.4
+        });
+    }
+    if (mode === 9) {                        /* partition judgement */
+      var p9 = pick(rng, [4, 6, 8]);
+      return MC(rng, 'A ' + pick(rng, ['cookie tray', 'garden bed', 'poster']) + ' is cut into ' + p9 +
+        ' parts. Which cut gives each part 1/' + p9 + ' of the whole?',
+        p9 + ' parts with equal area', [p9 + ' parts of different sizes', p9 + ' parts with the same perimeter'], {
+          visual: V.frac([{ n: 1, d: p9, label: 'equal-area parts' }]),
+          teach: 'Unit fractions of a shape need equal area, not equal outline.',
+          explain: ['1/' + p9 + ' means one part out of ' + p9 + ' parts of the same area.',
+            'Same perimeter does not force the areas to match.',
+            'So the cut must give <b>' + p9 + ' parts with equal area</b>.'],
+          b: 0.7
+        });
+    }
+    /* mode 10 — compare two equal-area partitions of one whole */
+    var pA = pick(rng, [2, 4]), pB = pick(rng, [4, 8].filter(function (x) { return x !== pA; }));
+    return I_cmp('Same whole:  1/' + pA + ' of it  ○  1/' + pB + ' of it', 1 / pA, 1 / pB, {
+      visual: V.frac([{ n: 1, d: pA, label: '1/' + pA }, { n: 1, d: pB, label: '1/' + pB }]),
+      teach: 'Both fractions refer to the same whole, so more parts means each part is smaller.',
+      explain: ['' + pA + ' equal parts give pieces of size 1/' + pA + '.',
+        pB + ' equal parts give pieces of size 1/' + pB + '.',
+        'So the symbol is <b>' + (1 / pA < 1 / pB ? '&lt;' : (1 / pA > 1 / pB ? '&gt;' : '=')) + '</b>.'],
+      b: 0.5
+    });
+  };
+  G('g3-g-shapes', withLead(gen_g3_g_shapes, LEAD));
+})();
+
 
 </script>
 <script>
@@ -4699,16 +6167,46 @@ registerSkills([
     if (k === 'point' || k === 'points') return 'text';
     return 'text';
   }
+  /* The one source of truth for the options on screen. buildAnswer, currentRaw,
+   * revealAnswer and the 1-6 keyboard shortcuts must agree exactly, or a pick
+   * silently points at a different option than the one that was clicked. */
+  function optionList(item, kind) {
+    var raw = item.choices;
+    var arr = [];
+    if (raw && typeof raw.length === 'number') { for (var i = 0; i < raw.length; i++) arr.push(raw[i]); }
+    var seen = {}, out = [];
+    arr.forEach(function (c) {
+      var s = (c == null ? '' : String(c)).trim();
+      if (!s || seen[s]) return;                 // no blank buttons, no duplicates
+      seen[s] = 1; out.push(s);
+    });
+    if (out.length) return out;
+    if (kind === 'compare') return ['<', '>', '='];
+    if (item.spec && item.spec.k === 'bool') return ['Yes', 'No'];
+    return out;                                  // empty: the caller degrades to a typed answer
+  }
+  /* An item that claims to be a choice but arrives without usable options must
+   * never be shown as a card with nothing to click — it degrades to a typed
+   * answer, which the grader still accepts (spec.k 'choice' grades the text). */
+  function widgetKind(item) {
+    var k = answerKind(item);
+    if (k === 'choice' || k === 'compare') { if (optionList(item, k).length < 2) return 'text'; }
+    if (k === 'multi') {
+      var n = (item.labels && item.labels.length) || (item.spec && item.spec.vals && item.spec.vals.length) || 0;
+      if (!n) return 'text';
+    }
+    return k;
+  }
   function bandOf(item) { var sk = root.SKILL_BY_ID[item.skill]; return sk ? sk.band : ''; }
   function needsKeypad(item) {
     var b = bandOf(item);
-    return (b === 'K' || b === '1' || b === '2' || b === '3') && answerKind(item) !== 'choice';
+    return (b === 'K' || b === '1' || b === '2' || b === '3' || b === '4' || b === '5') && widgetKind(item) !== 'choice';
   }
 
   function buildAnswer(item) {
-    var kind = answerKind(item);
+    var kind = widgetKind(item);
     if (kind === 'choice') {
-      var opts = item.choices && item.choices.length ? item.choices : ['Yes', 'No'];
+      var opts = optionList(item, 'choice');
       var box = h('div', { class: 'opts' + (opts.length > 3 || String(opts[0]).length > 14 ? ' stackone' : '') });
       opts.forEach(function (c, i) {
         box.appendChild(h('button', {
@@ -4720,7 +6218,7 @@ registerSkills([
     }
     if (kind === 'compare') {
       var box2 = h('div', { class: 'opts', style: { gridTemplateColumns: 'repeat(3, 1fr)' } });
-      (item.choices && item.choices.length ? item.choices : ['<', '>', '=']).forEach(function (c, i) {
+      optionList(item, 'compare').forEach(function (c, i) {
         box2.appendChild(h('button', {
           class: 'opt sym', type: 'button', 'data-i': i,
           on: { click: function () { pick(i); } }
@@ -4740,10 +6238,10 @@ registerSkills([
       return wrap;
     }
     /* text */
-    var ph = { point: '(x, y)', points: '(x, y)  (x, y)', interval: '[low, high]', ratio: 'a : b', expr: 'type an expression', frac: 'e.g. 3/4', str: 'type your answer' }[item.spec.k] || '';
+    var ph = { point: '(x, y)', points: '(x, y)  (x, y)', interval: '[low, high]', ratio: 'a : b', expr: 'type an expression', frac: 'e.g. 3/4', str: 'type your answer', choice: 'type your answer' }[(item.spec && item.spec.k) || 'text'] || '';
     var inp = h('input', {
       class: 'fld', type: 'text', id: 'ans', placeholder: ph, autocomplete: 'off',
-      autocapitalize: 'off', spellcheck: 'false', inputmode: /str/.test(item.spec.k) ? 'text' : 'text'
+      autocapitalize: 'off', spellcheck: 'false', inputmode: /str/.test(item.spec && item.spec.k) ? 'text' : 'text'
     });
     var kids = [h('div', { class: 'row', style: { alignItems: 'stretch' } }, [
       h('div', { class: 'grow' }, [inp]),
@@ -4772,11 +6270,11 @@ registerSkills([
 
   /* ----------------------------------------------------------- item card -- */
   function currentRaw() {
-    var kind = answerKind(S.item || {});
+    var kind = widgetKind(S.item || {});
     if (kind === 'choice' || kind === 'compare') {
       if (S.picked == null) return '';
-      var cs = S.item.choices && S.item.choices.length ? S.item.choices : ['Yes', 'No'];
-      return String(cs[S.picked]);
+      var cs = optionList(S.item, kind);
+      return String(cs[S.picked] == null ? '' : cs[S.picked]);
     }
     if (kind === 'multi') {
       var parts = $$('#view .part input');
@@ -4805,7 +6303,9 @@ registerSkills([
     var whyChip = item.reteach ? h('span', { class: 'pill warn', text: 'retry · easier' })
       : item.diag ? h('span', { class: 'pill accent', text: 'placement probe' })
         : item.why === 'review' ? h('span', { class: 'pill', text: 'spaced review' })
-          : item.why === 'gap' ? h('span', { class: 'pill bad', text: 'closing a gap' }) : null;
+          : item.why === 'gap' ? h('span', { class: 'pill bad', text: 'closing a gap' })
+            : item.why === 'ahead' ? h('span', { class: 'pill accent', title: 'the next skills have no items yet', text: 'a head start' })
+              : item.why === 'consolidate' ? h('span', { class: 'pill', title: 'newer skills have no items yet', text: 'keeping it sharp' }) : null;
 
     var card = h('div', { class: 'card', id: 'card' }, [
       h('div', { class: 'skillhead' }, [
@@ -4888,7 +6388,7 @@ registerSkills([
     var notes = diagnose(S.item, raw) || [];
     S.notes = notes;
     var fb = $('#view #feedback');
-    var kind = answerKind(S.item);
+    var kind = widgetKind(S.item);
     if (kind === 'choice' || kind === 'compare') {
       $$('#view .opt').forEach(function (b) { if (+b.getAttribute('data-i') === S.picked) b.classList.add('no'); });
     } else {
@@ -4931,10 +6431,13 @@ registerSkills([
   function revealAnswer() {
     var fb = $('#view #feedback'); if (!fb || !S.item) return;
     var item = S.item, ok = S.lastRec && S.lastRec.ok;
-    var kind = answerKind(item);
+    var kind = widgetKind(item);
     if (kind === 'choice' || kind === 'compare') {
-      var cs = item.choices && item.choices.length ? item.choices : ['Yes', 'No'];
-      var right = cs.indexOf(item.answerText);
+      var cs = optionList(item, kind);
+      var want = item.answerText != null ? String(item.answerText)
+        : (item.spec && item.spec.text != null ? String(item.spec.text) : '');
+      var right = cs.indexOf(want);
+      if (right < 0 && item.spec && item.spec.k === 'choice' && item.spec.i != null) right = item.spec.i;
       $$('#view .opt').forEach(function (b) {
         var i = +b.getAttribute('data-i');
         if (i === right) b.classList.add('ok');
@@ -5331,8 +6834,8 @@ registerSkills([
       if (!S.answered) { if (currentRaw()) submit(); } else next();
       return;
     }
-    if (!S.answered && /^[1-6]$/.test(ev.key) && (answerKind(S.item || {}) === 'choice' || answerKind(S.item || {}) === 'compare')) {
-      var i = +ev.key - 1, cs = (S.item && S.item.choices) || [];
+    if (!S.answered && /^[1-6]$/.test(ev.key) && (widgetKind(S.item || {}) === 'choice' || widgetKind(S.item || {}) === 'compare')) {
+      var i = +ev.key - 1, cs = optionList(S.item || {}, widgetKind(S.item || {}));
       if (i < cs.length) { ev.preventDefault(); pick(i); }
       return;
     }
