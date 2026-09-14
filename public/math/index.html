@@ -276,7 +276,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-13 — 8 modules inlined:
+/* MathPath 2026-09-14 — 8 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -4396,6 +4396,7 @@ registerSkills([
     }
     if (mode === 7) {                        /* which is more: two products */
       var a1 = cap(g, 2, 9), b1 = cap(k, 2, 9), a2 = cap(a1 + R.int(rng, -2, 2), 2, 9), b2 = cap(b1 + R.int(rng, -2, 2), 2, 9);
+      if (a1 === a2 && b1 === b2) b2 = cap(b1 + 1, 2, 10);        // never show "9 × 6 or 9 × 6" 
       return MC(rng, 'Which has the greater total: ' + a1 + ' × ' + b1 + ' or ' + a2 + ' × ' + b2 + '?',
         a1 * b1 === a2 * b2 ? 'They are equal' : (a1 * b1 > a2 * b2 ? a1 + ' × ' + b1 : a2 + ' × ' + b2),
         [a1 * b1 === a2 * b2 ? a1 + ' × ' + b1 : 'They are equal',
@@ -4506,7 +4507,7 @@ registerSkills([
     if (mode === 5) {                        /* associative: which is easier */
       var x = R.int(rng, 2, 5), y = pick(rng, [2, 4, 5, 8]), z = pick(rng, [2, 4, 5]);
       return MC(rng, 'Which makes ' + x + ' × ' + y + ' × ' + z + ' easiest?',
-        x + ' × (' + y + ' × ' + z + ')', ['(' + x + ' × ' + y + ') + ' + z, x + ' × (' + y + ' × ' + z + ')'], {
+        x + ' × (' + y + ' × ' + z + ')', ['(' + x + ' × ' + y + ') + ' + z, '(' + x + ' + ' + y + ') × ' + z], {
           teach: 'Regroup three factors so one group is 10 or a fact you know by heart.',
           explain: ['' + y + ' × ' + z + ' = ' + (y * z) + ', a fact that is easy to say.',
             'Then ' + x + ' × ' + (y * z) + ' = ' + (x * y * z) + '.',
