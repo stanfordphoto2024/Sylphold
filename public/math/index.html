@@ -1306,10 +1306,18 @@ registerSkills([
   /* ---------------------------------------------------------- diagnostic --- */
   /* Adaptive: probe a skill with 3 items; move up/down by halves, then refine
      around the boundary. Ends with a readiness verdict.
+     Two invariants the UI depends on:
+       · every question served is a probe question, and
+       · the probe asks exactly `limit` questions — it never stops early while it
+         still has skills to probe. A probe that quits at 23 of 26 leaves the
+         learner staring at a counter that stopped moving.
      The bisection runs over the skills that actually HAVE items. Most of the
      ladder has no content yet, and probing an empty skill used to ask for an
      item, get none, and re-enter diagNext — which re-picked the same empty
      skill. The probe never finished and the learner never got a question. */
+  var DIAG_LIMIT = 26;                 // questions the learner is promised
+  var PER_SKILL = 3;                   // items per probed skill; 2 of 3 = passed it
+
   function probePool() {
     var L = root.SKILLS, pool = [];
     for (var i = 0; i < L.length; i++) if (playable(L[i].id)) pool.push(i);
@@ -1319,12 +1327,37 @@ registerSkills([
     if (!D.pool || !D.pool.length) D.pool = probePool();
     return D.pool;
   }
+  function isDead(D, i) { return !!(D.dead && D.dead[i]); }
+  /* Bisection pick: midpoint of the live range, nudged to the nearest position
+     whose generator really produced an item. */
+  function searchPick(D, pool) {
+    var mid = clamp(Math.floor((D.lo + D.hi) / 2), 0, pool.length - 1);
+    if (!isDead(D, mid)) return mid;
+    for (var d = 1; d < pool.length; d++) {
+      if (mid + d <= D.hi && mid + d < pool.length && !isDead(D, mid + d)) return mid + d;
+      if (mid - d >= D.lo && mid - d >= 0 && !isDead(D, mid - d)) return mid - d;
+    }
+    return mid;
+  }
+  /* Refine pick: the playable skill nearest the mastery cliff that has NOT been
+     probed yet. Re-asking the boundary skill is not information — the old
+     ping-pong probed one skill four times and left budget unused — so un-probed
+     positions are ranked first and, among them, the nearest to the cliff. */
+  function refinePick(D, pool) {
+    var bp = (D.lo + D.hi) / 2, best = -1, bestScore = Infinity;
+    for (var i = 0; i < pool.length; i++) {
+      if (isDead(D, i)) continue;
+      var score = Math.abs(i - bp) + (D.seenSkill[i] || 0) * 1000;
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    return best < 0 ? clamp(Math.round(bp), 0, pool.length - 1) : best;
+  }
   function diagStart(st) {
     var pool = probePool();
     st.diag = {
       phase: 'search', lo: 0, hi: pool.length - 1, cur: Math.floor(pool.length / 2), pool: pool,
-      asked: 0, limit: 26, results: [], skill: null, inSkill: 0, okInSkill: 0,
-      seenSkill: {}, info: 0, se: 99, done: false, hist: []
+      asked: 0, limit: DIAG_LIMIT, results: [], skill: null, inSkill: 0, okInSkill: 0,
+      seenSkill: {}, dead: {}, info: 0, se: 99, done: false, hist: []
     };
     return diagNext(st);
   }
@@ -1334,22 +1367,18 @@ registerSkills([
     var pool = diagPool(D);
     if (!pool.length) { diagFinish(st); return null; }        // nothing written yet — end honestly
     if (D.asked >= D.limit) { diagFinish(st); return null; }
-    /* bounded loop, never recursion: if a probe position yields no item we drop
-       that position and carry on with the next one */
+    /* bounded loop, never recursion: if a probe position yields no item we mark
+       that position dead and carry on with the next one */
     for (var step = 0; step <= pool.length + 2; step++) {
-      if (!D.skill || D.inSkill >= 3) {
-        if (D.phase === 'search') {
-          D.cur = clamp(Math.floor((D.lo + D.hi) / 2), 0, pool.length - 1);
-        } else {
-          D.cur = clamp(D.refIdx != null ? D.refIdx : D.cur, 0, pool.length - 1);
-        }
-        if (D.seenSkill[D.cur] && D.phase === 'search') {
-          /* both neighbours probed: switch to refine around the boundary */
+      if (!D.skill || D.inSkill >= PER_SKILL) {
+        var cand = D.phase === 'search' ? searchPick(D, pool) : refinePick(D, pool);
+        if (D.phase === 'search' && D.seenSkill[cand]) {
+          /* the bisection has closed in: both neighbours are probed, refine */
           D.phase = 'refine';
-          var b = clamp(D.lo + 1, 0, pool.length - 1);
-          D.refIdx = b; D.cur = b;
+          cand = refinePick(D, pool);
         }
-        if (D.seenSkill[D.cur] > pool.length) break;          // exhausted the ladder
+        D.cur = cand;
+        if ((D.seenSkill[D.cur] || 0) > pool.length) break;   // exhausted the ladder
         D.seenSkill[D.cur] = (D.seenSkill[D.cur] || 0) + 1;
         D.skill = L[pool[D.cur]].id; D.inSkill = 0; D.okInSkill = 0;
       }
@@ -1360,14 +1389,17 @@ registerSkills([
         item.diag = { idx: pool[D.cur], n: D.inSkill + 1 };
         return item;
       }
-      D.skill = null; D.inSkill = 0;                          // empty skill: move to the next probe
-      D.lo = Math.max(D.lo, D.cur + 1);
+      /* a position the pool claimed was playable but that yields nothing: drop it
+         from the probe without letting it move lo/hi and bend the bisection */
+      if (!D.dead) D.dead = {};
+      D.dead[D.cur] = 1;
+      D.skill = null; D.inSkill = 0;
     }
     diagFinish(st);
     return null;
   }
   function diagAnswer(st, item, ok) {
-    var D = st.diag, top = diagPool(D).length - 1;
+    var D = st.diag;
     if (!D || D.done) return null;
     var p = prob(st.theta, item.b);
     st.theta = clamp(st.theta + K_THETA * ((ok ? 1 : 0) - p), -10, 125);
@@ -1378,16 +1410,14 @@ registerSkills([
     s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.b = s.b == null ? item.b : s.b + 0.35 * (item.b - s.b);
     s.last = now();
     D.asked++; D.inSkill++; D.okInSkill += ok ? 1 : 0;
-    D.results.push({ idx: item.diag.idx, id: item.skill, ok: ok ? 1 : 0 });
-    if (D.inSkill >= 3) {
+    D.results.push({ idx: item.diag ? item.diag.idx : D.cur, id: item.skill, ok: ok ? 1 : 0 });
+    if (D.inSkill >= PER_SKILL) {
       var pass = D.okInSkill >= 2;
       D.hist.push({ idx: D.cur, id: D.skill, pass: pass, ok: D.okInSkill });
       if (D.phase === 'search') {
         if (pass) D.lo = D.cur + 1; else D.hi = D.cur - 1;
-        if (D.lo > D.hi) { D.phase = 'refine'; D.refIdx = clamp(D.hi, 0, top); }
-      } else {
-        if (pass) D.refIdx = D.cur + 1; else D.refIdx = D.cur - 1;
-        if (D.asked >= D.limit - 4) diagFinish(st);
+        /* cliff bracketed: the rest of the budget refines around it */
+        if (D.lo > D.hi) D.phase = 'refine';
       }
       D.skill = null;
     }
@@ -1437,6 +1467,7 @@ registerSkills([
       diagNext: function () { return diagNext(st); },
       diagAnswer: function (item, ok) { return diagAnswer(st, item, ok); },
       diagActive: function () { return !!(st.diag && !st.diag.done); },
+      diagLimit: function () { return (st.diag && st.diag.limit) || DIAG_LIMIT; },
       prob: function (b) { return prob(st.theta, b); },
       reset: function () { st.sk = {}; st.theta = 0; st.log = []; st.diag = null; st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' }; },
       save: function () { return save(st); },
@@ -1453,7 +1484,8 @@ registerSkills([
   var API = {
     createEngine: createEngine, blankState: blankState, load: load, save: save,
     statusOf: statusOf, STATUS_LABEL: STATUS_LABEL, BANDS: BANDS, BAND_LABEL: BAND_LABEL,
-    prob: prob, clamp: clamp, PASS_M: PASS_M, PASS_N: PASS_N
+    prob: prob, clamp: clamp, PASS_M: PASS_M, PASS_N: PASS_N,
+    DIAG_LIMIT: DIAG_LIMIT, DIAG_PER_SKILL: PER_SKILL
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.MathPath = API;
@@ -6348,11 +6380,16 @@ registerSkills([
       box.appendChild(h('button', { class: 'btn ghost', type: 'button', on: { click: function () { finish(false, true); } } }, 'Skip'));
     } else {
       var wrong = S.lastRec && !S.lastRec.ok;
+      var probeOver = S.item.diag && !E.diagActive();
       if (wrong && !S.reteachDone && !S.item.diag) {
         box.appendChild(h('button', {
           class: 'btn primary', type: 'button', on: { click: startReteach }
         }, 'Try an easier one'));
         box.appendChild(h('button', { class: 'btn', type: 'button', on: { click: next } }, 'Next skill'));
+      } else if (probeOver) {
+        /* the last probe question is answered: the probe is over, so the only
+         * way forward is the placement — never another question */
+        box.appendChild(h('button', { class: 'btn primary', type: 'button', on: { click: showReport } }, 'See my placement'));
       } else {
         box.appendChild(h('button', { class: 'btn primary', type: 'button', on: { click: next } }, S.item.diag ? 'Next probe' : 'Next'));
       }
@@ -6427,6 +6464,9 @@ registerSkills([
     revealAnswer();
     renderActions();
     renderHeader();
+    /* the probe counter is live state: redraw it here or it freezes on whatever
+     * number the view happened to render last */
+    if (S.item.diag) renderProbeProgress();
   }
 
   function revealAnswer() {
@@ -6484,6 +6524,10 @@ registerSkills([
   function next() {
     S.attempts = 0; S.answered = false; S.revealed = false; S.picked = null;
     S.notes = []; S.lastRec = null; S.reteachDone = false;
+    /* A finished probe must never keep serving questions here: the practice item
+     * the engine would hand back is not a probe item, so the counter stops while
+     * the questions keep coming — the learner watches a frozen "23 / 26". */
+    if (S.view === 'diag' && !E.diagActive()) { showReport(); return; }
     if (E.diagActive()) {
       var dit = null;
       try { dit = E.diagNext(); } catch (e) { dit = null; }
@@ -6536,7 +6580,8 @@ registerSkills([
     }
     wrap.appendChild(h('div', { id: 'itemhost' }));
     clear(view).appendChild(wrap);
-    if (!S.item) next(); else renderItem();
+    /* a probe item from a finished probe is not a practice item: drop it */
+    if (!S.item || (S.item.diag && !E.diagActive())) next(); else renderItem();
   }
 
   function viewPlan() {
@@ -6727,20 +6772,50 @@ registerSkills([
     location.reload();
   }
 
+  /* ------------------------------------------------------ placement probe -- */
+  /* The probe header is live state, so it is built in one place and redrawn in
+   * place after every answer instead of only when the whole view re-renders. */
+  function probeProgressCard() {
+    var D = E.st.diag || {}, lim = E.diagLimit() || 26, asked = D.asked || 0;
+    var over = !E.diagActive();
+    return h('div', { class: 'card tight', id: 'probprog' }, [
+      h('div', { class: 'row between' }, [
+        h('b', { text: 'Placement probe' }),
+        h('span', { class: 'tiny', text: over ? asked + ' / ' + lim + ' — complete' : asked + ' / ' + lim })
+      ]),
+      h('div', { class: 'diagbar' }, [h('i', { style: { width: clamp(Math.round(asked / lim * 100), 0, 100) + '%' } })])
+    ]);
+  }
+  function renderProbeProgress() {
+    var old = $('#probprog'); if (!old || !old.parentNode) return;
+    var fresh = probeProgressCard();
+    old.parentNode.insertBefore(fresh, old);
+    old.parentNode.removeChild(old);
+  }
+  function showReport() {
+    if (!S.diagReport) { try { S.diagReport = E.placement(); } catch (e) { S.diagReport = null; } }
+    S.view = 'diag';
+    render();
+  }
+
   function viewDiag() {
     var view = $('#view');
+    /* a probe that finished in an earlier visit (its state is in localStorage but
+     * the report is not) still has to show its result, not offer to restart */
+    if (!S.diagReport && E.st.diag && E.st.diag.done) { try { S.diagReport = E.placement(); } catch (e) { } }
     if (S.diagReport) {
-      var p = S.diagReport;
+      var p = S.diagReport, askedN = (E.st.diag && E.st.diag.asked) || 0;
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement result' }),
         h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b> (ladder position ' + nfmt(p.theta) + '). Start here:' }),
+        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'From ' + askedN + ' probe questions' : '' }),
         h('div', { class: 'skill-list', style: { marginTop: '12px' } }, (p.plan || []).slice(0, 5).map(function (row) {
           return h('div', { class: 'skill' }, [
             h('div', { class: 'grow' }, [h('div', { class: 'nm', text: row.sk.name }), h('div', { class: 'cd', text: row.sk.code })]),
             h('span', { class: 'pill', text: row.kind }),
             h('button', {
               class: 'btn small', type: 'button', disabled: !root.SKILL_GEN[row.sk.id],
-              on: { click: function () { S.manual = row.sk.id; S.diagReport = null; S.view = 'practice'; S.item = null; render(); } }
+              on: { click: function () { S.manual = row.sk.id; S.diagReport = null; S.item = null; S.queue = []; S.view = 'practice'; render(); } }
             }, root.SKILL_GEN[row.sk.id] ? 'Start' : 'no items')
           ]);
         })),
@@ -6754,7 +6829,7 @@ registerSkills([
     if (!E.diagActive()) {
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement probe' }),
-        h('div', { class: 'muted', text: 'About 20 questions that bracket the ladder by bisection, then refine around the point where accuracy drops. It sets your starting band and finds prerequisite gaps.' }),
+        h('div', { class: 'muted', text: 'About ' + (E.diagLimit() || 26) + ' questions that bracket the ladder by bisection, then refine around the point where accuracy drops. It sets your starting band and finds prerequisite gaps.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('button', { class: 'btn primary', type: 'button', on: { click: startDiag } }, 'Start the probe'),
           h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.view = 'practice'; render(); } } }, 'Just start practicing')
@@ -6762,13 +6837,16 @@ registerSkills([
       ]));
       return;
     }
-    if (!S.item) { try { S.item = E.diagNext(); } catch (e) { S.item = null; } }
-    var D = E.st.diag || { asked: 0, limit: 20 };
+    /* only a probe item may be shown here: a practice item left over from the
+     * Practice tab is not graded by the probe, so answering it would move the
+     * card but never the counter */
+    if (!S.item || !S.item.diag) {
+      S.item = null;
+      try { S.item = E.diagNext(); } catch (e) { S.item = null; }
+    }
+    if (!E.diagActive()) { showReport(); return; }      // the probe closed while asking for an item
     clear(view).appendChild(h('div', {}, [
-      h('div', { class: 'card tight' }, [
-        h('div', { class: 'row between' }, [h('b', { text: 'Placement probe' }), h('span', { class: 'tiny', text: (D.asked || 0) + ' / ' + (D.limit || 20) })]),
-        h('div', { class: 'diagbar' }, [h('i', { style: { width: Math.round((D.asked || 0) / (D.limit || 20) * 100) + '%' } })])
-      ]),
+      probeProgressCard(),
       h('div', { id: 'itemhost' })
     ]));
     renderItem();
