@@ -276,8 +276,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-15 — 8 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 20-ui.js
+/* MathPath 2026-09-15 — 9 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -877,12 +877,44 @@ function registerSkills(list) {
   SKILLS.sort(function (a, b) { return a.b - b.b; });
   SKILLS.forEach(function (s, i) { s.order = i; });
 }
+/* A card must never print its own answer. tools/smoke.js fails these items, so
+ * the generator simply redraws until it draws one that does not hand the answer
+ * over — the same exemptions the gate uses (judgement items, comparisons,
+ * reading a display) apply here so those keep through. */
+var LEAK_EXEMPT = /count|how many|which clock|what time|shade|read the|look at the|graph|line plot|plot of|table of|chart|diagram|shows|combination|pays exactly|even or odd|odd or even|true or false|is that right|the same as|greater|less|fewer|larger|bigger|smaller|most|least|between|nearest|estimate|round|which of/i;
+function leaksAnswer(item) {
+  var sp = item && item.spec; if (!sp) return false;
+  var shown = String(item.prompt || '') + ' ' + String(item.sub || '');
+  if (LEAK_EXEMPT.test(shown)) return false;
+  var toks = (shown.match(/\d+(?:\.\d+)?/g) || []).map(Number), vals = [];
+  if (sp.k === 'n' && isFinite(sp.v)) vals.push(sp.v);
+  if (sp.k === 'frac' && sp.d) vals.push(sp.n / sp.d);
+  if (sp.k === 'point') vals = vals.concat(sp.coords || []);
+  if (sp.k === 'interval') vals.push(sp.lo, sp.hi);
+  if (sp.k === 'ratio') vals = vals.concat(sp.vals || []);
+  if (sp.k === 'list') (sp.vals || []).forEach(function (v) { if (v && v.k === 'n') vals.push(v.v); if (v && v.k === 'frac' && v.d) vals.push(v.n / v.d); });
+  for (var i = 0; i < vals.length; i++) {
+    var v = vals[i]; if (!isFinite(v)) continue;
+    for (var t = 0; t < toks.length; t++) if (Math.abs(toks[t] - v) < 1e-9) return true;
+  }
+  if (sp.k === 'choice' && sp.text != null) {
+    var w = String(sp.text).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (w && new RegExp('(^|[^0-9a-z])' + w + '([^0-9a-z]|$)', 'i').test(shown)) return true;
+  }
+  return false;
+}
+
 function genFor(skillId, rng, lvl) {
   var g = SKILL_GEN[skillId];
   if (!g) return null;
-  var item = g(rng, lvl);
-  if (!item) throw new Error('generator returned nothing for ' + skillId);
-  item.skill = skillId;
+  var item = null, guard = 0;
+  while (guard++ < 10) {
+    item = g(rng, lvl);
+    if (!item) throw new Error('generator returned nothing for ' + skillId);
+    item.skill = skillId;
+    if (!leaksAnswer(item)) break;          // redraw: the answer must not be printed
+  }
+  if (leaksAnswer(item)) return null;       // this template always leaks: give up honestly
   var sk = SKILL_BY_ID[skillId];
   var base = (sk ? sk.b : 0) + (lvl - 3) * (sk ? (sk.bStep != null ? sk.bStep : 1.2) : 0.45);
   item.b = (item.b || 0) + base;
@@ -8059,13 +8091,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Add them: <b>' + n + '</b>.']
       });
     }
-    if (mode === 3) {                        /* value of a digit */
-      var dg = t, pos = chance(rng, 0.5);
-      return MC(rng, 'In the number ' + n + ', what is the value of the digit ' + dg + '?',
-        pos ? t * 10 : o, [dg, dg + 1, dg * 10 + 1].filter(function (v) { return v !== (pos ? t * 10 : o); }), {
+    if (mode === 3) {                        /* value of a digit — ask for the PLACE.
+        Naming the digit prints the answer inside the question, and "the digit 6"
+        in 66 has two readings, so the old wording had two defensible answers. */
+      return MC(rng, 'In the number ' + n + ', what is the value of the digit in the tens place?',
+        t * 10, [t, o, t + 1, t * 10 + 10].filter(function (v) { return v !== t * 10; }), {
           teach: 'A digit means tens in the tens place and ones in the ones place.',
-          explain: ['In ' + n + ', ' + dg + ' is in the ' + (pos ? 'tens' : 'ones') + ' place.',
-            'So its value is <b>' + (pos ? t * 10 : o) + '</b>.'],
+          explain: ['In ' + n + ' the tens place holds ' + t + '.',
+            'That is ' + t + ' group' + (t === 1 ? '' : 's') + ' of ten.',
+            'So its value is <b>' + (t * 10) + '</b>.'],
           b: 0.4
         });
     }
@@ -8866,11 +8900,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 5) {                        /* value of a digit */
-      var which = pick(rng, ['hundreds', 'tens', 'ones']);
-      var val = which === 'hundreds' ? h * 100 : which === 'tens' ? t * 10 : o;
-      var dg = which === 'hundreds' ? h : which === 'tens' ? t : o;
-      return MC(rng, 'In ' + n + ', what is the value of the ' + which + ' digit (' + dg + ')?', val,
-        [dg, dg + 10, dg * 10 + 1].filter(function (v) { return v !== val; }), {
+      /* the ones place would print its own answer, and naming the digit in
+         brackets hands it over too — ask which PLACE instead */
+      var which = pick(rng, ['hundreds', 'tens']);
+      var val = which === 'hundreds' ? h * 100 : t * 10;
+      var dg = which === 'hundreds' ? h : t;
+      return MC(rng, 'In ' + n + ', what is the value of the ' + which + ' digit?', val,
+        [dg, dg * 10, dg * 100, val + 10].filter(function (v) { return v !== val; }), {
           teach: 'A digit’s value is the digit times the value of its place.',
           explain: [dg + ' sits in the ' + which + ' place.', 'So its value is ' + dg + ' × ' +
             (which === 'hundreds' ? 100 : which === 'tens' ? 10 : 1) + '.', 'Value: <b>' + val + '</b>.'],
@@ -9250,7 +9286,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {
       return I_str('What time is shown? The hour hand is just past ' + h + ' and the minute hand points at ' + (m / 5) + '.',
-        [hms(h, m)], {
+        [hms(h, m), h + ' ' + (m < 10 ? '0' + m : m)], {
           visual: V.clock(h, m),
           teach: 'Each number the minute hand points to stands for 5 minutes.',
           explain: ['Minute hand on ' + (m / 5) + ' means ' + (m / 5) + ' × 5 = ' + m + ' minutes.',
@@ -9262,7 +9298,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var after = R.int(rng, 1, 4) * 5;
       var m2 = m + after, h2 = h + Math.floor(m2 / 60), m2r = m2 % 60;
       return I_str('The clock shows ' + hms(h, m) + '. What time will it be in ' + after + ' minutes?',
-        [hms(h2, m2r)], {
+        [hms(h2, m2r), h2 + ' ' + (m2r < 10 ? '0' + m2r : m2r)], {
           teach: 'Add the minutes, and every 60 minutes roll one hour forward.',
           explain: [m + ' + ' + after + ' = ' + m2 + ' minutes past the hour.',
             m2 >= 60 ? 'That passes 60, so the hour moves on by 1.' : 'Still inside the same hour.',
@@ -9645,7 +9681,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
              re-grouping), "which fact helps", and true/false about a family. */
   var gen_g3_oa_facts = function (rng, lvl) {
     var hi = lvl >= 4 ? 10 : (lvl >= 3 ? 9 : 5);
-    var a = R.int(rng, 2, hi), b = R.int(rng, 2, hi), p = a * b;
+    var a = R.int(rng, 2, hi), b = R.int(rng, 2, hi);
+    if (a === b) b = (b % hi) + 2;             /* a missing factor must never be the factor printed beside it ("9 × ? = 81" gives the answer away) */
+    var p = a * b;
     var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 4);
 
     if (mode === 0) {                        /* unknown factor */
@@ -10186,8 +10224,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* whole as a fraction */
       var whole = R.int(rng, 2, 8);
-      return I_frac(who3 + ' cuts ' + whole + ' ' + pick(rng, ['granola bars', 'pizzas', 'candy bars']) +
-        ' into halves and eats every piece. Write the amount eaten as a fraction with denominator 2.', whole * 2, 2, {
+      /* the amount eaten equals the number of bars, so printing that number prints
+         the answer — the count belongs on the model, not in the sentence */
+      return I_frac(who3 + ' cuts some ' + pick(rng, ['granola bars', 'pizzas', 'candy bars']) +
+        ' into halves and eats every piece on the model. Write the amount eaten as a fraction with denominator 2.', whole * 2, 2, {
         answerText: (whole * 2) + '/2',
           visual: V.frac(R.range(whole).map(function () { return { n: 2, d: 2 }; })),
           teach: 'A whole number n is the fraction n/1, and any fraction whose top and bottom match equals 1 whole.',
@@ -10856,6 +10896,97 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   G('g3-g-shapes', withLead(gen_g3_g_shapes, LEAD));
 })();
 
+
+</script>
+<script>
+/* =============================================================================
+ * 94-gen-arch.js — GENERATED by tools/archetypes.py from data/skill-families.json
+ * The first archetype families: each catalogue skill in a family gets the same
+ * six templates (1 official anchor + 5 derived variants) parameterised by that
+ * skill's own limit, so a level fills up without inventing side ladders.
+ * Items go through the I_* factories, which is what keeps the "never print the
+ * answer" redraw in core.js protecting them.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
+  var OBJ = ['stickers', 'marbles', 'buttons', 'shells', 'blocks', 'pencils', 'stamps', 'apple slices'];
+  var CTX = ['At the math table', 'On the shelf', 'In the bag', 'At the fair', 'On the table', 'In the jar'];
+  var E2 = ['Read the model one group at a time.', 'Count on from the last number you said.', 'So the answer is <b>%d</b>.'];
+  function ex(a, d) { return a.map(function (s) { return s.replace('%d', d); }); }
+  function w(rng) { return WHO[Math.floor(rng() * WHO.length)]; }
+  function o(rng) { return OBJ[Math.floor(rng() * OBJ.length)]; }
+  function c(rng) { return CTX[Math.floor(rng() * CTX.length)]; }
+  function cap(n, limit) { return Math.max(1, Math.min(n, limit)); }
+  function T(s) { return { teach: s, explain: null }; }
+
+  /* ---------------------------------------------------- family: countSet --- */
+  /* anchor — PK/K "Count pictures - up to N": count a set, write the total */
+  function countSet(rng, lvl, limit) {
+    var n = R.int(rng, Math.max(2, Math.floor(limit * 0.2)), limit), k = R.int(rng, 0, 5);
+    var o1 = o(rng), c1 = c(rng), w1 = w(rng);
+    var teach = 'Counting tells how many: the last number you say is the total.';
+    if (k === 0) return I_num('Count the ' + o1 + ' in the model. How many are there?', n,
+      { visual: V.grid ? V.grid(n) : null, sub: c1 + '.', explain: ex(['Point to each ' + o1.replace(/s$/, '') + ' once as you count.', 'The last number said is the total.', 'So the answer is <b>' + n + '</b>.'], n), teach: teach });
+    if (k === 1) return I_num(c1 + ' there are ' + (n - 1) + ' ' + o1 + '. One more is added. How many now?', n,
+      { explain: ['Start at ' + (n - 1) + ' and count on 1.', 'That lands on ' + n + '.', 'So the answer is <b>' + n + '</b>.'], teach: 'Counting on from a number is faster than starting at 1.' });
+    if (k === 2) return I_cmp('Which group has more — ' + (n - 1) + ' ' + o1 + ' or ' + n + ' ' + o1 + '?', n - 1, n,
+      { explain: ['Compare the two counts.', n + ' comes after ' + (n - 1) + ' when counting, so it is the larger amount.', 'So the answer is <b>' + n + ' ' + o1 + '</b>.'], teach: 'The later number in the counting sequence is the larger amount.' });
+    if (k === 3) return I_bool(c1 + ' are there exactly ' + n + ' ' + o1 + ' in a group of ' + n + '?', true,
+      { explain: ['A group of ' + n + ' ' + o1 + ' is counted ' + n + '.', 'The count matches the number asked about.', 'So the answer is <b>Yes</b>.'], teach: 'Cardinality: the last number counted names the size of the group.' });
+    if (k === 4) return I_num(w1 + ' counts ' + o1 + ' up to ' + limit + ' and stops at the ' + n + 'nd or rd place. What number did ' + w1 + ' say last?', n,
+      { explain: ['Counting ' + o1 + ' one by one ends on the total.', 'The ' + n + 'th ' + o1.replace(/s$/, '') + ' is the last one.', 'So the answer is <b>' + n + '</b>.'], teach: 'The last number said tells how many, no matter where counting starts.' });
+    return I_num('Circle ' + n + ' ' + o1 + '. Write the number you circled.', n,
+      { sub: c1 + '.', explain: ['Take ' + o1 + ' one at a time until the group is ' + n + '.', 'Write the number that names that group.', 'So the answer is <b>' + n + '</b>.'], teach: 'A numeral names a quantity: the count and the written number match.' });
+  }
+
+  /* ----------------------------------------------- family: compareNumbers -- */
+  /* anchor — "Compare numbers up to N": use >, < or = */
+  function compareNumbers(rng, lvl, limit) {
+    var a = R.int(rng, 1, limit), b = R.int(rng, 1, limit), k = R.int(rng, 0, 5);
+    if (a === b) b = b === limit ? b - 1 : b + 1;
+    var teach = 'Compare the digits from the largest place; the larger number wins.';
+    if (k === 0) return I_cmp('Compare ' + a + ' and ' + b + '.', a, b,
+      { explain: ['Both numbers are within ' + limit + '.', a + ' and ' + b + ': the one counted later is greater.', 'So the answer is <b>' + (a > b ? '>' : '<') + '</b>.'], teach: teach });
+    if (k === 1) return I_num('Which is greater, ' + a + ' or ' + b + '?', Math.max(a, b),
+      { explain: ['Line the two numbers up on a number line.', 'The one further right is greater.', 'So the answer is <b>' + Math.max(a, b) + '</b>.'], teach: teach });
+    if (k === 2) return I_bool('Is ' + a + ' less than ' + b + '?', a < b,
+      { explain: ['Compare from the largest place down.', a + (a < b ? ' comes first when counting, so it is the smaller.' : ' does not come first, so it is not the smaller.'), 'So the answer is <b>' + (a < b ? 'Yes' : 'No') + '</b>.'], teach: teach });
+    if (k === 3) return I_num('Put ' + a + ' and ' + b + ' in order from least to greatest and write the first one.', Math.min(a, b),
+      { explain: ['Least means the smallest amount.', 'So the first number is <b>' + Math.min(a, b) + '</b>.'], teach: 'Ordering numbers means comparing them two at a time.' });
+    if (k === 4) return I_num('Write a number between ' + Math.min(a, b) + ' and ' + limit + ' that is greater than ' + Math.min(a, b) + ' and less than ' + (Math.min(a, b) + 2) + '.', Math.min(a, b) + 1,
+      { explain: ['The number just after ' + Math.min(a, b) + ' when counting is ' + (Math.min(a, b) + 1) + '.', 'It is greater than ' + Math.min(a, b) + ' and less than ' + (Math.min(a, b) + 2) + '.', 'So the answer is <b>' + (Math.min(a, b) + 1) + '</b>.'], teach: 'Between means strictly greater than one end and strictly less than the other.' });
+    return I_cmp(c(rng) + ': ' + a + ' ' + o(rng) + ' or ' + b + ' ' + o(rng) + '?', a, b,
+      { explain: ['Compare the two counts place by place.', 'The larger count gets the greater-than sign.', 'So the answer is <b>' + (a > b ? '>' : '<') + '</b>.'], teach: teach });
+  }
+
+  /* ---------------------------------------------------- family: addFacts ---- */
+  /* anchor — "Addition facts up to N": know the sums by strategy, not counting */
+  function addFacts(rng, lvl, limit) {
+    var hi = Math.max(2, Math.min(limit, 12)), a = R.int(rng, 1, hi), b = R.int(rng, 1, hi), k = R.int(rng, 0, 5);
+    var s = a + b, teach = 'Use a strategy — make ten, doubles, or count on — instead of starting over at 1.';
+    if (k === 0) return I_num('Add: ' + a + ' + ' + b + ' =', s,
+      { explain: ['Start with the larger number ' + Math.max(a, b) + '.', 'Count on ' + Math.min(a, b) + ' more.', 'So the answer is <b>' + s + '</b>.'], teach: teach });
+    if (k === 1) return I_num(w(rng) + ' has ' + a + ' ' + o(rng) + ' and gets ' + b + ' more. How many now?', s,
+      { sub: c(rng) + '.', explain: ['The starting amount is ' + a + '.', 'Getting ' + b + ' more is addition: ' + a + ' + ' + b + '.', 'So the answer is <b>' + s + '</b>.'], teach: 'Addition joins two groups into one total.' });
+    if (k === 2) return I_num('What number plus ' + b + ' makes ' + s + '?', a,
+      { explain: ['The sum is ' + s + ' and one part is ' + b + '.', 'Take the known part away: ' + s + ' - ' + b + ' = ' + a + '.', 'So the answer is <b>' + a + '</b>.'], teach: 'A missing addend is found by subtracting the known part from the whole.' });
+    if (k === 3) return I_bool('Does ' + a + ' + ' + b + ' = ' + (a === b ? s : s + 1) + '?', a !== b ? false : true,
+      { explain: ['Compute the left side: ' + a + ' + ' + b + ' = ' + s + '.', 'Compare it with the number on the right.', 'So the answer is <b>' + ((a === b) === true ? 'Yes' : 'No') + '</b>.'], teach: 'An equation is true only when both sides name the same total.' });
+    if (k === 4) return I_cmp('Compare ' + a + ' + ' + b + ' and ' + (a + 1) + ' + ' + b + '.', s, s + 1,
+      { explain: ['One side has ' + a + ', the other has ' + (a + 1) + ', and ' + b + ' is the same.', 'The side with the bigger addend has the bigger sum.', 'So the answer is <b>&lt;</b>.'], teach: 'If one addend grows and the other stays, the sum grows by the same amount.' });
+    return I_num('Doubles help: ' + a + ' + ' + a + ' = ' + 2 * a + '. What is ' + a + ' + ' + (a + 1) + '?', 2 * a + 1,
+      { explain: ['' + a + ' + ' + a + ' = ' + (2 * a) + ' is a double.', 'One more than the double is ' + (2 * a) + ' + 1.', 'So the answer is <b>' + (2 * a + 1) + '</b>.'], teach: 'Near-doubles turn a new sum into a double you already know.' });
+  }
+
+  var FAMILIES = { countSet: countSet, compareNumbers: compareNumbers, addFacts: addFacts };
+  var TABLE = {"pk-count_pictures_up_to_3":{"f":"countSet","l":3},"pk-count_dots_up_to_3":{"f":"countSet","l":3},"pk-count_cubes_up_to_3":{"f":"countSet","l":3},"pk-count_pictures_up_to_5":{"f":"countSet","l":5},"pk-count_dots_up_to_5":{"f":"countSet","l":5},"pk-count_cubes_up_to_5":{"f":"countSet","l":5},"pk-count_pictures_up_to_7":{"f":"countSet","l":7},"pk-count_cubes_up_to_7":{"f":"countSet","l":7},"pk-count_pictures_up_to_9":{"f":"countSet","l":9},"pk-count_cubes_up_to_9":{"f":"countSet","l":9},"pk-count_pictures_up_to_10":{"f":"countSet","l":10},"pk-count_cubes_up_to_10":{"f":"countSet","l":10},"pk-count_dots_up_to_10":{"f":"countSet","l":10},"pk-count_pictures_up_to_20":{"f":"countSet","l":20},"pk-count_dots_up_to_20":{"f":"countSet","l":20},"pk-count_pictures_and_show_a_number_that_is_equal_up_to_5":{"f":"countSet","l":5},"k-count_pictures_up_to_3":{"f":"countSet","l":3},"k-count_cubes_up_to_3":{"f":"countSet","l":3},"k-count_pictures_up_to_5":{"f":"countSet","l":5},"k-count_cubes_up_to_5":{"f":"countSet","l":5},"k-count_dots_0_to_5":{"f":"countSet","l":10},"k-count_pictures_and_show_a_number_that_is_equal_up_to_5":{"f":"countSet","l":5},"k-count_pictures_and_show_a_number_that_is_greater_less_or_equal_up_to_5":{"f":"countSet","l":5},"k-count_pictures_up_to_7":{"f":"countSet","l":7},"k-count_cubes_up_to_7":{"f":"countSet","l":7},"k-count_pictures_up_to_9":{"f":"countSet","l":9},"k-count_cubes_up_to_9":{"f":"countSet","l":9},"k-count_pictures_up_to_10":{"f":"countSet","l":10},"k-count_cubes_up_to_10":{"f":"countSet","l":10},"k-count_dots_up_to_10":{"f":"countSet","l":10},"k-count_blocks_up_to_10":{"f":"countSet","l":10},"k-count_pictures_and_show_a_number_that_is_equal_up_to_10":{"f":"countSet","l":10},"k-count_pictures_and_show_a_number_that_is_greater_less_or_equal_up_to_10":{"f":"countSet","l":10},"k-count_pictures_up_to_15":{"f":"countSet","l":15},"k-count_pictures_in_arrays_and_circles_up_to_15":{"f":"countSet","l":15},"k-count_pictures_up_to_20":{"f":"countSet","l":20},"k-count_dots_0_to_20":{"f":"countSet","l":10},"k-count_blocks_up_to_20":{"f":"countSet","l":20},"k-count_pictures_in_arrays_and_circles_up_to_20":{"f":"countSet","l":20},"k-count_blocks_up_to_30":{"f":"countSet","l":30},"k-count_groups_of_ten":{"f":"countSet","l":10},"k-count_pictures_up_to_100":{"f":"countSet","l":100},"k-count_blocks_up_to_100":{"f":"countSet","l":100},"g1-count_objects_to_100":{"f":"countSet","l":100},"g1-count_objects_to_120":{"f":"countSet","l":120},"g1-count_objects_by_tens_and_ones_up_to_120":{"f":"countSet","l":120},"g1-count_groups_of_like_coins_pennies_nickels_or_dimes":{"f":"countSet","l":10},"g1-count_groups_of_like_coins_pennies_nickels_dimes_or_quarters":{"f":"countSet","l":10},"pk-fewer_and_more_compare_by_matching":{"f":"compareNumbers","l":20},"pk-fewer_and_more_compare_by_counting":{"f":"compareNumbers","l":20},"pk-fewer_and_more_compare_in_a_mixed_group":{"f":"compareNumbers","l":20},"pk-compare_size_weight_and_capacity":{"f":"compareNumbers","l":20},"k-put_numbers_up_to_5_in_order":{"f":"compareNumbers","l":5},"k-more_compare_by_matching_up_to_5":{"f":"compareNumbers","l":5},"k-fewer_compare_by_matching_up_to_5":{"f":"compareNumbers","l":5},"k-fewer_and_more_compare_by_matching_up_to_5":{"f":"compareNumbers","l":5},"k-greater_compare_by_matching_up_to_5":{"f":"compareNumbers","l":5},"k-less_compare_by_matching_up_to_5":{"f":"compareNumbers","l":5},"k-fewer_and_more_compare_by_counting_up_to_5":{"f":"compareNumbers","l":5},"k-fewer_and_more_compare_in_a_mixed_group_up_to_5":{"f":"compareNumbers","l":5},"k-greater_than_less_than_or_equal_to_compare_by_counting_up_to_5":{"f":"compareNumbers","l":5},"k-show_a_number_greater_than_less_than_or_equal_to_a_given_number_up_to_5":{"f":"compareNumbers","l":5},"k-compare_two_numbers_up_to_5":{"f":"compareNumbers","l":5},"k-greater_and_less_compare_two_numbers_up_to_5":{"f":"compareNumbers","l":5},"k-fewer_and_more_compare_by_matching":{"f":"compareNumbers","l":20},"k-greater_and_less_compare_by_matching_up_to_10":{"f":"compareNumbers","l":10},"k-fewer_and_more_compare_by_counting":{"f":"compareNumbers","l":20},"k-fewer_and_more_compare_in_a_mixed_group":{"f":"compareNumbers","l":20},"k-greater_than_less_than_or_equal_to_compare_by_counting_up_to_10":{"f":"compareNumbers","l":10},"k-show_a_number_greater_than_less_than_or_equal_to_a_given_number_up_to_10":{"f":"compareNumbers","l":10},"k-compare_two_numbers_up_to_10":{"f":"compareNumbers","l":10},"k-greater_and_less_compare_two_numbers_up_to_10":{"f":"compareNumbers","l":10},"k-compare_three_numbers_up_to_10":{"f":"compareNumbers","l":10},"k-put_numbers_up_to_10_in_order":{"f":"compareNumbers","l":10},"k-fewer_and_more_up_to_20":{"f":"compareNumbers","l":20},"k-greater_than_less_than_or_equal_to_compare_by_counting_up_to_20":{"f":"compareNumbers","l":20},"k-show_a_number_greater_than_less_than_or_equal_to_a_given_number_up_to_20":{"f":"compareNumbers","l":20},"k-compare_numbers_up_to_20":{"f":"compareNumbers","l":20},"k-put_numbers_up_to_20_in_order":{"f":"compareNumbers","l":20},"k-compare_sides_and_corners":{"f":"compareNumbers","l":20},"k-compare_shapes_using_attributes":{"f":"compareNumbers","l":20},"k-sort_count_and_compare":{"f":"compareNumbers","l":20},"k-compare_size_weight_and_capacity":{"f":"compareNumbers","l":20},"k-compare_two_groups_of_coins_pennies_through_dimes":{"f":"compareNumbers","l":20},"g1-compare_numbers_up_to_10_using_words":{"f":"compareNumbers","l":10},"g1-compare_numbers_up_to_10_using_symbols":{"f":"compareNumbers","l":10},"g1-use_place_value_to_compare_numbers_up_to_100":{"f":"compareNumbers","l":100},"g1-compare_numbers_up_to_100_using_words":{"f":"compareNumbers","l":100},"g1-compare_numbers_up_to_100_using_symbols_with_models":{"f":"compareNumbers","l":100},"g1-compare_numbers_up_to_100_using_symbols":{"f":"compareNumbers","l":100},"g1-compare_numbers_up_to_100_word_problems":{"f":"compareNumbers","l":100},"g1-write_a_number_greater_than_or_less_than_a_given_number_up_to_100":{"f":"compareNumbers","l":100},"g1-compare_objects_length_and_height":{"f":"compareNumbers","l":20},"g1-compare_size_weight_and_capacity":{"f":"compareNumbers","l":20},"g1-compare_clocks":{"f":"compareNumbers","l":20},"g1-compare_money_amounts":{"f":"compareNumbers","l":20},"g1-compare_sides_and_corners":{"f":"compareNumbers","l":20},"g1-compare_shapes_using_attributes":{"f":"compareNumbers","l":20},"g1-compare_vertices_edges_and_faces":{"f":"compareNumbers","l":20},"g1-compare_halves_and_fourths":{"f":"compareNumbers","l":20},"pk-put_together_numbers_using_cubes_sums_up_to_5":{"f":"addFacts","l":5},"pk-build_cube_trains_to_add_up_to_5_words":{"f":"addFacts","l":5},"pk-add_with_cubes_sums_up_to_5":{"f":"addFacts","l":5},"pk-build_cube_trains_to_add_up_to_5_addition_sentences":{"f":"addFacts","l":5},"pk-add_with_pictures_sums_up_to_5":{"f":"addFacts","l":5},"pk-addition_word_problems_with_pictures_sums_up_to_5":{"f":"addFacts","l":5},"pk-put_together_numbers_using_cubes_sums_up_to_10":{"f":"addFacts","l":10},"pk-build_cube_trains_to_add_up_to_10_words":{"f":"addFacts","l":10},"pk-add_with_cubes_sums_up_to_10":{"f":"addFacts","l":10},"pk-build_cube_trains_to_add_up_to_10_addition_sentences":{"f":"addFacts","l":10},"pk-add_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"pk-addition_word_problems_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"k-put_together_numbers_using_cubes_sums_up_to_5":{"f":"addFacts","l":5},"k-build_cube_trains_to_add_up_to_5_words":{"f":"addFacts","l":5},"k-write_addition_sentences_for_pictures_sums_up_to_5":{"f":"addFacts","l":5},"k-add_with_cubes_sums_up_to_5":{"f":"addFacts","l":5},"k-build_cube_trains_to_add_up_to_5_addition_sentences":{"f":"addFacts","l":5},"k-add_with_pictures_sums_up_to_5":{"f":"addFacts","l":5},"k-add_two_numbers_sums_up_to_5":{"f":"addFacts","l":5},"k-complete_the_addition_sentence_sums_up_to_5":{"f":"addFacts","l":5},"k-take_apart_numbers_using_cubes_sums_up_to_5":{"f":"addFacts","l":5},"k-make_a_number_different_ways_using_cubes_sums_up_to_5":{"f":"addFacts","l":5},"k-take_apart_numbers_in_different_ways_sums_up_to_5":{"f":"addFacts","l":5},"k-make_a_number_using_addition_sums_up_to_5":{"f":"addFacts","l":5},"k-build_cube_trains_to_solve_addition_word_problems_sums_up_to_5":{"f":"addFacts","l":5},"k-addition_word_problems_with_pictures_sums_up_to_5":{"f":"addFacts","l":5},"k-write_addition_sentences_for_word_problems_with_pictures_sums_up_to_5":{"f":"addFacts","l":5},"k-addition_word_problems_sums_up_to_5":{"f":"addFacts","l":5},"k-model_and_write_addition_sentences_for_word_problems_sums_up_to_5":{"f":"addFacts","l":5},"k-put_together_numbers_using_cubes_sums_up_to_10":{"f":"addFacts","l":10},"k-build_cube_trains_to_add_up_to_10_words":{"f":"addFacts","l":10},"k-write_addition_sentences_for_pictures_sums_up_to_10":{"f":"addFacts","l":10},"k-turn_words_into_an_addition_sentence_sums_up_to_10":{"f":"addFacts","l":10},"k-add_with_cubes_sums_up_to_10":{"f":"addFacts","l":10},"k-build_cube_trains_to_add_up_to_10_addition_sentences":{"f":"addFacts","l":10},"k-add_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"k-add_two_numbers_sums_up_to_10":{"f":"addFacts","l":10},"k-complete_the_addition_sentence_sums_up_to_10":{"f":"addFacts","l":10},"k-take_apart_numbers_using_cubes_sums_up_to_10":{"f":"addFacts","l":10},"k-make_a_number_different_ways_using_cubes_sums_up_to_10":{"f":"addFacts","l":10},"k-take_apart_numbers_in_different_ways_sums_up_to_10":{"f":"addFacts","l":10},"k-make_a_number_using_addition_sums_up_to_10":{"f":"addFacts","l":10},"k-build_cube_trains_to_solve_addition_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"k-addition_word_problems_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"k-write_addition_sentences_for_word_problems_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"k-addition_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"k-model_and_write_addition_sentences_for_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"g1-add_with_cubes_sums_up_to_10":{"f":"addFacts","l":10},"g1-add_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"g1-write_addition_sentences_for_pictures_sums_up_to_10":{"f":"addFacts","l":10},"g1-turn_words_into_an_addition_sentence_sums_up_to_10":{"f":"addFacts","l":10},"g1-add_by_counting_on_sums_up_to_10":{"f":"addFacts","l":10},"g1-addition_facts_sums_up_to_10":{"f":"addFacts","l":10},"g1-take_apart_numbers_in_different_ways_sums_up_to_10":{"f":"addFacts","l":10},"g1-make_a_number_using_addition_sums_up_to_10":{"f":"addFacts","l":10},"g1-addition_word_problems_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"g1-write_addition_sentences_for_word_problems_with_pictures_sums_up_to_10":{"f":"addFacts","l":10},"g1-build_cube_trains_to_solve_addition_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"g1-addition_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"g1-model_and_write_addition_sentences_for_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"g1-addition_sentences_for_word_problems_sums_up_to_10":{"f":"addFacts","l":10},"g1-related_addition_facts":{"f":"addFacts","l":10},"g1-add_by_counting_on_sums_up_to_20":{"f":"addFacts","l":20},"g1-adding_1":{"f":"addFacts","l":1},"g1-adding_2":{"f":"addFacts","l":2},"g1-adding_3":{"f":"addFacts","l":3},"g1-adding_4":{"f":"addFacts","l":4},"g1-adding_5":{"f":"addFacts","l":5},"g1-adding_6":{"f":"addFacts","l":6},"g1-adding_7":{"f":"addFacts","l":7},"g1-adding_8":{"f":"addFacts","l":8},"g1-adding_9":{"f":"addFacts","l":9},"g1-adding_10":{"f":"addFacts","l":10},"g1-adding_0":{"f":"addFacts","l":10},"g1-addition_facts_sums_up_to_20":{"f":"addFacts","l":20},"g1-sort_addition_facts_sums_up_to_20":{"f":"addFacts","l":20},"g1-make_a_number_using_addition_sums_up_to_20":{"f":"addFacts","l":20},"g1-addition_word_problems_with_models_sums_up_to_20":{"f":"addFacts","l":20},"g1-addition_word_problems_sums_up_to_20":{"f":"addFacts","l":20},"g1-addition_sentences_for_word_problems_sums_up_to_18":{"f":"addFacts","l":20},"g1-complete_the_addition_sentence_sums_up_to_10":{"f":"addFacts","l":10},"g1-complete_the_addition_sentence_sums_up_to_20":{"f":"addFacts","l":20}};
+  Object.keys(TABLE).forEach(function (id) {
+    var f = FAMILIES[TABLE[id].f], limit = TABLE[id].l;
+    if (!f) return;
+    G(id, function (rng, lvl) { return f(rng, lvl, limit); });
+  });
+})();
 
 </script>
 <script>
