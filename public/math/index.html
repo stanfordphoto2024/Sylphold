@@ -133,6 +133,16 @@ input.fld:focus { border-color: var(--accent); }
 input.fld.sm { font-size: 16px; padding: 9px 11px; }
 input.fld.ok { border-color: var(--good); background: var(--good-soft); }
 input.fld.no { border-color: var(--bad); background: var(--bad-soft); }
+/* On a phone the answer box is readonly on purpose — the keypad under it is the
+   keyboard, and a readonly box is what keeps the system keyboard from sliding up
+   over the question. It must still look alive, not like a disabled field. */
+input.fld[readonly] {
+  background: var(--bg); color: var(--ink); -webkit-text-fill-color: var(--ink);
+  opacity: 1; cursor: pointer; -webkit-user-select: none; user-select: none;
+}
+input.fld[readonly]::placeholder { color: var(--ink-3); }
+/* the lit box is the part the keys write into (multi-part answers) */
+input.fld.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .unit { font-size: 18px; color: var(--ink-2); margin-left: 6px; }
 .opts { display: grid; gap: 9px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .opts.stackone { grid-template-columns: 1fr; }
@@ -11687,6 +11697,31 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function needsKeypad(item) { return widgetKind(item) !== 'choice' && widgetKind(item) !== 'compare'; }
 
+  /* On a touch device the keypad IS the keyboard: the system one would slide up
+     over the question, the picture and the keys themselves and leave nothing to
+     see. So the answer box is made tap-only there — readonly stops the OS
+     keyboard from ever opening (inputmode="none" is the modern half of that,
+     readonly the half that works on every older phone), while the keys still
+     write the value in code, which readonly does not block. A desktop or a
+     laptop keeps an ordinary editable box, so a hardware keyboard types there
+     exactly as it always did. */
+  var TOUCH = (function () {
+    try {
+      if (win.matchMedia) {
+        if (win.matchMedia('(hover: none) and (pointer: coarse)').matches) return true;
+        if (win.matchMedia('(pointer: coarse)').matches && !win.matchMedia('(hover: hover)').matches) return true;
+      }
+    } catch (e) { }
+    return false;
+  })();
+  function keypadOnly(inp) {
+    if (!TOUCH) return inp;
+    inp.setAttribute('readonly', '');
+    inp.setAttribute('inputmode', 'none');
+    inp.setAttribute('enterkeyhint', 'done');
+    return inp;
+  }
+
   function buildAnswer(item) {
     var kind = widgetKind(item);
     if (kind === 'choice') {
@@ -11713,20 +11748,32 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (kind === 'multi') {
       var labels = item.labels || (item.spec.vals || []).map(function (_, i) { return 'Part ' + (i + 1); });
       var wrap = h('div', { class: 'parts' });
+      var parts = [], cur = { i: 0 };
       labels.forEach(function (L, i) {
-        wrap.appendChild(h('div', { class: 'part' }, [
-          h('label', { text: String(L) }),
-          h('input', { class: 'fld sm', type: 'text', 'data-part': i, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' })
-        ]));
+        var pi = keypadOnly(h('input', {
+          class: 'fld sm', type: 'text', 'data-part': i, autocomplete: 'off',
+          autocapitalize: 'off', spellcheck: 'false'
+        }));
+        pi.addEventListener('focus', function () { markPart(parts, cur, i); });
+        pi.addEventListener('click', function () { markPart(parts, cur, i); });
+        parts.push(pi);
+        wrap.appendChild(h('div', { class: 'part' }, [h('label', { text: String(L) }), pi]));
       });
-      return wrap;
+      /* one keypad for every part — the lit box is the one the keys write into,
+       * so a two-part answer never needs the system keyboard to switch boxes */
+      var multi = h('div', {}, [wrap]);
+      if (needsKeypad(item)) {
+        multi.appendChild(keypad(function () { return parts[cur.i] || parts[0]; }, item));
+        markPart(parts, cur, 0);
+      }
+      return multi;
     }
     /* text */
     var ph = { point: '(x, y)', points: '(x, y)  (x, y)', interval: '[low, high]', ratio: 'a : b', expr: 'type an expression', frac: 'e.g. 3/4', str: 'type your answer', choice: 'type your answer' }[(item.spec && item.spec.k) || 'text'] || '';
-    var inp = h('input', {
+    var inp = keypadOnly(h('input', {
       class: 'fld', type: 'text', id: 'ans', placeholder: ph, autocomplete: 'off',
-      autocapitalize: 'off', spellcheck: 'false', inputmode: /str/.test(item.spec && item.spec.k) ? 'text' : 'text'
-    });
+      autocapitalize: 'off', spellcheck: 'false'
+    }));
     var kids = [h('div', { class: 'row', style: { alignItems: 'stretch' } }, [
       h('div', { class: 'grow' }, [inp]),
       item.unit ? h('div', { class: 'unit', text: String(item.unit) }) : null
@@ -11734,16 +11781,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (needsKeypad(item)) kids.push(keypad(inp, item));
     return h('div', {}, kids);
   }
-  function keypad(inp, item) {
+  function markPart(parts, cur, i) {
+    cur.i = i;
+    for (var k = 0; k < parts.length; k++) parts[k].classList[k === i ? 'add' : 'remove']('sel');
+  }
+  /* target may be one field or a getter for "whichever field is active now" */
+  function keypad(target, item) {
     var keys = keysFor(item || {});
+    var field = typeof target === 'function' ? target : function () { return target; };
     var kp = h('div', { class: 'keypad' });
     keys.forEach(function (k) {
       kp.appendChild(h('button', {
         type: 'button', text: k, on: {
+          mousedown: function (e) { e.preventDefault(); },   // keep the caret in the box
           click: function () {
+            var inp = field(); if (!inp) return;
             var v = String(inp.value || '');
             inp.value = k === '⌫' ? v.slice(0, -1) : v + k;
-            inp.focus();
+            /* on a phone the box never takes focus — the keys are the keyboard,
+             * and focusing a live box is exactly what summons the system one */
+            if (!TOUCH) { try { inp.focus(); } catch (e) { } }
             S.picked = null;
           }
         }
@@ -11809,7 +11866,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     renderActions();
     if (S.answered) revealAnswer();
     var inp = $('#itemhost #ans') || $('#view #ans');
-    if (inp && !S.answered) setTimeout(function () { try { inp.focus(); } catch (e) { } }, 30);
+    /* only a hardware-keyboard device gets the auto-focus: focusing a box on a
+     * phone is precisely what raises the system keyboard over the question */
+    if (inp && !S.answered && !TOUCH) setTimeout(function () { try { inp.focus(); } catch (e) { } }, 30);
     if (!S.answered) { var stxt = speechText(item); setTimeout(function () { speak(stxt); }, 60); }
     else stopSpeech();
   }
@@ -12281,8 +12340,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           h('button', { class: 'btn small', type: 'button', on: { click: importData } }, 'Import progress'),
           h('div', { class: 'grow' }),
           h('button', { class: 'btn small danger', type: 'button', on: { click: resetAll } }, 'Reset everything')
-        ]),
-        h('div', { class: 'tiny', style: { marginTop: '8px' }, text: 'Everything lives in this browser only (localStorage key mathpath.v1). No network calls, ever.' })
+        ])
       ])
     ]));
   }
