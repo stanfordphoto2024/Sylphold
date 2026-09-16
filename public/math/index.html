@@ -286,7 +286,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-15 — 10 modules inlined:
+/* MathPath 2026-09-16 — 10 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -824,10 +824,10 @@ var V = {
   frac: function (bars) { return { k: 'frac', bars: [].concat(bars) }; },      // {n,d,label}
   bar: function (parts, opts) { return { k: 'bar', parts: parts, opts: opts || {} }; }, // bar model / tape diagram
   area: function (rows, cols, opts) { return { k: 'area', rows: rows, cols: cols, opts: opts || {} }; },
-  blocks: function (h, t, o) { return { k: 'blocks', hundreds: h || 0, tens: t || 0, ones: o || 0 }; },
-  clock: function (h, m) { return { k: 'clock', h: h, m: m }; },
-  coins: function (q, d, n, p) { return { k: 'coins', q: q || 0, d: d || 0, n: n || 0, p: p || 0 }; },
-  money: function (amt) { return { k: 'money', amt: amt }; },
+  blocks: function (h, t, o, opts) { return { k: 'blocks', hundreds: h || 0, tens: t || 0, ones: o || 0, opts: opts || {} }; },
+  clock: function (h, m, opts) { return { k: 'clock', h: h, m: m, opts: opts || {} }; },
+  coins: function (q, d, n, p, opts) { return { k: 'coins', q: q || 0, d: d || 0, n: n || 0, p: p || 0, opts: opts || {} }; },
+  money: function (amt, opts) { return { k: 'money', amt: amt, opts: opts || {} }; },
   coord: function (opts) { return { k: 'coord', opts: opts }; },                 // {pts:[{x,y,label}],lines:[{m,b}],shaded}
   graph: function (fns, opts) { return { k: 'graph', fns: fns, opts: opts || {} }; }, // {expr:'x^2',label,color}
   angle: function (a, opts) { return { k: 'angle', a: a, opts: opts || {} }; },
