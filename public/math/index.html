@@ -286,8 +286,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-17 — 25 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-g2-extra.js, 99-gen-arch.js, 20-ui.js
+/* MathPath 2026-09-17 — 26 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -14761,6 +14761,131 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 </script>
 <script>
 /* =============================================================================
+ * 97-gen-fam-round.js — rounding and estimating with a number line.
+ *   family rounding { place: 'ten' }   bands G2 G3 G4
+ *
+ * The place grows with the level, not with the skill: nearest ten at lvl 1-2,
+ * nearest hundred at lvl 3, and any place up to hundred-thousands at lvl 4-5.
+ * Every item is the same decision — which multiple is closer — so the ladder
+ * from "round to the nearest ten" to "round to any place" is one honest ramp.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var REG = GLOB.ARCH_IMPL || (GLOB.ARCH_IMPL = {});
+  function ARCH(name, fn, bands) { REG[name] = { fn: fn, bands: bands }; }
+  var CTX = ['At the math table', 'In the classroom', 'At the fair', 'On the field trip'];
+  function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
+  function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
+  function build(rng, fns, w) {
+    var pool = [], i, j;
+    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    var last = null, order = R.shuffle(rng, pool);
+    for (i = 0; i < order.length; i++) { last = fns[order[i]](); if (!leaks(last)) return last; }
+    return last;
+  }
+  function MC(rng, prompt, answer, wrongs, o) {
+    var seen = {}, opts = [], push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
+    push(answer);
+    var extra = R.shuffle(rng, wrongs.filter(function (v) { return String(v) !== String(answer); }));
+    for (var i = 0; i < extra.length && opts.length < 5; i++) push(extra[i]);
+    var sh = R.shuffle(rng, opts);
+    return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
+  }
+  function fmt(n) { return n >= 1000 ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : String(n); }
+
+  ARCH('rounding', function (rng, lvl, p) {
+    var place = lvl <= 2 ? 10 : lvl === 3 ? (R.chance(rng, 0.5) ? 10 : 100) : pick(rng, [10, 100, 1000, 10000]);
+    var name = place === 10 ? 'ten' : place === 100 ? 'hundred' : place === 1000 ? 'thousand' : 'ten-thousand';
+    var n = R.int(rng, place, place * 10 - 1);
+    var lo10 = Math.floor(n / place) * place, hi10 = lo10 + place, mid = lo10 + place / 2;
+    var r = n % place >= place / 2 ? hi10 : lo10;
+    var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
+    var line = V.numline(lo10, hi10, [{ x: n, label: fmt(n), arrow: true }, { x: mid, label: fmt(mid) }], { label: 'a number line from ' + fmt(lo10) + ' to ' + fmt(hi10) });
+    var teach = 'Find the two multiples the number sits between, then choose the closer one; at the middle you round up.';
+
+    return build(rng, [
+      /* official anchor — round to the named place. */
+      function () {
+        return I_num(ct + ', round ' + fmt(n) + ' to the nearest ' + name + '.', r, {
+          visual: line, b: lo,
+          explain: ['' + fmt(n) + ' is between ' + fmt(lo10) + ' and ' + fmt(hi10) + '.', 'The middle is ' + fmt(mid) + '; ' + fmt(n) + ' is ' + (n >= mid ? 'at or above it' : 'below it') + '.', 'So ' + fmt(n) + ' rounds to <b>' + fmt(r) + '</b>.'],
+          teach: teach
+        });
+      },
+      /* which multiple is it closer to */
+      function () {
+        var right = Math.abs(n - r) === Math.min(Math.abs(n - lo10), Math.abs(n - hi10)) ? r : lo10;
+        return MC(rng, 'Which ' + name + ' is ' + fmt(n) + ' closest to?', fmt(right), [fmt(right === lo10 ? hi10 : lo10), fmt(mid)], {
+          visual: line, b: lo + 0.2,
+          explain: ['Measure the gaps: ' + fmt(n) + ' − ' + fmt(lo10) + ' = ' + (n - lo10) + ' and ' + fmt(hi10) + ' − ' + fmt(n) + ' = ' + (hi10 - n) + '.', 'The smaller gap wins.', 'So the answer is <b>' + fmt(right) + '</b>.'],
+          teach: teach
+        });
+      },
+      /* judge a rounded answer */
+      function () {
+        var lie = R.chance(rng, 0.5), claim = lie ? (r === lo10 ? hi10 : lo10) : r;
+        return I_bool('Is ' + fmt(n) + ' rounded to the nearest ' + name + ' equal to ' + fmt(claim) + '?', claim === r, {
+          visual: line, b: 0.4,
+          explain: ['Round it yourself: ' + fmt(r) + '.', 'The card says ' + fmt(claim) + '.', 'So the answer is <b>' + (claim === r ? 'Yes' : 'No') + '</b>.'],
+          teach: 'Always round it yourself before judging someone else.'
+        });
+      },
+      /* the two multiples it lies between */
+      function () {
+        return I_parts('Between which two multiples of ' + place + ' does ' + fmt(n) + ' lie?', ['lower', 'higher'], [{ k: 'n', v: lo10 }, { k: 'n', v: hi10 }], {
+          visual: line, b: 0.3,
+          explain: ['Count down to the next multiple below: ' + fmt(lo10) + '.', 'Count up to the next multiple above: ' + fmt(hi10) + '.', 'So the pair is <b>' + fmt(lo10) + ' and ' + fmt(hi10) + '</b>.'],
+          teach: 'Every number sits between two consecutive multiples of the place.'
+        });
+      },
+      /* the midpoint rule */
+      function () {
+        return I_bool('Is ' + fmt(mid) + ' the midpoint between ' + fmt(lo10) + ' and ' + fmt(hi10) + '?', true, {
+          visual: line, b: 0.2,
+          explain: ['Add the two multiples and halve them: (' + fmt(lo10) + ' + ' + fmt(hi10) + ') ÷ 2 = ' + fmt(mid) + '.', 'That is the point in the middle.', 'So the answer is <b>Yes</b>.'],
+          teach: 'The midpoint is the halfway multiple; at it you round up.'
+        });
+      },
+      /* a rounding table */
+      function () {
+        var m = cap(n + R.int(rng, 1, place), place, place * 10 - 1), rm = Math.round(m / place) * place;
+        return MC(rng, 'A table rounds numbers to the nearest ' + name + '. One row reads: ' + fmt(n) + ' → ___ . Which value belongs?', fmt(r), [fmt(m), fmt(cap(r + place, place, place * 11)), fmt(Math.abs(r - place))], {
+          visual: V.table(['Number', 'Rounded'], [[fmt(n), fmt(r)], [fmt(m), fmt(rm)]]), b: 0.7,
+          explain: ['Round ' + fmt(n) + ' to the nearest ' + name + '.', 'The multiple it is closest to is ' + fmt(r) + '.', 'So the answer is <b>' + fmt(r) + '</b>.'],
+          teach: 'A rounding table applies the same place to every row.'
+        });
+      },
+      /* a rounding puzzle: which number could it be */
+      function () {
+        var cands = [], k;
+        for (k = r - Math.floor(place / 2); k < r + Math.floor(place / 2); k++) cands.push(k);
+        var right = pick(rng, cands.filter(function (v) { return v >= 0; })), low = r - Math.floor(place / 2), high = r + Math.floor(place / 2) - 1;
+        var wrongs = [String(low - 1), String(high + 1), String(r + place)].filter(function (v) { return Number(v) >= 0 && Number(v) !== right; });
+        return MC(rng, 'A number rounds to ' + fmt(r) + ' to the nearest ' + name + '. Which number could it be?', String(right), wrongs, {
+          b: 0.9,
+          explain: ['Numbers from ' + fmt(low) + ' up to ' + fmt(high) + ' all round to ' + fmt(r) + '.', right + ' is inside that range.', 'So the answer is <b>' + right + '</b>.'],
+          teach: 'A whole range of numbers rounds to the same multiple.'
+        });
+      },
+      /* lvl 4-5 stretch: round a big number, then estimate with it */
+      function () {
+        var a = R.int(rng, place * 2, place * 9), b = R.int(rng, place, place * 8);
+        var ra = Math.round(a / place) * place, rb = Math.round(b / place) * place;
+        return I_num('Estimate by rounding each number to the nearest ' + name + ': ' + fmt(ra) + ' + ' + fmt(rb) + ' =', ra + rb, {
+          b: 1.0,
+          explain: ['Round first: ' + fmt(a) + ' → ' + fmt(ra) + ', ' + fmt(b) + ' → ' + fmt(rb) + '.', 'Then add the friendly numbers: ' + fmt(ra + rb) + '.', 'So the answer is <b>' + fmt(ra + rb) + '</b>.'],
+          teach: 'Rounding both numbers turns a hard sum into a friendly one.'
+        });
+      }
+    ], lvl <= 2 ? [4, 4, 3, 3, 2, 2, 1, 0] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 2, 2] : [2, 3, 3, 3, 3, 3, 3, 4]);
+  }, ['G2', 'G3', 'G4']);
+})();
+
+</script>
+<script>
+/* =============================================================================
  * 97-gen-g2-extra.js — hand-written 2nd-grade generators for skills the
  * classifier in tools/map.js does not put into a family yet.
  *
@@ -14838,7 +14963,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () { var m = R.chance(rng, 0.5) ? n : pick(rng, near(rng, n, 1, maxN)); return I_bool('Is ' + n + ' written in words as "' + wordName(m) + '"?', m === n, { b: 0.4, explain: ['Say ' + n + ' in words: ' + wordName(n) + '.', 'The card says "' + wordName(m) + '".', (m === n ? 'They match' : 'They do not match') + ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return MC(rng, 'Which one says ' + t + ' in words?', wordName(t), near(rng, t, 1, maxN).map(wordName), { b: 0.3, explain: ['Look for the name that ends in the same ones.', wordName(t) + ' is that name.', 'So the answer is <b>' + wordName(t) + '</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return I_num('How many is "' + wordName(t) + '"?', t, { b: 0.5, explain: ['Count up to the name given.', 'The digits are ' + t + '.', 'So the answer is <b>' + t + '</b>.'], teach: teach }); },
-        function () { var t = R.int(rng, 1, maxN), tens = Math.floor(t / 10); return MC(rng, 'How many tens are in the number "' + wordName(t) + '"?', String(tens), near(rng, tens, 0, 9).map(String), { b: 0.8, explain: ['Write the number: ' + t + '.', 'The tens digit is ' + tens + '.', 'So the answer is <b>' + tens + '</b>.'], teach: 'The word name and the digits carry the same tens and ones.' }); },
+        function () { var t = R.int(rng, 1, maxN), tens = Math.floor(t / 10); return MC(rng, 'How many tens are in the number "' + wordName(t) + '"?', String(tens), near(rng, tens, 1, maxN).map(String), { b: 0.8, explain: ['Write the number: ' + t + '.', 'Group it into tens: ' + t + ' holds ' + tens + ' tens.', 'So the answer is <b>' + tens + '</b>.'], teach: 'The word name and the digits carry the same amount.' }); },
         function () { var t = R.int(rng, 1, maxN); return I_bool('Does "' + wordName(t) + '" stand for a number greater than ' + t + '?', false, { b: 0.9, explain: ['The words name exactly ' + t + '.', 'A number is never greater than itself.', 'So the answer is <b>No</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return MC(rng, 'Which pair matches: the number and its word name?', t + ' = ' + wordName(t), [t + ' = ' + wordName(cap(t + 1, 1, maxN)), t + ' = ' + wordName(cap(t - 1, 1, maxN))], { b: 1.0, explain: ['Check the digits against the words.', t + ' is spelled ' + wordName(t) + '.', 'So the answer is <b>' + t + ' = ' + wordName(t) + '</b>.'], teach: teach }); }
       ], lvl);
@@ -15084,6 +15209,158 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   G('g2-identify_repeated_addition_for_arrays_sums_to_25', equalGroups('arrays'));
   G('g2-write_addition_sentences_for_arrays_sums_to_25', equalGroups('arrays'));
   G('g2-write_stories_involving_repeated_addition_sums_to_25', equalGroups('story'));
+
+  /* ===================== M. estimating with rounded numbers ================ */
+  G('g2-estimate_to_the_nearest_ten', function (rng, lvl) {
+    var n = R.int(rng, 11, lvl <= 2 ? 40 : 99), lo10 = Math.floor(n / 10) * 10, hi10 = lo10 + 10;
+    var r = n % 10 >= 5 ? hi10 : lo10, lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    var o = pick(rng, OBJ), ct = pick(rng, CTX);
+    var vis = V.numline(lo10, hi10, [{ x: n, label: String(n), arrow: true }, { x: lo10 + 5, label: String(lo10 + 5) }], { label: 'the two tens around ' + n });
+    var teach = 'Estimating to the nearest ten means asking which ten the number is closer to.';
+    return six(rng, [
+      function () { return I_num(ct + ', about how many ' + o + ', to the nearest ten?', r, { visual: vis, b: lo, explain: [n + ' is between ' + lo10 + ' and ' + hi10 + '.', 'The halfway point is ' + (lo10 + 5) + ', and ' + n + ' is on the ' + (n % 10 >= 5 ? 'upper' : 'lower') + ' side.', 'So the estimate is <b>' + r + '</b>.'], teach: teach }); },
+      function () { return MC(rng, 'Which is the best estimate of ' + n + ' to the nearest ten?', String(r), [String(cap(r + 10, 10, 200)), String(Math.max(0, r - 10)), String(n + 1)], { visual: vis, b: lo + 0.2, explain: ['Round ' + n + ' to the nearest ten.', 'The closer ten is ' + r + '.', 'So the answer is <b>' + r + '</b>.'], teach: teach }); },
+      function () { var lie = R.chance(rng, 0.5), claim = lie ? (r === lo10 ? hi10 : lo10) : r; return I_bool('Is ' + n + ' about ' + claim + ' to the nearest ten?', claim === r, { visual: vis, b: 0.4, explain: ['Round it: ' + n + ' → ' + r + '.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === r ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+      function () { return I_num('How far is ' + n + ' from the nearest ten?', Math.abs(n - r), { visual: vis, b: 0.3, explain: ['The nearest ten is ' + r + '.', Math.abs(n - r) + ' steps away.', 'So the answer is <b>' + Math.abs(n - r) + '</b>.'], teach: 'The gap to the nearest ten shows how good the estimate is.' }); },
+      function () { return MC(rng, 'Which ten is ' + n + ' closer to?', String(r), [String(r === lo10 ? hi10 : lo10)], { visual: vis, b: 0.5, explain: ['Compare the two gaps.', 'The smaller gap points to ' + r + '.', 'So the answer is <b>' + r + '</b>.'], teach: teach }); },
+      function () { return I_bool('Does ' + n + ' round up to ' + hi10 + '?', r === hi10, { visual: vis, b: 0.6, explain: ['The ones digit of ' + n + ' is ' + (n % 10) + '.', (n % 10) >= 5 ? 'Five or more rounds up.' : 'Below five rounds down.', 'So the answer is <b>' + (r === hi10 ? 'Yes' : 'No') + '</b>.'], teach: 'The ones digit decides: 5 and above rounds up.' }); },
+      function () { var m = R.int(rng, 11, 99), rm = Math.round(m / 10) * 10; return MC(rng, 'Which number rounds to ' + rm + '?', String(m), [String(cap(rm + 10, 11, 199)), String(Math.max(1, rm - 10))], { b: 0.8, explain: ['Round ' + m + ' to the nearest ten.', 'It gives ' + rm + '.', 'So the answer is <b>' + m + '</b>.'], teach: 'A whole range of numbers rounds to the same ten.' }); },
+      function () { var m = R.int(rng, 11, 89); return I_num('Round ' + m + ' and ' + n + ' to the nearest ten, then add: ' + Math.round(m / 10) * 10 + ' + ' + r + ' =', Math.round(m / 10) * 10 + r, { b: 1.0, explain: ['Round first.', 'Then add the two friendly tens.', 'So the answer is <b>' + (Math.round(m / 10) * 10 + r) + '</b>.'], teach: 'Estimating is rounding, then computing with friendly numbers.' }); }
+    ], lvl);
+  });
+  function estimateGroups(mode) {
+    return function (rng, lvl) {
+      var a = R.int(rng, 20, lvl <= 2 ? 60 : 480), b = R.int(rng, 20, lvl <= 2 ? 60 : 480);
+      var ra = Math.round(a / 10) * 10, rb = Math.round(b / 10) * 10;
+      var sum = ra + rb, dif = ra - rb, lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX), o = pick(rng, OBJ);
+      var add = mode === 'sum' || mode === 'both', sym = add ? '+' : '−';
+      var val = add ? sum : Math.abs(dif);
+      var teach = 'Round each number to a friendly ten first, then do the easy computation.';
+      return six(rng, [
+        function () { return I_num(ct + ', estimate ' + a + ' ' + sym + ' ' + b + ' by rounding to the nearest ten.', val, { b: lo, explain: ['Round: ' + a + ' → ' + ra + ', ' + b + ' → ' + rb + '.', ra + ' ' + sym + ' ' + rb + ' = ' + val + '.', 'So the estimate is <b>' + val + '</b>.'], teach: teach }); },
+        function () { return MC(rng, 'Which is the best estimate of ' + a + ' ' + sym + ' ' + b + '?', String(val), [String(cap(val + 10, 1, 2000)), String(Math.max(0, val - 10)), String(val + 1)], { b: lo + 0.2, explain: ['Round both numbers first.', ra + ' ' + sym + ' ' + rb + ' = ' + val + '.', 'So the answer is <b>' + val + '</b>.'], teach: teach }); },
+        function () { var lie = R.chance(rng, 0.5), claim = lie ? cap(val + 10, 1, 2000) : val; return I_bool('Is ' + a + ' ' + sym + ' ' + b + ' about ' + claim + '?', claim === val, { b: 0.4, explain: ['Estimate it: ' + val + '.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === val ? 'Yes' : 'No') + '</b>.'], teach: 'Estimate first, then judge the claim.' }); },
+        function () { return I_num('Round ' + a + ' to the nearest ten.', ra, { b: 0.2, explain: ['The ones digit of ' + a + ' is ' + (a % 10) + '.', (a % 10) >= 5 ? 'Round up.' : 'Round down.', 'So the answer is <b>' + ra + '</b>.'], teach: 'Round each number on its own.' }); },
+        function () { return I_num('Round ' + b + ' to the nearest ten, then ' + (add ? 'add ' + ra : 'subtract it from ' + ra) + '.', add ? ra + rb : Math.abs(ra - rb), { b: 0.5, explain: ['' + b + ' rounds to ' + rb + '.', ra + ' ' + sym + ' ' + rb + ' = ' + val + '.', 'So the answer is <b>' + val + '</b>.'], teach: teach }); },
+        function () { var exact = add ? a + b : Math.abs(a - b); return MC(rng, 'Which exact answer is reasonable for ' + a + ' ' + sym + ' ' + b + ' (estimate ' + val + ')?', String(exact), [String(exact + 1000), String(Math.max(0, exact - 1000))], { b: 0.7, explain: ['The estimate is ' + val + '.', 'The exact answer must be close to it.', 'So the answer is <b>' + exact + '</b>.'], teach: 'An estimate tells you whether an exact answer is reasonable.' }); },
+        function () { var m = R.int(rng, 20, 90); return I_num('Estimate: ' + m + ' ' + sym + ' ' + Math.round(m / 10) * 10 + ' =', Math.round(m / 10) * 10 + (add ? Math.round(m / 10) * 10 : -Math.round(m / 10) * 10), { b: 0.9, explain: ['Both numbers are already friendly tens.', 'Add or subtract them.', 'So the answer is <b>' + (Math.round(m / 10) * 10 + (add ? Math.round(m / 10) * 10 : -Math.round(m / 10) * 10)) + '</b>.'], teach: 'Friendly numbers need no rounding.' }); },
+        function () { var exact = add ? a + b : Math.abs(a - b); return I_bool('Is the exact answer of ' + a + ' ' + sym + ' ' + b + ' closer to ' + val + ' than to ' + (val + 100) + '?', true, { b: 1.0, explain: ['The exact answer is ' + exact + '.', 'The estimate was ' + val + '.', 'So the answer is <b>Yes</b>.'], teach: 'Rounding to the nearest ten is usually within a few units.' }); }
+      ], lvl);
+    };
+  }
+  G('g2-estimate_sums', estimateGroups('sum'));
+  G('g2-estimate_differences', estimateGroups('sub'));
+
+  /* ==================== N. which pile of money shows more ================== */
+  G('g2-which_picture_shows_more_up_to_5_dollars', function (rng, lvl) {
+    function pile() { var q = R.int(rng, 0, 4), d = R.int(rng, 0, 9), n = R.int(rng, 0, 9), p = R.int(rng, 0, 9); return { q: q, d: d, n: n, p: p, c: q * 25 + d * 10 + n * 5 + p }; }
+    function cents(c) { return '$' + Math.floor(c / 100) + '.' + (c % 100 < 10 ? '0' : '') + (c % 100); }
+    var A = pile(), B = pile(), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    if (A.c === B.c) B.p = (B.p + 3) % 10, B.c += 3;
+    var more = A.c > B.c ? 'the first picture' : 'the second picture';
+    var vis = V.grid({ rows: 2, cols: 1, cells: [['A'], ['B']], label: 'A = ' + cents(A.c) + ', B = ' + cents(B.c) });
+    var teach = 'Count the coins worth most first, then add on; never count the coins one by one from a penny.';
+    return six(rng, [
+      function () { return MC(rng, 'Which picture shows more money?', more, [more === 'the first picture' ? 'the second picture' : 'the first picture', 'they are the same'], { visual: vis, b: lo, explain: ['Picture A is worth ' + cents(A.c) + '.', 'Picture B is worth ' + cents(B.c) + '.', 'The greater amount is ' + more + '.', 'So the answer is <b>' + more + '</b>.'], teach: teach }); },
+      function () { return I_num('How much is the first picture worth, in cents?', A.c, { visual: V.coins(A.q, A.d, A.n, A.p), b: lo + 0.2, explain: ['Count the quarters first: ' + A.q * 25 + ' cents.', 'Then dimes ' + A.d * 10 + ', nickels ' + A.n * 5 + ', pennies ' + A.p + '.', 'Altogether ' + A.c + ' cents.', 'So the answer is <b>' + A.c + '</b>.'], teach: teach }); },
+      function () { return I_num('How much is the second picture worth, in cents?', B.c, { visual: V.coins(B.q, B.d, B.n, B.p), b: 0.3, explain: ['Start with the biggest coins.', 'Add each kind in turn.', 'So the answer is <b>' + B.c + '</b>.'], teach: teach }); },
+      function () { var d = Math.abs(A.c - B.c); return I_num('How many cents more does the larger picture show?', d, { visual: vis, b: 0.5, explain: ['The two amounts are ' + A.c + ' and ' + B.c + ' cents.', Math.max(A.c, B.c) + ' − ' + Math.min(A.c, B.c) + ' = ' + d + '.', 'So the answer is <b>' + d + '</b>.'], teach: 'The difference of two money amounts is found the same way as any difference.' }); },
+      function () { var claim = R.chance(rng, 0.5) ? A.c : cap(A.c + R.int(rng, 1, 20), 1, 500); return I_bool('Is the first picture worth ' + claim + ' cents?', claim === A.c, { visual: V.coins(A.q, A.d, A.n, A.p), b: 0.6, explain: ['Count the coins: ' + A.c + ' cents.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === A.c ? 'Yes' : 'No') + '</b>.'], teach: 'Count the coins yourself before you agree.' }); },
+      function () { return MC(rng, 'Which coins are worth most in the first picture?', A.q >= A.d && A.q >= A.n ? 'quarters' : A.d >= A.n ? 'dimes' : 'nickels', ['pennies', A.q >= A.d ? 'dimes' : 'quarters'], { visual: V.coins(A.q, A.d, A.n, A.p), b: 0.7, explain: ['Compare how many of each kind there are.', 'The kind with the most value is the answer.', 'So the answer is <b>' + (A.q >= A.d && A.q >= A.n ? 'quarters' : A.d >= A.n ? 'dimes' : 'nickels') + '</b>.'], teach: 'Value is number of coins times what one coin is worth.' }); },
+      function () { var t = cap(A.c + R.int(rng, 5, 40), 1, 500); return I_num('You have the first picture and ' + (t - A.c > 0 ? t - A.c : 10) + ' more cents. How many cents now?', A.c + (t - A.c > 0 ? t - A.c : 10), { visual: V.coins(A.q, A.d, A.n, A.p), b: 0.9, explain: ['The picture is ' + A.c + ' cents.', 'Add ' + (t - A.c > 0 ? t - A.c : 10) + ' cents.', 'So the answer is <b>' + (A.c + (t - A.c > 0 ? t - A.c : 10)) + '</b>.'], teach: 'Money adds like any other number.' }); },
+      function () { return I_bool('Does the first picture show more than ' + cents(cap(A.c - 1, 1, 500)) + '?', true, { visual: V.coins(A.q, A.d, A.n, A.p), b: 1.0, explain: ['The first picture is ' + cents(A.c) + '.', 'That is more than ' + cents(cap(A.c - 1, 1, 500)) + '.', 'So the answer is <b>Yes</b>.'], teach: 'Compare amounts by their value, not by how many coins are shown.' }); }
+    ], lvl);
+  });
+
+  /* ==================== O. time units and calendar days ==================== */
+  G('g2-relate_time_units', function (rng, lvl) {
+    var F = [['1 hour', 60, 'minutes'], ['1 minute', 60, 'seconds'], ['1 day', 24, 'hours'], ['1 week', 7, 'days'], ['1 year', 12, 'months'], ['1 hour', 60, 'minutes']];
+    var f = pick(rng, F), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    var k = R.int(rng, 1, 4), teach = 'Time units repeat in fixed sizes: 60 minutes in an hour, 24 hours in a day, 7 days in a week.';
+    return six(rng, [
+      function () { return I_num('How many ' + f[2] + ' are in ' + f[0] + '?', f[1], { b: lo, explain: ['One ' + f[0].slice(2) + ' always holds ' + f[1] + ' ' + f[2] + '.', 'So the answer is <b>' + f[1] + '</b>.'], teach: teach }); },
+      function () { return I_num('How many ' + f[2] + ' are in ' + k + ' ' + f[0].slice(2) + 's?', f[1] * k, { b: lo + 0.2, explain: [k + ' groups of ' + f[1] + '.', k + ' × ' + f[1] + ' = ' + (f[1] * k) + '.', 'So the answer is <b>' + (f[1] * k) + '</b>.'], teach: 'Convert by counting equal groups of the smaller unit.' }); },
+      function () { var wrong = [60, 24, 7, 12, 100, 30].filter(function (v) { return v !== f[1]; }); return MC(rng, 'How many ' + f[2] + ' make ' + f[0] + '?', String(f[1]), wrong.map(String), { b: 0.3, explain: ['Learn the size of each unit.', f[0] + ' = ' + f[1] + ' ' + f[2] + '.', 'So the answer is <b>' + f[1] + '</b>.'], teach: teach }); },
+      function () { var m = pick(rng, F); return I_bool(f[0] + ' has more ' + f[2] + 's than ' + m[2].slice(0, -1) + 's in ' + m[0] + '.', f[1] > m[1], { b: 0.5, explain: [f[0] + ' = ' + f[1] + ' ' + f[2] + '.', m[0] + ' = ' + m[1] + ' ' + m[2] + '.', 'So the answer is <b>' + (f[1] > m[1] ? 'Yes' : 'No') + '</b>.'], teach: 'Compare units by how many small units they hold.' }); },
+      function () { var w = R.int(rng, 2, 24); return I_bool('Is ' + w + ' ' + f[2] + ' more than ' + f[0] + '?', w * f[1] > f[1], { b: 0.6, explain: [f[0] + ' is ' + f[1] + ' ' + f[2] + '.', w + ' of them is ' + (w * f[1]) + ' ' + f[2] + '.', 'So the answer is <b>' + (w * f[1] > f[1] ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+      function () { var t = R.int(rng, 1, 3); return MC(rng, 'Which pair matches?', t + ' hours = ' + (t * 60) + ' minutes', [t + ' hours = ' + (t * 10) + ' minutes', t + ' hours = ' + (t * 100) + ' minutes'], { b: 0.7, explain: ['An hour is 60 minutes.', t + ' hours is ' + t + ' × 60 = ' + (t * 60) + '.', 'So the answer is <b>' + t + ' hours = ' + (t * 60) + ' minutes</b>.'], teach: 'Multiply by the size of the unit to convert.' }); },
+      function () { return I_num('A movie starts at 2:00 and lasts 2 hours. What hour does it end?', 4, { b: 0.8, explain: ['Add the hours: 2 + 2 = 4.', 'The movie ends at 4:00.', 'So the answer is <b>4</b>.'], teach: 'Elapsed hours add like ordinary numbers.' }); },
+      function () { return MC(rng, 'Which is the longest amount of time?', '1 day', ['1 hour', '1 minute', '30 minutes'], { b: 1.0, explain: ['Convert each to hours.', 'A day is 24 hours, longer than the rest.', 'So the answer is <b>1 day</b>.'], teach: 'Put every amount in the same unit before comparing.' }); }
+    ], lvl);
+  });
+  G('g2-number_of_days_in_each_month', function (rng, lvl) {
+    var M = [['January', 31], ['February', 28], ['March', 31], ['April', 30], ['May', 31], ['June', 30], ['July', 31], ['August', 31], ['September', 30], ['October', 31], ['November', 30], ['December', 31]];
+    var m = pick(rng, M), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    var teach = 'The months alternate 31 and 30 days, except February; the knuckles of your hand keep the pattern.';
+    var others = function (d) { return M.filter(function (q) { return q[1] !== d; }).map(function (q) { return q[0]; }); };
+    return six(rng, [
+      function () { return I_num('How many days are in ' + m[0] + '?', m[1], { b: lo, explain: ['Count the months on your knuckles.', m[0] + ' has ' + m[1] + ' days.', 'So the answer is <b>' + m[1] + '</b>.'], teach: teach }); },
+      function () { var same = M.filter(function (q) { return q[1] === m[1] && q[0] !== m[0]; }); if (!same.length) { return I_bool('Does ' + m[0] + ' have ' + m[1] + ' days?', true, { b: lo + 0.2, explain: [m[0] + ' has ' + m[1] + ' days.', 'It is the only month with that count.', 'So the answer is <b>Yes</b>.'], teach: teach }); } var partner = pick(rng, same); return MC(rng, 'Which month has the same number of days as ' + m[0] + '?', partner, M.filter(function (q) { return q[1] !== m[1]; }).map(function (q) { return q[0]; }).slice(0, 3), { b: lo + 0.2, explain: [m[0] + ' has ' + m[1] + ' days.', partner + ' also has ' + m[1] + ' days.', 'So the answer is <b>' + partner + '</b>.'], teach: teach }); },
+      function () { var claim = pick(rng, [28, 30, 31]); return I_bool('Does ' + m[0] + ' have ' + claim + ' days?', claim === m[1], { b: 0.3, explain: [m[0] + ' has ' + m[1] + ' days.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === m[1] ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+      function () { return MC(rng, 'Which month has 30 days?', pick(rng, M.filter(function (q) { return q[1] === 30; }))[0], others(30).slice(0, 3), { b: 0.4, explain: ['Check each month against 30 days.', 'The one with exactly 30 is the answer.', 'So the answer is <b>a 30-day month</b>.'], teach: teach }); },
+      function () { return MC(rng, 'Which month has 31 days?', pick(rng, M.filter(function (q) { return q[1] === 31; }))[0], others(31).slice(0, 3), { b: 0.5, explain: ['Check each month against 31 days.', 'The one with exactly 31 is the answer.', 'So the answer is <b>a 31-day month</b>.'], teach: teach }); },
+      function () { return I_bool('Does February have fewer days than every other month?', true, { b: 0.6, explain: ['February has 28 days.', 'Every other month has 30 or 31.', 'So the answer is <b>Yes</b>.'], teach: 'February is the odd month out.' }); },
+      function () { var t = pick(rng, M); return MC(rng, 'Which pair has the same number of days?', m[1] === t[1] ? m[0] + ' and ' + t[0] : 'June and September', [m[1] !== t[1] ? m[0] + ' and ' + t[0] : 'January and April', 'February and May'], { b: 0.8, explain: ['Count the days of each month named.', 'The pair with equal counts is the answer.', 'So the answer is <b>' + (m[1] === t[1] ? m[0] + ' and ' + t[0] : 'June and September') + '</b>.'], teach: teach }); },
+      function () { return I_num('How many days are in ' + m[0] + ' and ' + (M[(M.indexOf(m) + 1) % 12])[0] + ' together?', m[1] + M[(M.indexOf(m) + 1) % 12][1], { b: 1.0, explain: [m[0] + ' has ' + m[1] + ' days.', M[(M.indexOf(m) + 1) % 12][0] + ' has ' + M[(M.indexOf(m) + 1) % 12][1] + '.', 'Together ' + (m[1] + M[(M.indexOf(m) + 1) % 12][1]) + '.', 'So the answer is <b>' + (m[1] + M[(M.indexOf(m) + 1) % 12][1]) + '</b>.'], teach: 'Two months together is a simple addition of day counts.' }); }
+    ], lvl);
+  });
+
+  /* ================== P/Q/R. shapes, area, fraction names ================== */
+  G('g2-identify_pentagons', function (rng, lvl) {
+    var POLY = [['triangle', 3], ['quadrilateral', 4], ['pentagon', 5], ['hexagon', 6], ['octagon', 8]];
+    var p = pick(rng, POLY), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
+    var teach = 'A polygon is named by its number of sides: 5 sides is a pentagon, 6 is a hexagon.';
+    var nameBySides = function (k) { var q = POLY.filter(function (v) { return v[1] === k; })[0]; return q ? q[0] : 'polygon'; };
+    return six(rng, [
+      function () { return MC(rng, ct + ', which shape has exactly 5 sides?', 'pentagon', ['triangle', 'quadrilateral', 'hexagon'], { b: lo, explain: ['Count the sides named by each shape.', 'A five-sided polygon is a pentagon.', 'So the answer is <b>pentagon</b>.'], teach: teach }); },
+      function () { return I_num('How many sides does a pentagon have?', 5, { b: lo + 0.2, explain: ['Penta- means five.', 'So a pentagon has 5 sides.', 'So the answer is <b>5</b>.'], teach: teach }); },
+      function () { return MC(rng, 'Which shape has ' + p[1] + ' sides?', p[0], POLY.filter(function (q) { return q[1] !== p[1]; }).map(function (q) { return q[0]; }), { b: 0.3, explain: ['Match the number of sides to the name.', p[1] + ' sides is a ' + p[0] + '.', 'So the answer is <b>' + p[0] + '</b>.'], teach: teach }); },
+      function () { var claim = pick(rng, POLY)[0]; return I_bool('Is a shape with 5 sides called a ' + claim + '?', claim === 'pentagon', { b: 0.4, explain: ['A 5-sided polygon is a pentagon.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === 'pentagon' ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+      function () { return I_num('A garden is shaped like a pentagon and each side is 2 metres. What is the distance around it?', 10, { b: 0.6, explain: ['A pentagon has 5 equal sides here.', '5 × 2 = 10 metres around.', 'So the answer is <b>10</b>.'], teach: 'The distance around a polygon is the sum of its sides.' }); },
+      function () { return MC(rng, 'Which shape has MORE sides than a pentagon?', 'hexagon', ['quadrilateral', 'triangle', 'pentagon'], { b: 0.7, explain: ['A pentagon has 5 sides.', 'A hexagon has 6, which is more.', 'So the answer is <b>hexagon</b>.'], teach: 'Compare polygons by counting sides.' }); },
+      function () { return I_bool('Is a pentagon a polygon with straight sides and no gaps?', true, { b: 0.5, explain: ['A polygon is closed with straight sides.', 'A pentagon fits that rule.', 'So the answer is <b>Yes</b>.'], teach: 'A polygon is closed, flat, and made of straight sides.' }); },
+      function () { var k = R.int(rng, 3, 8); return MC(rng, 'A shape has ' + k + ' sides and ' + k + ' corners. What kind of polygon could it be?', nameBySides(k), ['circle', 'none of these'], { b: 1.0, explain: ['Sides and corners come in the same number.', k + ' sides matches a ' + nameBySides(k) + '.', 'So the answer is <b>' + nameBySides(k) + '</b>.'], teach: 'Every polygon has as many corners as sides.' }); }
+    ], lvl);
+  });
+  G('g2-area', function (rng, lvl) {
+    var r = R.int(rng, 2, 5), c = R.int(rng, 2, 5), a = r * c, lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
+    var vis = V.area(r, c, { label: 'a figure covered in ' + a + ' unit squares' });
+    var teach = 'Area is the number of unit squares that cover a figure with no gaps and no overlaps.';
+    var other = function (v) { return [v + 1, v - 1, v + r, v + 2].filter(function (x) { return x > 0 && x !== v; }); };
+    return six(rng, [
+      function () { return I_num(ct + ', how many unit squares cover this figure?', a, { visual: vis, b: lo, explain: ['Count the squares in each row: ' + c + '.', 'There are ' + r + ' rows.', r + ' × ' + c + ' = ' + a + '.', 'So the area is <b>' + a + '</b> square units.'], teach: teach }); },
+      function () { return MC(rng, 'What is the area of a figure with ' + r + ' rows of ' + c + ' squares?', String(a), other(a).map(String), { b: lo + 0.2, explain: ['Equal rows make multiplication work.', r + ' × ' + c + ' = ' + a + '.', 'So the answer is <b>' + a + '</b>.'], teach: teach }); },
+      function () { var claim = pick(rng, other(a)); return I_bool('Is the area of this figure ' + claim + ' square units?', claim === a, { visual: vis, b: 0.3, explain: ['Count the squares: ' + a + '.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === a ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+      function () { return I_num('A rectangle is ' + r + ' squares long and ' + c + ' squares wide. What is its area in square units?', a, { b: 0.4, explain: ['Multiply the two side lengths.', r + ' × ' + c + ' = ' + a + '.', 'So the answer is <b>' + a + '</b>.'], teach: 'Length times width counts the same squares.' }); },
+      function () { var b2 = R.int(rng, 2, 5), a2 = r * b2; return MC(rng, 'Which figure has the greater area: ' + r + '×' + c + ' or ' + r + '×' + b2 + '?', a >= a2 ? r + '×' + c : r + '×' + b2, [a >= a2 ? r + '×' + b2 : r + '×' + c, 'they are equal'], { b: 0.6, explain: ['Areas are ' + a + ' and ' + a2 + ' square units.', 'The greater number of squares wins.', 'So the answer is <b>' + (a >= a2 ? r + '×' + c : r + '×' + b2) + '</b>.'], teach: 'Compare areas by the number of squares, not by shape.' }); },
+      function () { return MC(rng, 'Which figure has an area of ' + a + ' square units?', r + ' rows of ' + c, [r + ' rows of ' + (c + 1), (r + 1) + ' rows of ' + c], { visual: vis, b: 0.7, explain: ['Multiply rows by the count in each row.', 'Only ' + r + ' × ' + c + ' gives ' + a + '.', 'So the answer is <b>' + r + ' rows of ' + c + '</b>.'], teach: teach }); },
+      function () { var p = 2 * (r + c); return MC(rng, 'For a ' + r + ' by ' + c + ' rectangle, which is bigger: its area or its perimeter (in units)?', 'perimeter (' + p + ')', ['area (' + a + ')', 'they are equal'], { visual: vis, b: 0.9, explain: ['Area is ' + a + ' square units.', 'Perimeter is ' + p + ' units around.', p + ' is the larger number.', 'So the answer is <b>perimeter (' + p + ')</b>.'], teach: 'Area counts squares inside; perimeter measures the boundary.' }); },
+      function () { var n = R.int(rng, 6, 12); return I_num('A figure is made of ' + n + ' unit squares. What is its area in square units?', n, { b: 1.0, explain: ['Each square contributes 1 square unit.', n + ' squares give ' + n + ' square units.', 'So the answer is <b>' + n + '</b>.'], teach: 'Any figure made of unit squares has an area equal to their count.' }); }
+    ], lvl);
+  });
+  function fractionNames(ds) {
+    return function (rng, lvl) {
+      var d = pick(rng, ds), n = R.int(rng, 1, d), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+      var nm = d === 2 ? 'half' : d === 3 ? 'third' : d === 4 ? 'fourth' : 'eighth';
+      var plural = d === 2 ? 'halves' : d === 3 ? 'thirds' : d === 4 ? 'fourths' : 'eighths';
+      var shp = pick(rng, ['chocolate bar', 'pizza', 'sandwich', 'strip of paper']);
+      var vis = V.frac({ n: n, d: d, label: n + ' of ' + d + ' ' + plural });
+      var teach = 'A ' + nm + ' is one of ' + d + ' EQUAL parts; unequal pieces are not fractions.';
+      var wrongDs = ds.filter(function (q) { return q !== d; });
+      return six(rng, [
+        function () { return MC(rng, 'Which picture shows ' + (d === 2 ? 'a half' : 'a ' + nm) + ' of a ' + shp + '?', d + ' equal parts with ' + n + ' shaded', wrongDs.map(function (q) { return q + ' equal parts with ' + Math.min(n, q) + ' shaded'; }).concat([d + ' parts of different sizes with ' + n + ' shaded']), { visual: vis, b: lo, explain: ['Look for ' + d + ' parts that are all the same size.', n + ' of them shaded is ' + n + '/' + d + '.', 'So the answer is <b>' + d + ' equal parts with ' + n + ' shaded</b>.'], teach: teach }); },
+        function () { return I_num('How many equal parts is the ' + shp + ' cut into?', d, { visual: vis, b: lo + 0.2, explain: ['Count all the parts.', 'There are ' + d + ', so each one is a ' + nm + '.', 'So the answer is <b>' + d + '</b>.'], teach: teach }); },
+        function () { return I_bool('Is each part of this ' + shp + ' a ' + nm + '?', true, { visual: vis, b: 0.2, explain: ['The parts are equal in size.', 'There are ' + d + ' of them.', 'So the answer is <b>Yes</b>.'], teach: teach }); },
+        function () { return MC(rng, 'What fraction of the ' + shp + ' is shaded?', n + '/' + d, wrongDs.map(function (q) { return Math.min(n, q) + '/' + q; }).concat([d + '/' + n]), { visual: vis, b: 0.4, explain: ['The bottom number counts the equal parts: ' + d + '.', 'The top number counts the shaded ones: ' + n + '.', 'So the answer is <b>' + n + '/' + d + '</b>.'], teach: 'Read a fraction as shaded parts out of equal parts.' }); },
+        function () { var claim = pick(rng, [2, 3, 4, 8]); return I_bool('Are these ' + (claim === d ? plural : nm + 's') + '?', claim === d, { visual: vis, b: 0.5, explain: ['Count the equal parts: ' + d + '.', 'That names them ' + plural + '.', 'So the answer is <b>' + (claim === d ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+        function () { return MC(rng, 'Which one is NOT a fraction of a ' + shp + '?', 'two pieces of different sizes', ['two equal halves', 'four equal fourths'], { b: 0.6, explain: ['Fractions need equal parts.', 'Unequal pieces cannot be halves.', 'So the answer is <b>two pieces of different sizes</b>.'], teach: 'Equal parts are the whole idea behind fractions.' }); },
+        function () { var more = R.int(rng, 1, d); return I_num('How many ' + plural + ' make one whole ' + shp + '?', d, { visual: V.frac({ n: d, d: d, label: 'a whole ' + shp }), b: 0.8, explain: ['Count the parts in the whole.', d + ' ' + plural + ' make one whole.', 'So the answer is <b>' + d + '</b>.'], teach: 'The parts of a whole always add up to one.' }); },
+        function () { return MC(rng, 'Which two fractions name the same amount of this ' + shp + '?', n + '/' + d + ' and ' + n + '/' + d, [n + '/' + d + ' and ' + d + '/' + n, '1/' + d + ' and ' + d + '/1'], { visual: vis, b: 1.0, explain: ['The same picture gives the same fraction.', 'Only the pair written the same way matches.', 'So the answer is <b>' + n + '/' + d + ' and ' + n + '/' + d + '</b>.'], teach: 'A fraction names the picture, not the order of the digits.' }); }
+      ], lvl);
+    };
+  }
+  G('g2-identify_a_half_a_third_and_a_fourth', fractionNames([2, 3, 4]));
+  G('g2-identify_a_half_a_fourth_and_an_eighth', fractionNames([2, 4, 8]));
 })();
 
 </script>
@@ -15092,8 +15369,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
  * 99-gen-arch.js — THE ARCHETYPE MAP. GENERATED by tools/archetypes.js — do not edit.
  *   source   data/skill-families.json   (node tools/map.js rebuilds it)
  *   rebuild  node tools/archetypes.js
- *   46 families classified, 25 implemented so far:
- *   addFacts, addSubMixed, clockTime, compareAttribute, compareNumbers, countNumberLine, countSet, countTenFrame, financialLit, fractions, geometryShapes, missingNumber, money, numberRecognition, oneMoreLess, patterns, placeValue, position, sentenceSense, showNumber, sortClassify, statistics, subFacts, unitsMeasure, wordProblem
+ *   46 families classified, 26 implemented so far:
+ *   addFacts, addSubMixed, clockTime, compareAttribute, compareNumbers, countNumberLine, countSet, countTenFrame, financialLit, fractions, geometryShapes, missingNumber, money, numberRecognition, oneMoreLess, patterns, placeValue, position, rounding, sentenceSense, showNumber, sortClassify, statistics, subFacts, unitsMeasure, wordProblem
  *
  * Family implementations live in src/9x-gen-fam-*.js and call
  *   ARCH('<family>', function (rng, lvl, p) { return I_num(...) }, ['K', 'G1'])
