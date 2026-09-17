@@ -202,6 +202,12 @@ input.fld.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--a
 .band-h .t { font-weight: 700; font-size: 14px; }
 .diagbar { height: 7px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 10px 0; }
 .diagbar i { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
+/* the level counter: one dot per answer right in a row, ten clears the level */
+.lvline { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 7px 0 2px; }
+.lvline .dots { display: inline-flex; gap: 4px; }
+.lvline .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+.lvline .dots i.on { background: var(--good); }
+.lvline .tiny { line-height: 1.25; }
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
   background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 600; padding: 10px 16px;
@@ -6304,13 +6310,53 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function prob(theta, b) { return 1 / (1 + Math.exp(-(theta - b) / W)); }
   function now() { return Date.now(); }
 
+  /* --------------------------------------------------- level geometry -----
+     The catalogue lays every level out on its own 8-unit slice of the scale
+     (Pre-K 0..7.4, Kindergarten 8..15.4, …), so a level has a floor, a ceiling
+     and a middle. θ is kept inside the level the learner is actually on: the
+     level machine — not a drifting ability estimate — decides where they are. */
+  var GEO = null;
+  function geom() {
+    if (!GEO) {
+      GEO = {};
+      var L = root.SKILLS || [];
+      for (var i = 0; i < L.length; i++) {
+        var g = GEO[L[i].band];
+        if (!g) g = GEO[L[i].band] = { lo: L[i].b, hi: L[i].b };
+        if (L[i].b < g.lo) g.lo = L[i].b;
+        if (L[i].b > g.hi) g.hi = L[i].b;
+      }
+    }
+    return GEO;
+  }
+  function bandRange(b) { return geom()[b] || { lo: bandIdx(b) * 8, hi: bandIdx(b) * 8 + 8 }; }
+  function bandMid(b) { var g = bandRange(b); return (g.lo + g.hi) / 2; }
+  /* the level the learner is standing on right now */
+  function activeBand(st) {
+    if (st.diag && !st.diag.done && st.diag.band) return st.diag.band;
+    if (st.climb && st.climb.band) return st.climb.band;
+    if (st.diag && st.diag.done) return st.diag.level || st.diag.band || null;
+    return null;
+  }
+  /* keep θ inside the level it is describing, so the band shown in the header
+     and the Report can never disagree with the level the learner is on */
+  function anchorTheta(st) {
+    var b = activeBand(st); if (!b) return st.theta;
+    var g = bandRange(b), pad = 1.5;
+    st.theta = clamp(st.theta, g.lo - pad, g.hi + pad);
+    return st.theta;
+  }
+  function anchorLevel(st, b) { st.theta = bandMid(b); return st.theta; }
+
   /* ------------------------------------------------------------- state ---- */
   function blankState() {
     return {
-      v: 1, created: now(), theta: 42, thetaSeen: 0,
+      v: 1, created: now(), theta: 0, thetaSeen: 0,     /* 0 = the very first rung: Pre-K */
       sk: {},                          // id -> {m,a,c,s,lvl,b,last,due}
-      diag: null,                      // {phase, lo, hi, cur, asked, results, done}
+      diag: null,                      // {phase, band, asked, results, done}
+      climb: null,                     // {band, streak, wrong, …} the learner's level
       sess: { asked: 0, correct: 0, streak: 0, best: 0, started: 0, mode: 'study' },
+      bestEver: 0,
       log: [],
       settings: { autoNext: true, hints: true, reviewShare: 0.22, sound: false },
       lastPlan: null
@@ -6337,6 +6383,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var p = prob(st.theta, item.b);
     var first = s.a < 3, lr = first ? 0.36 : 0.20;
     st.theta = clamp(st.theta + K_THETA * ((ok ? 1 : 0) - p), -10, 125);
+    anchorTheta(st);
     st.thetaSeen++;
     s.m = clamp(s.m + lr * ((ok ? 1 : 0) - s.m), 0, 1);
     s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.seen++;
@@ -6351,6 +6398,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     st.sess.asked++; st.sess.correct += ok ? 1 : 0;
     st.sess.streak = ok ? st.sess.streak + 1 : 0;
     st.sess.best = Math.max(st.sess.best, st.sess.streak);
+    st.bestEver = Math.max(st.bestEver || 0, st.sess.streak);
     st.log.push({ t: now(), id: item.skill, ok: ok ? 1 : 0, b: +item.b.toFixed(1), p: +p.toFixed(2), lvl: s.lvl });
     if (st.log.length > 4000) st.log = st.log.slice(-3000);
     return { p: p, status: statusOf(s), mastery: s.m };
@@ -6462,24 +6510,52 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return out;
   }
 
+  /* ------------------------------------------------- progress per level ----
+     One pass over the ladder produces every number the Plan and the Report
+     print, so the two views can never disagree. The denominator is the whole
+     point: a level holds hundreds of skills and a learner touches a handful of
+     them, so "mastered ÷ every skill that exists" is a flat 0% forever. Rates
+     are taken over what the learner has really tried, and the counts next to
+     them say how much of the level that is. */
+  function bandStats(st) {
+    var L = root.SKILLS, per = {};
+    BANDS.forEach(function (b) { per[b] = { n: 0, has: 0, att: 0, a: 0, c: 0, mast: 0, gap: 0, msum: 0 }; });
+    var tot = { a: 0, c: 0, att: 0, mast: 0 };
+    L.forEach(function (sk) {
+      var g = per[sk.band]; if (!g) return;
+      g.n++;
+      if (root.SKILL_GEN && root.SKILL_GEN[sk.id]) g.has++;
+      var s = st.sk[sk.id]; if (!s || !s.a) return;
+      g.att++; g.a += s.a; g.c += s.c; g.msum += s.m;
+      var stt = statusOf(s);
+      if (stt === 'mastered') { g.mast++; tot.mast++; }
+      if (stt === 'gap') g.gap++;
+      tot.att++; tot.a += s.a; tot.c += s.c;
+    });
+    BANDS.forEach(function (b) {
+      var g = per[b];
+      g.acc = g.a ? g.c / g.a : 0;             // answers right in this level
+      g.avg = g.att ? g.msum / g.att : 0;      // average mastery of what was tried
+      g.rate = g.att ? g.mast / g.att : 0;     // of the skills tried, how many are mastered
+      g.cov = g.n ? g.att / g.n : 0;           // how much of the level has been tried
+    });
+    tot.acc = tot.a ? tot.c / tot.a : 0;
+    tot.rate = tot.att ? tot.mast / tot.att : 0;
+    tot.skills = L.length;
+    tot.levels = BANDS.length;
+    return { per: per, tot: tot };
+  }
+
   /* ---------------------------------------------------- placement model ---- */
   function placement(st) {
-    var L = root.SKILLS;
-    var byBand = {}, order = [];
-    BANDS.forEach(function (b) { byBand[b] = { n: 0, att: 0, msum: 0, mast: 0, gap: 0 }; });
-    L.forEach(function (sk) {
-      var g = byBand[sk.band]; if (!g) return;
-      g.n++;
-      var s = st.sk[sk.id];
-      if (s && s.a > 0) { g.att++; g.msum += s.m; var stt = statusOf(s); if (stt === 'mastered') g.mast++; if (stt === 'gap') g.gap++; }
-    });
+    var L = root.SKILLS, bs = bandStats(st), byBand = bs.per, tot = bs.tot;
     var topBand = null, ready = [];
     BANDS.forEach(function (b) {
       var g = byBand[b]; if (!g.n) return;
-      var rate = g.att ? g.mast / g.n : 0;
-      var avg = g.att ? g.msum / g.att : 0;
-      g.rate = rate; g.avg = avg;
-      g.verdict = !g.att ? 'unexposed' : (rate >= 0.7 ? 'ready' : (rate >= 0.35 || avg >= 0.62 ? 'approaching' : (avg >= 0.4 ? 'early' : 'not yet')));
+      g.verdict = !g.att ? 'unexposed'
+        : (g.rate >= 0.7 && g.att >= 5) ? 'ready'
+          : (g.rate >= 0.35 || g.avg >= 0.62) ? 'approaching'
+            : (g.avg >= 0.4 ? 'early' : 'not yet');
       if (g.verdict === 'ready') topBand = b;
       if (g.verdict === 'approaching' || g.verdict === 'early') ready.push(b);
     });
@@ -6488,15 +6564,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var gaps = Object.keys(st.sk).filter(function (id) { return statusOf(st.sk[id]) === 'gap'; })
       .map(function (id) { return root.SKILL_BY_ID[id]; }).sort(function (a, b) { return a.b - b.b; });
     var plan = buildPlan(st, fi);
-    var bandOfTheta = BANDS[0], best = 1e9;
-    L.forEach(function (sk) { var d = Math.abs(sk.b - st.theta); if (d < best) { best = d; bandOfTheta = sk.band; } });
-    var readyPct = 0, tot = 0;
-    BANDS.forEach(function (b) { var g = byBand[b]; if (g.n) { readyPct += g.mast; tot += g.n; } });
+    /* the level the learner is standing on is the answer to "where are they";
+       θ only fills in a level for a state that has never been placed */
+    var band = activeBand(st), best = 1e9;
+    if (!band || BANDS.indexOf(band) < 0) {
+      band = BANDS[0];
+      L.forEach(function (sk) { var d = Math.abs(sk.b - st.theta); if (d < best) { best = d; band = sk.band; } });
+    }
     return {
-      theta: st.theta, band: bandOfTheta, bandLabel: BAND_LABEL[bandOfTheta],
+      theta: st.theta, band: band, bandLabel: BAND_LABEL[band], bandIndex: bandIdx(band) + 1,
+      level: band, levelLabel: BAND_LABEL[band], levels: BANDS.length,
       frontier: frontier, frontierStatus: statusOf(st.sk[frontier.id]),
-      gaps: gaps, plan: plan, byBand: byBand, bands: BANDS, topReady: topBand,
-      approaching: ready, coverage: attempted(st) / L.length, readyPct: tot ? readyPct / tot : 0,
+      gaps: gaps, plan: plan, byBand: byBand, bands: BANDS, topReady: topBand, totals: tot,
+      approaching: ready, coverage: attempted(st) / L.length, readyPct: tot.rate,
       attempted: attempted(st), total: L.length
     };
   }
@@ -6515,16 +6595,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return out;
   }
 
-  /* ------------------------------------------------------------ CLIMB mode --
-     One question at a time, one level at a time, the whole ladder in front of
-     you. The owner's rules, exactly:
-       · 10 correct IN A ROW clears the level and moves you up one;
+  /* ------------------------------------------------------------- ONE RULE --
+     Practice and the placement probe run the same level machine, so they can
+     never disagree about where the learner is:
+       · 10 right IN A ROW clears the level and moves you up one — and only from
+         then on does the next level's question bank start being served;
        · a wrong answer keeps you on the level and asks a similar question;
        · 3 wrong IN A ROW drops you one level;
-       · every skill in the level gets asked before any is repeated, so a level
-         really is a survey of the level, not one skill ten times.
-     The level starts where the placement probe put you — and at Kindergarten
-     when no probe has been run. */
+       · every skill in the level is asked before any is repeated, so a level is
+         a survey of the level, not one skill ten times.
+     A learner who has never been placed starts on the first rung: Pre-K. */
   var CLIMB_NEED = 10;                      // consecutive correct to clear a level
   var CLIMB_DROP = 3;                       // consecutive wrong to drop a level
 
@@ -6535,6 +6615,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var C = st.climb; if (!C) C = st.climb = climbBlank();
     if (!C.cover) C.cover = {};
     if (!C.hist) C.hist = [];
+    /* a climb that was never opened still has to stand on a level, and it is
+       the first rung — never whatever the search below happens to find first */
+    if (!C.band || BANDS.indexOf(C.band) < 0) C.band = climbHomeBand(st);
     return C;
   }
   function bandIdx(b) { var i = BANDS.indexOf(b); return i < 0 ? 0 : i; }
@@ -6552,27 +6635,55 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     return null;
   }
-  /* the placement decides where the climb begins; no probe yet -> Kindergarten */
+  /* Where the climb begins: the level the last probe reached, and Pre-K — the
+     first rung of the ladder — for anyone who has never been placed. */
   function climbHomeBand(st) {
-    if (!st.diag || !st.diag.done) return 'K';
-    var b = placement(st).band;
-    return BANDS.indexOf(b) >= 0 ? b : 'K';
+    if (st.diag && st.diag.done) {
+      var lb = st.diag.level || st.diag.band;
+      if (lb && BANDS.indexOf(lb) >= 0) return lb;
+      var pb = placement(st).band;
+      if (pb && BANDS.indexOf(pb) >= 0) return pb;
+    }
+    return BANDS[0];
   }
   function climbStart(st, fromBand) {
     var C = climbState(st);
     var b = fromBand || climbHomeBand(st);
-    if (BANDS.indexOf(b) < 0) b = 'K';
+    if (BANDS.indexOf(b) < 0) b = BANDS[0];
     C.band = b; C.streak = 0; C.wrong = 0; C.asked = 0; C.correct = 0; C.best = 0;
     C.cover = {}; C.pin = null; C.done = false; C.started = now(); C.runs = (C.runs || 0) + 1;
+    anchorTheta(st);                                  /* θ opens on the learner's level */
     return C;
   }
-  function climbPick(st, C, rng) {
-    var b = climbLevelWithItems(C.band); if (!b) return null;
-    var list = bandSkills(b);
-    if (C.pin) {                                   // just missed one: same skill again
-      for (var i = 0; i < list.length; i++) if (list[i].id === C.pin) return list[i];
+  /* the level machine: move a {band, streak, wrong, cover} record one answer on
+     and say what moved. Practice and the probe both go through this one place. */
+  function levelMove(LV, ok) {
+    if (ok) {
+      LV.streak = (LV.streak || 0) + 1; LV.wrong = 0;
+      LV.best = Math.max(LV.best || 0, LV.streak);
+      if (LV.streak < CLIMB_NEED) return null;
+      LV.streak = 0; LV.cover = {};
+      var i = bandIdx(LV.band);
+      if (i >= BANDS.length - 1) return 'top';
+      LV.band = BANDS[i + 1];
+      return 'up';
     }
-    var cov = C.cover[b] || (C.cover[b] = {});
+    LV.streak = 0;
+    LV.wrong = (LV.wrong || 0) + 1;
+    if (LV.wrong < CLIMB_DROP) return null;
+    LV.wrong = 0;
+    var j = bandIdx(LV.band);
+    if (j <= 0) return null;                          /* Pre-K is the first rung: stay on it */
+    LV.band = BANDS[j - 1]; LV.cover = {};
+    return 'down';
+  }
+  /* the next skill of a level: the one just missed, else the least-asked one */
+  function levelPick(LV, b, rng) {
+    var list = bandSkills(b); if (!list.length) return null;
+    if (LV.pin) {                                   // just missed one: same skill again
+      for (var i = 0; i < list.length; i++) if (list[i].id === LV.pin) return list[i];
+    }
+    var cov = LV.cover[b] || (LV.cover[b] = {});
     var best = [], low = Infinity;
     for (var k = 0; k < list.length; k++) {
       var n = cov[list[k].id] || 0;
@@ -6581,214 +6692,128 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     return best.length ? best[Math.floor(rng() * best.length)] : list[0];
   }
+  /* one card from the level the learner is standing on, or null when nothing is
+     written for it anywhere on the ladder */
+  function levelCard(st, LV, rng) {
+    var b = climbLevelWithItems(LV.band); if (!b) return null;
+    for (var pick = 0; pick < 12; pick++) {
+      var sk = levelPick(LV, b, rng); if (!sk) return null;
+      var cov = LV.cover[b] || (LV.cover[b] = {});
+      cov[sk.id] = (cov[sk.id] || 0) + 1;
+      var lvl = clamp(3 + (LV.streak >= 5 ? 1 : 0) - (LV.wrong > 0 ? 1 : 0), 1, 5);
+      var item = null, tries = 0;
+      while (!item && tries++ < 8) { try { item = root.genFor(sk.id, rng, lvl); } catch (e) { item = null; } }
+      if (!item) { cov[sk.id] = Math.max(0, (cov[sk.id] || 0) - 1); continue; }
+      item.lvl = lvl;
+      item.levelInfo = {
+        band: LV.band, label: BAND_LABEL[LV.band] || LV.band, level: bandIdx(LV.band) + 1, of: BANDS.length,
+        streak: LV.streak, need: CLIMB_NEED, wrong: LV.wrong, drop: CLIMB_DROP,
+        covered: Object.keys(cov).length, inLevel: bandSkills(b).length
+      };
+      return item;
+    }
+    return null;
+  }
   function climbNext(st, rng) {
     var C = climbState(st);
     if (C.done) return null;
-    var sk = climbPick(st, C, rng); if (!sk) return null;
-    var b = climbLevelWithItems(C.band);
-    var cov = C.cover[b] || (C.cover[b] = {});
-    cov[sk.id] = (cov[sk.id] || 0) + 1;
-    var lvl = clamp(3 + (C.streak >= 5 ? 1 : 0) - (C.wrong > 0 ? 1 : 0), 1, 5);
-    var item = null, tries = 0;
-    while (!item && tries++ < 8) { try { item = root.genFor(sk.id, rng, lvl); } catch (e) { item = null; } }
+    var item = levelCard(st, C, rng);
     if (!item) return null;
-    item.lvl = lvl;
-    item.climb = {
-      band: C.band, label: BAND_LABEL[C.band] || C.band, level: bandIdx(C.band) + 1, of: BANDS.length,
-      streak: C.streak, need: CLIMB_NEED, wrong: C.wrong, drop: CLIMB_DROP,
-      covered: Object.keys(cov).length, inLevel: bandSkills(b).length
-    };
+    item.climb = item.levelInfo;
     return item;
   }
   function climbAnswer(st, item, ok, rng) {
     var C = climbState(st);
     var r = record(st, item, ok, rng);            // θ, mastery and the log stay live
     C.asked++;
-    var moved = null;
-    if (ok) {
-      C.correct++; C.streak++; C.wrong = 0; C.pin = null;
-      C.best = Math.max(C.best || 0, C.streak);
-      if (C.streak >= CLIMB_NEED) {
-        var i = bandIdx(C.band);
-        if (i < BANDS.length - 1) { C.band = BANDS[i + 1]; C.cover = {}; moved = 'up'; }
-        else { C.done = true; moved = 'top'; }
-        C.streak = 0;
-      }
-    } else {
-      C.wrong++; C.streak = 0;
-      C.pin = item.skill;                          // the next card is a similar one
-      if (C.wrong >= CLIMB_DROP) {
-        var j = bandIdx(C.band);
-        if (j > 0) { C.band = BANDS[j - 1]; C.cover = {}; moved = 'down'; }
-        C.wrong = 0;
-      }
-    }
+    if (ok) C.correct++;
+    else C.pin = item.skill;                      // the next card is a similar one
+    var moved = levelMove(C, ok);
+    if (moved === 'top') C.done = true;
+    if (moved) anchorLevel(st, C.band);           // θ walks onto the new level with them
     C.hist.push({ t: now(), band: C.band, ok: ok ? 1 : 0 });
     if (C.hist.length > 600) C.hist = C.hist.slice(-400);
     r.moved = moved; r.band = C.band; r.label = BAND_LABEL[C.band] || C.band;
     r.streak = C.streak; r.need = CLIMB_NEED; r.wrong = C.wrong; r.drop = CLIMB_DROP;
+    r.level = C.band; r.levelLabel = BAND_LABEL[C.band] || C.band;
     r.done = !!C.done;
     return r;
   }
 
   /* ---------------------------------------------------------- diagnostic --- */
-  /* Adaptive: probe a skill with 3 items; move up/down by halves, then refine
-     around the boundary. Ends with a readiness verdict.
+  /* The placement probe is the same level machine wearing a different hat. It
+     opens on the level the learner is already on — Pre-K for anyone who has
+     never been placed, never mid-ladder — and it asks that level's questions.
+     Ten right IN A ROW and the probe moves up a level and starts asking the
+     next level's questions; a wrong answer keeps it on the level; three wrong in
+     a row drops it one. Where the probe ends is where practice starts.
      Two invariants the UI depends on:
        · every question served is a probe question, and
        · the probe asks exactly `limit` questions — it never stops early while it
-         still has skills to probe. A probe that quits at 23 of 26 leaves the
-         learner staring at a counter that stopped moving.
-     The bisection runs over the skills that actually HAVE items. Most of the
-     ladder has no content yet, and probing an empty skill used to ask for an
-     item, get none, and re-enter diagNext — which re-picked the same empty
-     skill. The probe never finished and the learner never got a question. */
+         still has a level it can ask. A probe that quits at 23 of 30 leaves the
+         learner staring at a counter that stopped moving. */
   var DIAG_LIMIT = 30;                 // questions the learner is promised
-  var PER_SKILL = 3;                   // items per probed skill; 2 of 3 = passed it
+  var PER_SKILL = 3;                   // items of one skill before it is re-asked
 
-  function probePool() {
-    var L = root.SKILLS, pool = [];
-    for (var i = 0; i < L.length; i++) if (playable(L[i].id)) pool.push(i);
-    return pool;
-  }
-  function diagPool(D) {
-    if (!D.pool || !D.pool.length) D.pool = probePool();
-    return D.pool;
-  }
-  function isDead(D, i) { return !!(D.dead && D.dead[i]); }
-  /* Bisection pick: midpoint of the live range, nudged to the nearest position
-     whose generator really produced an item. */
-  function searchPick(D, pool) {
-    var mid = clamp(Math.floor((D.lo + D.hi) / 2), 0, pool.length - 1);
-    if (!isDead(D, mid)) return mid;
-    for (var d = 1; d < pool.length; d++) {
-      if (mid + d <= D.hi && mid + d < pool.length && !isDead(D, mid + d)) return mid + d;
-      if (mid - d >= D.lo && mid - d >= 0 && !isDead(D, mid - d)) return mid - d;
-    }
-    return mid;
-  }
-  /* Refine pick: the playable skill nearest the mastery cliff that has NOT been
-     probed yet. Re-asking the boundary skill is not information — the old
-     ping-pong probed one skill four times and left budget unused — so un-probed
-     positions are ranked first and, among them, the nearest to the cliff. */
-  function refinePick(D, pool) {
-    var bp = (D.lo + D.hi) / 2, best = -1, bestScore = Infinity;
-    for (var i = 0; i < pool.length; i++) {
-      if (isDead(D, i)) continue;
-      var score = Math.abs(i - bp) + (D.seenSkill[i] || 0) * 1000;
-      if (score < bestScore) { bestScore = score; best = i; }
-    }
-    return best < 0 ? clamp(Math.round(bp), 0, pool.length - 1) : best;
-  }
-  /* Where a RE-TEST opens. The first question of a second probe is asked at the
-     level the last probe found — a learner who placed into Grade 7 is not asked
-     a Kindergarten question to "warm up", and the bisection then brackets the
-     new cliff from there. A learner who has never been probed starts mid-ladder,
-     which is what a bisection wants. */
-  function diagSeedIndex(st, pool) {
-    if (!pool.length) return 0;
-    if (!st.diag || !st.diag.done || !st.thetaSeen) return Math.floor(pool.length / 2);
-    var best = 0, bd = Infinity;
-    for (var i = 0; i < pool.length; i++) {
-      var d = Math.abs(root.SKILLS[pool[i]].b - st.theta);
-      if (d < bd) { bd = d; best = i; }
-    }
-    return best;
-  }
   function diagStart(st) {
-    var pool = probePool();
     var prev = st.diag && st.diag.done ? { theta: st.theta, asked: st.diag.asked || 0, at: Date.now() } : null;
-    var seed = diagSeedIndex(st, pool);
+    var from = prev ? (st.diag.level || st.diag.band || null) : null;
+    var b = climbHomeBand(st);                       /* Pre-K until a probe says otherwise */
+    if (BANDS.indexOf(b) < 0) b = BANDS[0];
     st.diag = {
-      phase: 'search', lo: 0, hi: pool.length - 1, cur: seed, pool: pool,
-      asked: 0, limit: DIAG_LIMIT, results: [], skill: null, inSkill: 0, okInSkill: 0,
-      seenSkill: {}, dead: {}, info: 0, se: 99, done: false, hist: [],
-      seed: seed, seeded: false, from: prev,
-      fromBand: prev ? (placement(st).band || null) : null
+      phase: 'probe', band: b, level: b, streak: 0, wrong: 0, best: 0, cover: {}, pin: null,
+      asked: 0, correct: 0, limit: DIAG_LIMIT, results: [], hist: [], done: false,
+      from: prev, fromBand: from
     };
+    anchorLevel(st, b);                              /* θ starts on the level being probed */
     return diagNext(st);
   }
   function diagNext(st) {
-    var D = st.diag, L = root.SKILLS;
+    var D = st.diag;
     if (!D || D.done) return null;
-    var pool = diagPool(D);
-    if (!pool.length) { diagFinish(st); return null; }        // nothing written yet — end honestly
     if (D.asked >= D.limit) { diagFinish(st); return null; }
-    /* bounded loop, never recursion: if a probe position yields no item we mark
-       that position dead and carry on with the next one */
-    for (var step = 0; step <= pool.length + 2; step++) {
-      if (!D.skill || D.inSkill >= PER_SKILL) {
-        var cand;
-        if (D.phase === 'search' && !D.seeded && D.seed != null && D.asked === 0) {
-          D.seeded = true;                        // re-test: open at the last placement
-          cand = clamp(D.seed, 0, pool.length - 1);
-        } else cand = D.phase === 'search' ? searchPick(D, pool) : refinePick(D, pool);
-        if (D.phase === 'search' && D.seenSkill[cand]) {
-          /* the bisection has closed in: both neighbours are probed, refine */
-          D.phase = 'refine';
-          cand = refinePick(D, pool);
-        }
-        D.cur = cand;
-        if ((D.seenSkill[D.cur] || 0) > pool.length) break;   // exhausted the ladder
-        D.seenSkill[D.cur] = (D.seenSkill[D.cur] || 0) + 1;
-        D.skill = L[pool[D.cur]].id; D.inSkill = 0; D.okInSkill = 0;
-      }
-      S(st, D.skill);
-      var lvl = 3, item = null, tries = 0;
-      while (!item && tries++ < 6) { try { item = root.genFor(D.skill, root.__rng || Math.random, lvl); } catch (e) { item = null; } }
-      if (item) {
-        item.diag = { idx: pool[D.cur], n: D.inSkill + 1 };
-        return item;
-      }
-      /* a position the pool claimed was playable but that yields nothing: drop it
-         from the probe without letting it move lo/hi and bend the bisection */
-      if (!D.dead) D.dead = {};
-      D.dead[D.cur] = 1;
-      D.skill = null; D.inSkill = 0;
-    }
-    diagFinish(st);
-    return null;
+    var item = levelCard(st, D, root.__rng || Math.random);
+    if (!item) { diagFinish(st); return null; }      // nothing written anywhere left to ask
+    item.diag = { n: D.asked + 1, of: D.limit, level: D.band, label: BAND_LABEL[D.band] || D.band };
+    D.skill = item.skill;
+    return item;
   }
   function diagAnswer(st, item, ok) {
     var D = st.diag;
     if (!D || D.done) return null;
     var p = prob(st.theta, item.b);
     st.theta = clamp(st.theta + K_THETA * ((ok ? 1 : 0) - p), -10, 125);
-    D.info += (ok ? Math.log(Math.max(p, 1e-6)) : Math.log(Math.max(1 - p, 1e-6)));
-    D.se = 1 / Math.sqrt(Math.max(0.15, -D.info / (W * W) * 0.6));
+    anchorTheta(st);
     var s = S(st, item.skill);
     s.m = clamp(s.m + 0.34 * ((ok ? 1 : 0) - s.m), 0, 1);
     s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.b = s.b == null ? item.b : s.b + 0.35 * (item.b - s.b);
     s.last = now();
-    D.asked++; D.inSkill++; D.okInSkill += ok ? 1 : 0;
-    D.results.push({ idx: item.diag ? item.diag.idx : D.cur, id: item.skill, ok: ok ? 1 : 0 });
-    if (D.inSkill >= PER_SKILL) {
-      var pass = D.okInSkill >= 2;
-      D.hist.push({ idx: D.cur, id: D.skill, pass: pass, ok: D.okInSkill });
-      if (D.phase === 'search') {
-        if (pass) D.lo = D.cur + 1; else D.hi = D.cur - 1;
-        /* cliff bracketed: the rest of the budget refines around it */
-        if (D.lo > D.hi) D.phase = 'refine';
-      }
-      D.skill = null;
-    }
-    if (D.asked >= D.limit) diagFinish(st);
+    D.asked++; D.correct += ok ? 1 : 0;
+    D.pin = ok ? null : item.skill;                  // a miss is answered with a similar card
+    D.results.push({ id: item.skill, band: D.band, ok: ok ? 1 : 0 });
+    var moved = levelMove(D, ok);
+    if (moved) anchorLevel(st, D.band);
+    D.hist.push({ t: now(), band: D.band, ok: ok ? 1 : 0, moved: moved || null });
+    if (moved === 'top' || D.asked >= D.limit) diagFinish(st);
     return D.done ? placement(st) : null;
   }
   function diagFinish(st) {
-    st.diag.done = true;
-    st.diag.phase = 'done';
+    var D = st.diag;
+    D.done = true; D.phase = 'done';
+    D.level = D.band;                                /* the level the probe reached ... */
+    climbStart(st, D.level);                         /* ... is the level practice starts on */
     return placement(st);
   }
 
   /* ------------------------------------------------------------- storage --- */
   var KEY = 'mathpath.v1';
+  var VISIT_MS = 2 * 3600 * 1000;      // two hours away ends a session
   function save(st) { try { localStorage.setItem(KEY, JSON.stringify(serialize(st))); } catch (e) { } return st; }
   function serialize(st) {
-    return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created };
+    return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created };
   }
   function load() {
-    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, sess: { asked: 0, correct: 0, streak: 0, best: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true } };
+    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true } };
     try {
       var raw = localStorage.getItem(KEY); if (!raw) return base;
       var o = JSON.parse(raw);
@@ -6798,6 +6823,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return base;
     } catch (e) { return base; }
   }
+  /* "This session" has to mean this sitting. Counters used to be kept forever,
+     so a learner who answered 300 items over three weeks was still told their
+     session accuracy was the average of all three. A visit ends after two hours
+     away; the all-time numbers are rebuilt from the per-skill counters, which
+     are exact and never trimmed. */
+  function openVisit(st) {
+    if (!st.sess) st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: 0 };
+    var started = st.sess.started || 0;
+    if (!started || now() - started > VISIT_MS) {
+      st.bestEver = Math.max(st.bestEver || 0, st.sess.best || 0, st.sess.streak || 0);
+      st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: now(), mode: st.sess.mode || 'study' };
+    }
+    return st.sess;
+  }
 
   /* ------------------------------------------------------------- factory --- */
   function createEngine(opts) {
@@ -6805,12 +6844,29 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var st = opts.state || blankState();
     var rng = opts.rng || Math.random;
     root.__rng = rng;
+    openVisit(st);                          /* a fresh sitting starts the counters at zero */
     var self = {
       st: st, rng: rng, BANDS: BANDS, BAND_LABEL: BAND_LABEL, STATUS_LABEL: STATUS_LABEL,
       record: function (item, ok) { var r = record(st, item, ok, rng); return r; },
       nextItem: function (o) { return nextItem(st, rng, o); },
       reteach: function (id, lvl) { return reteach(st, rng, id, lvl); },
       placement: function () { return placement(st); },
+      stats: function () { return bandStats(st); },
+      /* the level the learner is standing on, and how far they are from the
+         next one: the Report and the header read this, never a raw θ */
+      level: function () {
+        var b = activeBand(st) || BANDS[0], C = st.climb || {};
+        if (BANDS.indexOf(b) < 0) b = BANDS[0];
+        var g = bandRange(b);
+        return {
+          band: b, label: BAND_LABEL[b] || b, index: bandIdx(b) + 1, of: BANDS.length,
+          streak: (st.diag && !st.diag.done ? st.diag.streak : C.streak) || 0, need: CLIMB_NEED,
+          wrong: (st.diag && !st.diag.done ? st.diag.wrong : C.wrong) || 0, drop: CLIMB_DROP,
+          next: BAND_LABEL[BANDS[Math.min(bandIdx(b) + 1, BANDS.length - 1)]] || '',
+          prev: bandIdx(b) > 0 ? (BAND_LABEL[BANDS[bandIdx(b) - 1]] || '') : '',
+          lo: g.lo, hi: g.hi
+        };
+      },
       statusOf: function (id) { return statusOf(st.sk[id]); },
       skillState: function (id) { return st.sk[id]; },
       frontierIndex: function () { return frontierIndex(st); },
@@ -6826,12 +6882,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
       diagLimit: function () { return (st.diag && st.diag.limit) || DIAG_LIMIT; },
       prob: function (b) { return prob(st.theta, b); },
-      reset: function () { st.sk = {}; st.theta = 0; st.log = []; st.diag = null; st.climb = climbBlank(); st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' }; },
+      reset: function () { st.sk = {}; st.theta = 0; st.thetaSeen = 0; st.log = []; st.diag = null; st.climb = null; st.bestEver = 0; st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' }; },
       save: function () { return save(st); },
       exportJSON: function () { return JSON.stringify(serialize(st), null, 1); },
       importJSON: function (txt) {
         var o = JSON.parse(txt);
-        ['theta', 'thetaSeen', 'sk', 'sess', 'log', 'diag', 'climb', 'settings', 'created'].forEach(function (k) { if (o[k] !== undefined) st[k] = o[k]; });
+        ['theta', 'thetaSeen', 'sk', 'sess', 'bestEver', 'log', 'diag', 'climb', 'settings', 'created'].forEach(function (k) { if (o[k] !== undefined) st[k] = o[k]; });
         return true;
       }
     };
@@ -6843,7 +6899,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     statusOf: statusOf, STATUS_LABEL: STATUS_LABEL, BANDS: BANDS, BAND_LABEL: BAND_LABEL,
     prob: prob, clamp: clamp, PASS_M: PASS_M, PASS_N: PASS_N,
     DIAG_LIMIT: DIAG_LIMIT, DIAG_PER_SKILL: PER_SKILL,
-    climbState: climbState, climbHomeBand: climbHomeBand, CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP
+    climbState: climbState, climbHomeBand: climbHomeBand, CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
+    bandStats: bandStats, activeBand: activeBand, bandMid: bandMid
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.MathPath = API;
@@ -11305,7 +11362,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* the addends for this draw, honouring strategy / fixed / addends / regroup --
      returns { t: [addends], c: the sum } with every addend >= 0 and c <= limit */
   function draw(rng, p, lvl) {
-    var lim = cap(p.limit || 10, 1, 1000), n = p.addends === 3 ? 3 : 2, t = [], c = 0, a, b, k;
+    var lim = cap(p.limit || 10, 1, 1000000), n = p.addends === 3 ? 3 : 2, t = [], c = 0, a, b, k;
     var hi = cap(lvl <= 1 ? Math.ceil(lim * 0.4) : lvl === 2 ? Math.ceil(lim * 0.6) : lim, 1, lim);
 
     if (p.fixed != null) {                                  /* "Adding 4": one fixed addend */
@@ -11353,7 +11410,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function model(rng, t, p, c) {
     var m = p.model || 'none', one = t[0], two = t.length > 1 ? t.slice(1).reduce(function (x, y) { return x + y; }, 0) : 0;
     if (m === 'tenframe') return V.tenframe(c, { frames: c > 10 ? 2 : 1, label: t.join(' and ') + ' counters' });
-    if (m === 'models') { var h = Math.floor(c / 100), te = Math.floor(c / 10) % 10, on = c % 10; return V.blocks(h, te, on, { label: 'base-ten blocks for ' + t.join(' + ') }); }
+    if (m === 'models' && c < 1000) { var h = Math.floor(c / 100), te = Math.floor(c / 10) % 10, on = c % 10; return V.blocks(h, te, on, { label: 'base-ten blocks for ' + t.join(' + ') }); }
     if (m === 'cubes' || m === 'pictures') {
       var cols = cap(one + two, 1, 12), r1 = [], r2 = [], i;
       for (i = 0; i < cols; i++) { r1.push(i < one ? '●' : ''); }
@@ -11368,7 +11425,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* ======================================================================= */
   ARCH('addFacts', function (rng, lvl, p) {
-    var d = draw(rng, p, lvl), t = d.t, c = d.c, lim = cap(p.limit || 10, 1, 1000);
+    var d = draw(rng, p, lvl), t = d.t, c = d.c, lim = cap(p.limit || 10, 1, 1000000);
     var w = pick(rng, WHO), ct = pick(rng, CTX), o = pick(rng, OBJ);
     var one = o.replace(/s$/, ''), vis = model(rng, t, p, c);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
@@ -12166,7 +12223,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* the counting situation for this draw ------------------------------------ */
   function sit(rng, p, lvl) {
-    var L = cap(p.limit || 20, 1, 1000), st = cap(p.step || 1, 1, 10);
+    var L = cap(p.limit || 20, 1, 1000000), st = cap(p.step || 1, 1, 10);
     var jumps = cap(lvl <= 1 ? 2 : lvl === 2 ? 3 : lvl === 3 ? 4 : 5, 1, 9);
     var span = jumps * st;
     var start = span >= L ? 0 : R.int(rng, 0, cap(L - span, 0, L));
@@ -12382,7 +12439,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* ============================== missingNumber =========================== */
   ARCH('missingNumber', function (rng, lvl, p) {
-    var L = cap(p.limit || 10, 2, 100), e = eq(rng, p.op || 'add', L, lvl), vis = modelOf(rng, e, p);
+    var L = cap(p.limit || 10, 2, 100000), e = eq(rng, p.op || 'add', L, lvl), vis = modelOf(rng, e, p);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
     var teach = 'A missing number is found by undoing the operation with the numbers you already have.';
 
@@ -12468,7 +12525,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* =============================== addSubMixed ============================ */
   ARCH('addSubMixed', function (rng, lvl, p) {
-    var L = cap(p.limit || 10, 2, 100), w = pick(rng, WHO), w2 = pick(rng, WHO), ct = pick(rng, CTX), o = pick(rng, OBJ);
+    var L = cap(p.limit || 10, 2, 100000), w = pick(rng, WHO), w2 = pick(rng, WHO), ct = pick(rng, CTX), o = pick(rng, OBJ);
     var e = eq(rng, 'both', L, lvl), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, vis = modelOf(rng, e, p);
     var teach = 'Read the situation first: joining means add, taking away means subtract.';
 
@@ -13051,13 +13108,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var h = Math.floor(n / 100), r = n % 100, head = (ONES[h] || 'one') + ' hundred';
     return r === 0 ? head : head + ' ' + wordName(r);
   }
-  function blocks(n) { return V.blocks(Math.floor(n / 100), Math.floor(n / 10) % 10, n % 10, { label: wordName(n) + ' in blocks' }); }
+  function blocks(n) {
+    if (n >= 1000) return V.table(['Thousands', 'Hundreds', 'Tens', 'Ones'], [[String(Math.floor(n / 1000) % 10), String(Math.floor(n / 100) % 10), String(Math.floor(n / 10) % 10), String(n % 10)]]);
+    return V.blocks(Math.floor(n / 100), Math.floor(n / 10) % 10, n % 10, { label: wordName(n) + ' in blocks' });
+  }
+  function blocksWord(n) { return n >= 1000 ? 'the place-value table' : 'the base-ten blocks'; }
 
   /* ================================ placeValue ============================ */
   /* A limit below 10 asks for the parts of a ONE-digit number: no tens place is
      involved, so those skills get their own decomposition shapes. */
   ARCH('placeValue', function (rng, lvl, p) {
-    var L = cap(p.limit || 100, 9, 1200);
+    var L = cap(p.limit || 100, 9, 100000);
     if (L < 10) {
       var m = R.int(rng, 3, cap(L, 3, 9)), lo2 = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
       var part = R.int(rng, 1, m - 1), rest = m - part, ct2 = pick(rng, CTX);
@@ -13140,7 +13201,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return build(rng, [
       /* official anchor — tens and ones written as one number. */
       function () {
-        return I_num(ct + ', write the number: ' + t + ' ten' + (t === 1 ? '' : 's') + ' and ' + o + ' one' + (o === 1 ? '' : 's') + '.', n, {
+        return I_num(ct + ', write the number: ' + wordName(n), n, {
           visual: blocks(n), b: lo,
           explain: ['' + t + ' ten' + (t === 1 ? '' : 's') + ' is ' + (t * 10) + '.', o + ' one' + (o === 1 ? '' : 's') + ' is ' + o + '.', t * 10 + ' + ' + o + ' = ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
           teach: teach
@@ -13148,7 +13209,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* read the base-ten model */
       function () {
-        return I_num('How many do the base-ten blocks show?', n, {
+        return I_num('How many do ' + blocksWord(n) + ' show?', n, {
           visual: blocks(n), b: lo + 0.1,
           explain: ['Count the tens sticks first: ' + t + ' tens is ' + (t * 10) + '.', 'Then the ones: ' + o + '.', 'Together that is ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'A ten-stick stands for ten ones, so blocks can be counted in tens and ones.'
@@ -13232,7 +13293,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   };
 
   ARCH('wordProblem', function (rng, lvl, p) {
-    var L = cap(p.limit || 10, 3, 100), op = p.op || 'add', variant = p.variant || 'result', ask = p.ask || 'answer';
+    var L = cap(p.limit || 10, 3, 100000), op = p.op || 'add', variant = p.variant || 'result', ask = p.ask || 'answer';
     var s = (SITU[op] || SITU.add)(rng, L, lvl), o = pick(rng, OBJ), one = o.replace(/s$/, '');
     var w = pick(rng, WHO), w2 = pick(rng, WHO), ct = pick(rng, CTX), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
     var big = Math.max(s.a, s.b), small = Math.min(s.a, s.b), diff = big - small;
@@ -13397,7 +13458,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* one situation: a + b = c, or c − b = a, inside limit ------------------- */
   function sit(rng, p, lvl) {
-    var L = cap(p.limit || 10, 2, 100), op = p.op === 'both' ? (R.chance(rng, 0.5) ? 'add' : 'sub') : (p.op || 'add');
+    var L = cap(p.limit || 10, 2, 100000), op = p.op === 'both' ? (R.chance(rng, 0.5) ? 'add' : 'sub') : (p.op || 'add');
     var hi = cap(lvl <= 2 ? Math.ceil(L * 0.5) : L, 2, L), a, b, c;
     if (op === 'sub') { c = R.int(rng, 2, hi); b = R.int(rng, 1, cap(c - 1, 1, c)); a = c - b; }
     else { a = R.int(rng, 1, cap(hi - 1, 1, L)); b = R.int(rng, 1, cap(L - a, 1, L)); c = a + b; }
@@ -13959,7 +14020,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* draw a − b = d inside limit, honouring strategy and fixed -------------- */
   function draw(rng, p, lvl) {
-    var lim = cap(p.limit || 10, 1, 1000), a, b, s = p.strategy || 'any';
+    var lim = cap(p.limit || 10, 1, 1000000), a, b, s = p.strategy || 'any';
     var hi = cap(lvl <= 1 ? Math.ceil(lim * 0.5) : lvl === 2 ? Math.ceil(lim * 0.75) : lim, 1, lim);
     if (p.fixed != null) { b = cap(+p.fixed, 0, lim); a = R.int(rng, b, lim); }
     else if (s === 'zeroAll') { a = R.int(rng, 0, lim); b = R.chance(rng, 0.5) ? 0 : a; }
@@ -13976,7 +14037,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function model(rng, f, p) {
     var m = p.model || 'none', keep = f.d, gone = f.b, cols = cap(f.a, 1, 14), row = [], i;
     if (m === 'tenframe') return V.tenframe(f.a, { frames: f.a > 10 ? 2 : 1, label: f.a + ' counters, take ' + f.b });
-    if (m === 'models') { var h = Math.floor(f.a / 100), te = Math.floor(f.a / 10) % 10, on = f.a % 10; return V.blocks(h, te, on, { label: 'base-ten blocks for ' + f.a }); }
+    if (m === 'models' && f.a < 1000) { var h = Math.floor(f.a / 100), te = Math.floor(f.a / 10) % 10, on = f.a % 10; return V.blocks(h, te, on, { label: 'base-ten blocks for ' + f.a }); }
     if (m === 'cubes' || m === 'pictures') {
       for (i = 0; i < cols; i++) row.push(i < keep ? '●' : (i < keep + gone ? '✕' : ''));
       return V.grid({ rows: 1, cols: cols, cells: [row], label: f.a + ' counters, ' + f.b + ' taken away' });
@@ -16111,11 +16172,30 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     var whyChip = item.climb ? h('span', { class: 'pill accent', text: item.climb.label + ' · ' + item.climb.level + '/' + item.climb.of })
       : item.reteach ? h('span', { class: 'pill warn', text: 'retry · easier' })
-      : item.diag ? h('span', { class: 'pill accent', text: 'placement probe' })
+      : item.diag ? h('span', { class: 'pill accent', text: 'placement probe · ' + (item.diag.label || '') })
         : item.why === 'review' ? h('span', { class: 'pill', text: 'spaced review' })
           : item.why === 'gap' ? h('span', { class: 'pill bad', text: 'closing a gap' })
             : item.why === 'ahead' ? h('span', { class: 'pill accent', title: 'the next skills have no items yet', text: 'a head start' })
               : item.why === 'consolidate' ? h('span', { class: 'pill', title: 'newer skills have no items yet', text: 'keeping it sharp' }) : null;
+
+    /* the one rule, shown on the card it applies to: this many right in a row
+       and the next level's questions start; one wrong and the count restarts */
+    var lvInfo = item.levelInfo, lvLine = null;
+    if (lvInfo) {
+      var bi = E.BANDS.indexOf(lvInfo.band);
+      var nxt = E.BAND_LABEL[E.BANDS[Math.min(bi + 1, E.BANDS.length - 1)]] || 'the next level';
+      var prv = bi > 0 ? (E.BAND_LABEL[E.BANDS[bi - 1]] || '') : '';
+      var dots = h('div', { class: 'dots' });
+      for (var di = 0; di < lvInfo.need; di++) dots.appendChild(h('i', { class: di < lvInfo.streak ? 'on' : '' }));
+      var left = lvInfo.need - lvInfo.streak;
+      lvLine = h('div', { class: 'lvline' }, [
+        dots,
+        h('span', { class: 'tiny', text: (lvInfo.streak ? left + ' more right in a row' : left + ' right in a row') + ' moves up to ' + nxt })
+      ]);
+      if (lvInfo.wrong && prv) {
+        lvLine.appendChild(h('span', { class: 'tiny', style: { color: 'var(--warn)' }, text: (lvInfo.drop - lvInfo.wrong) + ' more wrong drops to ' + prv }));
+      }
+    }
 
     var card = h('div', { class: 'card', id: 'card' }, [
       h('div', { class: 'skillhead' }, [
@@ -16123,8 +16203,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         h('span', { class: 'code', text: (sk.code || '') + (sk.band ? ' · ' + (E.BAND_LABEL[sk.band] || sk.band) : '') }),
         whyChip, lv
       ]),
+      lvLine,
       item.visual ? h('div', { class: 'visual' }, [renderVisual(item.visual)]) : null,
-      h('div', { class: 'prompt' + ((sk.band === 'K' || sk.band === '1') ? ' big' : ''), html: esc(item.prompt) }),
+      h('div', { class: 'prompt' + ((sk.band === 'PK' || sk.band === 'K' || sk.band === 'G1') ? ' big' : ''), html: esc(item.prompt) }),
       item.sub ? h('div', { class: 'sub', html: esc(item.sub) }) : null,
       h('div', { class: 'answer', id: 'answer' }, [buildAnswer(item)]),
       h('div', { class: 'row', style: { marginTop: '14px' }, id: 'actions' }),
@@ -16412,12 +16493,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var p = E.placement(), view = $('#view');
     var bands = p.bands.map(function (b) {
       var g = p.byBand[b] || {};
-      var pct = g.n ? Math.round((g.mast || 0) / g.n * 100) : 0;
+      /* of the skills in this band the learner has actually met, how many are
+         mastered — measured against every skill that exists, a band is 0% for
+         a year and the bar says nothing true */
+      var pct = Math.round((g.rate || 0) * 100);
       var cls = g.verdict === 'ready' ? 'm' : (g.verdict === 'not yet' ? 'g' : '');
       return h('div', { class: 'barrow ' + cls }, [
         h('div', { text: E.BAND_LABEL[b] || b }),
         h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: pct + '%' } })]),
-        h('div', { class: 'val', text: (g.mast || 0) + '/' + g.n })
+        h('div', { class: 'val', text: g.att ? (g.mast || 0) + '/' + g.att + ' mastered' : 'not started' })
       ]);
     });
     var plan = (p.plan || []).map(function (row) {
@@ -16438,10 +16522,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       h('div', { class: 'card' }, [
         h('div', { class: 'row between' }, [
           h('h2', { text: 'Where you are' }),
-          h('span', { class: 'pill accent', text: p.bandLabel || '' })
+          h('span', { class: 'pill accent', text: p.bandLabel + ' · level ' + p.bandIndex + ' of ' + p.levels })
         ]),
-        h('div', { class: 'muted', html: 'Working at about <b>' + nfmt(p.theta) + '</b> on the ladder (0 = kindergarten, 112 = calculus). ' + (p.frontier ? 'Next up: <b>' + esc(p.frontier.name) + '</b>.' : '') }),
-        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: 'Skills touched: ' + p.attempted + ' of ' + p.total + ' · mastered ' + Math.round((p.readyPct || 0) * 100) + '%' }),
+        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: 'Skills tried: ' + p.attempted + (p.totals && p.totals.a ? ' · items answered: ' + p.totals.a : '') + ' · mastered: ' + ((p.totals && p.totals.mast) || 0) }),
         h('h3', { text: 'Readiness by band' }),
         h('div', { class: 'bars' }, bands)
       ]),
@@ -16482,20 +16565,22 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   function viewLadder() {
     var view = $('#view'), bands = E.BANDS, L = root.SKILLS;
-    if (S.lvlOpen == null) S.lvlOpen = (E.st.climb && E.st.climb.band) || E.placementBand || E.BANDS[0];
-    var counts = {}, topics = {};
+    if (S.lvlOpen == null) S.lvlOpen = E.level().band;
+    var counts = {};
     L.forEach(function (s) {
-      counts[s.band] = counts[s.band] || { n: 0, has: 0, mast: 0 };
+      counts[s.band] = counts[s.band] || { n: 0, has: 0, mast: 0, att: 0 };
       counts[s.band].n++;
       if (root.SKILL_GEN[s.id]) counts[s.band].has++;
+      var ss = E.skillState(s.id);
+      if (ss && ss.a) counts[s.band].att++;
       if (E.statusOf(s.id) === 'mastered') counts[s.band].mast++;
     });
     var rowsOut = bands.map(function (b) {
-      var c = counts[b] || { n: 0, has: 0, mast: 0 };
+      var c = counts[b] || { n: 0, has: 0, mast: 0, att: 0 };
       var open = S.lvlOpen === b;
       var head = h('div', { class: 'band-h', on: { click: function () { S.lvlOpen = open ? null : b; render(); } } }, [
         h('span', { class: 't', text: (open ? '▾ ' : '▸ ') + (E.BAND_LABEL[b] || b) }),
-        h('span', { class: 'tiny', text: c.mast + '/' + c.n + ' mastered · ' + c.has + ' with items' })
+        h('span', { class: 'tiny', text: c.att + ' tried · ' + c.mast + ' mastered · ' + c.has + ' with items' })
       ]);
       if (!open) return h('div', {}, [head]);
       var rows = L.filter(function (s) { return s.band === b; });
@@ -16527,46 +16612,86 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         h('div', { class: 'row between' }, [
           h('h2', { text: 'The skill ladder' }),
           h('span', { class: 'tiny', text: L.length + ' skills · ' + bands.length + ' levels' })
-        ]),
-        h('div', { class: 'muted', text: 'Tap a level to open it. The tutor climbs one level at a time: ten right in a row moves you up, three wrong in a row moves you down one.' })
+        ])
       ])
     ].concat(rowsOut)));
   }
 
   function viewReport() {
-    var p = E.placement(), st = E.st, view = $('#view');
+    var p = E.placement(), st = E.st, view = $('#view'), lv = E.level();
+    var tot = p.totals || { a: 0, c: 0, att: 0, mast: 0 };
+    var per = p.byBand || {};
     var log = (st.log || []).slice(-40);
+    /* the trace is drawn against the hardest item this learner has met, not
+       against a fixed 0..110: a week of Pre-K counting was a flat line at the
+       bottom of a calculus-sized chart, which reads as "nothing happening" */
+    var top = 0;
+    (st.log || []).forEach(function (r) { if (r.b != null && r.b > top) top = r.b; });
+    var scale = Math.max(12, top);
     var spark = h('div', { class: 'row', style: { gap: '3px', alignItems: 'flex-end', height: '46px' } });
     log.forEach(function (r) {
       spark.appendChild(h('div', {
-        title: (r.p != null ? 'p=' + r.p : '') + (r.ok ? ' correct' : ' wrong'),
-        style: { width: '7px', height: (10 + (r.b != null ? clamp(r.b, 0, 110) : 20) * .3) + 'px', background: r.ok ? 'var(--good)' : 'var(--bad)', borderRadius: '2px', opacity: .8 }
+        title: (r.b != null ? 'difficulty ' + Math.round(r.b) : '') + (r.ok ? ' · correct' : ' · wrong'),
+        style: { width: '7px', height: (8 + clamp((r.b == null ? 0 : r.b) / scale, 0, 1) * 34) + 'px', background: r.ok ? 'var(--good)' : 'var(--bad)', borderRadius: '2px', opacity: .8 }
       }));
     });
-    var s = st.settings || {};
+    /* every number here is a rate over what the learner really did. The old
+       card divided by counters that never reset and by bands of 400 skills, so
+       "accuracy" was an all-time average and every bar sat at 0%. */
+    var sessAcc = st.sess.asked ? Math.round(st.sess.correct / st.sess.asked * 100) : 0;
+    var allAcc = tot.a ? Math.round(tot.c / tot.a * 100) : 0;
+    var here = per[lv.band] || {};
+    var dots = h('div', { class: 'dots' });
+    for (var i = 0; i < lv.need; i++) dots.appendChild(h('i', { class: i < lv.streak ? 'on' : '' }));
+    var toNext = lv.need - lv.streak;
+    var levelLine = lv.streak
+      ? toNext + ' more right in a row moves you up to ' + lv.next
+      : lv.need + ' right in a row moves you up to ' + lv.next;
+    var rows = p.bands.map(function (b) {
+      var g = per[b] || {};
+      var pct = Math.round((g.rate || 0) * 100);
+      var cls = 'barrow' + (g.verdict === 'ready' ? ' m' : (g.att && g.rate < 0.35 ? ' g' : ''));
+      return h('div', { class: cls }, [
+        h('div', { text: (b === lv.band ? '▸ ' : '') + (E.BAND_LABEL[b] || b) }),
+        h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: pct + '%' } })]),
+        h('div', { class: 'val', title: g.a ? g.c + ' of ' + g.a + ' answers right' : '', text: g.att ? (g.mast || 0) + '/' + g.att + ' · ' + Math.round((g.acc || 0) * 100) + '%' : '—' })
+      ]);
+    });
     clear(view).appendChild(h('div', {}, [
       h('div', { class: 'card' }, [
-        h('div', { class: 'row between' }, [h('h2', { text: 'This session' }), h('span', { class: 'pill', text: (st.sess.asked || 0) + ' items' })]),
-        h('div', { class: 'row', style: { marginTop: '8px' } }, [
-          h('span', { class: 'pill good', text: 'accuracy ' + (st.sess.asked ? Math.round(st.sess.correct / st.sess.asked * 100) : 0) + '%' }),
-          h('span', { class: 'pill', text: 'streak ' + (st.sess.streak || 0) }),
-          h('span', { class: 'pill', text: 'best ' + (st.sess.best || 0) }),
-          h('span', { class: 'pill accent', text: 'θ ' + nfmt(st.theta) })
+        h('div', { class: 'row between' }, [
+          h('h2', { text: 'This session' }),
+          h('span', { class: 'pill', text: (st.sess.asked || 0) + ' items' })
         ]),
+        h('div', { class: 'row', style: { marginTop: '8px' } }, [
+          h('span', { class: 'pill good', text: 'accuracy ' + sessAcc + '%' }),
+          h('span', { class: 'pill', text: 'streak ' + (st.sess.streak || 0) }),
+          h('span', { class: 'pill', text: 'best ' + (st.sess.best || 0) })
+        ]),
+        h('div', { class: 'tiny', style: { marginTop: '8px' } },
+          tot.a ? 'All together: ' + tot.a + ' items answered · ' + allAcc + '% right · best streak ' + (st.bestEver || st.sess.best || 0) + ' · ' + tot.mast + ' skills mastered'
+            : 'Nothing answered yet — every count below starts when the first answer goes in.'),
         h('h3', { text: 'Last ' + log.length + ' items (height = difficulty)' }),
         log.length ? spark : h('div', { class: 'muted', text: 'Answer something to see your trace.' })
       ]),
       h('div', { class: 'card' }, [
-        h('h2', { text: 'Mastery by band' }),
-        h('div', { class: 'bars', style: { marginTop: '10px' } }, p.bands.map(function (b) {
-          var g = p.byBand[b] || {};
-          var pct = g.n ? Math.round((g.mast || 0) / g.n * 100) : 0;
-          return h('div', { class: 'barrow' }, [
-            h('div', { text: E.BAND_LABEL[b] || b }),
-            h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: pct + '%' } })]),
-            h('div', { class: 'val', text: pct + '%' })
-          ]);
-        }))
+        h('div', { class: 'row between' }, [
+          h('h2', { text: 'Your level' }),
+          h('span', { class: 'pill accent', text: lv.label + ' · ' + lv.index + '/' + lv.of })
+        ]),
+        h('div', { class: 'lvline' }, [dots, h('span', { class: 'tiny', text: levelLine })]),
+        lv.prev ? h('div', { class: 'tiny', text: lv.drop + ' wrong in a row moves you back to ' + lv.prev + '.' }) : null,
+        h('div', { class: 'tiny', style: { marginTop: '6px' } },
+          here.att ? 'At ' + lv.label + ': ' + here.a + ' items answered · ' + Math.round((here.acc || 0) * 100) + '% right · ' + here.att + ' of ' + here.n + ' skills tried · ' + here.mast + ' mastered'
+            : 'At ' + lv.label + ': nothing answered here yet.'),
+        h('div', { class: 'row', style: { marginTop: '12px' } }, [
+          h('button', { class: 'btn small', type: 'button', on: { click: function () { location.hash = '#ladder'; } } }, 'Open this level')
+        ])
+      ]),
+      h('div', { class: 'card' }, [
+        h('h2', { text: 'Progress by level' }),
+        h('div', { class: 'tiny', style: { margin: '4px 0 10px' }, text: 'Bar and first number: skills mastered out of the ones tried here. Second: answers right at that level.' }),
+        h('div', { class: 'bars' }, rows)
       ]),
       h('div', { class: 'card' }, [
         h('h2', { text: 'Settings' }),
@@ -16632,14 +16757,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* The probe header is live state, so it is built in one place and redrawn in
    * place after every answer instead of only when the whole view re-renders. */
   function probeProgressCard() {
-    var D = E.st.diag || {}, lim = E.diagLimit() || 26, asked = D.asked || 0;
+    var D = E.st.diag || {}, lim = E.diagLimit() || 30, asked = D.asked || 0;
     var over = !E.diagActive();
+    var lv = E.level(), dots = h('div', { class: 'dots' });
+    for (var i = 0; i < lv.need; i++) dots.appendChild(h('i', { class: i < lv.streak ? 'on' : '' }));
     return h('div', { class: 'card tight', id: 'probprog' }, [
       h('div', { class: 'row between' }, [
         h('b', { text: 'Placement probe' }),
         h('span', { class: 'tiny', text: over ? asked + ' / ' + lim + ' — complete' : asked + ' / ' + lim })
       ]),
-      h('div', { class: 'diagbar' }, [h('i', { style: { width: clamp(Math.round(asked / lim * 100), 0, 100) + '%' } })])
+      h('div', { class: 'diagbar' }, [h('i', { style: { width: clamp(Math.round(asked / lim * 100), 0, 100) + '%' } })]),
+      over ? h('div', { class: 'tiny', text: 'Ends on ' + lv.label + '.' })
+        : h('div', { class: 'lvline' }, [dots, h('span', { class: 'tiny', text: 'Asking ' + lv.label + ' · ' + (lv.need - lv.streak) + ' right in a row moves up to ' + lv.next })])
     ]);
   }
   function renderProbeProgress() {
@@ -16663,7 +16792,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = S.diagReport, askedN = (E.st.diag && E.st.diag.asked) || 0;
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement result' }),
-        h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b> (ladder position ' + nfmt(p.theta) + '). Start here:' }),
+        h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b> — level ' + p.bandIndex + ' of ' + p.levels + '. Practice starts here:' }),
         h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'From ' + askedN + ' probe questions' : '' }),
         h('div', { class: 'skill-list', style: { marginTop: '12px' } }, (p.plan || []).slice(0, 5).map(function (row) {
           return h('div', { class: 'skill' }, [
@@ -16685,7 +16814,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (!E.diagActive()) {
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement probe' }),
-        h('div', { class: 'muted', text: 'About ' + (E.diagLimit() || 26) + ' questions that bracket the ladder by bisection, then refine around the point where accuracy drops. It sets your starting band and finds prerequisite gaps.' }),
+        h('div', { class: 'muted', html: 'About <b>' + (E.diagLimit() || 30) + ' questions</b>, starting on the level you are on — <b>' + esc(E.level().label) + '</b> for anyone who has never been placed. Ten right in a row moves the probe up to the next level and it starts asking <i>those</i> questions; a wrong answer keeps it where you are; three wrong in a row moves it back one. Where the probe ends is where Practice starts.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('button', { class: 'btn primary', type: 'button', on: { click: startDiag } }, 'Start the probe'),
           h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.view = 'practice'; render(); } } }, 'Just start practicing')
@@ -16756,13 +16885,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* -------------------------------------------------------------- header -- */
   function renderHeader() {
     var bar = $('#bar'); if (!bar) return;
-    var st = E.st, p = E.placement();
+    var st = E.st, lv = E.level();
     var acc = st.sess.asked ? Math.round(st.sess.correct / st.sess.asked * 100) : 0;
     clear(bar).appendChild(h('div', { class: 'bar-in' }, [
       h('div', { class: 'brand' }, [h('div', { class: 'glyph', text: 'π' }), 'MathPath']),
       h('div', { class: 'meter' }, [
-        h('span', { class: 'pill accent', text: p.bandLabel || 'start' }),
-        st.sess.streak ? h('span', { class: 'pill good', text: '🔥 ' + st.sess.streak }) : null,
+        h('span', { class: 'pill accent', text: lv.label + ' · ' + lv.index + '/' + lv.of }),
+        lv.streak ? h('span', { class: 'pill good', title: lv.streak + ' right in a row — ' + (lv.need - lv.streak) + ' more for ' + lv.next, text: '🔥 ' + lv.streak + '/' + lv.need }) : null,
         st.sess.asked ? h('span', { class: 'pill', text: acc + '%' }) : null
       ]),
       h('nav', { class: 'tabs' }, [
