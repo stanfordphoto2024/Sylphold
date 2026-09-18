@@ -292,8 +292,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </div>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-17 — 26 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 99-gen-arch.js, 20-ui.js
+/* MathPath 2026-09-18 — 27 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -6772,8 +6772,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var D = st.diag;
     if (!D || D.done) return null;
     if (D.asked >= D.limit) { diagFinish(st); return null; }
-    var item = levelCard(st, D, root.__rng || Math.random);
-    if (!item) { diagFinish(st); return null; }      // nothing written anywhere left to ask
+    var item = levelCard(st, D, root.__rng || Math.random);    if (!item) { diagFinish(st); return null; }      // nothing written anywhere left to ask
     item.diag = { n: D.asked + 1, of: D.limit, level: D.band, label: BAND_LABEL[D.band] || D.band };
     D.skill = item.skill;
     return item;
@@ -6839,9 +6838,25 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
 
   /* ------------------------------------------------------------- factory --- */
+  /* A state written by an older build is not the current shape. Two migrations
+     matter: a half-finished probe from the bisection days has no level to ask
+     from, and every state older than this one was defaulted to Kindergarten —
+     a learner who never answered a single item belongs on the first rung. */
+  function migrate(st) {
+    if (st.diag && (st.diag.done || st.diag.phase === 'probe')) {
+      if (!st.diag.cover || typeof st.diag.cover !== 'object') st.diag.cover = {};
+      if (st.diag.done && !st.diag.level) st.diag.level = st.diag.band || null;
+      if (!st.diag.level || BANDS.indexOf(st.diag.level) < 0) st.diag = null;   // bisection-era probe
+    } else if (st.diag) {
+      st.diag = null;
+    }
+    if (st.climb && (!st.climb.band || BANDS.indexOf(st.climb.band) < 0)) st.climb.band = null;
+    if (st.climb && !st.thetaSeen && !(st.diag && st.diag.done)) st.climb.band = BANDS[0];
+    return st;
+  }
   function createEngine(opts) {
     opts = opts || {};
-    var st = opts.state || blankState();
+    var st = migrate(opts.state || blankState());
     var rng = opts.rng || Math.random;
     root.__rng = rng;
     openVisit(st);                          /* a fresh sitting starts the counters at zero */
@@ -13201,9 +13216,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return build(rng, [
       /* official anchor — tens and ones written as one number. */
       function () {
-        return I_num(ct + ', write the number: ' + wordName(n), n, {
+        var smallN = n < 100;
+        return I_num(ct + ', write the number: ' + (smallN ? t + ' ten' + (t === 1 ? '' : 's') + ' and ' + o + ' one' + (o === 1 ? '' : 's') : wordName(n)), n, {
           visual: blocks(n), b: lo,
-          explain: ['' + t + ' ten' + (t === 1 ? '' : 's') + ' is ' + (t * 10) + '.', o + ' one' + (o === 1 ? '' : 's') + ' is ' + o + '.', t * 10 + ' + ' + o + ' = ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: smallN ? ['' + t + ' ten' + (t === 1 ? '' : 's') + ' is ' + (t * 10) + '.', o + ' one' + (o === 1 ? '' : 's') + ' is ' + o + '.', t * 10 + ' + ' + o + ' = ' + n + '.', 'So the answer is <b>' + n + '</b>.'] : ['The word name is ' + wordName(n) + '.', 'Write the digits in the order they are spoken.', 'So the answer is <b>' + n + '</b>.'],
           teach: teach
         });
       },
@@ -15427,6 +15443,294 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 </script>
 <script>
 /* =============================================================================
+ * 97-gen-pk-extra.js — Pre-K generators for the four Pre-K skills that
+ * tools/map.js has not put into a family yet (compare groups, compare numbers,
+ * left/right and top/bottom).
+ *
+ * Two rules shape every item here. A "which number is larger" choice would
+ * print its own answer, so a pair of numerals is asked with the comparison
+ * symbol or as Yes/No, and only the "larger than 3?" form is a choice. And the
+ * answer is never a word the four-year-old has to read in the question: the
+ * groups and pictures carry the information, the child points at them.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
+  var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
+  var OBJ = ['bears', 'balls', 'ducks', 'frogs', 'bunnies', 'cats', 'apples', 'stars', 'shells', 'trucks'];
+  var PIC = [{ g: '🔴', w: 'red circle' }, { g: '🔵', w: 'blue circle' }, { g: '■', w: 'square' }, { g: '▲', w: 'triangle' }, { g: '●', w: 'circle' }, { g: '⭐', w: 'star' }, { g: '🐱', w: 'cat' }, { g: '🐶', w: 'dog' }];
+  function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
+  function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function build(rng, fns, w) {
+    var pool = [], i, j;
+    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    var last = null, order = R.shuffle(rng, pool);
+    for (i = 0; i < order.length; i++) { last = fns[order[i]](); if (!leaks(last)) return last; }
+    return last;
+  }
+  function MC(rng, prompt, answer, wrongs, o) {
+    var seen = {}, opts = [], push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
+    push(answer);
+    var extra = R.shuffle(rng, wrongs.filter(function (v) { return String(v) !== String(answer); }));
+    for (var i = 0; i < extra.length && opts.length < 5; i++) push(extra[i]);
+    var sh = R.shuffle(rng, opts);
+    return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
+  }
+  function six(rng, fns, lvl) { return build(rng, fns, lvl <= 2 ? [4, 3, 3, 3, 3, 3, 2, 1] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 3, 2] : [3, 3, 3, 3, 3, 3, 3, 4]); }
+  function two(rng, hi) { var a = R.int(rng, 1, hi), b = a, g = 0; while (b === a && g++ < 20) b = R.int(rng, 1, hi); if (b === a) b = cap(a + 1, 1, hi); return [a, b]; }
+  function dots(n, ch) { var r = [], i; for (i = 0; i < cap(n, 1, 12); i++) r.push(i < n ? ch : ''); return r; }
+  function twoRows(rng, a, b, label) {
+    var cols = cap(Math.max(a, b), 1, 12);
+    return V.grid({ rows: 2, cols: cols, cells: [dots(a, '●'), dots(b, '○')], rowLabels: ['top', 'bottom'], label: label || 'two groups' });
+  }
+  function row(rng, k) {
+    var ps = R.sample(rng, PIC, cap(k, 1, PIC.length)), i;
+    return { ps: ps, cells: ps.map(function (q) { return q.g; }), names: ps.map(function (q) { return q.w; }) };
+  }
+
+  /* ============================== more / fewer ============================= */
+  function moreFewer(ask) {
+    return function (rng, lvl) {
+      var hi = lvl <= 2 ? 5 : lvl === 3 ? 8 : 10, p = two(rng, hi), a = p[0], b = p[1];
+      var o = pick(rng, OBJ), one = o.replace(/s$/, ''), w = pick(rng, WHO), w2 = pick(rng, WHO);
+      var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+      var vis = twoRows(rng, a, b, a + ' and ' + b + ' ' + o);
+      var big = Math.max(a, b), small = Math.min(a, b), diff = big - small;
+      var moreRow = a > b ? 'the top group' : 'the bottom group';
+      var fewerRow = a < b ? 'the top group' : 'the bottom group';
+      var teach = 'Match the two groups one to one: the group with leftovers has more, the group that runs out first has fewer.';
+      var why = function (word) {
+        return ['Match one ' + o + ' with one ' + o + '.', a + ' and ' + b + (diff === 0 ? ' are the same.' : ': ' + big + ' has ' + diff + ' left over.'), 'So the answer is <b>' + word + '</b>.'];
+      };
+      return six(rng, [
+        function () {
+          return MC(rng, 'Which group has MORE ' + o + '?', ask === 'fewer' ? fewerRow : moreRow, [ask === 'fewer' ? moreRow : fewerRow, 'they are the same'], {
+            visual: vis, b: lo, explain: why(ask === 'fewer' ? fewerRow : moreRow), teach: teach
+          });
+        },
+        function () {
+          return I_bool('Does the top group have ' + (ask === 'fewer' ? 'fewer' : 'more') + ' ' + o + ' than the bottom group?', ask === 'fewer' ? a < b : a > b, {
+            visual: vis, b: lo + 0.1, explain: why(ask === 'fewer' ? (a < b ? 'Yes' : 'No') : (a > b ? 'Yes' : 'No')), teach: teach
+          });
+        },
+        function () {
+          return I_num('Count the top group. How many ' + o + '?', a, {
+            visual: vis, b: lo - 0.2,
+            explain: ['Touch each ' + o + ' in the top row.', 'The last number said is ' + a + '.', 'So the answer is <b>' + a + '</b>.'],
+            teach: 'Counting each group first makes comparing easy.'
+          });
+        },
+        function () {
+          if (diff === 0) return I_bool('Are the two groups the same number of ' + o + '?', true, { visual: vis, b: 0, explain: ['Both groups count to ' + a + '.', 'Nothing is left over.', 'So the answer is <b>Yes</b>.'], teach: 'Two groups are the same when nothing is left over.' });
+          return I_num('How many MORE does the bigger group have?', diff, {
+            visual: vis, b: 0.5,
+            explain: ['Match the groups one to one.', big + ' − ' + small + ' = ' + diff + ' left over.', 'So the answer is <b>' + diff + '</b>.'],
+            teach: 'The leftovers are how many more there are.'
+          });
+        },
+        function () {
+          var right = a > b ? 'The top group has more ' + o + '.' : a < b ? 'The bottom group has more ' + o + '.' : 'Both groups have the same number.';
+          var wrongs = a > b ? ['The bottom group has more ' + o + '.', 'Both groups have the same number.'] : a < b ? ['The top group has more ' + o + '.', 'Both groups have the same number.'] : ['The top group has more ' + o + '.', 'The bottom group has more ' + o + '.'];
+          return MC(rng, 'Which sentence tells the truth about these groups?', right, wrongs, {
+            visual: vis, b: 0.3, explain: why(right), teach: teach
+          });
+        },
+        function () {
+          return I_bool('Are the two groups the same number of ' + o + '?', a === b, {
+            visual: vis, b: 0.1, explain: why(a === b ? 'Yes' : 'No'), teach: 'Same means every member can be matched with none left over.'
+          });
+        },
+        function () {
+          return I_num('How many ' + o + ' are there in both groups?', a + b, {
+            visual: vis, b: 0.6,
+            explain: ['The top group has ' + a + '.', 'The bottom group has ' + b + '.', a + ' + ' + b + ' = ' + (a + b) + '.', 'So the answer is <b>' + (a + b) + '</b>.'],
+            teach: 'Joining both groups counts every object once.'
+          });
+        },
+        function () {
+          var add = diff > 0 ? diff : 1;
+          return I_bool('If you add ' + add + ' more ' + one + ' to the smaller group, will the groups be the same?', diff > 0, {
+            visual: vis, b: 0.9,
+            explain: ['The bigger group has ' + diff + ' more.', diff === 0 ? 'They already match, so adding more would break the match.' : 'Adding ' + diff + ' to the smaller group makes them match.', 'So the answer is <b>' + (diff > 0 ? 'Yes' : 'No') + '</b>.'],
+            teach: 'Adding the difference to the smaller group makes the groups equal.'
+          });
+        }
+      ], lvl);
+    };
+  }
+  G('pk-more', moreFewer('more'));
+  G('pk-fewer', moreFewer('fewer'));
+
+  /* ===================== which number is larger / smallest ================= */
+  function largerSmaller(ask) {
+    var up = ask === 'larger' || ask === 'largest';
+    return function (rng, lvl) {
+      var hi = lvl <= 2 ? 5 : lvl === 3 ? 10 : 20;
+      var p = two(rng, hi), a = p[0], b = p[1], lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+      var three = [], i;
+      for (i = 0; i < 3; i++) { var v = R.int(rng, 0, hi); if (three.indexOf(v) < 0) three.push(v); }
+      while (three.length < 3) { var v2 = R.int(rng, 0, hi); if (three.indexOf(v2) < 0) three.push(v2); }
+      var mx = Math.max.apply(null, three), mn = Math.min.apply(null, three);
+      var teach = 'Count to find which number comes later in the count; the later number is the larger one.';
+      var word = up ? 'larger' : 'smaller', superl = up ? 'largest' : 'smallest';
+      return six(rng, [
+        function () {
+          return I_bool('Is ' + a + ' ' + word + ' than ' + b + '?', up ? a > b : a < b, {
+            visual: twoRows(rng, a, b, a + ' and ' + b + ' counters'), b: lo,
+            explain: ['Count both groups: ' + a + ' and ' + b + '.', (up ? Math.max(a, b) : Math.min(a, b)) + ' is the ' + word + ' one.', 'So the answer is <b>' + (up ? a > b : a < b ? 'Yes' : 'No') + '</b>.'],
+            teach: teach
+          });
+        },
+        function () {
+          return I_cmp('Which symbol makes this true?   ' + a + ' ○ ' + b, a, b, {
+            b: lo + 0.1,
+            explain: ['Compare ' + a + ' and ' + b + '.', 'The open side faces the bigger number.', 'So the answer is <b>' + (a > b ? '&gt;' : a < b ? '&lt;' : '=') + '</b>.'],
+            teach: 'The symbol opens toward the larger number.'
+          });
+        },
+        function () {
+          var t = R.int(rng, 1, cap(hi - 1, 1, hi)), right = cap(up ? t + 1 : t - 1, 0, hi);
+          var wrongs = (up ? [cap(t - 1, 0, hi), t, cap(t - 2, 0, hi)] : [cap(t + 1, 0, hi), t, cap(t + 2, 0, hi)]).filter(function (v) { return v !== right; });
+          return MC(rng, 'Which number is ' + word + ' than ' + t + '?', String(right), wrongs.map(String), {
+            b: 0.2,
+            explain: ['Count ' + (up ? 'on' : 'back') + ' from ' + t + '.', right + ' is ' + word + ' than ' + t + '.', 'So the answer is <b>' + right + '</b>.'],
+            teach: 'A ' + word + ' number is one you say ' + (up ? 'after' : 'before') + ' it when you count.'
+          });
+        },
+        function () {
+          var cards = three.slice();
+          return MC(rng, 'Look at the number cards. Which one is the ' + superl + '?', String(up ? mx : mn), cards.filter(function (v) { return v !== (up ? mx : mn); }).map(String), {
+            visual: V.table(['Cards'], [[cards.join('    ')]]), b: 0.4,
+            explain: ['Compare the cards: ' + cards.join(', ') + '.', 'The ' + superl + ' is ' + (up ? mx : mn) + '.', 'So the answer is <b>' + (up ? mx : mn) + '</b>.'],
+            teach: 'With three numbers, find the ' + superl + ' by comparing them two at a time.'
+          });
+        },
+        function () {
+          return I_bool('Is ' + mx + ' the ' + superl + ' of ' + three.join(', ') + '?', up, {
+            b: 0.3,
+            explain: ['Sort them in your head: ' + three.slice().sort(function (x, y) { return x - y; }).join(', ') + '.', mx + ' is the ' + (up ? 'last one, so it is the largest.' : 'last one, so it is not the smallest.'), 'So the answer is <b>' + (up ? 'Yes' : 'No') + '</b>.'],
+            teach: teach
+          });
+        },
+        function () {
+          var asc = three.slice().sort(function (x, y) { return x - y; });
+          var right = asc.join(', ');
+          var wrongs = [asc[0] + ', ' + asc[2] + ', ' + asc[1], asc[2] + ', ' + asc[1] + ', ' + asc[0]].filter(function (s) { return s !== right; });
+          return MC(rng, 'Put ' + three.join(', ') + ' in order from least to greatest.', right, wrongs, {
+            b: 0.7,
+            explain: ['Find the least first: ' + asc[0] + '.', 'Then ' + asc[1] + ', then ' + asc[2] + '.', 'So the answer is <b>' + right + '</b>.'],
+            teach: 'Ordering means finding the least of what is left, again and again.'
+          });
+        },
+        function () {
+          var t = R.int(rng, 0, cap(hi - 1, 0, hi));
+          return I_num('What number comes right after ' + t + ' when you count?', t + 1, {
+            b: 0.2,
+            explain: ['Counting on adds one.', t + ' + 1 = ' + (t + 1) + '.', 'So the answer is <b>' + (t + 1) + '</b>.'],
+            teach: 'The next number in the count is always one more.'
+          });
+        },
+        function () {
+          var t = R.int(rng, 1, hi);
+          return I_bool('Is ' + t + ' ' + word + ' than itself?', false, {
+            b: 0.9,
+            explain: ['Compare ' + t + ' with ' + t + '.', 'They are the same number, so neither is ' + word + '.', 'So the answer is <b>No</b>.'],
+            teach: 'Equal numbers are not larger or smaller than each other.'
+          });
+        }
+      ], lvl);
+    };
+  }
+  G('pk-which_number_is_larger', largerSmaller('larger'));
+  G('pk-which_number_is_smaller', largerSmaller('smaller'));
+  G('pk-which_number_is_largest', largerSmaller('largest'));
+  G('pk-which_number_is_smallest', largerSmaller('smallest'));
+
+  /* ========================= left/right, top/bottom ======================== */
+  function positionPair(axis) {
+    var horiz = axis === 'lr';
+    var where = horiz ? ['on the left', 'on the right'] : ['on the top', 'on the bottom'];
+    var read = horiz ? 'from left to right' : 'from top to bottom';
+    return function (rng, lvl) {
+      var k = lvl <= 2 ? 2 : 3, r = row(rng, k), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+      var vis = horiz ? V.grid({ rows: 1, cols: k, cells: [r.cells], label: 'a row of pictures' }) : V.grid({ rows: k, cols: 1, cells: r.cells.map(function (c) { return [c]; }), label: 'a stack of pictures' });
+      var names = r.names, uniq = [], seen = {};
+      names.forEach(function (q) { if (!seen[q]) { seen[q] = 1; uniq.push(q); } });
+      var other = function (x) { var w = uniq.filter(function (q) { return q !== x; }); return w.length ? w : ['star']; };
+      var teach = 'Say which end you start from, then look ' + where[0].replace('on the ', '') + '.';
+      return six(rng, [
+        function () {
+          return MC(rng, 'Look at the picture. Which one is ' + where[0] + '?', names[0], other(names[0]), {
+            visual: vis, b: lo,
+            explain: ['Find the ' + (horiz ? 'left end' : 'top') + ' of the picture.', 'The one there is a ' + names[0] + '.', 'So the answer is <b>' + names[0] + '</b>.'],
+            teach: teach
+          });
+        },
+        function () {
+          return MC(rng, 'Which one is ' + where[1] + '?', names[k - 1], other(names[k - 1]), {
+            visual: vis, b: lo + 0.1,
+            explain: ['Find the ' + (horiz ? 'right end' : 'bottom') + ' of the picture.', 'The one there is a ' + names[k - 1] + '.', 'So the answer is <b>' + names[k - 1] + '</b>.'],
+            teach: teach
+          });
+        },
+        function () {
+          var truth = R.chance(rng, 0.5);
+          return I_bool('Is the ' + names[truth ? 0 : k - 1] + ' ' + (truth ? where[0] : where[0]) + '?', truth, {
+            visual: vis, b: 0.3,
+            explain: ['Look at the ' + (horiz ? 'left end' : 'top') + ': that is a ' + names[0] + '.', 'The question asks about the ' + names[truth ? 0 : k - 1] + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+            teach: teach
+          });
+        },
+        function () {
+          var right = names.join(', ') + ' ' + read;
+          var wrongs = [names.slice().reverse().join(', ') + ' ' + read].filter(function (s) { return s !== right; });
+          return MC(rng, 'Which list matches the picture ' + read + '?', right, wrongs.concat([names[0] + ', ' + names[0] + ' ' + read]), {
+            visual: vis, b: 0.5,
+            explain: ['Read the picture ' + read + '.', 'That gives ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+            teach: 'Reading in one direction keeps the description straight.'
+          });
+        },
+        function () {
+          return I_num('How many pictures are in the picture?', k, {
+            visual: vis, b: -0.3,
+            explain: ['Count the pictures one by one.', 'The last number said is ' + k + '.', 'So the answer is <b>' + k + '</b>.'],
+            teach: 'Count in order so no picture is missed.'
+          });
+        },
+        function () {
+          if (k < 3) return I_bool('Is the ' + names[0] + ' ' + where[0] + '?', true, { visual: vis, b: 0, explain: ['Look at the ' + (horiz ? 'left end' : 'top') + '.', 'It is a ' + names[0] + '.', 'So the answer is <b>Yes</b>.'], teach: teach });
+          return MC(rng, 'Which one is in the middle?', names[1], other(names[1]), {
+            visual: vis, b: 0.4,
+            explain: ['Find the middle of the picture.', 'The one there is a ' + names[1] + '.', 'So the answer is <b>' + names[1] + '</b>.'],
+            teach: 'The middle is what is left after the two ends.'
+          });
+        },
+        function () {
+          return I_bool('Is the ' + names[0] + ' ' + where[1] + '?', k === 1, {
+            visual: vis, b: 0.6,
+            explain: ['The ' + where[1] + ' one is a ' + names[k - 1] + '.', 'The question asks about the ' + names[0] + '.', 'So the answer is <b>' + (k === 1 ? 'Yes' : 'No') + '</b>.'],
+            teach: teach
+          });
+        },
+        function () {
+          var move = pick(rng, uniq);
+          return MC(rng, 'You move the ' + move + ' to ' + where[1] + '. Which sentence says that?', 'the ' + move + ' is ' + where[1], ['the ' + move + ' is at home', 'the ' + move + ' is asleep'], {
+            visual: vis, b: 1.0,
+            explain: ['The new place is ' + where[1] + '.', 'That is what the first sentence says.', 'So the answer is <b>the ' + move + ' is ' + where[1] + '</b>.'],
+            teach: 'A position sentence names the thing and the place.'
+          });
+        }
+      ], lvl);
+    };
+  }
+  G('pk-left_and_right', positionPair('lr'));
+  G('pk-top_and_bottom', positionPair('tb'));
+})();
+
+</script>
+<script>
+/* =============================================================================
  * 99-gen-arch.js — THE ARCHETYPE MAP. GENERATED by tools/archetypes.js — do not edit.
  *   source   data/skill-families.json   (node tools/map.js rebuilds it)
  *   rebuild  node tools/archetypes.js
@@ -16670,6 +16974,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         ]),
         h('div', { class: 'tiny', style: { marginTop: '8px' } },
           tot.a ? 'All together: ' + tot.a + ' items answered · ' + allAcc + '% right · best streak ' + (st.bestEver || st.sess.best || 0) + ' · ' + tot.mast + ' skills mastered'
+            + (st.diag && st.diag.done && st.diag.asked ? ' (including ' + st.diag.asked + ' placement-probe questions, which are not counted as a session)' : '')
             : 'Nothing answered yet — every count below starts when the first answer goes in.'),
         h('h3', { text: 'Last ' + log.length + ' items (height = difficulty)' }),
         log.length ? spark : h('div', { class: 'muted', text: 'Answer something to see your trace.' })
