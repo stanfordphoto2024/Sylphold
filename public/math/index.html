@@ -14927,19 +14927,25 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* exactly one of these statements is true */
       function () {
-        var pool = [], i, x, y, st;
+        var pool = [], i, trueIdx = R.int(rng, 0, 3);
         for (i = 0; i < 4; i++) {
           var t = sit(rng, p, lvl);
-          var eq = R.chance(rng, 0.5);
-          var want = eq ? (t.op === 'sub' ? t.c - t.b : t.a + t.b) : (t.op === 'sub' ? t.c - t.b : t.a + t.b) + R.int(rng, 1, 3) * (R.chance(rng, 0.5) ? 1 : -1);
-          st = (t.op === 'sub' ? t.c + ' − ' + t.b : t.a + ' + ' + t.b) + ' = ' + want;
-          pool.push({ s: st, ok: want === (t.op === 'sub' ? t.c - t.b : t.a + t.b) });
+          var actual = t.op === 'sub' ? t.c - t.b : t.a + t.b;
+          var want;
+          if (i === trueIdx) {
+            want = actual;
+          } else {
+            /* Deliberately make every non-key statement false while keeping the
+             * numbers small and learner-friendly. */
+            want = actual === 0 ? 1 : actual - 1;
+            if (want === actual) want = actual + 1;
+          }
+          var st = (t.op === 'sub' ? t.c + ' − ' + t.b : t.a + ' + ' + t.b) + ' = ' + want;
+          pool.push({ s: st, ok: want === actual });
         }
-        pool[0].ok = true;
-        var falses = pool.filter(function (q) { return !q.ok; });
-        if (!falses.length) return I_bool('Is this sentence true?  ' + sentence(s), true, { b: 0.6, explain: ['Work it out: ' + sentence(s) + '.', 'The two sides are equal, so the answer is <b>Yes</b>.'], teach: teach });
-        var right = pool[0].s;
-        return MC(rng, 'Which one of these ' + opWord + ' sentences is true?', right, falses.map(function (q) { return q.s; }), {
+        var right = pool[trueIdx].s;
+        var falses = pool.filter(function (q, idx) { return idx !== trueIdx && !q.ok; }).map(function (q) { return q.s; });
+        return MC(rng, 'Which one of these ' + opWord + ' sentences is true?', right, falses, {
           b: 0.8,
           explain: ['Check each sentence by solving its left side.', 'Only ' + right + ' has the correct value.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Test every statement: exactly one can be true, so the rest must fail when you compute them.'
@@ -15480,11 +15486,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* compare two differences */
       function () {
-        var g = draw(rng, p, cap(lvl + 1, 1, 5)), d2 = g.a - g.b;
-        if (d2 === f.d) d2 = cap(f.d + 1, 0, f.lim) === f.d ? f.d - 1 : f.d + 1;
+        var g, d2, guard = 0;
+        do {
+          g = draw(rng, p, cap(lvl + 1, 1, 5));
+          d2 = g.a - g.b;
+          guard++;
+        } while (d2 === f.d && guard < 20);
+        if (d2 === f.d) {
+          /* Keep the displayed equation and the computed value synchronized. */
+          if (g.b > 0) { g.b -= 1; d2 = g.a - g.b; }
+          else if (g.a < g.lim) { g.a += 1; d2 = g.a - g.b; }
+        }
         return I_cmp(f.a + ' − ' + f.b + ' ○ ' + g.a + ' − ' + g.b, f.d, d2, {
           b: 0.8,
-          explain: [f.a + ' − ' + f.b + ' = ' + f.d + ' and ' + g.a + ' − ' + g.b + ' = ' + d2 + '.', f.d + (f.d > d2 ? ' is greater than ' : ' is less than ') + d2 + '.', 'So the answer is <b>' + (f.d > d2 ? '&gt;' : '&lt;') + '</b>.'],
+          explain: [f.a + ' − ' + f.b + ' = ' + f.d + ' and ' + g.a + ' − ' + g.b + ' = ' + d2 + '.', f.d + (f.d > d2 ? ' is greater than ' : f.d < d2 ? ' is less than ' : ' equals ') + d2 + '.', 'So the answer is <b>' + (f.d > d2 ? '&gt;' : f.d < d2 ? '&lt;' : '=') + '</b>.'],
           teach: 'Work out both differences first, then compare the two numbers you found.'
         });
       },
