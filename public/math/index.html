@@ -172,6 +172,15 @@ input.fld.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--a
 .opt.no { border-color: var(--bad); background: var(--bad-soft); }
 .opt:disabled { cursor: default; }
 .opt.sym { justify-content: center; font-size: 22px; font-weight: 700; }
+/* The voice picker is a native select on purpose — it is the one control that
+   can list what the device actually owns — so it only has to look like the app. */
+select.sel {
+  font: inherit; font-size: 13.5px; font-weight: 600; max-width: 76%; min-width: 0;
+  padding: 8px 11px; border-radius: 10px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); outline: none;
+}
+select.sel:hover { border-color: var(--accent); }
+select.sel:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .parts { display: grid; gap: 10px; }
 .part { display: flex; align-items: center; gap: 10px; }
 .part label { flex: 0 0 auto; font-size: 14.5px; color: var(--ink-2); min-width: 84px; }
@@ -18610,9 +18619,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return function (rng, lvl) {
       var hi = lvl <= 2 ? 5 : lvl === 3 ? 10 : 20;
       var p = two(rng, hi), a = p[0], b = p[1], lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
-      var three = [], i;
+      var three = [], i, guard = 0;
       for (i = 0; i < 3; i++) { var v = R.int(rng, 0, hi); if (three.indexOf(v) < 0) three.push(v); }
-      while (three.length < 3) { var v2 = R.int(rng, 0, hi); if (three.indexOf(v2) < 0) three.push(v2); }
+      /* The guard is not decoration: a rng that keeps handing back the same draw
+         (a seeded test run, or plain bad luck) leaves this loop spinning
+         forever, and the whole card never returns. Below the guard runs out the
+         remaining cards are filled in by counting round the ring, so the three
+         cards are always three different numbers — which is what the card needs
+         to be worth asking about. */
+      while (three.length < 3 && guard++ < 40) { var v2 = R.int(rng, 0, hi); if (three.indexOf(v2) < 0) three.push(v2); }
+      for (i = 1; three.length < 3 && i <= hi + 2; i++) { var v3 = (three[0] + i) % (hi + 1); if (three.indexOf(v3) < 0) three.push(v3); }
       var mx = Math.max.apply(null, three), mn = Math.min.apply(null, three);
       var teach = 'Count to find which number comes later in the count; the later number is the larger one.';
       var word = up ? 'larger' : 'smaller', superl = up ? 'largest' : 'smallest';
@@ -18845,6 +18861,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   BC.ord = function (n) {
     var s = ['th', 'st', 'nd', 'rd'], v = Math.abs(n) % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  /* a grader for a spelled-out number: "and" optional, hyphen or space between
+     twenty and one, any spacing. I_str needs >= 2 accepted spellings, and a
+     RegExp is the honest way to accept all of them at once. */
+  BC.wordPat = function (n) {
+    var w = BC.words(n)
+      .replace(/ and /g, '\u0001')          /* marker for the optional "and" */
+      .replace(/[-\s]+/g, ' ');
+    var re = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')      /* escape the rest */
+      .replace(/\u0001/g, '\\s*(and\\s*)?')
+      .replace(/ /g, '[- ]?');
+    return new RegExp('^(' + re + ')$');
   };
 
   /* ------------------------------------------------------ number drawing --- */
@@ -21609,7 +21637,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           toggle('Auto-advance after each item', 'autoNext'),
           toggle('Show the worked steps after answering', 'showSteps'),
           toggle('Sound effects', 'sound'),
-          toggle('Read every question aloud', 'speech')
+          toggle('Read every question aloud', 'speech'),
+          (E.st.settings && E.st.settings.speech === false) ? null : speechControls()
         ]),
         h('hr', { class: 'sep' }),
         h('div', { class: 'row' }, [
@@ -21630,6 +21659,56 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         }
       }
     }, [h('span', { class: 'grow', text: label }), h('span', { class: 'pill ' + (on ? 'good' : ''), text: on ? 'on' : 'off' })]);
+  }
+  /* Reading aloud is the one setting a learner cannot guess right: the voices a
+     device owns are invisible until they are named, and which one sounds like a
+     person differs by machine. So name them, most human first, and let the
+     learner hear one before committing to it. */
+  function speechControls() {
+    var vs = englishVoices();
+    if (!vs.length) return h('div', { class: 'tiny muted', text: 'No English voice is installed in this browser, so nothing can be read aloud. Add one in the sound settings of the device.' });
+    var st = E.st.settings, cur = String(st.voice || ''), rate = +st.speechRate || 1;
+    var sel = h('select', {
+      class: 'sel', 'aria-label': 'Which voice reads the questions', on: {
+        change: function (ev) {
+          st.voice = ev.target.value; E.save();
+          VOICE = null; VOICE_KEY = '';                 // re-resolve, then prove it
+          render(); speak(speechSample());
+        }
+      }
+    }, [h('option', { value: '', text: 'Best voice this device has (auto) — ' + String(vs[0].name) })].concat(
+      vs.map(function (v) {
+        var n = String(v.name);
+        return h('option', { value: n, text: n + ' · ' + String(v.lang || ''), selected: n === cur ? 'selected' : null });
+      })));
+    var speeds = [['Slow', 0.85], ['Normal', 1], ['Brisk', 1.15]].map(function (p) {
+      var on = Math.abs(rate - p[1]) < 0.001;
+      return h('button', {
+        class: 'btn small' + (on ? ' primary' : ''), type: 'button',
+        on: {
+          click: function () {
+            st.speechRate = p[1]; E.save();
+            render(); speak(speechSample());
+          }
+        }
+      }, p[0]);
+    });
+    return h('div', { class: 'stack', style: { paddingLeft: '2px' } }, [
+      h('div', { class: 'row', style: { alignItems: 'center' } }, [
+        sel, h('div', { class: 'grow' }),
+        h('button', {
+          class: 'btn small', type: 'button', title: 'hear the voice and speed you just picked',
+          on: {
+            click: function () {
+              if (!speechOn()) { toast('Reading aloud is switched off'); return; }
+              speak(speechSample());
+            }
+          }
+        }, '🔊 Hear it')
+      ]),
+      h('div', { class: 'row' }, speeds),
+      h('div', { class: 'tiny muted', text: 'Each question is read a phrase at a time — a question lifts at the end, a statement settles. The choices are said as words, never as symbols.' })
+    ]);
   }
   function exportData() {
     try {
@@ -21758,38 +21837,227 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* -------------------------------------------------------------- speech -- */
   /* The question is spoken the moment it appears — a card a learner cannot read
      is not a question. Browsers only allow speech after a gesture, so the first
-     card may need the 🔊 button; from then on it is automatic. */
-  var VOICE = null;
+     card may need the 🔊 button; from then on it is automatic.
+
+     Sounding like a person is three separate jobs, and one flat utterance gets
+     none of them:
+       1. the VOICE. The browser's first en-US entry is usually the most
+          robotic one it ships; the natural/neural/premium voices are further
+          down the list, so they are scored rather than taken in order.
+       2. the WORDS. Some strings are correct on paper and wrong out loud. The
+          one that gave this app away: an option read out as "No." is the numero
+          sign, and every engine on the market says "number". Symbols like "<"
+          are simply skipped. So the spoken text is written for the ear, not
+          copied from the card.
+       3. the SHAPE. A person says one breath group at a time, and the pitch
+          eases downward as a sentence runs on and lifts on a question. That is
+          done here by speaking a card group by group with a small pause and a
+          contour per group — which also dodges the Chromium bug that truncates
+          a single utterance past a few hundred characters. */
+
+  var VOICE = null, VOICE_KEY = '';     // resolved lazily: getVoices() is async
+  var SAY_TOKEN = 0;                    // a cancel or a new card kills the chain
+  var GOODVOICE = /\b(natural|neural|premium|enhanced|personal|siri|apex|studio|plus|google)\b/i;
+  var NICEVOICE = /\b(samantha|aria|jenny|ava|andrew|allison|stella|zoe|mia|joelle|libby|sonia|serena|daniel|karen|moira|tessa|fiona|nora|susan|alex|victoria|oliver|george|arthur|google)\b/i;
+  var NOVELTY = /\b(bahh|bells|boing|bubbles|cellos|deranged|hysterical|junior|pipe organ|trinoids|zarvox|bad news|good news|trunks|whisper|wobble|albert|rocko|kankushan|damayanti|prasanth|rishi|ottobruno|eddy|eddie|flo|grandma|grandpa|sandy|shelley|zhu zhu|kreek|madara)\b/i;
+  /* written form → the words a person actually says for it */
+  var SAYSYM = {
+    '<': 'less than', '>': 'greater than', '=': 'equal to', '≤': 'less than or equal to',
+    '≥': 'greater than or equal to', '≠': 'not equal to', '+': 'plus', '−': 'minus', '-': 'minus',
+    '×': 'times', '÷': 'divided by', '±': 'plus or minus', '√': 'the square root of'
+  };
+  var SAYNUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+
   function speechOn() { return !(E && E.st && E.st.settings && E.st.settings.speech === false); }
-  function stopSpeech() { try { if (win.speechSynthesis) win.speechSynthesis.cancel(); } catch (e) { } }
+  function stopSpeech() {
+    SAY_TOKEN++;                          // the queued groups must not follow
+    try { if (win.speechSynthesis) win.speechSynthesis.cancel(); } catch (e) { }
+  }
+
+  /* ------------------------------------------------- choosing a voice ----- */
+  function voiceScore(v) {
+    var name = String(v.name || ''), lang = String(v.lang || '');
+    if (!/^en/i.test(lang)) return -1e6;                     // the app is English
+    var s = /en[-_]us/i.test(lang) ? 40 : (/^en[-_]/i.test(lang) ? 22 : 8);
+    if (GOODVOICE.test(name)) s += 50;                       // the neural ones
+    if (/^google[\s-]/i.test(name)) s += 26;                 // full prosody support
+    if (NICEVOICE.test(name)) s += 12;
+    if (NOVELTY.test(name)) s -= 70;                         // "Trinoids" is not a tutor
+    if (v.localService) s += 5;                              // no network stall mid-sentence
+    if (v.default) s += 1;
+    return s;
+  }
+  function englishVoices() {
+    var vs = [];
+    try { vs = (win.speechSynthesis && win.speechSynthesis.getVoices()) || []; } catch (e) { vs = []; }
+    var out = [];
+    for (var i = 0; i < vs.length; i++) {
+      var v = vs[i];
+      if (!v || !/^en/i.test(String(v.lang || ''))) continue;
+      if (NOVELTY.test(String(v.name || ''))) continue;      // never offered, never picked
+      out.push(v);
+    }
+    out.sort(function (a, b) {
+      return voiceScore(b) - voiceScore(a) || String(a.name).localeCompare(String(b.name));
+    });
+    return out;
+  }
+  function needVoice() {
+    var want = (E && E.st && E.st.settings && E.st.settings.voice) || '';
+    if (VOICE && VOICE_KEY === want) return VOICE;
+    var vs = englishVoices();
+    if (!vs.length) return null;                             // list still loading: retry next card
+    VOICE = null;
+    for (var i = 0; i < vs.length; i++) if (String(vs[i].name) === want) { VOICE = vs[i]; break; }
+    if (!VOICE) VOICE = vs[0];                               // auto: the best this device has
+    VOICE_KEY = want;
+    return VOICE;
+  }
+  function watchVoices() {
+    var T = null;
+    try { T = win.speechSynthesis; } catch (e) { return; }
+    if (!T) return;
+    var refresh = function () { VOICE = null; VOICE_KEY = ''; };
+    try {
+      if (typeof T.addEventListener === 'function') T.addEventListener('voiceschanged', refresh);
+      else T.onvoiceschanged = refresh;
+    } catch (e) { }
+  }
+
+  /* ------------------------------------------------ words for the ear ----- */
+  function humanWords(t) {
+    var s = String(t == null ? '' : t)
+      .replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;|&#\d+;|&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ');
+    /* the numero sign: "No." is read as "number" by every engine tried, and an
+       option list joined with periods puts it there. The dot is swapped for a
+       semicolon so the breath between two choices survives the fix; a dot at
+       the very end is simply dropped. */
+    s = s.replace(/\bNo\.(?=[\s,;:]|$)/g, 'No;').replace(/\bno\.(?=[\s,;:]|$)/g, 'no;');
+    s = s.replace(/;+/g, ';').replace(/;\s*$/, '');
+    s = s.replace(/\bvs\.?\b/gi, ' versus');
+    s = s.replace(/\bapprox\.?\b/gi, ' about');
+    s = s.replace(/\betc\.?\b/gi, ' and so on');
+    s = s.replace(/&/g, ' and ');
+    s = s.replace(/(\d+(?:\.\d+)?)\s*\/\s*(\d+)/g, '$1 over $2');   // never "three slash four"
+    return s.replace(/\s{2,}/g, ' ').trim();
+  }
+
+  /* one breath group at a time: sentence ends first, and only a comma when the
+     group is too long to say in a single breath. A two-word group would be a
+     stutter, not a pause, so those are folded back into the group before them. */
+  function breathGroups(t) {
+    var s = String(t == null ? '' : t).replace(/\s+/g, ' ').trim();
+    var out = [], cur = '', i, ch;
+    var isEnd = function (j) { return j >= s.length || s.charAt(j) === ' '; };
+    for (i = 0; i < s.length; i++) {
+      ch = s.charAt(i); cur += ch;
+      if ((ch === '.' || ch === '?' || ch === '!' || ch === ';') && isEnd(i + 1)) {
+        if (cur.replace(/[^A-Za-z0-9]/g, '').length > 1) { out.push(cur.trim()); cur = ''; }
+      }
+    }
+    if (cur.replace(/[^A-Za-z0-9]/g, '').length > 1) out.push(cur.trim());
+
+    var long_ = [], j, k, acc, bits;
+    for (j = 0; j < out.length; j++) {
+      if (out[j].length <= 150) { long_.push(out[j]); continue; }
+      bits = out[j].split(/,\s+/); acc = '';
+      for (k = 0; k < bits.length; k++) {
+        if (acc && (acc + ', ' + bits[k]).length > 110) { long_.push(acc); acc = bits[k]; }
+        else acc = acc ? acc + ', ' + bits[k] : bits[k];
+      }
+      if (acc) long_.push(acc);
+    }
+    var fine = [];
+    for (j = 0; j < long_.length; j++) {
+      var g = long_[j].trim();
+      if (!g) continue;
+      if (g.split(/\s+/).length <= 2 && fine.length) fine[fine.length - 1] += ' ' + g;
+      else fine.push(g);
+    }
+    return fine;
+  }
+
+  /* the contour: a question lifts, a sentence settles, and nothing is spoken
+     twice at exactly the same speed — the one thing that makes a repeated
+     prompt sound like a machine. */
+  function prosody(u, txt, idx, n, speed) {
+    var spread = n > 1 ? idx / (n - 1) : 0;
+    var jit = Math.random() * 0.03 - 0.015;
+    u.rate = clamp(speed * (1 + spread * 0.04) + jit * 0.6, 0.55, 1.7);
+    u.pitch = clamp((/\?/.test(txt) ? 1.06 : 1.02) - spread * 0.10 + jit, 0.4, 1.6);
+    u.volume = 1;
+  }
+
   function speak(txt) {
     if (!speechOn() || !txt) return;
     var T = win.speechSynthesis;
     if (!T || typeof win.SpeechSynthesisUtterance !== 'function') return;
-    try {
-      T.cancel();
-      var u = new win.SpeechSynthesisUtterance(String(txt));
-      u.lang = 'en-US'; u.rate = 0.94; u.pitch = 1;
-      if (!VOICE) {
-        var vs = T.getVoices() || [];
-        VOICE = vs.filter(function (v) { return /en[-_]US/i.test(v.lang); })[0] || vs.filter(function (v) { return /^en/i.test(v.lang); })[0] || null;
-      }
-      if (VOICE) u.voice = VOICE;
-      T.speak(u);
-    } catch (e) { }
+    var groups = breathGroups(humanWords(txt));
+    if (!groups.length) return;
+    var voice = needVoice();
+    var speed = (E && E.st && E.st.settings && +E.st.settings.speechRate) || 1;
+    var token = ++SAY_TOKEN, i = 0;
+    try { T.cancel(); } catch (e) { }
+
+    function next() {
+      if (token !== SAY_TOKEN) return;                       // replaced or stopped
+      if (i >= groups.length) return;
+      var g = groups[i++], done = false, timer = 0;
+      var advance = function () {
+        if (done) return; done = true;
+        if (timer) { clearTimeout(timer); timer = 0; }
+        if (token !== SAY_TOKEN || i >= groups.length) return;
+        timer = setTimeout(next, 150);                       // the breath between groups
+      };
+      var u;
+      try { u = new win.SpeechSynthesisUtterance(g); } catch (e) { return; }
+      u.lang = (voice && voice.lang) || 'en-US';
+      if (voice) u.voice = voice;
+      prosody(u, g, i - 1, groups.length, speed);
+      u.onend = advance; u.onerror = advance;
+      /* Safari and Chromium both drop onend now and then; without this the rest
+         of the question would simply never be said. Generous on purpose. */
+      timer = setTimeout(advance, 1200 + g.length * 110);
+      try { T.speak(u); } catch (e) { advance(); }
+    }
+    next();
   }
+
+  function sayOption(c) {
+    var s = String(c == null ? '' : c).trim();
+    return SAYSYM[s] || s;
+  }
+  /* The card is read the way a teacher reads it aloud: the question, then the
+     choices named, then what to do — never a stream of labels. */
   function speechText(item) {
     if (!item) return '';
     var t = [item.prompt, item.sub].filter(Boolean).join('  ');
     var kind = widgetKind(item);
     if (kind === 'choice' || kind === 'compare') {
-      t += '  ' + optionList(item, kind).map(function (c, i) { return 'Option ' + (i + 1) + ': ' + c; }).join('.  ');
+      var os = optionList(item, kind);
+      var allSym = os.length > 0 && os.every(function (c) { return !!SAYSYM[String(c).trim()]; });
+      if (kind === 'compare' && allSym) {
+        t += '  Your choices are ' + os.map(sayOption).join(', ') + '.';
+      } else {
+        t += '  Your choices: ' + os.map(function (c, i) {
+          return 'option ' + (SAYNUM[i + 1] || (i + 1)) + ' is ' + sayOption(c);
+        }).join('; ') + '.';
+      }
     } else if (kind === 'multi') {
       t += '  Answer each part: ' + ((item.labels || []).join(', ') || 'part one and part two.');
     } else {
-      t += '  ' + ({ point: 'Answer as an ordered pair.', points: 'Answer as a list of ordered pairs.', interval: 'Answer as an interval.', ratio: 'Answer as a ratio, like 3 to 4.', expr: 'Type an expression.', frac: 'Answer as a fraction.', str: 'Type your answer.' }[(item.spec && item.spec.k) || ''] || 'Type your answer.');
+      t += '  ' + ({
+        point: 'Answer with an ordered pair.', points: 'Answer with a list of ordered pairs.',
+        interval: 'Answer with an interval.', ratio: 'Answer with a ratio, like 3 to 4.',
+        expr: 'Type an expression.', frac: 'Answer with a fraction.', str: 'Type your answer.'
+      }[(item.spec && item.spec.k) || ''] || 'Type your answer.');
     }
-    return String(t).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+    return humanWords(t);
+  }
+  function speechSample() {
+    return 'Kai has 24 stickers and shares them equally between 4 friends, so each friend gets 6. '
+      + 'Is that right? Your choices: option one is Yes; option two is No.';
   }
 
   /* -------------------------------------------------------------- header -- */
@@ -21890,6 +22158,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     E = M.createEngine({ state: state, rng: Math.random });
     if (!E.st.settings) E.st.settings = { autoNext: true, sound: false, speech: true, reviewShare: 0.22 };
     if (E.st.settings.speech === undefined) E.st.settings.speech = true;
+    if (!+E.st.settings.speechRate) E.st.settings.speechRate = 1;
+    watchVoices();                            // getVoices() is async in Chromium
     if (!E.st.settings.mode) E.st.settings.mode = 'climb';
     win.addEventListener('hashchange', route);
     doc.addEventListener('keydown', keys);
@@ -21898,7 +22168,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   root.MathPathUI = {
     boot: boot, render: render, renderVisual: renderVisual, buildAnswer: buildAnswer,
-    DRAW: DRAW, state: S, engine: function () { return E; }, toast: toast
+    DRAW: DRAW, state: S, engine: function () { return E; }, toast: toast,
+    /* the voice is part of the product, so the tools can assert on it: what a
+       card sounds like, how it is broken into breaths, and which voice won */
+    speechText: speechText, speechGroups: breathGroups, spokenWords: humanWords,
+    speechVoices: englishVoices, speak: speak
   };
 
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', boot);
