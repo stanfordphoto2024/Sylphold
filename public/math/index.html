@@ -21205,10 +21205,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       box.appendChild(h('button', {
         class: 'btn ghost', type: 'button', on: {
           click: function () {
-            var fb = $('#view #feedback'); if (!fb) return;
-            var st = $('#view .steps');
-            if (st) clear(fb).appendChild(h('div', { class: 'hintbox', html: esc(S.item.teach || '') }));
-            else revealAnswer();
+            var fb = $('#view #feedback'); if (!fb || !S.item) return;
+            /* A hint may have replaced the solution, so first put the solution back. */
+            if (!$('#view .fb')) { revealAnswer(); showSolution(); return; }
+            /* The whole solution is already on the card, so "Explain" must not
+             * throw the worked steps away — it used to swap them for a single
+             * sentence, which read to the learner as the explanation vanishing.
+             * It adds the why-line under the steps instead, and takes it off
+             * again when it is already there. */
+            var extra = $('#view .explain-more');
+            if (extra && extra.parentNode) { extra.parentNode.removeChild(extra); return; }
+            var t = String(S.item.teach || S.item.hint || '').trim();
+            add(fb, h('div', { class: 'hintbox explain-more', html: esc(t || 'Work down the steps above: each one is a move you can check.') }));
+            showSolution();
           }
         }
       }, 'Explain'));
@@ -21225,21 +21234,30 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
 
   function submit() {
-    if (S.answered) return;
+    if (S.answered) { showSolution(); return; }   /* already solved: show it again, never dead */
     var raw = currentRaw();
     if (!raw) { toast('Type or pick your answer first'); return; }
-    var res = checkSpec(S.item.spec, raw);
-    if (res.ok) { finish(true); return; }
+    var res = null;
+    /* A card whose own answer spec is broken cannot be graded. Treat that as a
+     * wrong answer and hand over the solution rather than doing nothing. */
+    try { res = checkSpec(S.item.spec, raw); } catch (e) { res = { ok: false, why: 'grader-error' }; }
+    if (res && res.ok) { finish(true); return; }
     S.attempts++;
-    var notes = diagnose(S.item, raw) || [];
+    /* diagnose() walks the card's misconception table — a wrong path that only
+     * runs when the learner is wrong, which is exactly when they need the card
+     * to answer. One bad entry there must not cost them the whole solution. */
+    var notes = [];
+    try { notes = diagnose(S.item, raw) || []; } catch (e) { notes = []; }
     S.notes = notes;
     S.wrongRaw = raw;
     var kind = widgetKind(S.item);
-    if (kind === 'choice' || kind === 'compare') {
-      $$('#view .opt').forEach(function (b) { if (+b.getAttribute('data-i') === S.picked) b.classList.add('no'); });
-    } else {
-      $$('#view input.fld').forEach(function (i) { i.classList.add('no'); });
-    }
+    try {
+      if (kind === 'choice' || kind === 'compare') {
+        $$('#view .opt').forEach(function (b) { if (+b.getAttribute('data-i') === S.picked) b.classList.add('no'); });
+      } else {
+        $$('#view input.fld').forEach(function (i) { i.classList.add('no'); });
+      }
+    } catch (e) { }
     /* A wrong answer ENDS the card and the learner gets the whole solution on the
      * spot — the canonical answer, every worked step, the misconception note —
      * and the action row then offers the way on: a similar card, the easier
@@ -21254,56 +21272,106 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (S.answered || !S.item) return;
     S.answered = true;
     S.revealed = true;
-    var rec;
-    if (S.item.diag) {
-      rec = { p: E.prob(S.item.b), status: E.statusOf(S.item.skill) };
-      var done = null;
-      try { done = E.diagAnswer(S.item, ok); } catch (e) { done = null; }
-      if (done) S.diagReport = done;
-    } else if (S.item.climb) {
-      rec = E.climbAnswer(S.item, ok);
-      if (rec.moved === 'up') toast('Level up — ' + rec.label);
-      else if (rec.moved === 'down') toast('Stepping back to ' + rec.label);
-      else if (rec.moved === 'top') toast('You cleared the whole ladder — Calculus.');
-    } else {
-      rec = E.record(S.item, ok);
-    }
-    rec.ok = ok; rec.skipped = !!skipped;
+    /* The record exists before the card is drawn: the reveal and the way-forward
+     * buttons both read `S.lastRec.ok`, and the engine fields are merged in after
+     * the learner can already see the answer. */
+    var rec = { ok: !!ok, skipped: !!skipped, p: 0 };
     S.lastRec = rec;
-    E.save();
-    beep(ok);
+    /* The solution is written FIRST, and the engine, the log and localStorage are
+     * updated after it inside a guard. Recording is bookkeeping; a learner who
+     * got a card wrong must have the answer and the steps on the screen whatever
+     * the bookkeeping does. In a browser a throw inside a click handler is
+     * silent, so anything left after it simply never happens — that is the
+     * "it froze and never showed me the answer" the learner reports. */
     revealAnswer();
     renderActions();
+    showSolution();
+    var more = null;
+    try {
+      if (S.item.diag) {
+        more = { p: E.prob(S.item.b), status: E.statusOf(S.item.skill) };
+        var done = null;
+        try { done = E.diagAnswer(S.item, ok); } catch (e) { done = null; }
+        if (done) S.diagReport = done;
+      } else if (S.item.climb) {
+        more = E.climbAnswer(S.item, ok);
+      } else {
+        more = E.record(S.item, ok);
+      }
+      E.save();
+    } catch (e) {
+      if (win.console && console.warn) console.warn('MathPath: this answer was not recorded', e);
+    }
+    if (more) for (var rk in more) if (Object.prototype.hasOwnProperty.call(more, rk)) rec[rk] = more[rk];
+    if (rec.moved === 'up') toast('Level up — ' + rec.label);
+    else if (rec.moved === 'down') toast('Stepping back to ' + rec.label);
+    else if (rec.moved === 'top') toast('You cleared the whole ladder — Calculus.');
+    /* Second pass at the action row: the engine now knows whether this was the
+     * last probe question or the card that moved the learner up a level, and the
+     * buttons have to say so. The first pass was the guarantee that a learner is
+     * never left with nothing to press. */
+    renderActions();
+    beep(ok);
     renderHeader();
     /* the probe counter is live state: redraw it here or it freezes on whatever
      * number the view happened to render last */
     if (S.item.diag) renderProbeProgress();
   }
 
+  /* The answer as the learner must read it. answerTextFor() reads the answer
+   * spec, and a spec from an odd generator can be incomplete — that must never
+   * be the reason the solution panel fails to appear. */
+  function shownAnswer(item) {
+    var t = item && item.answerText;
+    if (t == null || String(t) === '') {
+      try { t = item && item.spec ? answerTextFor(item.spec) : ''; } catch (e) { t = ''; }
+    }
+    return t == null ? '' : String(t);
+  }
+
+  /* Paint the box the learner answered in: green when right, and holding the
+   * canonical answer when wrong, so the card reads as a solved example. This
+   * touches the DOM only, and every throw here would otherwise eat the solution
+   * that comes after it, so it is wrapped. */
+  function markWidget(item, ok) {
+    var kind = widgetKind(item);
+    try {
+      if (kind === 'choice' || kind === 'compare') {
+        var cs = optionList(item, kind);
+        var want = item.answerText != null ? String(item.answerText)
+          : (item.spec && item.spec.text != null ? String(item.spec.text) : '');
+        var right = cs.indexOf(want);
+        if (right < 0 && item.spec && item.spec.k === 'choice' && item.spec.i != null) right = item.spec.i;
+        $$('#view .opt').forEach(function (b) {
+          var i = +b.getAttribute('data-i');
+          if (i === right) b.classList.add('ok');
+        });
+      } else {
+        $$('#view input.fld').forEach(function (i, ix) {
+          /* classList.add('') is not a no-op: Chrome and Safari throw
+           * `SyntaxError: The token provided must not be empty`. This line used to
+           * read `add(ok ? 'ok' : '')`, so EVERY wrong typed answer threw here,
+           * aborted the reveal before a single line of the solution was written,
+           * and left the learner with a red box, no answer, no steps and a Check
+           * button that could never fire again. */
+          i.classList.remove('no');
+          if (ok) i.classList.add('ok');
+          /* Multi-part answers are left alone — one string does not fit. */
+          if (!ok && ix === 0 && i.id === 'ans' && (!item.spec || item.spec.k !== 'list'))
+            i.value = shownAnswer(item);
+        });
+      }
+    } catch (e) {
+      if (win.console && console.warn) console.warn('MathPath: could not mark the answer box', e);
+    }
+  }
+
   function revealAnswer() {
     var fb = $('#view #feedback'); if (!fb || !S.item) return;
     var item = S.item, ok = S.lastRec && S.lastRec.ok;
     var kind = widgetKind(item);
-    if (kind === 'choice' || kind === 'compare') {
-      var cs = optionList(item, kind);
-      var want = item.answerText != null ? String(item.answerText)
-        : (item.spec && item.spec.text != null ? String(item.spec.text) : '');
-      var right = cs.indexOf(want);
-      if (right < 0 && item.spec && item.spec.k === 'choice' && item.spec.i != null) right = item.spec.i;
-      $$('#view .opt').forEach(function (b) {
-        var i = +b.getAttribute('data-i');
-        if (i === right) b.classList.add('ok');
-      });
-    } else {
-      $$('#view input.fld').forEach(function (i, ix) {
-        i.classList.remove('no'); i.classList.add(ok ? 'ok' : '');
-        /* the box ends up holding the correct answer: the card reads as a solved
-         * example. Multi-part answers are left alone — one string does not fit. */
-        if (!ok && ix === 0 && i.id === 'ans' && (!item.spec || item.spec.k !== 'list'))
-          i.value = String(item.answerText || answerTextFor(item.spec));
-      });
-    }
-    var notes = (!ok && S.notes.length) ? S.notes : [];
+    markWidget(item, ok);
+    var notes = (!ok && S.notes && S.notes.length) ? S.notes : [];
     /* what the learner actually put down, next to the canonical answer, so the
      * card reads as a complete solution rather than a red X */
     var mine = '';
@@ -21313,14 +21381,30 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         mine = os[S.picked] != null ? String(os[S.picked]) : '';
       } else if (S.wrongRaw) mine = String(S.wrongRaw);
     }
+    var steps = (item.explain || []).filter(function (st) { return String(st || '').trim() !== ''; });
+    var at = shownAnswer(item);
     clear(fb).appendChild(h('div', { class: 'fb ' + (ok ? 'ok' : 'no') }, [
       h('div', { class: 'head' }, [ok ? '✓ Correct' : (S.lastRec && S.lastRec.skipped ? 'Skipped — here is the solution' : 'Not quite — here is the full solution')]),
       mine ? h('div', { class: 'ans-line muted', html: 'You wrote: <b>' + esc(mine) + '</b>' }) : null,
-      h('div', { class: 'ans-line', html: 'Answer: <b>' + esc(item.answerText || answerTextFor(item.spec)) + '</b>' + (item.unit ? ' ' + esc(item.unit) : '') }),
+      h('div', { class: 'ans-line', html: 'Answer: <b>' + esc(at) + '</b>' + (item.unit ? ' ' + esc(item.unit) : '') }),
       notes.map(function (n) { return h('div', { class: 'note', html: esc(n) }); }),
-      h('ol', { class: 'steps', id: 'steps' }, (item.explain || []).map(function (st) { return h('li', { html: st }); })),
-      item.teach ? h('div', { class: 'teach', html: esc(item.teach) }) : null
+      steps.length ? h('ol', { class: 'steps', id: 'steps' }, steps.map(function (st) { return h('li', { html: st }); })) : null,
+      item.teach ? h('div', { class: 'teach', html: esc(item.teach) }) : (item.hint ? h('div', { class: 'teach', html: esc(item.hint) }) : null)
     ]));
+  }
+
+  /* The solution appears under the answer box, the keypad and the buttons — on a
+   * phone that is below the fold, and a learner who does not scroll never sees
+   * it. So bring it into view, and do it again if the learner presses Check a
+   * second time on a card that is already solved. */
+  function showSolution() {
+    var fb = $('#view #feedback');
+    if (!fb || !fb.firstChild) return;
+    try {
+      if (fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest', behavior: TOUCH ? 'smooth' : 'auto' });
+    } catch (e) {
+      try { fb.scrollIntoView(); } catch (e2) { }
+    }
   }
   /* ------------------------------------------------ reteach after wrong -- */
   function startReteach() {
