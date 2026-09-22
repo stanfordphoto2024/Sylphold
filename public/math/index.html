@@ -337,8 +337,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-22 — 34 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
+/* MathPath 2026-09-22 — 37 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -19621,6 +19621,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var fill = function (t, e) { return String(t).replace(/\{e\}/g, e); };
 
   BC.card = function (rng, c) {
+    /* A compare card needs both operands, which only the handler knows, and a
+       bool card has no numeric value to build distractors around. Both are
+       built by the handler with I_cmp / I_bool instead. */
+    if (c.spec && c.spec.k === 'cmp') return null;
     var val = BC.specValue(c.spec);
     var ansText = c.ansText || answerTextFor(c.spec);
     var steps = c.steps || [];
@@ -19634,16 +19638,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (val != null || c.judgeQ) forms.push('judge');
       if (val != null && c.spec.k === 'n') forms.push('nearest');
     }
-    if (val != null && c.cmp !== false) forms.push('cmp');
+    if (val != null && c.cmp !== false && c.spec.k === 'n') forms.push('cmp');
     if (c.rev) forms.push('rev');
     if (c.story) forms.push('story');
     var f = BC.pick(rng, forms);
     var base = { sub: c.sub, visual: c.visual, teach: c.teach, hint: c.hint, b: c.b || 0 };
     var mk = function (prompt, spec, at, ex) {
-      return mkItem({
-        type: 'text', prompt: prompt, sub: spec === c.spec ? base.sub : undefined,
-        visual: base.visual, spec: spec, answerText: at,
+      var opts = {
+        sub: spec === c.spec ? base.sub : undefined, visual: base.visual,
         explain: ex || BC.last(steps, at), teach: base.teach, hint: base.hint, b: base.b
+      };
+      /* a stated-result card is a Yes/No card: it needs the two options */
+      if (spec && spec.k === 'bool') return I_bool(prompt, spec.v, opts);
+      return mkItem({
+        type: 'text', prompt: prompt, sub: opts.sub, visual: opts.visual, spec: spec, answerText: at,
+        explain: opts.explain, teach: opts.teach, hint: opts.hint, b: opts.b
       });
     };
     if (f.charAt(0) === 'q') return mk(fill(qs[+f.slice(1)], c.expr || ''), c.spec, ansText);
@@ -19655,24 +19664,29 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (opts.length < 2) opts.push(val != null ? nfmt(val + 1) : 'not this one');
       var out = R.shuffle(rng, opts), idx = out.indexOf(String(ansText));
       if (idx < 0) { out[0] = String(ansText); idx = 0; }
-      return mk(c.mcQ || ('Choose the correct answer.  ' + (c.expr || c.q0 || '')),
-        { k: 'choice', i: idx, text: out[idx] }, out[idx]);
+      return I_choice(c.mcQ || ('Choose the correct answer.  ' + (c.expr || c.q0 || '')), out, idx,
+        { sub: base.sub, visual: base.visual, explain: BC.last(steps, ansText), teach: base.teach, hint: base.hint, b: base.b });
     }
     if (f === 'judge') {
       var lie = wrongs.length && R.chance(rng, 0.5) ? String(BC.pick(rng, wrongs)) : String(ansText);
       var truth = lie === String(ansText);
       var q = c.judgeQ ? fill(c.judgeQ, lie) : ('Is it true or false that ' + c.expr + ' = ' + lie + '?');
-      return mk(q, { k: 'bool', v: truth }, truth ? 'Yes' : 'No',
-        BC.last(steps.concat([c.expr + ' is ' + ansText + ', and the statement says ' + lie + '.']), truth ? 'Yes' : 'No'));
+      return I_bool(q, truth, {
+        sub: base.sub, visual: base.visual,
+        explain: BC.last(steps.concat([c.expr + ' is ' + ansText + ', and the statement says ' + lie + '.']), truth ? 'Yes' : 'No'),
+        teach: base.teach, hint: base.hint, b: base.b
+      });
     }
     if (f === 'nearest') {
       var d = BC.int(rng, 2, 9), near = [val + d, val - d, val + d * 3];
       var opts2 = [String(ansText)];
       R.shuffle(rng, near).forEach(function (v) { if (opts2.length < 4 && v !== val) opts2.push(nfmt(v)); });
       var out2 = R.shuffle(rng, opts2), j = out2.indexOf(String(ansText));
-      return mk('Which value is closest to ' + (c.expr || 'the answer') + '?',
-        { k: 'choice', i: j, text: out2[j] }, out2[j],
-        BC.last(steps.concat(['The exact value is ' + ansText + ', and the exact value is always the closest.']), ansText));
+      return I_choice('Which value is closest to ' + (c.expr || 'the answer') + '?', out2, j, {
+        sub: base.sub, visual: base.visual,
+        explain: BC.last(steps.concat(['The exact value is ' + ansText + ', and the exact value is always the closest.']), ansText),
+        teach: base.teach, hint: base.hint, b: base.b
+      });
     }
     if (f === 'cmp') {
       var delta = BC.pick(rng, [1, 2, 3, 5, 10, -1, -2, -3, -5, -10]);
@@ -19861,6 +19875,1480 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var a = BC.dec(rng, 1, 9, d), b = BC.dec(rng, 0.5, Math.max(0.5, BC.fix(a * 0.9, d)), d);
     return { a: a, b: b, sum: BC.exactAdd(a, b), diff: BC.exactSub(a, b) };
   };
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 98-gen-fam-band-core.js — the SHARED ROUTER for the upper-band content build
+ * (G4 → MA). It registers nothing itself: it publishes `UP`, and every
+ * src/98-gen-fam-band-*.js file hangs title handlers on it.
+ *
+ * Why a router and not one file per family: from grade 4 on, the catalogue
+ * TITLE is the standard, and the classifier's family is only a keyword match.
+ * G4's "Add and subtract fractions with like denominators" arrives in
+ * addSubMixed, "Divide 2-digit numbers by 1-digit numbers using area models"
+ * arrives in geometryArea, "Find the range" arrives in functions. A per-family
+ * ladder would therefore teach the wrong mathematics. Here every skill of the
+ * band is routed by its own title, and the family only decides WHICH skills
+ * reach the router.
+ *
+ * A handler is [titleRegExp, function (rng, lvl, params, skillRow)] returning
+ * ONE item, or null when these numbers do not fit (UP.build then tries the next
+ * template). Handlers are tried in registration order, first match wins, so the
+ * most specific title pattern must be registered first.
+ *
+ * Sandbox rules (tools/check.js runs this in a bare vm context): no Set, Map,
+ * Boolean, console, DOM, Math.random, Date. Only R / I_* / V.* / nfmt / fracStr
+ * / mixedStr / gcd / reduce from 00-core.js and BC from 98-gen-band-core.js.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var BC = GLOB.BC;
+  var UP = GLOB.UP || (GLOB.UP = {});
+
+  /* --------------------------------------------------------------- title --- */
+  UP.t = function (sk) { return String((sk && sk.name) || '').toLowerCase(); };
+  UP.has = function (sk, re) { return re.test(UP.t(sk)); };
+  /* first matching test wins; the last pair is the fallback */
+  UP.case = function (sk, pairs) {
+    var t = UP.t(sk);
+    for (var i = 0; i < pairs.length; i++) if (pairs[i][0].test(t)) return pairs[i][1];
+    return pairs.length ? pairs[pairs.length - 1][1] : null;
+  };
+
+  /* ---------------------------------------------------- handler registry --- */
+  var HANDLERS = [];
+  UP.on = function (re, fn) { HANDLERS.push([re, fn]); return HANDLERS.length; };
+  UP.find = function (sk) {
+    var t = UP.t(sk), i;
+    for (i = 0; i < HANDLERS.length; i++) if (HANDLERS[i][0].test(t)) return HANDLERS[i][1];
+    return null;
+  };
+  /* the generator handed to src/99-gen-arch.js for every skill of a band */
+  UP.route = function (rng, lvl, p, sk) {
+    var h = UP.find(sk);
+    return h ? h(rng, lvl, p, sk) : null;
+  };
+  /* register this router as a band's implementation of each named family */
+  UP.register = function (band, fams) {
+    for (var i = 0; i < fams.length; i++) BC.ARCHB(fams[i], band, UP.route);
+    return fams.length;
+  };
+
+  /* ----------------------------------------------------- band policies ----- */
+  /* How big the numbers are allowed to get, per band. A G4 "Add two multi-digit
+     numbers" and a G5 one are the same standard at different magnitudes, and a
+     G8 one is the same standard with negatives. Nothing below decides the
+     mathematics — only the size of it. */
+  var POLICY = {
+    G4: { addMax: [3, 5], subMax: [3, 5], mulDigits: [2, 4], divDigits: [2, 4], negatives: false, decimals: 2, fracDen: [2, 12] },
+    G5: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: false, decimals: 3, fracDen: [2, 15] },
+    G6: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 20] },
+    G7: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
+    G8: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] }
+  };
+  UP.policy = function (sk) {
+    var b = (sk && sk.band) || 'G4';
+    return POLICY[b] || POLICY.G4;
+  };
+  UP.banded = function (sk) { return UP.policy(sk); };
+  /* how many digits a drawn operand should have at this level */
+  UP.digits = function (rng, lvl, sk, lo) {
+    var pol = UP.policy(sk), span = pol.addMax;
+    var lo2 = lo || span[0], hi = span[1];
+    var k = BC.cap(Math.round(lo2 + (hi - lo2) * (lvl - 1) / 4), lo2, hi);
+    return k;
+  };
+
+  /* --------------------------------------------------- shared fragments ---- */
+  /* "3,456" with the thousands comma, for a number the learner reads */
+  UP.comma = function (n) {
+    var s = String(Math.abs(Math.round(n))), out = '', i, c = 0;
+    for (i = s.length - 1; i >= 0; i--) { out = s.charAt(i) + out; c++; if (c % 3 === 0 && i > 0) out = ',' + out; }
+    return (n < 0 ? '-' : '') + out;
+  };
+  /* a number written so the learner can type it back: no commas */
+  UP.typed = function (n) { return String(n); };
+  /* a fraction written the way a grade-4 answer key writes it */
+  UP.fr = function (n, d) { var r = reduce(n, d); return r.d === 1 ? String(r.n) : r.n + '/' + r.d; };
+  /* "7/8 ○ 5/8" — a fraction pair the learner compares */
+  UP.frPair = function (n1, d1, n2, d2) { return UP.fr(n1, d1) + ' ○ ' + UP.fr(n2, d2); };
+  /* a mixed number the learner can type into one blank: "3 1/4" */
+  UP.mix = function (w, n, d) { return w + ' ' + n + '/' + d; };
+  /* percent text for a blank: 37 → "37%" */
+  UP.pc = function (n) { return n + '%'; };
+  /* a time the learner types: 8:05 */
+  UP.hm = function (h, m) { return h + ':' + (m < 10 ? '0' + m : m); };
+
+  /* -------------------------------------------------- story fragments ------ */
+  var STORE = ['the school store', 'the bake sale', 'the recycling drive', 'the book fair',
+    'the class play', 'the field trip', 'the sports field', 'the science lab'];
+  var GIVE = ['gave', 'sold', 'collected', 'used', 'found', 'shared', 'bought', 'counted'];
+  UP.store = function (rng) { return BC.pick(rng, STORE); };
+  UP.give = function (rng) { return BC.pick(rng, GIVE); };
+  /* a two-line story stem: "Maya counted 248 seeds at the school store." */
+  UP.line = function (rng, who, verb, n, thing, where) {
+    return who + ' ' + verb + ' ' + n + ' ' + thing + ' ' + where + '.';
+  };
+
+  /* ------------------------------------------------ template picker ------- */
+  /* BC.build shuffles the handler's templates and returns the first card that
+     does not print its own answer. A template returns null to say "these
+     numbers do not fit me" — when every template bailed, re-draw a few times
+     before giving up, so a handler that occasionally cannot build a valid case
+     still serves the learner a card. */
+  UP.build = function (rng, fns, w) {
+    var it = null, tries = 0;
+    while (tries < 8) {
+      tries++;
+      it = BC.build(rng, fns, w);
+      if (it) return it;
+      rng();                              /* advance the stream and retry */
+    }
+    return null;
+  };
+
+  /* -------------------------------------------------- generic framings ----- */
+  /* The six-plus shapes the smoke gate asks for, written once so a handler only
+     ever draws mathematics:
+       direct   "Work out 4,329 + 1,875."
+       mc       four options, the distractors are the usual slips
+       judge    "Is it true or false that 4,329 + 1,875 = 6,204?"
+       nearest  "Which value is closest to 4,329 + 1,875?"
+       cmp      "Choose >, < or =.  4,329 + 1,875 ○ 6,300"
+       story    the same fact inside a word problem
+     `c.spec` is the drawn fact's answer spec; everything else is optional. */
+  UP.facts = function (rng, c) { return BC.card(rng, c); };
+
+  /* Multiple choice with the explain line the gate insists on. */
+  UP.mc = function (rng, prompt, answer, wrongs, o) {
+    o = o || {};
+    if (!o.explain) {
+      o.explain = o.steps && o.steps.length
+        ? BC.last(o.steps, answer)
+        : ['Work each option out or estimate it.', 'The one that is right is <b>' + answer + '</b>.'];
+    }
+    if (!o.teach) o.teach = 'Check every option against the question before choosing.';
+    return BC.mc(rng, prompt, answer, wrongs, o);
+  };
+  /* A compare card: the two sides, the symbol the grader computes, and the
+     method that produced each side. */
+  UP.cmp = function (rng, c) {
+    var a = c.left, b = c.right;
+    var sym = a === b ? '=' : (a > b ? '>' : '<');
+    return I_cmp(c.prompt || ('Choose >, < or =.   ' + (c.expr || '')), a, b, {
+      sub: c.sub, visual: c.visual, explain: BC.last(c.steps || [], sym),
+      teach: c.teach || 'Work out each side first, then compare the results.',
+      hint: c.hint, b: c.b == null ? 0 : c.b
+    });
+  };
+  /* A Yes/No card on a statement the learner must judge. */
+  UP.judge = function (prompt, truth, c) {
+    c = c || {};
+    return I_bool(prompt, !!truth, {
+      sub: c.sub, visual: c.visual, explain: c.steps ? BC.last(c.steps, truth ? 'Yes' : 'No') : undefined,
+      teach: c.teach || 'Judge the statement by working the mathematics out first.',
+      hint: c.hint, b: c.b == null ? 0 : c.b
+    });
+  };
+
+  /* A numeric answer with the four usual slips around it, as text options. */  UP.slips = function (v, extra) {
+    var out = [], i, k, seen = {};
+    var push = function (x) {
+      x = BC.fix(x, 6);
+      var s = String(x);
+      if (!seen[s] && x !== v) { seen[s] = 1; out.push(x); }
+    };
+    (extra || []).forEach(push);
+    [1, -1, 10, -10, 100, -100, 1000, -1000].forEach(function (d) { push(v + d); });
+    return out.slice(0, 4);
+  };
+  /* digits with one place value changed: the classic column slip */
+  UP.placeSlip = function (v, place) {
+    var p = Math.pow(10, place || 0), d = Math.floor(v / p) % 10;
+    var out = [];
+    [1, 2, 3, 9].forEach(function (k) {
+      var nd = (d + k) % 10, delta = (nd - d) * p;
+      if (delta !== 0) out.push(v + delta);
+    });
+    return out;
+  };
+
+  /* ------------------------------------------------- number drawing -------- */
+  /* an n-digit number, never starting with 0 */
+  UP.n = function (rng, d) { return BC.nDigits(rng, d); };
+  /* two numbers of d1 and d2 digits with a >= b (subtraction) */
+  UP.pair = function (rng, d) {
+    var a = BC.nDigits(rng, d), b, guard = 0;
+    do { b = BC.nDigits(rng, Math.max(1, d - BC.int(rng, 0, 1))); guard++; } while (b > a && guard < 40);
+    if (b > a) { var t = a; a = b; b = t; }
+    return { a: a, b: b };
+  };
+  /* a multiple of ten/hundred/thousand near a d-digit size */
+  UP.roundNum = function (rng, d) {
+    var p = Math.pow(10, BC.int(rng, 1, Math.max(1, d - 1)));
+    return BC.int(rng, 1, Math.min(9000, Math.floor(9 * Math.pow(10, d - 1) / p))) * p;
+  };
+  /* a number whose digits are all distinct (nice for place-value cards) */
+  UP.distinct = function (rng, d) {
+    var pool = R.shuffle(rng, [1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, d);
+    var extra = R.shuffle(rng, [0]).slice(0, Math.max(0, d - pool.length));
+    var digits = R.shuffle(rng, pool.concat(extra));
+    if (digits[0] === 0 && digits.length > 1) {
+      var i2 = -1, j;
+      for (j = 1; j < digits.length; j++) if (digits[j] !== 0) { i2 = j; break; }
+      if (i2 > 0) { var t2 = digits[0]; digits[0] = digits[i2]; digits[i2] = t2; }
+    }
+    var n2 = 0;
+    for (j = 0; j < digits.length; j++) n2 = n2 * 10 + digits[j];
+    return n2;
+  };
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 98-gen-fam-band-g4.js — registration for 4th Grade.
+ *
+ * Every family that has G4 skills gets the band router as its G4
+ * implementation; the router then decides, from each skill's own title, what
+ * mathematics to draw. Registering the whole shelf (not only the families this
+ * file has handlers for yet) is deliberate: an unhandled skill produces no card
+ * rather than a card copied from a K–3 version of the family.
+ *
+ *   node tools/check.js G4          # the band gate
+ *   node tools/inv.js G4 --impl     # which families still need handlers
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var UP = GLOB.UP;
+  if (!UP) return;
+
+  var FAMILIES = [
+    'addFacts', 'addSubMixed', 'areaPerimeter', 'clockTime', 'compareNumbers', 'countNumberLine',
+    'countSet', 'decimals', 'divFacts', 'equations', 'financialLit', 'functions', 'geometryArea',
+    'geometryLines', 'geometryShapes', 'missingNumber', 'money', 'multFacts', 'numberRecognition',
+    'orderOfOps', 'patterns', 'placeValue', 'polynomials', 'rounding', 'sentenceSense',
+    'sortClassify', 'statistics', 'subFacts', 'unitsMeasure', 'wordProblem', 'fractions',
+    'sequences', 'percents', 'probability', 'estimate', 'multSense', 'divSense', 'puzzle', 'parity'
+  ];
+  UP.register('G4', FAMILIES);
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 98-gen-fam-band-num.js — the NUMBER handlers for the upper bands (G4+).
+ * Place value, rounding, addition, subtraction, estimation, factors and
+ * multiples, multiplication, division, mixed operations and equations.
+ *
+ * Every handler is registered on UP by the TITLE of the catalogue skill, which
+ * is the standard being served: "Multiply 1-digit numbers by 3-digit or 4-digit
+ * numbers using area models" must draw an area model, "using partial products"
+ * must draw partial products, and the plain title must draw the algorithm with
+ * the carried digits written out (BC.colAdd / colMul / colDiv).
+ *
+ * Difficulty is structural: lvl 1-2 single step, no regrouping, small numbers;
+ * lvl 3 the standard case; lvl 4-5 multi-digit, reverse asks, judgement
+ * (true/false, which estimate is better), unfamiliar contexts.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var BC = GLOB.BC, UP = GLOB.UP;
+  var R = GLOB.R;
+
+  /* ------------------------------------------------ shared drawing --------- */
+  /* digits for this level: lvl1-2 small, lvl3 standard, lvl4-5 big */
+  function lvlDigits(rng, lvl, lo, hi) {
+    var span = hi - lo, k = lo + Math.round(span * (lvl - 1) / 4);
+    return BC.cap(k, lo, hi);
+  }
+  function addend(rng, d) { return BC.nDigits(rng, d); }
+  function addendSmaller(rng, d) { return BC.nDigits(rng, Math.max(1, d - BC.int(rng, 0, 1))); }
+  function sumPair(rng, d, regroup) {
+    var a, b, c, guard = 0;
+    do {
+      a = addend(rng, d); b = addendSmaller(rng, d); c = BC.colAdd(a, b);
+      guard++;
+    } while (guard < 40 && (c.ans === 0 || (regroup != null && hasCarry(c) !== regroup)));
+    return { a: a, b: b, c: c };
+  }
+  function hasCarry(c) { return c.steps.join(' ').indexOf('carry') >= 0; }
+  function subPair(rng, d, regroup) {
+    var a, b, c, guard = 0;
+    do {
+      a = addend(rng, d); b = addendSmaller(rng, d);
+      if (b > a) { var t = a; a = b; b = t; }
+      c = BC.colSub(a, b);
+      guard++;
+    } while (guard < 40 || (regroup != null && hasBorrow(c) !== regroup));
+    return { a: a, b: b, c: c };
+  }
+  function hasBorrow(c) { return c.steps.join(' ').indexOf('regroup') >= 0; }
+
+  function whoThing(rng) {
+    var thing = BC.pick(rng, ['marbles', 'seeds', 'stickers', 'bookmarks', 'granola bars', 'pencils',
+      'shell necklaces', 'recycled cans', 'robot kits', 'trail maps', 'laminated cards', 'braces']);
+    return { who: BC.who(rng), thing: thing };
+  }
+  /* a story stem whose numbers are the drawn ones and whose answer is not */
+  function storyAdd(rng, a, b) {
+    var w = whoThing(rng), other = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w.who; }));
+    var obj = BC.pick(rng, ['snails', 'seeds', 'pencil sharpeners', 'bookmarks', 'glow sticks', 'protein bars']);
+    var where = BC.pick(rng, ['at the school store', 'at the bake sale', 'on the field trip',
+      'at the recycling drive', 'during the science unit', 'at the fair']);
+    var kind = BC.int(rng, 0, 3);
+    if (kind === 0) {
+      return { prompt: w.who + ' collected ' + UP.comma(a) + ' ' + obj + ' ' + where + ' and ' + UP.comma(b)
+        + ' more ' + obj + ' the week after. How many ' + obj + ' did ' + w.who + ' collect in all?',
+        steps: ['Add the two collections.', 'Put the smaller amount under the larger one and add the columns.'] };
+    }
+    if (kind === 1) {
+      return { prompt: 'A class raised ' + UP.comma(a) + ' ' + obj + ' ' + where + '. ' + other
+        + '\'s class raised ' + UP.comma(b) + '. How many more ' + obj + ' did the first class raise?',
+        steps: ['Compare the two amounts by subtracting.', 'Subtract the smaller number from the larger one.'] };
+    }
+    if (kind === 2) {
+      return { prompt: 'There were ' + UP.comma(a) + ' people at ' + where + '. ' + UP.comma(b)
+        + ' people left before the demonstration. How many people stayed?',
+        steps: ['Start with the whole crowd and take the group that left away.', 'Subtract.'] };
+    }
+    return { prompt: w.who + ' has ' + UP.comma(a) + ' ' + obj + ' and gives away ' + UP.comma(b)
+      + '. How many ' + obj + ' are left?',
+      steps: ['Taking away means subtracting.', 'Subtract ' + UP.comma(b) + ' from ' + UP.comma(a) + '.'] };
+  }
+
+  /* -------------------------------------------------- the calc engine ------ */
+  /* One drawn fact, framed six-plus ways by BC.card. `cfg`:
+     { op:'add'|'sub'|'mul'|'div', d, expr, spec, steps, teach, qs, story, wrongs, b } */
+  function calc(rng, cfg) {
+    return UP.facts(rng, {
+      expr: cfg.expr,
+      spec: cfg.spec,
+      steps: cfg.steps,
+      wrongs: cfg.wrongs,
+      teach: cfg.teach,
+      hint: cfg.hint,
+      qs: cfg.qs,
+      mcQ: cfg.mcQ,
+      judgeQ: cfg.judgeQ,
+      story: cfg.story,
+      visual: cfg.visual,
+      sub: cfg.sub,
+      b: cfg.b == null ? 0 : cfg.b
+    });
+  }
+  function addTeach(a, b) {
+    return 'Line the numbers up by place value and add each column, carrying any ten into the next column.';
+  }
+  function subTeach() {
+    return 'Line the numbers up by place value and subtract each column, regrouping one ten as ten ones when the top digit is too small.';
+  }
+
+  function drawAdd(rng, lvl, d, regroup) {
+    var p = sumPair(rng, d, regroup);
+    return { a: p.a, b: p.b, ans: p.c.ans, steps: p.c.steps };
+  }
+  function drawSub(rng, lvl, d, regroup) {
+    var p = subPair(rng, d, regroup);
+    return { a: p.a, b: p.b, ans: p.c.ans, steps: p.c.steps };
+  }
+
+  /* ======================================================================= */
+  /* =======================  A · PLACE VALUE  ============================== */
+  /* ======================================================================= */
+
+  /* a d-digit number together with one digit picked out of it */
+  function digitIn(rng, d) {
+    var n = UP.distinct(rng, d);
+    var s = String(n), i = BC.int(rng, 0, s.length - 1);
+    return { n: n, s: s, i: i, digit: +s.charAt(i), place: s.length - 1 - i };
+  }
+  function placeName(i) { return BC.place(i); }
+
+  UP.on(/^place value models/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* blocks → which digit is shaded */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = UP.distinct(rng, d), s = String(n);
+        var i = BC.int(rng, 0, s.length - 1), digit = +s.charAt(i);
+        if (!digit) return null;
+        return calc(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'n', v: digit },
+          steps: ['The blocks show ' + UP.comma(n) + '.', 'The marked stack is in the ' + placeName(s.length - 1 - i) + ' place.',
+            'One stack there is worth ' + UP.comma(Math.pow(10, s.length - 1 - i)) + '.'],
+          wrongs: UP.slips(digit, [digit * 10, digit * Math.pow(10, s.length - 1 - i)]),
+          teach: 'A stack of blocks is worth its place: a hundreds stack is worth 100, not 1.',
+          qs: ['How many blocks are in the marked stack?', 'Count the marked stacks. What digit do they show?',
+            'The marked place holds which digit?'],
+          visual: V.blocks(0, 0, 0), b: -0.2
+        });
+      },
+      function () {                       /* which digit sits in a named place */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var n = UP.distinct(rng, d), s = String(n);
+        var place = BC.int(rng, 0, s.length - 1);
+        var digit = +s.charAt(place);
+        return calc(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'n', v: digit },
+          steps: [UP.comma(n) + ' has ' + s.length + ' digits.', 'Count from the right: ' + placeName(s.length - 1) + ', ' + placeName(s.length - 2) + ', and so on.',
+            'The ' + placeName(place) + ' place holds ' + digit + '.'],
+          wrongs: UP.slips(digit, []),
+          teach: 'Places grow by a factor of ten from right to left, so the digit in a place is worth that digit times the place.',
+          qs: ['Which digit is in the {e} ' + placeName(place) + ' place?', 'What digit appears in the ' + placeName(place) + ' place of {e}?',
+            'Find the digit in the ' + placeName(place) + ' place of {e}.'],
+          b: 0.1
+        });
+      },
+      function () {                       /* read the model: how many in all */
+        var h = BC.int(rng, 1, 6), t = BC.int(rng, 0, 9), o = BC.int(rng, 0, 9);
+        var ans = h * 100 + t * 10 + o;
+        return calc(rng, {
+          expr: h + ' hundreds, ' + t + ' tens and ' + o + ' ones',
+          spec: { k: 'n', v: ans },
+          steps: [h + ' hundreds = ' + h * 100, t + ' tens = ' + t * 10, o + ' ones = ' + o,
+            h * 100 + ' + ' + t * 10 + ' + ' + o + ' = ' + ans],
+          wrongs: UP.slips(ans, [h * 100 + t * 10 + o + 10, ans + 100]),
+          teach: 'Base-ten blocks show the number: the hundreds, tens and ones piles added together.',
+          qs: ['What number do the blocks show?', 'Write the number for {e}.', 'Solve. {e} = ?'],
+          visual: V.blocks(h, t, o), b: -0.4
+        });
+      }
+    ]);
+  });
+
+  UP.on(/^place value names|^identify place value names/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* which place holds a given digit */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var n = UP.distinct(rng, d), s = String(n);
+        var digit = +s.charAt(BC.int(rng, 0, s.length - 1));
+        var place = 0, i;
+        for (i = 0; i < s.length; i++) if (+s.charAt(i) === digit) place = s.length - 1 - i;
+        var wrongs = [];
+        for (i = 0; i < s.length; i++) if (i !== place) wrongs.push(placeName(i));
+        return calc(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'str', pats: [new RegExp('^(' + placeName(place).replace(/ /g, '[- ]?') + ')$')], show: placeName(place) },
+          steps: [UP.comma(n) + ' written out: ' + s.split('').join(' ') + '.',
+            digit + ' sits ' + (place + 1) + (place ? '' : '') + ' from the right, counting ones as the first place.',
+            'That is the ' + placeName(place) + ' place.'],
+          teach: 'Each place is ten times the place on its right: ones, tens, hundreds, thousands, ten thousands, hundred thousands.',
+          qs: ['In {e}, which place holds the digit ' + digit + '?', 'Name the place that holds ' + digit + ' in {e}.',
+            'The digit ' + digit + ' in {e} is in which place?'],
+          b: 0.1
+        });
+      },
+      function () {                       /* MC on the place name */
+        var d = lvlDigits(rng, lvl, 3, 7);
+        var g = digitIn(rng, d);
+        var wrongs = [];
+        [g.place - 1, g.place + 1, g.place - 2, g.place + 2].forEach(function (q) {
+          if (q >= 0 && q < g.s.length && BC.place(q) !== BC.place(g.place)) wrongs.push(BC.place(q));
+        });
+        var prompt = 'In ' + UP.comma(g.n) + ', what place is the digit ' + g.digit + ' in?';
+        return UP.mc(rng, prompt, BC.place(g.place), wrongs, {
+          teach: 'Count places from the right: ones, tens, hundreds, thousands, ten thousands, hundred thousands, millions.',
+          b: 0
+        });
+      },
+      function () {                       /* which digit is in a named place */
+        var d = lvlDigits(rng, lvl, 4, 7);
+        var n = UP.distinct(rng, d), s = String(n);
+        var place = BC.int(rng, 0, s.length - 1), digit = +s.charAt(s.length - 1 - place);
+        var wrongs = [];
+        var j;
+        for (j = 0; j < s.length; j++) if (+s.charAt(j) !== digit) wrongs.push(+s.charAt(j));
+        return UP.mc(rng, 'What digit is in the ' + BC.place(place) + ' place of ' + UP.comma(n) + '?',
+          digit, wrongs, {
+          teach: 'Start at the ones place on the right and count left until you reach the named place.',
+          b: 0.1
+        });
+      }
+    ]);
+  });
+
+  UP.on(/^value of a digit/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* the digit's value */
+        var d = lvlDigits(rng, lvl, 3, 7);
+        var g = digitIn(rng, d);
+        if (!g.digit) return null;
+        var val = g.digit * Math.pow(10, g.place);
+        return calc(rng, {
+          expr: UP.comma(g.n),
+          spec: { k: 'n', v: val },
+          steps: [g.digit + ' is in the ' + placeName(g.place) + ' place.',
+            placeName(g.place) + ' means ' + UP.comma(Math.pow(10, g.place)) + '.',
+            g.digit + ' × ' + UP.comma(Math.pow(10, g.place)) + ' = ' + UP.comma(val)],
+          wrongs: UP.slips(val, [g.digit, g.digit * Math.pow(10, Math.max(0, g.place - 1)), g.digit * Math.pow(10, g.place + 1)]),
+          teach: 'A digit is worth the digit times its place, so the same digit means different things in different places.',
+          qs: ['What is the value of the digit ' + g.digit + ' in {e}?', 'In {e}, how much is ' + g.digit + ' worth?',
+            'Write the value of ' + g.digit + ' in {e}.'],
+          b: 0
+        });
+      },
+      function () {                       /* reverse: a number where a digit has this value */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var g = digitIn(rng, d);
+        if (!g.digit) return null;
+        var val = g.digit * Math.pow(10, g.place);
+        var wrongs = [];
+        [Math.max(0, g.place - 1), g.place + 1, g.place + 2].forEach(function (q) {
+          if (q !== g.place) wrongs.push(UP.comma(g.digit * Math.pow(10, q)));
+        });
+        return UP.mc(rng, 'In ' + UP.comma(g.n) + ', what is the value of the digit ' + g.digit + '?',
+          UP.comma(val), wrongs, {
+          teach: 'Multiply the digit by the value of its place to find what it is worth.',
+          b: 0.1
+        });
+      },
+      function () {                       /* true / false about a digit's value */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var g = digitIn(rng, d);
+        if (!g.digit) return null;
+        var val = g.digit * Math.pow(10, g.place);
+        var claim = R.chance(rng, 0.5) ? val : val * 10;
+        if (claim === val * 10 && claim > 9999999) claim = Math.max(1, val / 10);
+        var truth = claim === val;
+        return calc(rng, {
+          expr: UP.comma(g.n),
+          spec: { k: 'bool', v: truth },
+          steps: [g.digit + ' is in the ' + placeName(g.place) + ' place.',
+            'So it is worth ' + UP.comma(val) + '.',
+            'The statement says ' + UP.comma(claim) + '.'],
+          teach: 'A digit is worth the digit times its place.',
+          qs: ['Is the value of ' + g.digit + ' in {e} equal to ' + UP.comma(claim) + '?',
+            'True or false: the digit ' + g.digit + ' in {e} is worth ' + UP.comma(claim) + '.'],
+          b: 0.3
+        });
+      }
+    ]);
+  });
+
+  UP.on(/relationship between place values|10 times as much/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* how many times bigger */
+        var d = lvlDigits(rng, lvl, 4, 7);
+        var n = UP.distinct(rng, d), s = String(n);
+        var opts = [], i;
+        for (i = 0; i < s.length; i++) if (+s.charAt(i) !== 0) opts.push(i);
+        if (opts.length < 2) return null;
+        var pair = R.sample(rng, opts, 2);
+        var hi = Math.min(pair[0], pair[1]), lo = Math.max(pair[0], pair[1]);
+        var digit = +s.charAt(hi);
+        var big = digit * Math.pow(10, s.length - 1 - hi), small = digit * Math.pow(10, s.length - 1 - lo);
+        var ratio = big / small;
+        return calc(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'n', v: ratio },
+          steps: ['The ' + placeName(s.length - 1 - hi) + ' place is ' + UP.comma(big) + '.',
+            'The ' + placeName(s.length - 1 - lo) + ' place is ' + UP.comma(small) + '.',
+            UP.comma(big) + ' ÷ ' + UP.comma(small) + ' = ' + ratio],
+          wrongs: UP.slips(ratio, [10 * ratio, ratio + 1, 100]),
+          teach: 'Each place is ten times the place to its right, so the same digit ten places apart is worth ten times as much.',
+          qs: ['In {e}, how many times greater is the ' + digit + ' in the ' + placeName(s.length - 1 - hi) + ' place than the same digit in the ' + placeName(s.length - 1 - lo) + ' place?',
+            'How many times as much is ' + UP.comma(big) + ' compared with ' + UP.comma(small) + '?'],
+          b: 0.2
+        });
+      },
+      function () {                       /* one place is 10× the next */
+        var place = BC.int(rng, 1, 6);
+        var v = Math.pow(10, place);
+        return calc(rng, {
+          expr: '1 ' + placeName(place) + ' vs 1 ' + placeName(place - 1),
+          spec: { k: 'n', v: 10 },
+          steps: ['1 ' + placeName(place) + ' = ' + UP.comma(v) + '.',
+            '1 ' + placeName(place - 1) + ' = ' + UP.comma(v / 10) + '.',
+            UP.comma(v) + ' ÷ ' + UP.comma(v / 10) + ' = 10'],
+          wrongs: [100, 9, 1000],
+          teach: 'Moving one place to the left multiplies the value by ten.',
+          qs: ['How many times as much is 1 ' + placeName(place) + ' as 1 ' + placeName(place - 1) + '?'],
+          b: -0.2
+        });
+      },
+      function () {                       /* which statement is true */
+        var place = BC.int(rng, 1, 5);
+        var big = Math.pow(10, place), small = Math.pow(10, place - 1);
+        var right = UP.comma(big) + ' is 10 times ' + UP.comma(small);
+        var wrongs = [UP.comma(big) + ' is 10 times ' + UP.comma(small * 10),
+          UP.comma(big) + ' is ' + UP.comma(small),
+          UP.comma(big * 10) + ' is 10 times ' + UP.comma(small)];
+        return UP.mc(rng, 'Which statement about the ' + placeName(place) + ' place is true?', right, wrongs, {
+          teach: 'Adjacent places differ by a factor of ten.',
+          b: 0.1
+        });
+      }
+    ]);
+  });
+
+  UP.on(/^find 10 or 100 times a number/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {
+        var d = lvlDigits(rng, lvl, 1, 4);
+        var n = BC.nDigits(rng, d), k = BC.pick(rng, [10, 100, 1000]);
+        var ans = n * k;
+        return calc(rng, {
+          expr: UP.comma(k) + ' × ' + UP.comma(n),
+          spec: { k: 'n', v: ans },
+          steps: ['Multiplying by ' + k + ' moves the digits ' + String(k).length + ' places to the left.',
+            UP.comma(n) + ' becomes ' + UP.comma(ans) + '.'],
+          wrongs: UP.slips(ans, [n * k * 10, ans + k, n + k]),
+          teach: 'Multiply by 10, 100 or 1000 by shifting the digits left and filling the empty places with zeros.',
+          qs: ['Work out {e}.', 'What is ' + k + ' times ' + UP.comma(n) + '?', 'Solve. {e} = ?'],
+          b: -0.2
+        });
+      },
+      function () {                       /* reverse: which number × 100 gives this */
+        var n = BC.nDigits(rng, lvlDigits(rng, lvl, 1, 3)), k = BC.pick(rng, [10, 100]);
+        var ans = n * k;
+        return calc(rng, {
+          expr: '? × ' + k + ' = ' + UP.comma(ans),
+          spec: { k: 'n', v: n },
+          steps: ['Division undoes multiplication.', UP.comma(ans) + ' ÷ ' + k + ' = ' + n],
+          wrongs: UP.slips(n, [ans, n * 10]),
+          teach: 'To undo multiplying by 10 or 100, divide by it and drop the zeros.',
+          qs: ['What number times ' + k + ' is ' + UP.comma(ans) + '?'],
+          b: 0.3
+        });
+      },
+      function () {                       /* compare: 10 × n vs n + 10 */
+        var n = BC.nDigits(rng, lvlDigits(rng, lvl, 1, 3));
+        return UP.cmp(rng, {
+          expr: UP.comma(10 * n) + ' ○ ' + UP.comma(n + 10),
+          left: 10 * n, right: n + 10,
+          steps: ['10 × ' + n + ' = ' + UP.comma(10 * n) + '.', n + ' + 10 = ' + UP.comma(n + 10) + '.',
+            'Compare ' + UP.comma(10 * n) + ' with ' + UP.comma(n + 10) + '.'],
+          teach: 'Multiplying by ten shifts the digits; adding ten only changes one place.',
+          b: 0.2
+        });
+      }
+    ]);
+  });
+
+  UP.on(/convert between standard and expanded form/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* expanded → standard */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var n = BC.nDigits(rng, d), s = String(n), parts = [], i;
+        for (i = 0; i < s.length; i++) if (+s.charAt(i)) parts.push(s.charAt(i) + UP.comma(Math.pow(10, s.length - 1 - i)));
+        var expr = parts.join(' + ');
+        return calc(rng, {
+          expr: expr,
+          spec: { k: 'n', v: n },
+          steps: parts.slice(0, 3).concat([parts.length + ' parts add to one number.']),
+          wrongs: UP.slips(n, UP.placeSlip(n, 1)),
+          teach: 'Expanded form writes each digit with its place value; adding the parts gives standard form.',
+          qs: ['Write the standard form of {e}.', 'What number is {e}?', 'Solve. {e} = ?'],
+          b: 0
+        });
+      },
+      function () {                       /* standard → expanded */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = BC.nDigits(rng, d), s = String(n);
+        var parts = [];
+        var i;
+        for (i = 0; i < s.length; i++) if (+s.charAt(i)) parts.push(s.charAt(i) + UP.comma(Math.pow(10, s.length - 1 - i)));
+        var ans = parts.join(' + ');
+        var wrongs = [];
+        var alt = parts.slice(0, parts.length - 1).join(' + ');
+        wrongs.push(alt + ' + ' + parts[parts.length - 1].replace('1,', ''));
+        wrongs.push(s.split('').join(' + ') + ' (place values missing)');
+        var prompt = 'Write ' + UP.comma(n) + ' in expanded form.';
+        return UP.mc(rng, prompt, ans, wrongs, {
+          teach: 'Expanded form names every place value, not just the digits.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which part is missing */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = BC.nDigits(rng, d), s = String(n);
+        var idx = [], j;
+        for (j = 0; j < s.length; j++) if (+s.charAt(j)) idx.push(j);
+        if (idx.length < 2) return null;
+        var hide = BC.pick(rng, idx);
+        var shown = [];
+        for (j = 0; j < s.length; j++) if (j !== hide && +s.charAt(j)) shown.push(s.charAt(j) + UP.comma(Math.pow(10, s.length - 1 - j)));
+        var shownSum = 0;
+        for (j = 0; j < s.length; j++) if (j !== hide && +s.charAt(j)) shownSum += +s.charAt(j) * Math.pow(10, s.length - 1 - j);
+        var ans = n - shownSum;
+        return calc(rng, {
+          expr: shown.join(' + ') + ' + ? = ' + UP.comma(n),
+          spec: { k: 'n', v: ans },
+          steps: ['The parts shown add to ' + UP.comma(shownSum) + '.', UP.comma(n) + ' − ' + UP.comma(shownSum) + ' = ' + UP.comma(ans)],
+          wrongs: UP.slips(ans, [+s.charAt(hide), +s.charAt(hide) * Math.pow(10, s.length - 1 - hide) * 10]),
+          teach: 'A missing part of an expanded number is what is left after the shown places are subtracted.',
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* word names: "four thousand three hundred twenty-nine" */
+  UP.on(/^spell word names|writing numbers up to one/, function (rng, lvl, p, sk) {
+    var toWords = UP.has(sk, /spell word names|convert words to digits|between words and digits/) && !/convert digits to words/.test(UP.t(sk));
+    return UP.build(rng, [
+      function () {                       /* digits → word name (typed) */
+        var d = lvlDigits(rng, lvl, 3, 7);
+        var n = BC.nDigits(rng, d);
+        var w = BC.words(n);
+        return UP.facts(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'str', pats: [BC.wordPat(n), w], show: w },
+          steps: [UP.comma(n) + ' has ' + String(n).length + ' digits.',
+            'Group by place: ' + (n >= 1000 ? BC.words(Math.floor(n / 1000) * 1000) + ' and ' : '') + BC.words(n % 1000 ? n % 1000 : 0) + '.',
+            'Written out: ' + w + '.'],
+          teach: 'Say the number in groups of a thousand, then write each group with its place value.',
+          qs: ['Write {e} in words.', 'How do you spell the number {e}?', 'Name {e} in words.'],
+          b: 0.1
+        });
+      },
+      function () {                       /* words → digits (typed number) */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var n = BC.nDigits(rng, d), w = BC.words(n);
+        return calc(rng, {
+          expr: w,
+          spec: { k: 'n', v: n },
+          steps: ['"thousand" marks the thousands group: ' + BC.words(Math.floor(n / 1000) * 1000) + '.',
+            'The rest is ' + BC.words(n % 1000) + '.',
+            'Put the digits together.'],
+          wrongs: UP.slips(n, UP.placeSlip(n, 3)),
+          teach: 'Write the thousands group first, then the hundreds, tens and ones.',
+          qs: ['Write the number for {e}.', 'Which digits spell {e}?', 'Solve. {e} = ?'],
+          b: -0.1
+        });
+      },
+      function () {                       /* MC on the word name */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = BC.nDigits(rng, d);
+        var w = BC.words(n);
+        var wrongs = [BC.words(n + Math.pow(10, BC.int(rng, 1, Math.max(1, String(n).length - 1)))),
+          BC.words(n * 10), BC.words(n + 1)];
+        return UP.mc(rng, 'Which is the correct way to write ' + UP.comma(n) + ' in words?', w, wrongs, {
+          teach: 'Only one spelling puts every digit in its own place.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which digits match this word name */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = BC.nDigits(rng, d), w = BC.words(n);
+        var wrongs = [UP.comma(n + Math.pow(10, 2)), UP.comma(n * 10), UP.comma(n + 7)];
+        return UP.mc(rng, 'Which number is "' + w + '"?', UP.comma(n), wrongs, {
+          teach: 'Convert the word name back into digits place by place.',
+          b: 0.1
+        });
+      }
+    ]);
+  });
+
+  UP.on(/^convert between place values/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* 4 thousands = ? */
+        var place = BC.int(rng, 2, 6);
+        var k = BC.int(rng, 2, 9);
+        var ans = k * Math.pow(10, place);
+        return calc(rng, {
+          expr: k + ' ' + placeName(place),
+          spec: { k: 'n', v: ans },
+          steps: ['1 ' + placeName(place) + ' = ' + UP.comma(Math.pow(10, place)) + '.',
+            k + ' × ' + UP.comma(Math.pow(10, place)) + ' = ' + UP.comma(ans)],
+          wrongs: UP.slips(ans, [k * Math.pow(10, place - 1), k * Math.pow(10, place + 1)]),
+          teach: 'A count of a place value is that many times the place.',
+          qs: ['How much is {e}?', 'Work out {e}.', 'Solve. {e} = ?'],
+          b: -0.1
+        });
+      },
+      function () {                       /* 3,400 = ? hundreds */
+        var place = BC.int(rng, 2, 5);
+        var base = Math.pow(10, place);
+        var k = BC.int(rng, 2, 90);
+        var ans = k * base;
+        return calc(rng, {
+          expr: UP.comma(ans) + ' = ? ' + placeName(place),
+          spec: { k: 'n', v: k },
+          steps: [UP.comma(ans) + ' ÷ ' + UP.comma(base) + ' = ' + k,
+            'So ' + UP.comma(ans) + ' is ' + k + ' ' + placeName(place) + '.'],
+          wrongs: UP.slips(k, [k * 10, Math.floor(k / 10)]),
+          teach: 'To find how many of a place value fit, divide by that place.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which place value equals this number */
+        var place = BC.int(rng, 2, 6);
+        var k = BC.int(rng, 2, 9);
+        var ans = k * Math.pow(10, place);
+        var wrongs = [k + ' ten thousands', k + ' ' + placeName(place + 1), k + ' ' + placeName(Math.max(0, place - 1))];
+        return UP.mc(rng, 'Which expression has the value ' + UP.comma(ans) + '?',
+          k + ' ' + placeName(place), wrongs, {
+          teach: 'The place name decides how many zeros follow the digit.',
+          b: 0.3
+        });
+      },
+      function () {                       /* true/false on a conversion */
+        var place = BC.int(rng, 2, 6);
+        var k = BC.int(rng, 2, 9);
+        var ans = k * Math.pow(10, place);
+        var claim = R.chance(rng, 0.5) ? ans : k * Math.pow(10, place + 1);
+        var truth = claim === ans;
+        return calc(rng, {
+          expr: k + ' ' + placeName(place),
+          spec: { k: 'bool', v: truth },
+          steps: [k + ' ' + placeName(place) + ' = ' + UP.comma(ans) + '.',
+            'The statement says ' + UP.comma(claim) + '.'],
+          teach: 'Multiply the count by the place value to check a conversion.',
+          qs: ['Is {e} equal to ' + UP.comma(claim) + '?'],
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  UP.on(/^place value word problems|^place value review/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* story on place value */
+        var d = lvlDigits(rng, lvl, 4, 6);
+        var g = digitIn(rng, d);
+        if (!g.digit) return null;
+        var val = g.digit * Math.pow(10, g.place);
+        var who = BC.who(rng);
+        var thing = BC.pick(rng, ['points', 'seats', 'views', 'downloads', 'votes']);
+        return calc(rng, {
+          expr: UP.comma(g.n),
+          spec: { k: 'n', v: val },
+          steps: [who + '\'s total was ' + UP.comma(g.n) + '.', g.digit + ' sits in the ' + placeName(g.place) + ' place.',
+            g.digit + ' × ' + UP.comma(Math.pow(10, g.place)) + ' = ' + UP.comma(val)],
+          wrongs: UP.slips(val, [g.digit * Math.pow(10, Math.max(0, g.place - 1))]),
+          teach: 'In a real total, a digit is still worth its digit times its place.',
+          qs: [who + ' scored ' + UP.comma(g.n) + ' ' + thing + '. What is the value of the digit ' + g.digit + ' in that number?',
+            'The number ' + UP.comma(g.n) + ' counts ' + thing + '. How much is the digit ' + g.digit + ' worth?'],
+          b: 0.2
+        });
+      },
+      function () {                       /* story: how many times as much */
+        var place = BC.int(rng, 2, 5);
+        var digit = BC.int(rng, 1, 9);
+        var big = digit * Math.pow(10, place), small = digit * Math.pow(10, place - 1);
+        var who = BC.who(rng), other = BC.pick(rng, BC.WHO.filter(function (x) { return x !== who; }));
+        return calc(rng, {
+          expr: UP.comma(big) + ' vs ' + UP.comma(small),
+          spec: { k: 'n', v: 10 },
+          steps: [who + ': ' + UP.comma(big) + ' ' + placeName(place) + '.', other + ': ' + UP.comma(small) + ' ' + placeName(place - 1) + '.',
+            UP.comma(big) + ' ÷ ' + UP.comma(small) + ' = 10'],
+          wrongs: [100, 9, 1000],
+          teach: 'Adjacent place values always differ by a factor of ten.',
+          b: 0.3
+        });
+      },
+      function () {                       /* expanded form story */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = BC.nDigits(rng, d), s = String(n);
+        var parts = [], i;
+        for (i = 0; i < s.length; i++) if (+s.charAt(i)) parts.push(s.charAt(i) + UP.comma(Math.pow(10, s.length - 1 - i)));
+        return calc(rng, {
+          expr: parts.join(' + '),
+          spec: { k: 'n', v: n },
+          steps: parts.slice(0, 3).concat(['Add the parts together.']),
+          wrongs: UP.slips(n, UP.placeSlip(n, 2)),
+          teach: 'Expanded form is the same number written one place at a time.',
+          b: 0.1
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ===================  B · COMPARING AND ORDERING  ======================= */
+  /* ======================================================================= */
+  UP.on(/^compare numbers up to one|^compare numbers in tables|^order numbers up to|^find the order/, function (rng, lvl, p, sk) {
+    var big = UP.has(sk, /billion/) ? [10, 12] : [7, 9];
+    return UP.build(rng, [
+      function () {                       /* which is greater, typed comparison */
+        var d = lvlDigits(rng, lvl, big[0], big[1]);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, d);
+        if (a === b) b = BC.nDigits(rng, d);
+        return UP.cmp(rng, {
+          expr: UP.comma(a) + ' ○ ' + UP.comma(b),
+          left: a, right: b,
+          steps: ['Both numbers have ' + String(a).length + ' digits, so compare from the left.',
+            'The first place where they differ decides it.'],
+          teach: 'Compare equal-length numbers digit by digit from the left; the first difference decides the order.',
+          b: 0
+        });
+      },
+      function () {                       /* MC: greatest of a row */
+        var d = lvlDigits(rng, lvl, big[0] - 1, big[1] - 1);
+        var opts = [], i;
+        for (i = 0; i < 4; i++) opts.push(BC.nDigits(rng, d));
+        var uniq = {}, keep = [];
+        for (i = 0; i < opts.length; i++) if (!uniq[opts[i]]) { uniq[opts[i]] = 1; keep.push(opts[i]); }
+        if (keep.length < 3) return null;
+        var mx = Math.max.apply(null, keep);
+        var wrongs = keep.filter(function (v) { return v !== mx; });
+        return UP.mc(rng, 'Which number is the greatest?', UP.comma(mx), wrongs.map(function (v) { return UP.comma(v); }), {
+          teach: 'The greatest number has the larger digit in the leftmost place where two numbers differ.',
+          b: 0.1
+        });
+      },
+      function () {                       /* MC: least of a row */
+        var d = lvlDigits(rng, lvl, big[0] - 1, big[1] - 1);
+        var opts = [], i, seen = {};
+        for (i = 0; i < 4; i++) { var v = BC.nDigits(rng, d); if (!seen[v]) { seen[v] = 1; opts.push(v); } }
+        if (opts.length < 3) return null;
+        var mn = Math.min.apply(null, opts);
+        return UP.mc(rng, 'Which number is the least?', UP.comma(mn),
+          opts.filter(function (v) { return v !== mn; }).map(function (v) { return UP.comma(v); }), {
+          teach: 'The least number has the smaller digit in the leftmost place where two numbers differ.',
+          b: 0.1
+        });
+      },
+      function () {                       /* order the row: which comes first */
+        var d = lvlDigits(rng, lvl, big[0] - 1, big[1] - 1);
+        var opts = [], i, seen = {};
+        for (i = 0; i < 4; i++) { var v = BC.nDigits(rng, d); if (!seen[v]) { seen[v] = 1; opts.push(v); } }
+        if (opts.length < 3) return null;
+        var sorted = opts.slice().sort(function (a, b) { return a - b; });
+        var ask = R.chance(rng, 0.5);
+        var ans = ask ? sorted[sorted.length - 1] : sorted[0];
+        var wrongs = sorted.filter(function (v) { return v !== ans; });
+        return UP.mc(rng, 'Put ' + opts.map(function (v) { return UP.comma(v); }).join(', ') + ' in order from least to greatest. Which number is '
+          + (ask ? 'the greatest?' : 'the least?'), UP.comma(ans), wrongs.map(function (v) { return UP.comma(v); }), {
+          teach: 'Ordering a list is the same comparison done for every pair.',
+          b: 0.3
+        });
+      },
+      function () {                       /* table compare */
+        var d = lvlDigits(rng, lvl, big[0] - 1, big[1] - 1);
+        var rows = [], i;
+        for (i = 0; i < 3; i++) rows.push({ who: BC.pick(rng, BC.WHO), n: BC.nDigits(rng, d) });
+        var a = rows[0], b = rows[1];
+        if (a.n === b.n) b.n = BC.nDigits(rng, d);
+        return UP.cmp(rng, {
+          expr: a.who + ' ' + UP.comma(a.n) + ' ○ ' + b.who + ' ' + UP.comma(b.n),
+          left: a.n, right: b.n,
+          steps: ['Read the table: ' + a.who + ' ' + UP.comma(a.n) + ', ' + b.who + ' ' + UP.comma(b.n) + '.',
+            'Compare the two numbers from the left.'],
+          teach: 'A table only names the numbers; the comparison is still place by place.',
+          b: 0.2
+        });
+      },
+      function () {                       /* true/false on a stated comparison */
+        var d = lvlDigits(rng, lvl, big[0], big[1]);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, d);
+        if (a === b) b = BC.nDigits(rng, d);
+        var sym = a > b ? '>' : '<';
+        var claim = R.chance(rng, 0.5) ? sym : (sym === '>' ? '<' : '>');
+        var truth = claim === sym;
+        return calc(rng, {
+          expr: UP.comma(a) + ' ' + claim + ' ' + UP.comma(b),
+          spec: { k: 'bool', v: truth },
+          steps: [UP.comma(a) + ' compared with ' + UP.comma(b) + ' from the left gives ' + sym + '.',
+            'The statement writes ' + claim + '.'],
+          teach: 'The open side of the comparison always faces the larger number.',
+          qs: ['Is {e} a true statement?'],
+          b: 0.3
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* =============================  C · ROUNDING  =========================== */
+  /* ======================================================================= */
+  UP.on(/^rounding|^round a number to any place/, function (rng, lvl, p, sk) {
+    var toPlace = function (n, place) {
+      var p10 = Math.pow(10, place), r = Math.round(n / p10) * p10;
+      return { ans: r, low: Math.floor(n / p10) * p10, high: Math.floor(n / p10) * p10 + p10 };
+    };
+    var placeWord = function (place) {
+      return place === 0 ? 'one' : place === 1 ? 'ten' : place === 2 ? 'hundred' : place === 3 ? 'thousand'
+        : place === 4 ? 'ten thousand' : place === 5 ? 'hundred thousand' : 'million';
+    };
+    return UP.build(rng, [
+      function () {                       /* round to a place */
+        var d = lvlDigits(rng, lvl, 3, 7);
+        var n = UP.distinct(rng, d);
+        var place = BC.int(rng, 1, Math.max(1, d - 1));
+        var r = toPlace(n, place);
+        if (r.ans === n) return null;
+        return calc(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'n', v: r.ans },
+          steps: ['The two ' + placeWord(place) + 's around ' + UP.comma(n) + ' are ' + UP.comma(r.low) + ' and ' + UP.comma(r.high) + '.',
+            'The digit to the right of the ' + placeWord(place) + ' place is ' + Math.floor(n / Math.pow(10, place - 1)) % 10 + '.',
+            (Math.floor(n / Math.pow(10, place - 1)) % 10 >= 5 ? 'It is 5 or more, so round up.' : 'It is less than 5, so round down.'),
+            'That gives ' + UP.comma(r.ans) + '.'],
+          wrongs: UP.slips(r.ans, [r.low, r.high, r.ans + Math.pow(10, place)]),
+          teach: 'Round by finding the two benchmarks in that place, then go to the nearer one; a 5 in the next digit sends it up.',
+          qs: ['Round {e} to the nearest ' + placeWord(place) + '.', 'What is {e} to the nearest ' + placeWord(place) + '?',
+            'Nearest ' + placeWord(place) + ': {e}'],
+          b: 0
+        });
+      },
+      function () {                       /* which place was rounded to */
+        var d = lvlDigits(rng, lvl, 4, 6);
+        var n = UP.distinct(rng, d);
+        var place = BC.int(rng, 1, Math.max(1, d - 1));
+        var r = toPlace(n, place);
+        if (r.ans === n) return null;
+        var wrongs = [];
+        [place - 1, place + 1, place + 2].forEach(function (q) { if (q >= 0 && q !== place) wrongs.push('nearest ' + placeWord(q)); });
+        return UP.mc(rng, UP.comma(n) + ' became ' + UP.comma(r.ans) + '. To which place was it rounded?',
+          'nearest ' + placeWord(place), wrongs, {
+          teach: 'The place that turned into zeros (with maybe one digit added) is the place you rounded to.',
+          b: 0.3
+        });
+      },
+      function () {                       /* input/output rounding table */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var place = BC.int(rng, 1, 3);
+        var rows = [], i, seen = {};
+        for (i = 0; i < 3; i++) {
+          var n = UP.distinct(rng, d), r = toPlace(n, place);
+          if (r.ans === n || seen[n]) return null;
+          seen[n] = 1;
+          rows.push({ n: n, r: r.ans });
+        }
+        var hide = BC.int(rng, 0, rows.length - 1);
+        var ans = rows[hide].r;
+        var wrongs = UP.slips(ans, [rows[hide].n]);
+        var head = ['Input', 'Output'];
+        var table = rows.map(function (x, i) { return [UP.comma(x.n), i === hide ? '?' : UP.comma(x.r)]; });
+        return calc(rng, {
+          expr: 'rounding table, nearest ' + placeWord(place),
+          spec: { k: 'n', v: ans },
+          steps: ['Every output is the input rounded to the nearest ' + placeWord(place) + '.',
+            UP.comma(rows[hide].n) + ' is between ' + UP.comma(toPlace(rows[hide].n, place).low) + ' and ' + UP.comma(toPlace(rows[hide].n, place).high) + '.',
+            'The rule gives ' + UP.comma(ans) + '.'],
+          wrongs: wrongs,
+          teach: 'An input/output table applies the same rule to every row; find the rule from the finished rows.',
+          visual: V.table(head, table),
+          qs: ['The table rounds to the nearest ' + placeWord(place) + '. What is the missing output?',
+            'Complete the rounding table for {e}.'],
+          b: 0.4
+        });
+      },
+      function () {                       /* puzzle: which number rounds to this */
+        var place = BC.int(rng, 2, 4);
+        var target = BC.int(rng, 1, 9) * Math.pow(10, place);
+        var step = Math.pow(10, place);
+        var right = target + Math.floor(step * BC.int(rng, 1, 9) / 10) + BC.int(rng, 1, step - 1) % Math.max(1, Math.floor(step / 3));
+        right = BC.cap(right, target - step + 1, target + step - 1);
+        if (Math.round(right / step) * step !== target) right = target + Math.floor(step / 2) + 1;
+        if (Math.round(right / step) * step !== target) return null;
+        var wrongs = [target - step, target + step, target + step * 2];
+        return UP.mc(rng, 'Which number rounds to ' + UP.comma(target) + ' when rounded to the nearest ' + placeWord(place) + '?',
+          UP.comma(right), wrongs.map(function (v) { return UP.comma(v); }), {
+          teach: 'Every number from half a step below to half a step above a benchmark rounds to that benchmark.',
+          b: 0.5
+        });
+      },
+      function () {                       /* true/false on a rounded value */
+        var d = lvlDigits(rng, lvl, 3, 6);
+        var n = UP.distinct(rng, d);
+        var place = BC.int(rng, 1, Math.max(1, d - 1));
+        var r = toPlace(n, place);
+        if (r.ans === n) return null;
+        var claim = R.chance(rng, 0.5) ? r.ans : r.low;
+        if (claim === r.ans && claim === r.low) return null;
+        var truth = claim === r.ans;
+        return calc(rng, {
+          expr: UP.comma(n),
+          spec: { k: 'bool', v: truth },
+          steps: ['Rounded to the nearest ' + placeWord(place) + ', ' + UP.comma(n) + ' is ' + UP.comma(r.ans) + '.',
+            'The statement says ' + UP.comma(claim) + '.'],
+          teach: 'Check a rounded number by comparing the two benchmarks.',
+          qs: ['Is {e} rounded to the nearest ' + placeWord(place) + ' equal to ' + UP.comma(claim) + '?'],
+          b: 0.3
+        });
+      },
+      function () {                       /* nearest benchmark choice */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var n = UP.distinct(rng, d);
+        var place = BC.int(rng, 1, Math.max(1, d - 1));
+        var r = toPlace(n, place);
+        if (r.ans === n) return null;
+        var opts = [UP.comma(r.ans), UP.comma(r.low), UP.comma(r.high), UP.comma(r.ans + Math.pow(10, place))];
+        var uniq = {}, keep = [];
+        opts.forEach(function (v) { if (!uniq[v]) { uniq[v] = 1; keep.push(v); } });
+        if (keep.length < 3) return null;
+        return UP.mc(rng, 'Which ' + placeWord(place) + ' is ' + UP.comma(n) + ' nearest to?', UP.comma(r.ans),
+          keep.filter(function (v) { return v !== UP.comma(r.ans); }), {
+          teach: 'Nearest means smallest distance on the number line.',
+          b: 0.2
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ==================  D · ADDITION  /  E · SUBTRACTION  ================= */
+  /* ======================================================================= */
+  UP.on(/^add two multi-digit numbers|^subtract two multi-digit numbers/, function (rng, lvl, p, sk) {
+    var isAdd = /^add/.test(UP.t(sk));
+    return UP.build(rng, [
+      function () {                       /* the algorithm */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var f = isAdd ? drawAdd(rng, lvl, d, lvl >= 3 ? true : null) : drawSub(rng, lvl, d, lvl >= 3 ? true : null);
+        return calc(rng, {
+          expr: UP.comma(f.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f.b),
+          spec: { k: 'n', v: f.ans },
+          steps: f.steps,
+          wrongs: UP.slips(f.ans, UP.placeSlip(f.ans, 1).concat(isAdd ? [f.a - f.b] : [f.a + f.b])),
+          teach: isAdd ? addTeach() : subTeach(),
+          qs: ['Work out {e}.', 'What is {e}?', 'Solve. {e} = ?'],
+          b: 0
+        });
+      },
+      function () {                       /* word problem on the same fact */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var f = isAdd ? drawAdd(rng, lvl, d, null) : drawSub(rng, lvl, d, null);
+        var st = storyAdd(rng, f.a, f.b);
+        return calc(rng, {
+          expr: UP.comma(f.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f.b),
+          spec: { k: 'n', v: f.ans },
+          steps: f.steps,
+          wrongs: UP.slips(f.ans),
+          teach: isAdd ? 'Joining two amounts means adding; find the total.' : 'Taking one amount away means subtracting; find what is left.',
+          story: { prompt: st.prompt, steps: st.steps },
+          b: 0.2
+        });
+      },
+      function () {                       /* reverse: find the missing addend */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
+        var sum = a + b;
+        var unknown = R.chance(rng, 0.5) ? b : a;
+        var shown = unknown === b ? a : b;
+        var ans = unknown;
+        return calc(rng, {
+          expr: UP.comma(shown) + (isAdd ? ' + ' : ' − ') + '? = ' + UP.comma(isAdd ? sum : sum),
+          spec: { k: 'n', v: ans },
+          steps: [isAdd ? 'The total is ' + UP.comma(sum) + '.' : 'The difference is ' + UP.comma(sum) + '.',
+            isAdd ? UP.comma(sum) + ' − ' + UP.comma(shown) + ' = ' + UP.comma(ans)
+              : 'The missing top number is ' + UP.comma(shown) + ' + ' + UP.comma(sum) + ' = ' + UP.comma(unknown)],
+          wrongs: UP.slips(ans),
+          teach: 'A missing part is found with the opposite operation.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which is the better estimate */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var f = isAdd ? drawAdd(rng, lvl, d, null) : drawSub(rng, lvl, d, null);
+        var est = Math.round(f.ans / 100) * 100;
+        var wrongs = [est + 100, est - 100, Math.round(f.ans / 1000) * 1000 + 100];
+        return UP.mc(rng, 'Which is the best estimate for ' + UP.comma(f.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f.b) + '?',
+          String(est), wrongs.filter(function (v) { return v !== est; }).map(String), {
+          teach: 'Round each number to the same place first, then compute with the rounded numbers.',
+          b: 0.3
+        });
+      },
+      function () {                       /* judge a stated result */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var f = isAdd ? drawAdd(rng, lvl, d, null) : drawSub(rng, lvl, d, null);
+        var wrong = f.ans + BC.pick(rng, [100, -100, 10, -10, 1, -1]);
+        var truth = R.chance(rng, 0.5) ? f.ans : wrong;
+        var ok = truth === f.ans;
+        return calc(rng, {
+          expr: UP.comma(f.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f.b),
+          spec: { k: 'bool', v: ok },
+          steps: ['Work the columns out.', 'The true result is ' + UP.comma(f.ans) + '; the statement says ' + UP.comma(truth) + '.'],
+          teach: 'Estimate first, then check the stated result against it.',
+          qs: ['Is {e} = ' + UP.comma(truth) + ' true or false?'],
+          b: 0.3
+        });
+      },
+      function () {                       /* compare two results */
+        var d = lvlDigits(rng, lvl, 3, 4);
+        var f1 = isAdd ? drawAdd(rng, lvl, d, null) : drawSub(rng, lvl, d, null);
+        var f2 = isAdd ? drawAdd(rng, lvl, d, null) : drawSub(rng, lvl, d, null);
+        if (f1.ans === f2.ans) return null;
+        return UP.cmp(rng, {
+          expr: UP.comma(f1.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f1.b) + ' ○ ' + UP.comma(f2.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f2.b),
+          left: f1.ans, right: f2.ans,
+          steps: ['Left side = ' + UP.comma(f1.ans) + '.', 'Right side = ' + UP.comma(f2.ans) + '.',
+            'Compare ' + UP.comma(f1.ans) + ' with ' + UP.comma(f2.ans) + '.'],
+          teach: 'Compare two computations by working each one out first.',
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* ---- estimation ------------------------------------------------------- */
+  UP.on(/^estimate (sums|differences|products|quotients)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var kind = /difference/.test(t) ? 'sub' : /product/.test(t) ? 'mul' : /quotient/.test(t) ? 'div' : 'add';
+    return UP.build(rng, [
+      function () {                       /* round then compute */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
+        var place = Math.max(1, d - 2);
+        var ra = Math.round(a / Math.pow(10, place)) * Math.pow(10, place);
+        var rb = Math.round(b / Math.pow(10, place)) * Math.pow(10, place);
+        if (ra === 0 || rb === 0) return null;
+        var ans, exact;
+        if (kind === 'sub') { if (rb > ra) { var tm = ra; ra = rb; rb = tm; } ans = ra - rb; exact = a - b; }
+        else if (kind === 'add') { ans = ra + rb; exact = a + b; }
+        else if (kind === 'mul') { ans = ra * BC.int(rng, 2, 9); exact = a * BC.int(rng, 2, 9); ans = exact; }
+        else { var k = BC.int(rng, 2, 9); ans = Math.round(exact = Math.round(a / k) * k) ; }
+        return calc(rng, {
+          expr: UP.comma(a) + (kind === 'sub' ? ' − ' : kind === 'mul' ? ' × ' : kind === 'div' ? ' ÷ ' : ' + ') + UP.comma(b),
+          spec: { k: 'n', v: ans },
+          steps: ['Round ' + UP.comma(a) + ' to ' + UP.comma(ra) + '.',
+            'Round ' + UP.comma(b) + ' to ' + UP.comma(rb) + '.',
+            UP.comma(ra) + (kind === 'sub' ? ' − ' : kind === 'add' ? ' + ' : ' × ') + UP.comma(rb) + ' = ' + UP.comma(ans)],
+          wrongs: UP.slips(ans, [exact]),
+          teach: 'Estimate by rounding each number to the same place, then compute with the rounded numbers.',
+          qs: ['Estimate {e}.', 'What is the best estimate for {e}?', 'About how much is {e}?'],
+          b: 0
+        });
+      },
+      function () {                       /* which estimate is closest */
+        var d = lvlDigits(rng, lvl, 3, 5);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
+        var exact = kind === 'sub' ? (a > b ? a - b : b - a) : a + b;
+        var est = Math.round(exact / 100) * 100;
+        var opts = [String(est), String(est + 100), String(est - 100), String(Math.round(exact / 1000) * 1000)];
+        var seen = {}, keep = [];
+        opts.forEach(function (v) { if (!seen[v] && +v > 0) { seen[v] = 1; keep.push(v); } });
+        if (keep.length < 3) return null;
+        return UP.mc(rng, 'Which is the closest estimate for ' + UP.comma(a) + (kind === 'sub' ? ' − ' : ' + ') + UP.comma(b) + '?',
+          String(est), keep.filter(function (v) { return v !== String(est); }), {
+          teach: 'The closest estimate is the one with the smallest distance to the exact answer.',
+          b: 0.2
+        });
+      },
+      function () {                       /* reasonable or not */
+        var d = lvlDigits(rng, lvl, 3, 4);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
+        var exact = kind === 'sub' ? Math.abs(a - b) : a + b;
+        var claim = exact * BC.pick(rng, [10, 1, 1]);
+        var truth = claim === exact;
+        return calc(rng, {
+          expr: UP.comma(a) + (kind === 'sub' ? ' − ' : ' + ') + UP.comma(b),
+          spec: { k: 'bool', v: truth },
+          steps: ['Rounding both numbers to the nearest hundred gives an answer near ' + UP.comma(Math.round(exact / 100) * 100) + '.',
+            'The statement says ' + UP.comma(claim) + '.'],
+          teach: 'A reasonable estimate has the same size and the same first digits as the exact answer.',
+          qs: ['Is ' + UP.comma(claim) + ' a reasonable answer for {e}?'],
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* ---- properties of the operations ------------------------------------- */
+  UP.on(/^properties of (addition|multiplication|division)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var isMul = /multiplication/.test(t);
+    var isDiv = /division/.test(t);
+    return UP.build(rng, [
+      function () {                       /* name the property shown */
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 9);
+        var kind = BC.int(rng, 0, isMul ? 2 : 2);
+        var expr, name, wrongs;
+        if (kind === 0) {
+          expr = (isMul ? a + ' × ' + b : a + ' + ' + b) + ' = ' + b + ' ' + (isMul ? '× ' : '+ ') + a;
+          name = 'commutative property';
+          wrongs = ['associative property', 'distributive property', 'identity property'];
+        } else if (kind === 1) {
+          expr = '(' + (isMul ? a + ' × ' + b : a + ' + ' + b) + ') × ' + c + ' = ' + a + ' × (' + b + ' × ' + c + ')';
+          if (!isMul) expr = '(' + a + ' + ' + b + ') + ' + c + ' = ' + a + ' + (' + b + ' + ' + c + ')';
+          name = 'associative property';
+          wrongs = ['commutative property', 'distributive property', 'zero property'];
+        } else {
+          expr = isMul ? a + ' × 1 = ' + a : a + ' + 0 = ' + a;
+          name = isMul ? 'identity property' : 'identity property';
+          wrongs = ['commutative property', 'associative property', 'distributive property'];
+        }
+        return UP.mc(rng, 'Which property is shown by ' + expr + '?', name, wrongs, {
+          teach: 'The commutative property moves the numbers, the associative property moves the parentheses, and the identity property leaves the number unchanged.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which equation uses the property */
+        var a = BC.int(rng, 3, 9), b = BC.int(rng, 3, 9);
+        var right = (a + b) + ' = ' + b + ' + ' + a;
+        var wrongs = [a + ' + ' + b + ' = ' + a + ' + ' + b + ' + 0', a + ' × ' + b + ' = ' + a + ' + ' + b];
+        return UP.mc(rng, 'Which equation shows the commutative property of ' + (isMul ? 'multiplication' : 'addition') + '?',
+          right, wrongs, {
+          teach: 'Changing the order of the addends (or factors) never changes the result.',
+          b: 0.1
+        });
+      },
+      function () {                       /* true/false on a property claim */
+        var a = BC.int(rng, 4, 12), b = BC.int(rng, 4, 12);
+        var expr = a + ' + ' + b + ' = ' + a + ' + ' + b + ' − ' + b;
+        var truth = false;
+        return calc(rng, {
+          expr: expr,
+          spec: { k: 'bool', v: truth },
+          steps: ['Left side: ' + (a + b) + '.', 'Right side: ' + a + ' + ' + b + ' − ' + b + ' = ' + a + '.',
+            (a + b) + ' is not equal to ' + a + '.'],
+          teach: 'Adding zero leaves a number unchanged; subtracting a number you just added takes it back.',
+          qs: ['Is {e} true or false?'],
+          b: 0.3
+        });
+      },
+      function () {                       /* identity: which number is missing */
+        var a = BC.nDigits(rng, lvlDigits(rng, lvl, 2, 4));
+        var useZero = !isMul;
+        return calc(rng, {
+          expr: UP.comma(a) + (useZero ? ' + ?' : ' × ?') + ' = ' + UP.comma(a),
+          spec: { k: 'n', v: useZero ? 0 : 1 },
+          steps: ['The number did not change.',
+            useZero ? 'Only adding 0 leaves a number the same.' : 'Only multiplying by 1 leaves a number the same.'],
+          wrongs: useZero ? [1, 10, a] : [0, 10, a],
+          teach: 'Zero is the identity for addition and one is the identity for multiplication.',
+          b: -0.1
+        });
+      }
+    ]);
+  });
+
+  /* ---- fill in the missing digits --------------------------------------- */
+  UP.on(/fill in the missing digits|complete the addition or subtraction sentence/, function (rng, lvl, p, sk) {
+    var isSub = /subtraction/.test(UP.t(sk));
+    return UP.build(rng, [
+      function () {                       /* one hidden digit of the answer */
+        var d = lvlDigits(rng, lvl, 2, 4);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, d);
+        if (isSub && b > a) { var t = a; a = b; b = t; }
+        var ans = isSub ? a - b : a + b;
+        var s = String(ans), hide = BC.int(rng, 0, s.length - 1);
+        if (s.charAt(hide) === '0' && s.length > 1 && hide < s.length - 1) return null;
+        var masked = s.split(''); masked[hide] = '?';
+        return calc(rng, {
+          expr: UP.comma(a) + (isSub ? ' − ' : ' + ') + UP.comma(b) + ' = ' + masked.join(''),
+          spec: { k: 'n', v: +s.charAt(hide) },
+          steps: ['Work the ' + (isSub ? 'subtraction' : 'addition') + ' out column by column.',
+            'The digit under the ? is in the ' + BC.place(s.length - 1 - hide) + ' place.',
+            'It is ' + s.charAt(hide) + '.'],
+          wrongs: UP.slips(+s.charAt(hide), [+s.charAt(Math.max(0, hide - 1))]),
+          teach: 'Each column of the algorithm gives exactly one digit of the answer.',
+          b: 0.3
+        });
+      },
+      function () {                       /* hidden addend */
+        var d = lvlDigits(rng, lvl, 2, 4);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
+        var sum = isSub ? a - b : a + b;
+        var ans = b;
+        return calc(rng, {
+          expr: UP.comma(isSub ? a : a) + (isSub ? ' − ' : ' + ') + '? = ' + UP.comma(sum),
+          spec: { k: 'n', v: ans },
+          steps: [isSub ? 'The difference is ' + UP.comma(sum) + '.' : 'The total is ' + UP.comma(sum) + '.',
+            isSub ? UP.comma(a) + ' − ' + UP.comma(sum) + ' = ' + UP.comma(ans) : UP.comma(sum) + ' − ' + UP.comma(a) + ' = ' + UP.comma(ans)],
+          wrongs: UP.slips(ans),
+          teach: 'Undo the operation to recover the missing number.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which digit was carried */
+        var a = BC.int(rng, 6, 9), b = BC.int(rng, 6, 9);
+        return calc(rng, {
+          expr: a + ' + ' + b + ' = ' + (a + b),
+          spec: { k: 'n', v: 1 },
+          steps: [a + ' + ' + b + ' = ' + (a + b) + ', which is two digits.',
+            'Only one ten could be carried, so the carried digit is 1.'],
+          wrongs: [0, 2, 10],
+          teach: 'A column that reaches ten or more carries exactly one into the next column.',
+          b: -0.2
+        });
+      },
+      function () {                       /* which place holds the missing digit */
+        var d = lvlDigits(rng, lvl, 3, 4);
+        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, d);
+        if (isSub && b > a) { var t2 = a; a = b; b = t2; }
+        var ans = isSub ? a - b : a + b;
+        var s = String(ans), hide = BC.int(rng, 0, s.length - 1);
+        var wrongs = [];
+        var i;
+        for (i = 0; i < s.length; i++) if (i !== hide) wrongs.push(BC.place(s.length - 1 - i));
+        return UP.mc(rng, UP.comma(a) + (isSub ? ' − ' : ' + ') + UP.comma(b) + ' = ' + s.split('').map(function (c, i) { return i === hide ? '?' : c; }).join('')
+          + '. Which place is missing?', BC.place(s.length - 1 - hide), wrongs, {
+          teach: 'Count from the right: ones, tens, hundreds, thousands.',
+          b: 0.3
+        });
+      }
+    ]);
+  });
+
+  /* ---- choose numbers with a particular result --------------------------- */
+  UP.on(/^choose numbers with a particular/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var op = /difference/.test(t) ? 'sub' : /product/.test(t) ? 'mul' : /quotient/.test(t) ? 'div'
+      : /sum, difference, product, or quotient/.test(t) ? 'any' : /sum or difference/.test(t) ? 'both' : 'add';
+    return UP.build(rng, [
+      function () {                       /* which pair gives the target */
+        var kind = op === 'any' ? BC.pick(rng, ['add', 'sub', 'mul', 'div']) : op;
+        var target, pairs, i;
+        if (kind === 'add') { var a = BC.nDigits(rng, lvlDigits(rng, lvl, 2, 4)); var b = BC.nDigits(rng, Math.max(1, lvlDigits(rng, lvl, 2, 4) - 1)); target = a + b; pairs = [[a, b]]; }
+        else if (kind === 'sub') { var c = BC.nDigits(rng, lvlDigits(rng, lvl, 2, 4)), d = BC.nDigits(rng, lvlDigits(rng, lvl, 2, 4) - 1); if (d > c) { var tm = c; c = d; d = tm; } target = c - d; pairs = [[c, d]]; }
+        else if (kind === 'mul') { var f1 = BC.int(rng, 3, 12), f2 = BC.int(rng, 3, 12); target = f1 * f2; pairs = [[f1, f2]]; }
+        else { var q = BC.int(rng, 3, 12), dv = BC.int(rng, 2, 9); target = q * dv; pairs = [[target, dv]]; }
+        var right = pairs[0];
+        var wrongs = [];
+        for (i = 0; i < 3; i++) {
+          var x = BC.nDigits(rng, String(right[0]).length), y = BC.nDigits(rng, String(right[1]).length);
+          var res = kind === 'add' ? x + y : kind === 'sub' ? Math.abs(x - y) : kind === 'mul' ? x * y : (x / y);
+          if (res !== target) wrongs.push(UP.comma(x) + ' ' + (kind === 'add' ? '+' : kind === 'sub' ? '−' : kind === 'mul' ? '×' : '÷') + ' ' + UP.comma(y));
+        }
+        if (wrongs.length < 2) return null;
+        return UP.mc(rng, 'Which pair of numbers has ' + (kind === 'mul' ? 'a product' : kind === 'div' ? 'a quotient' : kind === 'sub' ? 'a difference' : 'a sum')
+          + ' of ' + UP.comma(kind === 'div' ? q : target) + '?',
+          UP.comma(right[0]) + ' ' + (kind === 'add' ? '+' : kind === 'sub' ? '−' : kind === 'mul' ? '×' : '÷') + ' ' + UP.comma(right[1]),
+          wrongs, {
+          teach: 'Compute each pair, or work backwards from the target with the opposite operation.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which number completes the fact */
+        var k = BC.int(rng, 2, 9), q = BC.int(rng, 3, 12);
+        var target = k * q;
+        var wrongs = UP.slips(q, [k, target]);
+        return UP.mc(rng, 'Which number makes ' + k + ' × ? = ' + target + ' true?', String(q),
+          wrongs.map(function (v) { return String(v); }), {
+          teach: 'A missing factor is the product divided by the known factor.',
+          b: 0.2
+        });
+      },
+      function () {                       /* true/false on a claimed result */
+        var a = BC.nDigits(rng, lvlDigits(rng, lvl, 2, 4)), b = BC.nDigits(rng, Math.max(1, lvlDigits(rng, lvl, 2, 4) - 1));
+        var claim = a + b;
+        var lie = R.chance(rng, 0.5) ? claim : claim + BC.pick(rng, [10, 100, -10]);
+        var truth = lie === claim;
+        return calc(rng, {
+          expr: UP.comma(a) + ' + ' + UP.comma(b),
+          spec: { k: 'bool', v: truth },
+          steps: ['Add the columns: ' + UP.comma(a) + ' + ' + UP.comma(b) + ' = ' + UP.comma(claim) + '.',
+            'The statement says ' + UP.comma(lie) + '.'],
+          teach: 'Check a claimed sum by working the columns yourself first.',
+          qs: ['Is {e} = ' + UP.comma(lie) + ' true or false?'],
+          b: 0.3
+        });
+      },
+      function () {                       /* find two numbers given the sum */
+        var sum = BC.nDigits(rng, lvlDigits(rng, lvl, 2, 4));
+        var one = BC.int(rng, 1, Math.max(1, Math.floor(sum / 3)));
+        var other = sum - one;
+        return calc(rng, {
+          expr: 'two numbers add to ' + UP.comma(sum) + ', one is ' + UP.comma(one),
+          spec: { k: 'n', v: other },
+          steps: ['One number is ' + UP.comma(one) + '.', UP.comma(sum) + ' − ' + UP.comma(one) + ' = ' + UP.comma(other)],
+          wrongs: UP.slips(other, [sum]),
+          teach: 'Given the sum and one addend, subtract to find the other.',
+          b: 0.3
+        });
+      }
+    ]);
+  });
 })();
 
 </script>
