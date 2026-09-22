@@ -291,12 +291,20 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .viz .bar-r { fill: var(--accent); }
 .viz .box { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: var(--accent); }
 
+/* --------------------------------------------------------------- footer -- */
+.foot { border-top: 1px solid var(--line); padding: 18px 16px 40px; }
+.foot-in { max-width: 780px; margin: 0 auto; }
+.foot p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.55; color: var(--ink-3); }
+.foot p:last-child { margin-bottom: 0; }
+.foot .k { font-weight: 700; color: var(--ink-2); }
+
 @media (max-width: 560px) {
   .prompt { font-size: 18px; }
   .prompt.big { font-size: 20px; }
   .barrow { grid-template-columns: 84px 1fr 40px; }
   nav.tabs button { padding: 6px 9px; font-size: 12.5px; }
   .keypad { grid-template-columns: repeat(5, 1fr); }
+  .foot { padding: 16px 14px 34px; }
 }
 
 </style>
@@ -314,6 +322,14 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
     </noscript>
   </main>
 </div>
+<footer class="foot">
+  <div class="foot-in">
+    <p><span class="k">Privacy Policy:</span> Sylphold Math is a non-commercial educational tool. We do not
+    collect, store, or share any personal information from children or users.</p>
+    <p><span class="k">Disclaimer:</span> This website is provided 'as is' for supplemental practice only,
+    without warranties of any kind. Not affiliated with any school district.</p>
+  </div>
+</footer>
 <div class="toast" id="toast"></div>
 <script>
 /* MathPath 2026-09-21 — 34 modules inlined:
@@ -19286,10 +19302,102 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* --------------------------------------------------- money & percents ---- */
   BC.moneyDraw = function (rng, maxDollars) {
-    return BC.fix(BC.float(rng, 0.25, maxDollars || 20), 2);
+    return BC.fix(R.float(rng, 0.25, maxDollars || 20), 2);
   };
   /* p% of n where the result is exact to 2 dp */
   BC.pctOf = function (p, n) { return BC.fix(p * n / 100, 2); };
+
+  /* ============================================================ band build ===
+   * The pieces a per-band family implementation needs, once, so that a band
+   * file is only ever about mathematics. Loaded before every 9x-gen-fam-*.js
+   * (tools/build.js and tools/check.js sort 98-gen-band-core.js first).
+   */
+
+  /* --- registering this band's implementation of a family -----------------
+   * ARCHB('fractions', ['G4','G5'], fn) puts fn in ARCH_IMPL.fractions.byBand
+   * for those bands only: the implementation the younger grades use keeps
+   * serving them untouched, and src/99-gen-arch.js picks the right one per
+   * skill row. fn is called as fn(rng, lvl, params, skillRow). */
+  BC.ARCHB = function (name, bands, fn) {
+    var REG = GLOB.ARCH_IMPL || (GLOB.ARCH_IMPL = {});
+    var e = REG[name] || (REG[name] = {});
+    e.byBand = e.byBand || {};
+    var list = typeof bands === 'string' ? [bands] : bands;
+    for (var i = 0; i < list.length; i++) e.byBand[list[i]] = fn;
+    return e;
+  };
+
+  /* --- the title is the standard being served -----------------------------
+   * A family's params come from the catalogue title, and the classifier that
+   * wrote them is only a keyword match: G4's "Add fractions with like
+   * denominators using area models" arrives in the addFacts family, and
+   * "Divide 2-digit numbers by 1-digit numbers using area models" arrives in
+   * geometryArea. A band implementation that only reads `p` therefore serves
+   * whole numbers to a fraction skill. `BC.t` hands the branch the title, and
+   * `BC.tis` asks it a question, so the mathematics follows the skill. */
+  BC.t = function (sk) { return String((sk && sk.name) || '').toLowerCase(); };
+  BC.tis = function (sk, re) { return re.test(BC.t(sk)); };
+  /* the same question asked of a list of tests: first match wins */
+  BC.tcase = function (sk, pairs) {
+    var t = BC.t(sk);
+    for (var i = 0; i < pairs.length; i++) if (pairs[i][0].test(t)) return pairs[i][1];
+    return pairs.length ? pairs[pairs.length - 1][1] : null;
+  };
+
+  /* --- the template picker -------------------------------------------------
+   * A branch writes 8–12 template functions; build() shuffles them (optionally
+   * weighted), calls them in that order and returns the first card that does
+   * NOT print its own answer. A template may return null to say "these numbers
+   * do not fit me". If every candidate leaks, the last one is returned and
+   * genFor redraws the skill — the same contract the older band files use. */
+  BC.build = function (rng, fns, w) {
+    var pool = [], i, j;
+    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    var order = R.shuffle(rng, pool), last = null, it;
+    for (i = 0; i < order.length; i++) {
+      it = fns[order[i]]();
+      if (!it) continue;
+      last = last || it;
+      if (!(typeof GLOB.leaksAnswer === 'function' && GLOB.leaksAnswer(it))) return it;
+    }
+    return last;
+  };
+
+  /* --- small things every band file would otherwise re-write -------------- */
+  /* a fraction answer: the reduced value, the text the learner types, and the
+     mixed-number text for a keypad ("7/4" is typed as "1 3/4") */
+  BC.fracAns = function (n, d) {
+    var r = reduce(n, d);
+    return { n: r.n, d: r.d, v: r.n / r.d, text: r.d === 1 ? String(r.n) : r.n + '/' + r.d, mixed: mixedStr(n, d) };
+  };
+  /* the fraction a learner can type into ONE blank: n/d, never a mixed number */
+  BC.typedFrac = function (n, d) { var r = reduce(n, d); return r.d === 1 ? String(r.n) : r.n + '/' + r.d; };
+  /* a money amount written for the keypad: 4.5 → "4.50" with unit '$' */
+  BC.cash = function (x) { return (Math.round(x * 100) / 100).toFixed(2); };
+  /* k distinct integers in [lo,hi] (hi-lo+1 >= k) */
+  BC.picks = function (rng, k, lo, hi) {
+    var all = [], i;
+    for (i = lo; i <= hi; i++) all.push(i);
+    return R.sample(rng, all, k);
+  };
+  /* an integer in [lo,hi] that is NOT one of `not` (a genuine distractor) */
+  BC.notThese = function (rng, not, lo, hi) {
+    for (var g = 0; g < 40; g++) {
+      var v = BC.int(rng, lo, hi);
+      if (not.indexOf(v) < 0) return v;
+    }
+    return lo;
+  };
+  /* a decimal that terminates and is exact at d places */
+  BC.dec = function (rng, lo, hi, d) {
+    var p = Math.pow(10, d || 1);
+    return BC.fix(BC.int(rng, Math.round(lo * p), Math.round(hi * p)) / p, d || 1);
+  };
+  /* two numbers whose sum / difference is exact at d places */
+  BC.decPair = function (rng, d) {
+    var a = BC.dec(rng, 1, 9, d), b = BC.dec(rng, 0.5, Math.max(0.5, BC.fix(a * 0.9, d)), d);
+    return { a: a, b: b, sum: BC.exactAdd(a, b), diff: BC.exactSub(a, b) };
+  };
 })();
 
 </script>
