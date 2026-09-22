@@ -332,7 +332,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-21 — 34 modules inlined:
+/* MathPath 2026-09-22 — 34 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -14832,121 +14832,209 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     cmp: function (rng, L, lvl) { var a = R.int(rng, 1, L), b = a; var g = 0; while (b === a && g++ < 20) b = R.int(rng, 1, L); return { a: a, b: b, c: Math.max(a, b) }; }
   };
 
+  /* The variant names the QUESTION, and the question decides the operation, so
+     every template STATES the question it is grading and then grades, explains
+     and offers options for that one question. A card whose options are number
+     sentences has to contain the sentence that solves the question printed on
+     it — not the sentence for some other question the same story could ask,
+     which is how "Lin collected 16 and Owen collected 20" came to be graded by
+     20 − 16 = 4 with 16 + 20 = 36 nowhere to click. When a variant hides a
+     number (start or addend unknown) the story stops printing it, so the card
+     does not hand out its own answer. Two people, two counts: the names are
+     always different, or "Does Maya have more than Maya?" answers itself. */
   ARCH('wordProblem', function (rng, lvl, p) {
     var L = cap(p.limit || 10, 3, 100000), op = p.op || 'add', variant = p.variant || 'result', ask = p.ask || 'answer';
-    var s = (SITU[op] || SITU.add)(rng, L, lvl), o = pick(rng, OBJ), one = o.replace(/s$/, '');
-    var w = pick(rng, WHO), w2 = pick(rng, WHO), ct = pick(rng, CTX), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
-    var big = Math.max(s.a, s.b), small = Math.min(s.a, s.b), diff = big - small;
-    var vis = p.model === 'cubes' ? V.grid({ rows: 2, cols: cap(big, 1, 14), cells: [(function () { var r = [], i; for (i = 0; i < cap(big, 1, 14); i++) r.push(i < s.a ? '●' : ''); return r; })(), (function () { var r = [], i; for (i = 0; i < cap(big, 1, 14); i++) r.push(i < s.b ? '○' : ''); return r; })()], rowLabels: [w, w2], label: w + ' and ' + w2 }) : null;
-    var story = op === 'sub'
-      ? ct + ', ' + w + ' had ' + s.c + ' ' + o + ' and gave ' + s.b + ' away.'
-      : op === 'cmp'
-        ? ct + ', ' + w + ' collected ' + s.a + ' ' + o + ' and ' + w2 + ' collected ' + s.b + '.'
-        : ct + ', ' + w + ' collected ' + s.a + ' ' + o + ' and ' + w2 + ' collected ' + s.b + ' more.';
-    var answerFor = { result: op === 'sub' ? s.a : s.a + s.b, compare: diff, larger: big, smaller: small, start: op === 'sub' ? s.c : s.c - s.b, addend: s.b, bothAddends: 2 * Math.floor((s.a + s.b) / 2) / 2 };
-    var ans = answerFor[variant] != null ? answerFor[variant] : s.a + s.b;
-    var evenTot = 2 * Math.floor((s.a + s.b) / 2);
-    if (variant === 'bothAddends') story = ct + ', ' + w + ' and ' + w2 + ' collected ' + evenTot + ' ' + o + ' together, and they each collected the same number.';
+    var s = (SITU[op] || SITU.add)(rng, L, lvl), o = pick(rng, OBJ), ct = pick(rng, CTX);
+    var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    var w = pick(rng, WHO), w2 = pick(rng, WHO);
+    if (w2 === w) w2 = WHO[(WHO.indexOf(w) + 1 + Math.floor(rng() * (WHO.length - 1))) % WHO.length];
+    var big = Math.max(s.a, s.b), small = Math.min(s.a, s.b), diff = big - small, tot = s.a + s.b;
+    var more = s.a >= s.b ? w : w2, less = s.a >= s.b ? w2 : w;
+    var half = Math.floor(tot / 2), evenTot = half * 2;
+    var join = op !== 'sub', hidden = false, story, sen, anchorQ, ans, parts, partLabs, whole, cmp = ct + ', ' + w + ' collected ' + s.a + ' ' + o + ' and ' + w2 + ' collected ' + s.b + '.';
+    function S(x, sym, y, res, labs, q) { return { x: x, sym: sym, y: y, res: res, labs: labs, q: q }; }
+    function txt(q) { return q.x + ' ' + q.sym + ' ' + q.y + ' = ' + q.res; }
+    function row(n, ch, cols) { var r = [], i; for (i = 0; i < cols; i++) r.push(i < n ? ch : ''); return r; }
+    function model(labs, label) {
+      var mx = Math.max(parts[0], parts[1]);
+      if (mx > 20) return null;                       /* a 14-cell row cannot model 900 counters */
+      var cols = Math.max(1, mx);
+      return V.grid({ rows: 2, cols: cols, cells: [row(parts[0], '●', cols), row(parts[1], '○', cols)], rowLabels: labs, label: label });
+    }
+
+    if (op === 'sub') {                              /* start c, given b, left a */
+      parts = [s.a, s.b]; partLabs = ['left', 'gave away']; whole = s.c;
+      if (variant === 'start') {
+        hidden = true;
+        story = ct + ', ' + w + ' had some ' + o + ' and gave ' + s.b + ' away. Now ' + w + ' has ' + s.a + '.';
+        sen = S(s.a, '+', s.b, s.c, ['left', 'gave away', 'at first'], 'How many ' + o + ' did ' + w + ' have to begin with?');
+      } else if (variant === 'addend') {
+        hidden = true;
+        story = ct + ', ' + w + ' had ' + s.c + ' ' + o + ' and gave some away. Now ' + w + ' has ' + s.a + '.';
+        sen = S(s.c, '−', s.a, s.b, ['had', 'left', 'gave away'], 'How many ' + o + ' did ' + w + ' give away?');
+      } else {
+        story = ct + ', ' + w + ' had ' + s.c + ' ' + o + ' and gave ' + s.b + ' away.';
+        sen = S(s.c, '−', s.b, s.a, ['had', 'gave away', 'left'], 'How many ' + o + ' does ' + w + ' have left?');
+      }
+    } else if (op === 'cmp') {                       /* two counts, compared */
+      parts = [s.a, s.b]; partLabs = [w, w2]; whole = tot; story = cmp;
+      if (variant === 'larger' || variant === 'smaller') {
+        sen = S(big, '−', small, diff, ['greater', 'lesser', 'difference'], 'How many more ' + o + ' does ' + more + ' have than ' + less + '?');
+        anchorQ = variant === 'larger'
+          ? 'How many ' + o + ' did the person with the greater number collect?'
+          : 'How many ' + o + ' did the person with fewer collect?';
+        ans = variant === 'larger' ? big : small;
+      } else if (variant === 'compare') {
+        sen = S(big, '−', small, diff, ['greater', 'lesser', 'difference'], 'How many more ' + o + ' does ' + more + ' have than ' + less + '?');
+      } else {                                       /* result: the two counts joined */
+        sen = S(s.a, '+', s.b, tot, ['first', 'second', 'total'], 'How many ' + o + ' are there in all?');
+      }
+    } else {                                         /* join: two counts come together */
+      parts = [s.a, s.b]; partLabs = [w, w2]; whole = tot;
+      if (variant === 'start') {
+        hidden = true;
+        story = ct + ', ' + w + ' collected some ' + o + '. Then ' + w2 + ' collected ' + s.b + ' more, and now there are ' + tot + ' in all.';
+        sen = S(tot, '−', s.b, s.a, ['in all', 'collected later', 'to begin with'], 'How many ' + o + ' did ' + w + ' collect to begin with?');
+      } else if (variant === 'addend') {
+        hidden = true;
+        story = ct + ', ' + w + ' collected ' + s.a + ' ' + o + ' and ' + w2 + ' collected some more. In all there are ' + tot + ' ' + o + '.';
+        sen = S(tot, '−', s.a, s.b, ['in all', 'collected first', 'collected later'], 'How many ' + o + ' did ' + w2 + ' collect?');
+      } else if (variant === 'bothAddends') {
+        story = ct + ', ' + w + ' and ' + w2 + ' collected ' + evenTot + ' ' + o + ' together, and they each collected the same number.';
+        parts = [half, half]; whole = evenTot;
+        sen = S(half, '+', half, evenTot, [w, w2, 'total'], 'How many ' + o + ' did each person collect?');
+      } else {                                       /* result, and any variant this band has no other situation for */
+        story = ct + ', ' + w + ' collected ' + s.a + ' ' + o + ' and ' + w2 + ' collected ' + s.b + ' more.';
+        sen = S(s.a, '+', s.b, tot, ['first', 'second', 'total'], 'How many ' + o + ' are there in all?');
+      }
+    }
+    if (!anchorQ) anchorQ = sen.q;
+    if (ans == null) ans = sen.res;
+    var vis = p.model === 'cubes' ? model(partLabs, w + ' and ' + w2) : null;
     var teach = 'Find the question the story asks first; the operation follows from what changed.';
+    var askLine = 'The story asks: ' + anchorQ;
+    var solveLine = anchorQ === sen.q ? txt(sen) : 'The two counts are ' + s.a + ' and ' + s.b + ', so the one asked for is ' + ans + '.';
 
     return build(rng, [
       /* official anchor — the question the variant names, in standard form. */
       function () {
-        var q;
-        if (variant === 'result') q = op === 'sub' ? 'How many ' + o + ' does ' + w + ' have left?' : 'How many ' + o + ' are there in all?';
-        else if (variant === 'compare') q = 'How many more ' + o + ' does the one with more have?';
-        else if (variant === 'larger') q = 'Who collected the greater number of ' + o + '? Ask for the count: how many did that person collect?';
-        else if (variant === 'smaller') q = 'How many did the person with fewer collect?';
-        else if (variant === 'start') q = op === 'sub' ? 'How many ' + o + ' did ' + w + ' have to begin with?' : 'How many ' + o + ' did ' + w + ' have to begin with?';
-        else if (variant === 'addend') q = 'How many more ' + o + ' were collected to reach ' + s.c + '?';
-        else q = 'How many ' + o + ' did each person collect?';
-        return I_num(story + ' ' + q, ans, {
+        return I_num(story + ' ' + anchorQ, ans, {
           visual: vis, b: lo,
-          explain: ['Write what the story says with numbers.', op === 'sub' ? s.c + ' − ' + s.b + ' = ' + (s.c - s.b) : op === 'cmp' ? big + ' − ' + small + ' = ' + diff : s.a + ' + ' + s.b + ' = ' + (s.a + s.b), 'The story asks for ' + variant + '.', 'So the answer is <b>' + ans + '</b>.'],
+          explain: [askLine, solveLine, 'So the answer is <b>' + ans + '</b>.'],
           teach: teach
         });
       },
-      /* which sentence solves the story */
+      /* which sentence solves the question the card just printed */
       function () {
-        var right = op === 'sub' ? s.c + ' − ' + s.b + ' = ' + (s.c - s.b) : op === 'cmp' ? big + ' − ' + small + ' = ' + diff : s.a + ' + ' + s.b + ' = ' + (s.a + s.b);
-        var wrongs = op === 'sub'
-          ? [s.c + ' + ' + s.b + ' = ' + (s.c + s.b + 1), s.c + ' − ' + s.b + ' = ' + (s.c - s.b + 1)]
-          : [s.a + ' + ' + s.b + ' = ' + (s.a + s.b + 1), s.a + ' + ' + s.b + ' = ' + (s.a + s.b > 1 ? s.a + s.b - 1 : s.a + s.b + 2)];
-        return MC(rng, story + ' Which sentence solves it?', right, wrongs.concat([right.split(' = ')[0] + ' = ' + (ans + 2)]), {
+        var right = txt(sen), lhs = sen.x + ' ' + sen.sym + ' ' + sen.y;
+        var alt = sen.sym === '+'
+          ? (sen.x >= sen.y ? sen.x + ' − ' + sen.y + ' = ' + (sen.x - sen.y) : sen.y + ' − ' + sen.x + ' = ' + (sen.y - sen.x))
+          : sen.x + ' + ' + sen.y + ' = ' + (sen.x + sen.y);
+        var wrongs = [alt, lhs + ' = ' + (sen.res + 1)];
+        if (sen.res > 1) wrongs.push(lhs + ' = ' + (sen.res - 1)); else wrongs.push(lhs + ' = ' + (sen.res + 2));
+        return MC(rng, story + ' ' + sen.q + ' Which sentence solves it?', right, wrongs, {
           visual: vis, b: 0.3,
-          explain: ['The story ' + (op === 'sub' ? 'takes away, so subtract.' : op === 'cmp' ? 'compares two counts, so subtract.' : 'joins two counts, so add.'), right, 'So the answer is <b>' + right + '</b>.'],
+          explain: ['The story asks: ' + sen.q, 'That is ' + (sen.sym === '+' ? 'a joining story, so add.' : 'a taking-away story, so subtract.'), right + ' is the sentence that solves it.', 'So the answer is <b>' + right + '</b>.'],
           teach: teach
         });
       },
-      /* judgement on somebody else's answer */
+      /* judgement on somebody else's answer to the same question */
       function () {
         var right = R.chance(rng, 0.5), claim = right ? ans : cap(ans + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, 3), 0, L + 10);
         if (claim === ans) claim = ans + 1;
-        return I_bool(story + ' ' + w2 + ' says the answer is ' + claim + '. Is ' + w2 + ' right?', claim === ans, {
+        return I_bool(story + ' ' + anchorQ + ' ' + w2 + ' says the answer is ' + claim + '. Is ' + w2 + ' right?', claim === ans, {
           visual: vis, b: 0.5,
-          explain: ['Solve the story yourself: the answer is ' + ans + '.', w2 + ' said ' + claim + '.', (claim === ans ? 'They match' : 'They do not match') + ', so the answer is <b>' + (claim === ans ? 'Yes' : 'No') + '</b>.'],
+          explain: [askLine, solveLine, 'So the answer is ' + ans + '.', w2 + ' said ' + claim + '.', (claim === ans ? 'They match' : 'They do not match') + ', so the answer is <b>' + (claim === ans ? 'Yes' : 'No') + '</b>.'],
           teach: 'Solve the story before you agree with anyone else’s answer.'
         });
       },
       /* the same situation, the other unknown */
       function () {
         if (op === 'cmp') {
-          return I_bool('Does ' + w + ' have more ' + o + ' than ' + w2 + '?', s.a > s.b, {
+          return I_bool(story + ' Does ' + w + ' have more ' + o + ' than ' + w2 + '?', s.a > s.b, {
             visual: vis, b: 0.4,
             explain: ['Compare the two counts: ' + s.a + ' and ' + s.b + '.', 'The larger count is ' + big + '.', 'So the answer is <b>' + (s.a > s.b ? 'Yes' : 'No') + '</b>.'],
             teach: 'A comparison story has two questions: which one, and by how much.'
           });
         }
-        if (op === 'sub') return I_num(story + ' How many were given away?', s.b, {
-          visual: vis, b: 0.6,
-          explain: ['' + s.c + ' at the start and ' + s.a + ' left.', s.c + ' − ' + s.a + ' = ' + s.b + '.', 'So the answer is <b>' + s.b + '</b>.'],
-          teach: 'The same three numbers answer every version of the story.'
-        });
-        return I_num(story + ' How many fewer did ' + w2 + ' collect than ' + w + '?', Math.abs(s.a - s.b), {
+        if (op === 'sub') {
+          return I_num(ct + ', ' + w + ' had ' + s.c + ' ' + o + ' and gave some away. Now ' + w + ' has ' + s.a + '. How many ' + o + ' were given away?', s.b, {
+            visual: vis, b: 0.6,
+            explain: ['' + s.c + ' at the start and ' + s.a + ' left.', s.c + ' − ' + s.a + ' = ' + s.b + '.', 'So the answer is <b>' + s.b + '</b>.'],
+            teach: 'The same three numbers answer every version of the story.'
+          });
+        }
+        if (variant === 'bothAddends') {
+          return I_num(story + ' How many ' + o + ' did ' + w2 + ' collect?', half, {
+            visual: vis, b: 0.6,
+            explain: ['' + evenTot + ' shared out in two equal shares.', evenTot + ' ÷ 2 = ' + half + '.', 'So the answer is <b>' + half + '</b>.'],
+            teach: 'Equal shares split the total into two matching counts.'
+          });
+        }
+        return I_num(story + ' How many fewer ' + o + ' did ' + w2 + ' collect than ' + w + '?', diff, {
           visual: vis, b: 0.6,
           explain: ['Compare ' + s.a + ' and ' + s.b + '.', big + ' − ' + small + ' = ' + diff + '.', 'So the answer is <b>' + diff + '</b>.'],
           teach: 'Joining stories can also be read as a comparison of the two parts.'
         });
       },
-      /* the total of both people */
+      /* the total of both people, or the start of the take-away story */
       function () {
-        var tot = s.a + s.b;
-        return I_num(story + ' How many ' + o + ' do the two of them have together?', tot, {
+        if (op === 'sub') {
+          return I_num(ct + ', ' + w + ' gave ' + s.b + ' ' + o + ' away and now has ' + s.a + ' left. How many ' + o + ' did ' + w + ' have at the start?', s.c, {
+            visual: vis, b: 0.2,
+            explain: ['The start puts the two parts back together.', s.a + ' + ' + s.b + ' = ' + s.c + '.', 'So the answer is <b>' + s.c + '</b>.'],
+            teach: 'A take-away story run backwards is a joining story.'
+          });
+        }
+        if (hidden) {
+          return I_num(story + ' How many more ' + o + ' did ' + more + ' collect than ' + less + '?', diff, {
+            visual: vis, b: 0.3,
+            explain: ['First find the count that is hidden: ' + txt(sen) + '.', 'Now compare the two counts: ' + big + ' − ' + small + ' = ' + diff + '.', 'So the answer is <b>' + diff + '</b>.'],
+            teach: 'Find the hidden count first; the comparison comes from the two counts.'
+          });
+        }
+        return I_num(story + ' How many ' + o + ' do the two of them have together?', whole, {
           visual: vis, b: 0.2,
-          explain: ['Add the two counts: ' + s.a + ' + ' + s.b + '.', 'Together that is ' + tot + '.', 'So the answer is <b>' + tot + '</b>.'],
+          explain: ['Add the two counts: ' + parts[0] + ' + ' + parts[1] + '.', 'Together that is ' + whole + '.', 'So the answer is <b>' + whole + '</b>.'],
           teach: 'A "together" question always adds the two counts, whatever the story asked first.'
         });
       },
       /* read the model */
       function () {
-        var m = vis ? null : V.grid({ rows: 2, cols: cap(big, 1, 14), cells: [(function () { var r = [], i; for (i = 0; i < cap(big, 1, 14); i++) r.push(i < s.a ? '●' : ''); return r; })(), (function () { var r = [], i; for (i = 0; i < cap(big, 1, 14); i++) r.push(i < s.b ? '○' : ''); return r; })()], rowLabels: [w, w2], label: 'one row each' });
-        return I_num('Look at the model. How many ' + o + ' does ' + w + ' have?', s.a, {
-          visual: vis || m, b: -0.2,
-          explain: ['Count ' + w + '’s row of counters.', 'The last number said is ' + s.a + '.', 'So the answer is <b>' + s.a + '</b>.'],
+        var mv = vis || model(partLabs, 'one row each');
+        var q = op === 'sub' ? 'How many ' + o + ' does ' + w + ' have left?' : 'How many ' + o + ' does ' + w + ' have?';
+        var n = op === 'sub' ? s.a : parts[0];
+        return I_num((mv ? 'Look at the model. ' : story + ' ') + q, n, {
+          visual: mv, b: -0.2,
+          explain: [(mv ? 'Count ' + (op === 'sub' ? 'the row for “left”.' : w + '’s row of counters.') : 'Read ' + w + '’s count out of the story.'), 'The last number said is ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'A bar or row model turns a story into counts you can compare.'
         });
       },
-      /* write the sentence: one blank per number */
+      /* write the sentence: one blank per number of the sentence that solves it */
       function () {
-        var labs = op === 'sub' ? ['had', 'gave away', 'left'] : ['first', 'then', 'total'];
-        var specs = op === 'sub' ? [{ k: 'n', v: s.c }, { k: 'n', v: s.b }, { k: 'n', v: s.a }] : [{ k: 'n', v: s.a }, { k: 'n', v: s.b }, { k: 'n', v: s.a + s.b }];
-        return I_parts(story + ' Write the numbers of the sentence that solves it.', labs, specs, {
+        return I_parts(story + ' ' + sen.q + ' Write the numbers of the sentence that solves it.', sen.labs, [{ k: 'n', v: sen.x }, { k: 'n', v: sen.y }, { k: 'n', v: sen.res }], {
           visual: vis, b: 0.4,
-          explain: ['The story has three numbers: ' + specs.map(function (q) { return q.v; }).join(', ') + '.', 'Put them in the order the story tells them.', 'The sentence is <b>' + specs.map(function (q) { return q.v; }).join(' ') + '</b>.'],
-          teach: 'A story sentence keeps the numbers in the order the story tells them.'
+          explain: ['The story asks: ' + sen.q, 'The sentence is ' + txt(sen) + '.', 'Put them in the order the sentence tells them.', 'The sentence is <b>' + txt(sen) + '</b>.'],
+          teach: 'A story sentence keeps the numbers in the order the sentence tells them.'
         });
       },
-      /* lvl 4-5 stretch: two steps */
+      /* lvl 4-5 stretch: two steps on top of the story's own total */
       function () {
-        var give = R.int(rng, 1, cap(Math.max(1, Math.floor(s.a / 2)), 1, 9)), rest = s.a - give;
-        if (rest < 0) rest = s.a;
-        return I_num(story + ' Then ' + w + ' gives ' + (rest > 0 ? give : 1) + ' ' + o + ' to a friend. How many does ' + w + ' have now?', rest > 0 ? rest : s.a, {
+        var base = join ? whole : s.a, k = R.int(rng, 1, cap(Math.floor(Math.max(3, base) / 3), 1, 9));
+        if (join) {
+          return I_num(story + ' Then ' + w + ' collects ' + k + ' more. How many ' + o + ' are there in all now?', base + k, {
+            visual: vis, b: 1.0,
+            explain: ['First find how many there are in all: ' + base + '.', 'Then add ' + k + ': ' + base + ' + ' + k + ' = ' + (base + k) + '.', 'So the answer is <b>' + (base + k) + '</b>.'],
+            teach: 'A two-step story is solved one step at a time, in the order things happened.'
+          });
+        }
+        return I_num(story + ' Then ' + w + ' gives ' + k + ' more away. How many ' + o + ' does ' + w + ' have now?', base - k, {
           visual: vis, b: 1.0,
-          explain: ['First find how many ' + w + ' has: ' + s.a + '.', (rest > 0 ? 'Then take away ' + give + ': ' + s.a + ' − ' + give + ' = ' + rest + '.' : 'Nothing more changes.'), 'So the answer is <b>' + (rest > 0 ? rest : s.a) + '</b>.'],
+          explain: ['First find how many ' + w + ' has left: ' + base + '.', 'Then take away ' + k + ' more: ' + base + ' − ' + k + ' = ' + (base - k) + '.', 'So the answer is <b>' + (base - k) + '</b>.'],
           teach: 'A two-step story is solved one step at a time, in the order things happened.'
         });
       }
-    ], lvl <= 2 ? [4, 3, 2, 2, 3, 4, 2, 0] : lvl === 3 ? [4, 3, 3, 3, 3, 2, 3, 1] : [3, 3, 3, 3, 2, 2, 3, 4]);
+    ], ask === 'sentence' ? [2, 5, 2, 2, 2, 2, 5, 1] : lvl <= 2 ? [4, 3, 2, 2, 3, 4, 2, 0] : lvl === 3 ? [4, 3, 3, 3, 3, 2, 3, 1] : [3, 3, 3, 3, 2, 2, 3, 4]);
   }, ['K', 'G1', 'G2', 'G3']);
 })();
 
