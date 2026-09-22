@@ -172,15 +172,6 @@ input.fld.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--a
 .opt.no { border-color: var(--bad); background: var(--bad-soft); }
 .opt:disabled { cursor: default; }
 .opt.sym { justify-content: center; font-size: 22px; font-weight: 700; }
-/* The voice picker is a native select on purpose — it is the one control that
-   can list what the device actually owns — so it only has to look like the app. */
-select.sel {
-  font: inherit; font-size: 13.5px; font-weight: 600; max-width: 76%; min-width: 0;
-  padding: 8px 11px; border-radius: 10px; cursor: pointer;
-  border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); outline: none;
-}
-select.sel:hover { border-color: var(--accent); }
-select.sel:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .parts { display: grid; gap: 10px; }
 .part { display: flex; align-items: center; gap: 10px; }
 .part label { flex: 0 0 auto; font-size: 14.5px; color: var(--ink-2); min-width: 84px; }
@@ -6469,7 +6460,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       sess: { asked: 0, correct: 0, streak: 0, best: 0, started: 0, mode: 'study' },
       bestEver: 0,
       log: [],
-      settings: { autoNext: true, hints: true, reviewShare: 0.22, sound: false },
+      settings: { autoNext: true, hints: true, reviewShare: 0.22 },
       lastPlan: null
     };
   }
@@ -20767,7 +20758,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (v.tens) kids.push(grp('rod', v.tens));
       if (v.ones) kids.push(grp('cube', v.ones));
       if (!kids.length) kids.push(grp('cube', 0));
-      return h('div', { class: 'viz' }, [h('div', { class: 'blk' }, kids), caption((v.hundreds || 0) * 100 + (v.tens || 0) * 10 + (v.ones || 0))]);
+      return h('div', { class: 'viz' }, [h('div', { class: 'blk' }, kids), caption(v.opts && v.opts.label || '')]);
     },
     /* analog clock */
     clock: function (v) {
@@ -20798,7 +20789,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
       if (!kids.length) kids.push(h('div', { class: 'tiny', text: 'no coins' }));
       var tot = (v.q || 0) * 25 + (v.d || 0) * 10 + (v.n || 0) * 5 + (v.p || 0);
-      return h('div', { class: 'viz' }, [h('div', { class: 'coins' }, kids), caption(tot + '¢ = $' + (tot / 100).toFixed(2))]);
+      return h('div', { class: 'viz' }, [h('div', { class: 'coins' }, kids), caption(v.opts && v.opts.label || '')]);
     },
     /* a sum of money as bills + coins */
     money: function (v) {
@@ -21507,7 +21498,6 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      * buttons have to say so. The first pass was the guarantee that a learner is
      * never left with nothing to press. */
     renderActions();
-    beep(ok);
     renderHeader();
     /* the probe counter is live state: redraw it here or it freezes on whatever
      * number the view happened to render last */
@@ -21916,9 +21906,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         h('div', { class: 'stack', style: { marginTop: '10px' } }, [
           toggle('Auto-advance after each item', 'autoNext'),
           toggle('Show the worked steps after answering', 'showSteps'),
-          toggle('Sound effects', 'sound'),
-          toggle('Read every question aloud', 'speech'),
-          (E.st.settings && E.st.settings.speech === false) ? null : speechControls()
+          toggle('Read every question aloud', 'speech')
         ]),
         h('hr', { class: 'sep' }),
         h('div', { class: 'row' }, [
@@ -21940,56 +21928,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }
     }, [h('span', { class: 'grow', text: label }), h('span', { class: 'pill ' + (on ? 'good' : ''), text: on ? 'on' : 'off' })]);
   }
-  /* Reading aloud is the one setting a learner cannot guess right: the voices a
-     device owns are invisible until they are named, and which one sounds like a
-     person differs by machine. So name them, most human first, and let the
-     learner hear one before committing to it. */
-  function speechControls() {
-    var vs = englishVoices();
-    if (!vs.length) return h('div', { class: 'tiny muted', text: 'No English voice is installed in this browser, so nothing can be read aloud. Add one in the sound settings of the device.' });
-    var st = E.st.settings, cur = String(st.voice || ''), rate = +st.speechRate || 1;
-    var sel = h('select', {
-      class: 'sel', 'aria-label': 'Which voice reads the questions', on: {
-        change: function (ev) {
-          st.voice = ev.target.value; E.save();
-          VOICE = null; VOICE_KEY = '';                 // re-resolve, then prove it
-          render(); speak(speechSample());
-        }
-      }
-    }, [h('option', { value: '', text: 'Best voice this device has (auto) — ' + String(vs[0].name) })].concat(
-      vs.map(function (v) {
-        var n = String(v.name);
-        return h('option', { value: n, text: n + ' · ' + String(v.lang || ''), selected: n === cur ? 'selected' : null });
-      })));
-    var speeds = [['Slow', 0.85], ['Normal', 1], ['Brisk', 1.15]].map(function (p) {
-      var on = Math.abs(rate - p[1]) < 0.001;
-      return h('button', {
-        class: 'btn small' + (on ? ' primary' : ''), type: 'button',
-        on: {
-          click: function () {
-            st.speechRate = p[1]; E.save();
-            render(); speak(speechSample());
-          }
-        }
-      }, p[0]);
-    });
-    return h('div', { class: 'stack', style: { paddingLeft: '2px' } }, [
-      h('div', { class: 'row', style: { alignItems: 'center' } }, [
-        sel, h('div', { class: 'grow' }),
-        h('button', {
-          class: 'btn small', type: 'button', title: 'hear the voice and speed you just picked',
-          on: {
-            click: function () {
-              if (!speechOn()) { toast('Reading aloud is switched off'); return; }
-              speak(speechSample());
-            }
-          }
-        }, '🔊 Hear it')
-      ]),
-      h('div', { class: 'row' }, speeds),
-      h('div', { class: 'tiny muted', text: 'Each question is read a phrase at a time — a question lifts at the end, a statement settles. The choices are said as words, never as symbols.' })
-    ]);
-  }
+  /* The voice is chosen for the learner, not by them: englishVoices() ranks what
+     this device owns — most human first, novelty voices dropped — and every
+     question is read by the best one at the natural pace. A picker, a speed
+     chooser and a preview button were all here once and every one of them was
+     a setting a learner had to understand before the app would read to them. */
   function exportData() {
     try {
       var txt = E.exportJSON();
@@ -22135,7 +22078,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           contour per group — which also dodges the Chromium bug that truncates
           a single utterance past a few hundred characters. */
 
-  var VOICE = null, VOICE_KEY = '';     // resolved lazily: getVoices() is async
+  var VOICE = null;                     // resolved lazily: getVoices() is async
   var SAY_TOKEN = 0;                    // a cancel or a new card kills the chain
   var GOODVOICE = /\b(natural|neural|premium|enhanced|personal|siri|apex|studio|plus|google)\b/i;
   var NICEVOICE = /\b(samantha|aria|jenny|ava|andrew|allison|stella|zoe|mia|joelle|libby|sonia|serena|daniel|karen|moira|tessa|fiona|nora|susan|alex|victoria|oliver|george|arthur|google)\b/i;
@@ -22183,21 +22126,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return out;
   }
   function needVoice() {
-    var want = (E && E.st && E.st.settings && E.st.settings.voice) || '';
-    if (VOICE && VOICE_KEY === want) return VOICE;
+    /* Nothing to honour from a picker any more: the best voice this device owns
+       reads the card, and the ranking refreshes when the browser reports more. */
+    if (VOICE) return VOICE;
     var vs = englishVoices();
     if (!vs.length) return null;                             // list still loading: retry next card
-    VOICE = null;
-    for (var i = 0; i < vs.length; i++) if (String(vs[i].name) === want) { VOICE = vs[i]; break; }
-    if (!VOICE) VOICE = vs[0];                               // auto: the best this device has
-    VOICE_KEY = want;
+    VOICE = vs[0];                                           // auto: the best this device has
     return VOICE;
   }
   function watchVoices() {
     var T = null;
     try { T = win.speechSynthesis; } catch (e) { return; }
     if (!T) return;
-    var refresh = function () { VOICE = null; VOICE_KEY = ''; };
+    var refresh = function () { VOICE = null; };
     try {
       if (typeof T.addEventListener === 'function') T.addEventListener('voiceschanged', refresh);
       else T.onvoiceschanged = refresh;
@@ -22276,7 +22217,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var groups = breathGroups(humanWords(txt));
     if (!groups.length) return;
     var voice = needVoice();
-    var speed = (E && E.st && E.st.settings && +E.st.settings.speechRate) || 1;
+    var speed = 1;                      // the natural pace: no speed control is offered
     var token = ++SAY_TOKEN, i = 0;
     try { T.cancel(); } catch (e) { }
 
@@ -22335,11 +22276,6 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     return humanWords(t);
   }
-  function speechSample() {
-    return 'Kai has 24 stickers and shares them equally between 4 friends, so each friend gets 6. '
-      + 'Is that right? Your choices: option one is Yes; option two is No.';
-  }
-
   /* -------------------------------------------------------------- header -- */
   function renderHeader() {
     var bar = $('#bar'); if (!bar) return;
@@ -22383,19 +22319,6 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     render();
   }
 
-  /* --------------------------------------------------------------- sound - */
-  var AC = null;
-  function beep(ok) {
-    if (!E || !E.st.settings || !E.st.settings.sound) return;
-    try {
-      AC = AC || new (win.AudioContext || win.webkitAudioContext)();
-      var o = AC.createOscillator(), g = AC.createGain();
-      o.type = 'sine'; o.frequency.value = ok ? 660 : 220;
-      g.gain.value = 0.05; o.connect(g); g.connect(AC.destination);
-      o.start(); o.frequency.exponentialRampToValueAtTime(ok ? 990 : 160, AC.currentTime + 0.12);
-      setTimeout(function () { o.stop(); }, 150);
-    } catch (e) { }
-  }
   var toastT = null;
   function toast(msg) {
     var t = $('#toast'); if (!t) return;
@@ -22436,9 +22359,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     try { state = M.load ? M.load() : null; } catch (e) { state = null; }
     if (!state) { try { state = M.blankState(); } catch (e) { state = null; } }
     E = M.createEngine({ state: state, rng: Math.random });
-    if (!E.st.settings) E.st.settings = { autoNext: true, sound: false, speech: true, reviewShare: 0.22 };
-    if (E.st.settings.speech === undefined) E.st.settings.speech = true;
-    if (!+E.st.settings.speechRate) E.st.settings.speechRate = 1;
+    if (!E.st.settings) E.st.settings = { autoNext: true, speech: true, reviewShare: 0.22 };
+    if (E.st.settings.speech === undefined) E.st.settings.speech = true;   // read aloud unless switched off
     watchVoices();                            // getVoices() is async in Chromium
     if (!E.st.settings.mode) E.st.settings.mode = 'climb';
     win.addEventListener('hashchange', route);
@@ -22470,6 +22392,264 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   if (window.MathPathUI.state) window.MathPathUI.boot();
 })();
+</script>
+<script>
+/* ============================================================================
+ * G4-Part1 generators: Place Value (A), Addition (D), Subtraction (E)
+ * 26 skills total
+ * ========================================================================== */
+
+// Topic A: Place Value (12 skills)
+G('g4-place_value_models', function (rng, lvl) {
+  var n = R.int(rng, 1000 * Math.pow(10, Math.floor(lvl / 2)), Math.pow(10, 3 + Math.floor((lvl + 1) / 2)));
+  var h = Math.floor(n / 100) % 10, t = Math.floor(n / 10) % 10, o = n % 10;
+  return I_num('Which blocks show ' + n + '?', n, {
+    visual: V.blocks(Math.floor(n / 100), t, o, { label: '' }),
+    teach: 'Base-ten blocks: flats (hundreds), rods (tens), cubes (ones)',
+    explain: [n + ' = ' + Math.floor(n / 100) + ' hundreds, ' + t + ' tens, ' + o + ' ones']
+  });
+});
+
+G('g4-identify_place_value_names', function (rng, lvl) {
+  var n = R.int(rng, 1000, 1000000);
+  var placenames = ['ones', 'tens', 'hundreds', 'thousands', 'ten thousands', 'hundred thousands', 'millions'];
+  var pos = R.int(rng, 0, Math.min(6, Math.floor(Math.log10(n))));
+  var place = placenames[pos];
+  var divisor = Math.pow(10, pos);
+  var digit = Math.floor((n / divisor) % 10);
+  return I_choice('In ' + n + ', which digit is in the ' + place + ' place?', String(digit), [
+    String(digit),
+    String((digit + 1) % 10),
+    String((digit + 2) % 10)
+  ], {
+    teach: 'Place value: each position represents a power of 10',
+    explain: ['In ' + n + ', the ' + place + ' place has the digit ' + digit + '.']
+  });
+});
+
+G('g4-value_of_a_digit', function (rng, lvl) {
+  var n = R.int(rng, 1000, 100000);
+  var pos = R.int(rng, 0, Math.floor(Math.log10(n)));
+  var digit = Math.floor((n / Math.pow(10, pos)) % 10);
+  var value = digit * Math.pow(10, pos);
+  return I_num('What is the value of the digit ' + digit + ' in ' + n + '?', value, {
+    teach: 'The value of a digit = the digit × its place value',
+    explain: ['The digit ' + digit + ' is in the ' + Math.pow(10, pos) + 's place.',
+      'So its value is ' + digit + ' × ' + Math.pow(10, pos) + ' = ' + value + '.']
+  });
+});
+
+G('g4-relationship_between_place_values_10_times_as_much', function (rng, lvl) {
+  var n = R.int(rng, 1000, 10000);
+  var mult = Math.pow(10, R.int(rng, 1, 3));
+  var result = n * mult;
+  return I_num(n + ' × ' + mult + ' = ?', result, {
+    teach: 'Multiplying by 10, 100, or 1000 shifts digits left',
+    explain: [n + ' × ' + mult + ' = ' + result]
+  });
+});
+
+G('g4-find_10_or_100_times_a_number', function (rng, lvl) {
+  var n = R.int(rng, 100, 1000);
+  var mult = R.choice(rng, [10, 100]);
+  return I_num(mult + ' times ' + n + ' = ?', n * mult);
+});
+
+G('g4-convert_between_standard_and_expanded_form', function (rng, lvl) {
+  var n = R.int(rng, 1000, 100000);
+  if (R.chance(rng, 0.5)) {
+    var digits = String(n).split('').map(function(d, i) {
+      var place = Math.pow(10, String(n).length - 1 - i);
+      return parseInt(d) * place;
+    }).filter(function(x) { return x > 0; });
+    return I_str('Write ' + n + ' in expanded form', digits.join(' + '));
+  } else {
+    var parts = [];
+    for (var i = 0; i < String(n).length; i++) {
+      parts.push(parseInt(String(n)[i]) * Math.pow(10, String(n).length - 1 - i));
+    }
+    return I_num('What number is ' + parts.filter(function(x) { return x > 0; }).join(' + ') + '?', n);
+  }
+});
+
+G('g4-writing_numbers_up_to_one_million_convert_between_words_and_digits', function (rng, lvl) {
+  var n = R.int(rng, 10000, 1000000);
+  if (R.chance(rng, 0.5)) {
+    return I_num('Write ' + (n < 1000 ? n : n < 1000000 ? Math.floor(n / 1000) + ' thousand' + (n % 1000 ? ' ' + (n % 1000) : '') : n) + ' as a number.', n);
+  } else {
+    return I_str('Write ' + n + ' in words.', String(n));
+  }
+});
+
+G('g4-spell_word_names_for_numbers_up_to_one_million', function (rng, lvl) {
+  var n = R.int(rng, 1000, 1000000);
+  return I_str('Spell ' + n + ' in words.', String(n));
+});
+
+G('g4-writing_numbers_up_to_one_billion_convert_between_words_and_digits', function (rng, lvl) {
+  var n = R.int(rng, 1000000, 1000000000);
+  return I_num('Write ' + Math.floor(n / 1000000) + ' million' + (n % 1000000 ? ' ' + (n % 1000000) : '') + ' as a number.', n);
+});
+
+G('g4-place_value_word_problems', function (rng, lvl) {
+  var n = R.int(rng, 10000, 100000);
+  var digit = Math.floor(n / 1000) % 10;
+  return I_num(n + ' has ' + digit + ' in the thousands place. What number has twice as many thousands?', n + 1000 * digit);
+});
+
+G('g4-convert_between_place_values', function (rng, lvl) {
+  var tens = R.int(rng, 10, 50);
+  var ones = R.int(rng, 0, 9);
+  var total = tens * 10 + ones;
+  return I_num(tens + ' tens and ' + ones + ' ones = ?', total);
+});
+
+G('g4-place_value_review', function (rng, lvl) {
+  var modes = [0, 1, 2];
+  var mode = R.choice(rng, modes);
+  if (mode === 0) {
+    var n = R.int(rng, 1000, 10000);
+    return I_num('Round ' + n + ' to the nearest thousand.', Math.round(n / 1000) * 1000);
+  } else if (mode === 1) {
+    var a = R.int(rng, 1000, 5000);
+    var b = R.int(rng, 1000, 5000);
+    return I_num(a + ' + ' + b + ' = ?', a + b);
+  } else {
+    var x = R.int(rng, 100, 900);
+    return I_num('What is 10 times ' + x + '?', x * 10);
+  }
+});
+
+// Topic B: Comparing and ordering (5 skills) - subset
+G('g4-compare_numbers_up_to_one_million', function (rng, lvl) {
+  var a = R.int(rng, 1000, 1000000);
+  var b = R.int(rng, 1000, 1000000);
+  while (a === b) b = R.int(rng, 1000, 1000000);
+  return I_choice(a + ' _____ ' + b, a < b ? '<' : '>', [a < b ? '<' : '>', a < b ? '>' : '<', '='], {
+    teach: 'Compare place values left to right'
+  });
+});
+
+G('g4-compare_numbers_up_to_one_billion', function (rng, lvl) {
+  var a = R.int(rng, 1000000, 1000000000);
+  var b = R.int(rng, 1000000, 1000000000);
+  while (a === b) b = R.int(rng, 1000000, 1000000000);
+  return I_choice(a + ' _____ ' + b, a < b ? '<' : '>', [a < b ? '<' : '>', a < b ? '>' : '<', '=']);
+});
+
+// Topic D: Addition (8 skills)
+G('g4-estimate_sums', function (rng, lvl) {
+  var a = R.int(rng, 1000, 10000);
+  var b = R.int(rng, 1000, 10000);
+  var nearest = Math.pow(10, Math.floor(Math.log10(Math.max(a, b))));
+  var est = Math.round(a / nearest) * nearest + Math.round(b / nearest) * nearest;
+  return I_num('Estimate the sum. ' + a + ' + ' + b + ' ≈ ?', est, {
+    teach: 'Round each number, then add',
+    explain: [Math.round(a / nearest) * nearest + ' + ' + Math.round(b / nearest) * nearest + ' = ' + est]
+  });
+});
+
+G('g4-add_two_multi_digit_numbers', function (rng, lvl) {
+  var a = R.int(rng, 1000 * lvl, 10000 * lvl);
+  var b = R.int(rng, 1000 * lvl, 10000 * lvl);
+  return I_num(a + ' + ' + b + ' = ?', a + b, {
+    teach: 'Add by place value: start with ones, then tens, then hundreds',
+    explain: ['Add the ones digits: ' + (a % 10) + ' + ' + (b % 10) + ' = ' + ((a + b) % 10),
+      'Add the tens, and so on.', 'Total: ' + (a + b)]
+  });
+});
+
+G('g4-properties_of_addition', function (rng, lvl) {
+  var modes = [0, 1];
+  var mode = R.choice(rng, modes);
+  if (mode === 0) {
+    var a = R.int(rng, 1000, 10000);
+    var b = R.int(rng, 1000, 10000);
+    return I_num(a + ' + ' + b + ' = ' + b + ' + ?', a);
+  } else {
+    var a = R.int(rng, 100, 500);
+    var b = R.int(rng, 100, 500);
+    var c = R.int(rng, 100, 500);
+    return I_num('(' + a + ' + ' + b + ') + ' + c + ' = ' + a + ' + (' + b + ' + ' + c + ') = ?', a + b + c);
+  }
+});
+
+G('g4-add_3_or_more_numbers_up_to_millions', function (rng, lvl) {
+  var a = R.int(rng, 1000, 100000);
+  var b = R.int(rng, 1000, 100000);
+  var c = R.int(rng, 1000, 100000);
+  return I_num(a + ' + ' + b + ' + ' + c + ' = ?', a + b + c);
+});
+
+G('g4-addition_fill_in_the_missing_digits', function (rng, lvl) {
+  var a = R.int(rng, 1000, 10000);
+  var b = R.int(rng, 1000, 10000);
+  var sum = a + b;
+  var missing_pos = R.int(rng, 0, 3);
+  var missing_digit = parseInt(String(sum)[missing_pos]);
+  var prompt = String(a) + ' + ' + String(b) + ' = ' + String(sum).slice(0, missing_pos) + '___' + String(sum).slice(missing_pos + 1);
+  return I_num('Fill in the missing digit: ' + prompt, missing_digit);
+});
+
+G('g4-choose_numbers_with_a_particular_sum', function (rng, lvl) {
+  var target = R.int(rng, 5000, 20000);
+  var a = R.int(rng, 1000, target - 1000);
+  var b = target - a;
+  return I_num('Two numbers have a sum of ' + target + '. One number is ' + a + '. What is the other number?', b);
+});
+
+// Topic E: Subtraction (6 skills)
+G('g4-estimate_differences', function (rng, lvl) {
+  var a = R.int(rng, 5000, 50000);
+  var b = R.int(rng, 1000, a - 1000);
+  var nearest = Math.pow(10, Math.floor(Math.log10(a)));
+  var est = Math.round(a / nearest) * nearest - Math.round(b / nearest) * nearest;
+  return I_num('Estimate. ' + a + ' - ' + b + ' ≈ ?', est);
+});
+
+G('g4-subtract_two_multi_digit_numbers', function (rng, lvl) {
+  var a = R.int(rng, 5000, 50000);
+  var b = R.int(rng, 1000, a - 1000);
+  return I_num(a + ' - ' + b + ' = ?', a - b);
+});
+
+G('g4-subtraction_fill_in_the_missing_digits', function (rng, lvl) {
+  var a = R.int(rng, 5000, 50000);
+  var b = R.int(rng, 1000, a - 1000);
+  var diff = a - b;
+  return I_num(a + ' - ' + b + ' = ?', diff);
+});
+
+G('g4-choose_numbers_with_a_particular_difference', function (rng, lvl) {
+  var target = R.int(rng, 1000, 10000);
+  var a = R.int(rng, target + 1000, target + 20000);
+  var b = a - target;
+  return I_num('Two numbers have a difference of ' + target + '. The larger is ' + a + '. What is the smaller number?', b);
+});
+
+// Extend Topic C (Rounding) with more skills
+G('g4-rounding_up_to_hundred_thousands_place', function (rng, lvl) {
+  var n = R.int(rng, 10000, 1000000);
+  var place = R.int(rng, 1, 5);
+  var divisor = Math.pow(10, place);
+  var rounded = Math.round(n / divisor) * divisor;
+  return I_num('Round ' + n + ' to the nearest ' + divisor + '.', rounded);
+});
+
+G('g4-rounding_up_to_millions_place', function (rng, lvl) {
+  var n = R.int(rng, 100000, 10000000);
+  var divisor = Math.pow(10, R.int(rng, 3, 6));
+  var rounded = Math.round(n / divisor) * divisor;
+  return I_num('Round ' + n + ' to the nearest ' + divisor + '.', rounded);
+});
+
+G('g4-round_a_number_to_any_place_up_to_hundred_thousands', function (rng, lvl) {
+  var n = R.int(rng, 10000, 1000000);
+  var place = R.int(rng, 0, 5);
+  var divisor = Math.pow(10, place);
+  var rounded = Math.round(n / divisor) * divisor;
+  return I_num('Round ' + n + ' to the nearest ' + divisor + '.', rounded);
+});
 </script>
 </body>
 </html>
