@@ -242,6 +242,20 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .dots { display: grid; gap: 5px; }
 .dots .d { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); }
 .dots .d.hollow { background: transparent; border: 1.5px solid var(--ink-3); }
+/* real objects in a picture model: a card that says "count the bunnies" must
+   draw bunnies, never a row of anonymous dots */
+.objs { display: inline-flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.objs .oline { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.objs .oline.extra { margin-top: 2px; padding-left: 14px; }
+.objs .oline.extra .obj { opacity: .7; }
+.obj { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; }
+.obj svg { display: block; }
+.obj.em { font-size: 21px; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif; }
+.obj .obj-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.obj .obj-dot.hollow { background: transparent; border: 2px solid var(--ink-3); }
+.ringbox { position: relative; width: 190px; height: 190px; margin: 4px auto; border-radius: 50%; border: 1.5px dashed color-mix(in srgb, var(--ink-3) 55%, transparent); }
+.vtable.objgrid td { padding: 4px 6px; }
+.vtable.objgrid td:empty { background: color-mix(in srgb, var(--ink-3) 7%, transparent); }
 .areagrid { display: grid; gap: 2px; }
 .areagrid .sq { width: 24px; height: 24px; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 3px; }
 .fracbar { margin: 6px 0; }
@@ -734,7 +748,51 @@ function mkItem(o) {
   o.b = o.b == null ? 0 : o.b;
   o.hint = o.hint || o.teach;
   o.mis = o.mis || [];
+  hideLeakedModel(o);
   return o;
+}
+/* A model exists to hide the answer, not to print it. A caption that states the
+ * number the learner is working out ("3 and 2" under "3 + ___ = 5", "7 taken
+ * away" under "9 − ___ = 2", the total written under a pile of coins) hands the
+ * card over before the work starts. So every item built through mkItem is
+ * checked against its own model: the caption is dropped, and the model is
+ * marked `noTotal` so the renderer also suppresses whatever total it computes
+ * itself (the coin sum, the clock's digital time, the base-ten total, the
+ * number bond's parts). The picture stays; the giveaway goes. */
+function hideLeakedModel(o) {
+  var v = o.visual;
+  if (!v || !v.k) return;
+  var leaks;
+  try { leaks = visualLeaks(v, o); } catch (e) { return; }
+  if (!leaks) return;
+  /* A number bond is the one model whose printed numbers ARE the problem: hide
+     exactly the circle the card is asking for and keep the rest, so the bond
+     still reads as a bond. */
+  if (v.k === 'numberbond') {
+    var hideWhole = false, hideParts = [];
+    try {
+      if (v.whole != null && captionLeaks(String(v.whole), o)) hideWhole = true;
+      (v.parts || []).forEach(function (p, i) { if (captionLeaks(String(p), o)) hideParts.push(i); });
+    } catch (e) { hideWhole = true; }
+    if (hideWhole) v.hideWhole = true;
+    if (hideParts.length) v.hideParts = hideParts;
+    if (v.opts) delete v.opts.label;
+    return;
+  }
+  /* A number line may point at the answer with an arrow, but it must not write
+     the number under the arrow: "4" printed above the jump answers the card. */
+  if (v.k === 'numline') {
+    try {
+      (v.marks || []).forEach(function (m) {
+        if (m && m.label != null && captionLeaks(String(m.label), o)) delete m.label;
+      });
+    } catch (e) { /* older core without the helper */ }
+  }
+  /* The caption is removed, not blanked: an item's data must stay clean JSON,
+     so nothing reaches the browser as the text "null". */
+  if (v.opts) delete v.opts.label;
+  if (v.label != null) delete v.label;
+  v.noTotal = true;
 }
 function answerTextFor(spec) {
   switch (spec.k) {
@@ -871,7 +929,7 @@ function I_ratio(prompt, vals, o) {
 
 /* --------------------------------------------------- visual model specs ---- */
 var V = {
-  tenframe: function (n, opts) { return { k: 'tenframe', n: n, frames: (opts && opts.frames) || Math.max(1, Math.ceil(n / 10)), label: opts && opts.label }; },
+  tenframe: function (n, opts) { opts = opts || {}; return { k: 'tenframe', n: n, frames: opts.frames || Math.max(1, Math.ceil(n / 10)), label: opts.label, opts: opts }; },
   numline: function (min, max, marks, opts) { return { k: 'numline', min: min, max: max, marks: marks || [], opts: opts || {} }; },
   array: function (rows, cols, opts) { return { k: 'array', rows: rows, cols: cols, opts: opts || {} }; },
   frac: function (bars) { return { k: 'frac', bars: [].concat(bars) }; },      // {n,d,label}
@@ -987,25 +1045,31 @@ function visualText(v) {
   var o = v.opts || {}, out = [];
   var add = function (x) { if (x != null && String(x).trim() !== '') out.push(String(x)); };
   var tot;
+  /* `noTotal` is the mark mkItem leaves when a model would print the very
+     number the card asks for: the coin sum, the clock's time, the base-ten
+     total, the array's area. Those numbers are not drawn any more, so they are
+     not text the model carries either. */
+  var hidden = v.noTotal && v.k !== 'numberbond';
   switch (v.k) {
     case 'clock':
       var hh = ((v.h || 0) % 12 + 12) % 12, mm = Math.max(0, Math.min(59, v.m || 0));
-      add(o.label != null ? o.label : ((hh || 12) + ':' + ('0' + mm).slice(-2)));
+      if (!hidden) add(o.label != null ? o.label : ((hh || 12) + ':' + ('0' + mm).slice(-2)));
       break;
     case 'coins':
       tot = (v.q || 0) * 25 + (v.d || 0) * 10 + (v.n || 0) * 5 + (v.p || 0);
-      add(o.label != null ? o.label : (tot + '¢ = $' + (tot / 100).toFixed(2)));
-      add(tot); add((tot / 100).toFixed(2));
+      if (!hidden) { add(o.label != null ? o.label : (tot + '¢ = $' + (tot / 100).toFixed(2))); add(tot); add((tot / 100).toFixed(2)); }
       break;
     case 'money':
       var amt = +v.amt || 0;
-      add(o.label != null ? o.label : money(amt));
-      add(nfmt(amt)); add(Math.round(amt * 100) + ' cents');
+      if (!hidden) { add(o.label != null ? o.label : money(amt)); add(nfmt(amt)); add(Math.round(amt * 100) + ' cents'); }
       break;
-    case 'blocks': add((v.hundreds || 0) * 100 + (v.tens || 0) * 10 + (v.ones || 0)); break;
-    case 'area': add(o.label != null ? o.label : ((v.rows || 0) + ' × ' + (v.cols || 0) + ' = ' + ((v.rows || 0) * (v.cols || 0)))); break;
-    case 'angle': add(o.label); add(nfmt(v.a || 0) + '°'); add(nfmt(v.a || 0)); break;
-    case 'numberbond': add(v.whole); (v.parts || []).forEach(add); break;
+    case 'blocks': if (!hidden) add((v.hundreds || 0) * 100 + (v.tens || 0) * 10 + (v.ones || 0)); break;
+    case 'area': if (!hidden) add(o.label != null ? o.label : ((v.rows || 0) + ' × ' + (v.cols || 0) + ' = ' + ((v.rows || 0) * (v.cols || 0)))); break;
+    case 'angle': if (!hidden) { add(o.label); add(nfmt(v.a || 0) + '°'); add(nfmt(v.a || 0)); } break;
+    case 'numberbond':
+      if (!v.hideWhole) add(v.whole);
+      (v.parts || []).forEach(function (x, i) { if (!(v.hideParts || []).length || (v.hideParts || []).indexOf(i) < 0) add(x); });
+      break;
     case 'tenframe': add(v.label); break;
     case 'numline': add(o.label); (v.marks || []).forEach(function (m) { add(m && m.label); }); break;
     case 'array': add(o.label); break;
@@ -11247,10 +11311,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
  * of data/skill-families.json onto it, passing that skill's own parameters
  * (limit, representation, question direction). Read src/FAMILIES.md first.
  *
- *   ARCH('<family>', function (rng, lvl, p) { return I_num(…) }, ['PK','K','G1']);
+ *   ARCH('<family>', function (rng, lvl, p, sk) { return I_num(…) }, ['PK','K']);
  *
  * Verify just this file:
  *   node tools/smoke.js src/94-gen-fam-count.js src/99-gen-arch.js
+ *
+ * The rule this family used to break, over and over, is the one a five-year-old
+ * checks with a finger: THE PICTURE AND THE WORDS MUST AGREE. A card that says
+ * "count the bunnies" draws bunnies; a picture holding 4 objects never belongs
+ * to a card whose answer is 3; an "up to 3" skill never asks about 11; and the
+ * sentence keeps its verb ("Are there exactly 4 bunnies in the jar?"). So every
+ * model here is built through model(), which draws exactly n objects of the kind
+ * the words name, and every number that reaches the learner is capped by the
+ * skill's own limit.
  * ============================================================================= */
 (function () {
   'use strict';
@@ -11260,7 +11333,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* ------------------------------------------------------------- shared ---- */
   var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
-  var CTX = ['At the math table', 'On the shelf', 'In the bag', 'At the fair', 'On the table', 'In the jar', 'By the reading corner'];
+  /* each context in both shapes: capitalised to open a card, lowercase to sit
+     inside one ("Are there exactly 4 bunnies in the jar?") */
+  var CTX = [['At the math table', 'at the math table'], ['On the shelf', 'on the shelf'],
+    ['In the bag', 'in the bag'], ['At the fair', 'at the fair'], ['On the table', 'on the table'],
+    ['In the jar', 'in the jar'], ['By the reading corner', 'by the reading corner']];
   var OBJ = {
     pictures: ['bunnies', 'apples', 'baseball cards', 'fish', 'flowers', 'stars'],
     shapes: ['triangles', 'circles', 'squares', 'hexagons'],
@@ -11272,9 +11349,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   };
   function pick1(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function who(rng) { return pick1(rng, WHO); }
-  function ctx(rng) { return pick1(rng, CTX); }
+  function ctx(rng) { return pick1(rng, CTX)[0]; }
+  function at(rng) { return pick1(rng, CTX)[1]; }
   function thing(rng, p) { return pick1(rng, OBJ[p.obj] || OBJ.pictures); }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  /* "1 bunny", "2 bunnies", "1 fish", "1 baseball card": the number decides. */
+  function singular(t) {
+    var s = String(t);
+    if (/(fish|deer|sheep)$/i.test(s)) return s;
+    if (/supplies$/i.test(s)) return s.replace(/supplies$/i, 'supply');
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  function count(t, n) { return n === 1 ? singular(t) : t; }
+  function oneOf(t) { return singular(t); }
   /* how big a set this draw is: lvl 1 tiny, lvl 5 the skill's own limit */
   function howMany(rng, p, lvl) {
     var limit = cap(p.limit || 10, 3, 120);
@@ -11282,36 +11371,78 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       : lvl === 3 ? Math.max(4, Math.round(limit * 0.5)) : Math.max(5, Math.round(limit * 0.7));
     return R.int(rng, Math.min(lo, limit), limit);
   }
-  /* the model itself: rows/array use the dot array, scattered counts use a cell
-   * grid with the objects dropped into random cells, everything else a row. */
-  function model(rng, n, p) {
+  /* A factor pair for an EXACT array of n — never rows × ceil(n/rows), which
+     drew more objects than the card counted. */
+  function factorPair(rng, n) {
+    var ok = [], r;
+    for (r = 2; r <= Math.min(5, Math.floor(n / 2)); r++) if (n % r === 0) ok.push(r);
+    if (!ok.length) return { rows: 1, cols: n };
+    var rows = pick1(rng, ok);
+    return { rows: rows, cols: n / rows };
+  }
+  /* model opts: a caption plus what to draw, and optionally a partial extra row
+     or a ring. The caption never states the total the picture hides. */
+  function opts(label, noun, extra, ring) {
+    var o = { label: label };
+    if (noun) o.noun = noun;
+    if (extra) o.extra = extra;
+    if (ring) o.ring = true;
+    return o;
+  }
+  /* The model itself. It always draws exactly n objects, of the kind the words
+   * name, in the arrangement the title asks for:
+   *   array    an exact row × column array
+   *   rows     equal rows plus the leftovers, DRAWN — not merely described
+   *   scatter  objects spread through a cell grid, so the shape of the
+   *            arrangement cannot be copied
+   *   ring     objects around a circle ("Count shapes in rings")
+   *   plain    one row, counted left to right
+   */
+  function model(rng, n, p, t) {
     var layout = p.layout || 'plain';
     if (layout === 'array' && n >= 4) {
-      var r = R.int(rng, 2, Math.min(5, Math.floor(n / 2)));
-      while (n % r) r--;
-      return V.array(r, n / r, { label: n + ' in ' + r + ' equal rows' });
+      var f = factorPair(rng, n);
+      return V.array(f.rows, f.cols, opts(f.rows + ' equal rows', t));
     }
-    if (layout === 'rows' && n >= 3) {
-      var rows = cap(Math.ceil(n / R.int(rng, 2, 3)), 1, 6);
-      return V.array(rows, Math.ceil(n / rows), { label: 'lined up in rows' });
+    if (layout === 'rows' && n >= 2) {
+      /* "in rows" means rows: two or three rows, leftovers drawn beside them, so
+         the count cannot be finished by copying the picture's shape. */
+      var rows = R.int(rng, 2, Math.min(3, n)), per = Math.floor(n / rows), left = n - rows * per;
+      return V.array(rows, per, opts(left ? rows + ' rows of ' + per : rows + ' equal rows', t, left));
     }
+    /* A ring skill always draws a ring — even with two shapes in it. Falling
+       back to a plain row would quietly change what the skill asks. */
+    if (layout === 'ring' && n >= 1) return V.array(1, n, opts('count them all', t, 0, true));
     if (layout === 'scatter' && n >= 3) {
-      var cols = cap(Math.ceil(Math.sqrt(n * 1.6)), 3, 8), rows2 = cap(Math.ceil(n / (cols - 1)), 2, 6);
-      var cells = [], used = {};
-      for (var i = 0; i < n; i++) {
-        var k; var guard = 0;
-        do { k = R.int(rng, 0, rows2 * cols - 1); guard++; } while (used[k] && guard < 80);
-        used[k] = 1;
-      }
+      /* Scattered means the same n, only shuffled. Picking random cells with
+         replacement could land on the same cell twice and draw FEWER objects
+         than the answer, so the cells are shuffled instead: every one of the n
+         objects is placed, exactly once. */
+      var cols = cap(Math.ceil(Math.sqrt(n * 2.2)), 3, 8), rows2 = cap(Math.ceil(n / (cols - 2)), 2, 6);
+      while (rows2 * (cols - 1) < n) cols++;
+      var slots = [], ci;
+      for (ci = 0; ci < rows2 * cols; ci++) slots.push(ci);
+      slots = R.shuffle(rng, slots).slice(0, n);
+      var on = {};
+      slots.forEach(function (s2) { on[s2] = 1; });
+      var cells = [];
       for (var rr = 0; rr < rows2; rr++) {
         var line = [];
-        for (var cc = 0; cc < cols; cc++) line.push(used[rr * cols + cc] ? '●' : '');
+        for (var cc = 0; cc < cols; cc++) line.push(on[rr * cols + cc] ? '●' : '');
         cells.push(line);
       }
-      return V.grid({ rows: rows2, cols: cols, cells: cells, label: 'count them all' });
+      return V.grid({ rows: rows2, cols: cols, cells: cells, label: 'count them all', noun: t });
     }
-    if (n > 6 && (p.limit || 10) > 6) return V.tenframe(n, { label: 'counters on ten frames' });
-    return V.array(1, n, { label: 'count from left to right' });
+    return V.array(1, n, opts('count from left to right', t));
+  }
+  /* The arrangement the title names wins over the classifier's guess: a skill
+     called "Count shapes in rings" draws rings whatever it wrote. */
+  function layoutOf(p, sk) {
+    var name = (sk && sk.name) || '';
+    if (/in rings/i.test(name)) return 'ring';
+    if (/scattered/i.test(name)) return 'scatter';
+    if (/in rows/i.test(name)) return 'rows';
+    return p.layout || 'plain';
   }
 
   /* ==========================================================================
@@ -11321,12 +11452,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
    * arrangement. lvl 1-2 ≤ 5 in a row, 3 the skill's limit, 4-5 scattered or
    * in rows so a learner cannot point-and-copy the arrangement.
    * p = { limit, obj: pictures|shapes|cubes|dots|blocks|stickers|objects,
-   *        layout: plain|scatter|rows|array }
+   *        layout: plain|scatter|rows|array|ring }
    * ======================================================================== */
-  ARCH('countSet', function (rng, lvl, p) {
-    var n = howMany(rng, p, lvl), t = thing(rng, p), c = ctx(rng), w = who(rng), vis = model(rng, n, p);
-    var k = R.int(rng, 0, 6);
-    var one = t.replace(/s$/, '');
+  ARCH('countSet', function (rng, lvl, p, sk) {
+    var limit = cap(p.limit || 10, 3, 120);
+    var pp = { limit: limit, obj: p.obj, layout: layoutOf(p, sk) };
+    var n = howMany(rng, pp, lvl), t = thing(rng, pp), c = ctx(rng), w = who(rng);
+    var vis = model(rng, n, pp, t);
+    var one = oneOf(t);
+    var spread = pp.layout === 'scatter' || pp.layout === 'ring';
+    var k = R.int(rng, 1, 6);
+    /* A card may not describe an arrangement its picture does not have: nothing
+       "lines up in rows" on a skill whose whole point is a scatter or a ring. */
+    if (spread && k === 4) k = 3;
 
     /* official anchor — K.CC.4a/b: "count to answer 'how many' questions"; the
        last number said names the total of the group. */
@@ -11339,12 +11477,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       b: lvl <= 2 ? -0.4 : 0
     });
 
-    /* count out: build a set of a given size from a smaller one */
+    /* count out: build a set of a given size from a smaller one. "How many more
+       X" always takes the plural — the number comes after the noun here. */
     if (k === 1) {
       var have = R.int(rng, 1, n - 1), need = n - have;
       if (need === have) { have = cap(have + 1, 1, n - 1); need = n - have; }
       return I_num(w + ' needs ' + n + ' ' + t + ' for the math table. ' + w + ' has ' + have +
         ' so far. How many more ' + t + ' do you need?', need, {
+        visual: model(rng, have, { layout: 'plain' }, t),
         explain: ['The goal is ' + n + ' ' + t + '.', 'You already have ' + have + '.',
           'Count on from ' + have + ' until you reach ' + n + ': that is ' + need + ' more.',
           'Check: ' + have + ' + ' + need + ' = <b>' + n + '</b>.'],
@@ -11355,11 +11495,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     /* the numeral, not the pointing: choose the number that matches the model */
     if (k === 2) {
-      var opts = [n];
-      [n + 1, n - 1, n + 2, n - 2, n + 10].forEach(function (d) {
-        if (opts.length < 4 && d > 0 && d !== n) opts.push(d);
+      var picks = [n];
+      [n + 1, n - 1, n + 2, n - 2].forEach(function (d) {
+        if (picks.length < 4 && d >= 0 && d <= limit && d !== n) picks.push(d);
       });
-      var sh = R.shuffle(rng, opts);
+      var sh = R.shuffle(rng, picks);
       return I_choice('Look at the ' + t + '. Which number tells how many there are?', sh, sh.indexOf(n), {
         visual: vis,
         explain: ['Count the ' + t + ' one by one.', 'The last number said is ' + n + '.',
@@ -11369,43 +11509,60 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
 
-    /* yes / no on a stated total — the reverse of counting */
+    /* yes / no on a stated total — the reverse of counting. The claim stays
+       inside the skill's own limit, and the sentence keeps its verb. */
     if (k === 3) {
-      var same = R.chance(rng, 0.5), m = same ? n : cap(n + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, 3), 1, 120);
-      if (m === n) same = true;
-      return I_bool(c + ' there exactly ' + m + ' ' + t + '?', m === n, {
+      var same = R.chance(rng, 0.5), m = n, cand, d3;
+      if (!same) {
+        cand = [];
+        for (d3 = -3; d3 <= 3; d3++) if (d3 !== 0 && n + d3 >= 1 && n + d3 <= limit) cand.push(n + d3);
+        m = cand.length ? pick1(rng, cand) : n;
+      }
+      return I_bool('Are there exactly ' + m + ' ' + count(t, m) + ' ' + at(rng) + '?', m === n, {
         visual: vis,
         explain: ['Count the ' + t + ' in the model: that is ' + n + '.',
           'The question asks about ' + m + '.',
-          n + (m === n ? ' is the same as ' + m : ' is not the same as ' + m) + ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'],
+          n + (m === n ? ' is the same as ' + m : ' is not the same as ' + m) +
+          ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'],
         teach: 'A stated total is right only when it equals the last number of the count.',
         b: 0.2
       });
     }
 
-    /* rows: the arrangement is described, the learner rebuilds the total */
+    /* rows: the arrangement is described, the learner rebuilds the total. The
+       picture shows the leftovers too — a card that says "and 1 more sits
+       beside them" must actually draw that one more. */
     if (k === 4) {
-      var rows = R.int(rng, 2, cap(Math.floor(n / 2), 2, 4)), per = Math.floor(n / rows), left = n - rows * per;
-      var lead = 'The ' + t + ' are lined up in ' + rows + ' rows of ' + per +
-        (left ? ', and ' + left + ' more ' + (left === 1 ? one : t) + ' ' + (left === 1 ? 'sits' : 'sit') + ' beside them.' : '.') +
-        ' How many ' + t + ' in all?';
-      return I_num(lead, n, {
-        visual: V.array(rows, per, { label: rows + ' rows of ' + per }),
-        explain: ['The rows hold ' + rows + ' rows of ' + per + ' = ' + (rows * per) + '.',
-          left ? 'Then add the ' + left + ' left over: ' + (rows * per) + ' + ' + left + '.' : 'There is nothing left over.',
+      var rows4 = R.int(rng, 2, cap(Math.floor(n / 2), 2, 4)), per4 = Math.floor(n / rows4), left4 = n - rows4 * per4;
+      return I_num('The ' + t + ' are lined up in ' + rows4 + ' row' + (rows4 === 1 ? '' : 's') + ' of ' + per4 +
+        (left4 ? ', and ' + left4 + ' more ' + count(t, left4) + ' ' + (left4 === 1 ? 'sits' : 'sit') + ' beside them.' : '.') +
+        ' How many ' + t + ' in all?', n, {
+        visual: V.array(rows4, per4, opts(rows4 + ' rows of ' + per4, t, left4)),
+        explain: ['The rows hold ' + rows4 + ' rows of ' + per4 + ' = ' + (rows4 * per4) + '.',
+          left4 ? 'Then add the ' + left4 + ' left over: ' + (rows4 * per4) + ' + ' + left4 + '.' : 'There is nothing left over.',
           'So the answer is <b>' + n + '</b>.'],
         teach: 'Rows make counting faster: count the equal rows first, then add the rest.',
         b: 0.5
       });
     }
 
-    /* cardinality across a redraw: same set, different arrangement */
-    if (k === 5) return I_num('Count the ' + t + ' in the model, then write the number that comes just after ' +
+    /* cardinality across a redraw: same set, different arrangement. Only asked
+       where the next number is still inside the skill's own limit. */
+    if (k === 5 && n < limit) return I_num('Count the ' + t + ' in the model, then write the number that comes just after ' +
       'the last one you say.', n + 1, {
       visual: vis,
-      explain: ['Counting the ' + t + ' ends on ' + n + '.', 'The number after ' + n + ' when counting is ' + (n + 1) + '.',
+      explain: ['Counting the ' + t + ' ends on ' + n + '.',
+        'The number after ' + n + ' when counting is ' + (n + 1) + '.',
         'So the answer is <b>' + (n + 1) + '</b>.'],
       teach: 'Counting on past the last object is one more step from the total.',
+      b: 0.4
+    });
+    if (k === 5) return I_bool('Does this model show exactly ' + n + ' ' + count(t, n) + '?', true, {
+      visual: vis,
+      explain: ['Count the ' + t + ': the last number said is ' + n + '.',
+        'The question asks about that same number, ' + n + '.',
+        'So the answer is <b>Yes</b>.'],
+        teach: 'Count the model yourself before you agree with a number.',
       b: 0.4
     });
 
@@ -11413,6 +11570,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var w2 = who(rng);
     return I_num(w + ' counts ' + t + ' one by one and stops on ' + n + '. ' + w2 +
       ' counts the SAME ' + t + ' but starts with the ones at the right. What number does ' + w2 + ' stop on?', n, {
+      visual: vis,
       explain: ['Both children count every ' + one + ' once.', 'The order of counting does not change the total.',
         'Both stop on the same number: <b>' + n + '</b>.'],
       teach: 'Order irrelevance: a set has one total no matter which object you start with.',
@@ -11452,6 +11610,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var OBJ = ['blocks', 'cubes', 'stickers', 'apples', 'marbles', 'pencils', 'shells', 'cards', 'buttons', 'star stickers'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function singular(t) {
+    var s = String(t);
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  /* "0 apples" is not how anyone talks: a story says "no apples". And "1"
+     takes the singular: "1 apple", never "1 apples". */
+  function said(t, n) { return n === 0 ? 'no ' + t : n + ' ' + (n === 1 ? singular(t) : t); }
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   /* try the templates in a random order and keep the first that does not print
      its own answer — the card the learner is served is always an honest one.
@@ -11564,9 +11731,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* story: the same fact wearing a context */
       function () {
-        return I_num(w + ' has ' + t[0] + ' ' + (t[0] === 1 ? one : o) + '. ' + w + ' gets ' + t.slice(1).reduce(function (x, y) { return x + y; }, 0) + ' more ' + o + '. How many ' + o + ' in all?', c, {
+        var b2 = t.slice(1).reduce(function (x, y) { return x + y; }, 0);
+        return I_num(w + ' has ' + said(o, t[0]) + '. ' + w + ' gets ' + (b2 === 0 ? 'no' : b2) + ' more ' + o + '. How many ' + o + ' in all?', c, {
           visual: vis, b: lo + 0.1,
-          explain: ['Start with ' + t[0] + '.', 'Add ' + t.slice(1).reduce(function (x, y) { return x + y; }, 0) + ' more.', 'So the answer is <b>' + c + '</b>.'],
+          explain: ['Start with ' + t[0] + '.', 'Add ' + b2 + ' more.', 'So the answer is <b>' + c + '</b>.'],
           teach: 'A "how many in all" story is addition: join the quantities and find one total.'
         });
       },
@@ -11623,10 +11791,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'Compare two sums by working both out first; the open side of the symbol faces the larger one.'
         });
       },
-      /* judgement: is this fact true? */
+      /* judgement: is this fact true? The claimed total stays inside the
+         skill's own numbers — "up to 10" never prints "9 + 1 = 13". */
       function () {
-        var trueQ = R.chance(rng, 0.5), claim = trueQ ? c : cap(c + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, 3), 0, lim * 2);
-        if (claim === c) trueQ = true;
+        var lo3 = Math.max(0, c - 3), hi3 = Math.min(lim, c + 3);
+        var claim = R.int(rng, lo3, hi3);
+        if (claim === c) claim = c < hi3 ? hi3 : lo3;
+        var trueQ = claim === c;
         return I_bool('Is this fact true?  ' + expr(t) + ' = ' + claim, claim === c, {
           visual: vis, b: 0.5,
           explain: ['Work it out: ' + expr(t) + ' = ' + c + '.', 'The card claims ' + claim + '.', (claim === c ? 'They match' : 'They do not match') + ', so the answer is <b>' + (claim === c ? 'Yes' : 'No') + '</b>.'],
@@ -11635,10 +11806,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* read the model, choose the sentence */
       function () {
-        var wrongs = [(t[0] + 1) + ' + ' + t.slice(1).reduce(function (x, y) { return x + y; }, 0) + ' = ' + (c + 1), t[0] + ' + ' + t.slice(1).reduce(function (x, y) { return x + y; }, 0) + ' = ' + (c - 1 >= 0 ? c - 1 : c + 2), t.slice(1).reduce(function (x, y) { return x + y; }, 0) + ' + ' + t[0] + ' = ' + (c + 2)];
+        var b2 = t.slice(1).reduce(function (x, y) { return x + y; }, 0);
+        var wrongs = [];
+        if (c + 1 <= lim) wrongs.push(t[0] + ' + ' + b2 + ' = ' + (c + 1));
+        if (c - 1 >= 0) wrongs.push(t[0] + ' + ' + b2 + ' = ' + (c - 1));
+        if (c + 2 <= lim) wrongs.push(b2 + ' + ' + t[0] + ' = ' + (c + 2));
+        if (wrongs.length < 2) wrongs.push((t[0] + 1) + ' + ' + b2 + ' = ' + cap(c + 1, 0, lim));
         return MC(rng, 'Look at the model. Which sentence matches it?', expr(t) + ' = ' + c, wrongs, {
           visual: vis, b: 0.3,
-          explain: ['The model shows ' + t.join(' and ') + ' counters.', 'Counting them gives ' + c + '.', 'The sentence is <b>' + expr(t) + ' = ' + c + '</b>.'],
+          explain: ['Count the counters in the model.', 'Counting them gives ' + c + '.', 'The sentence is <b>' + expr(t) + ' = ' + c + '</b>.'],
           teach: 'A model and a number sentence describe the same quantity: the counters must match the numbers.'
         });
       },
@@ -12674,6 +12850,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var CTX = ['At the math table', 'In the sandbox', 'At the fair', 'On the shelf', 'In the garden', 'By the reading corner'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function singular(t) {
+    var s = String(t);
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  function count(t, n) { return n === 1 ? singular(t) : t; }   /* "1 apple", "3 apples" */
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
@@ -12845,7 +13028,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         var big = Math.max(g.n1, g.n2), small = Math.min(g.n1, g.n2), name = g.n1 > g.n2 ? g.a : g.b, other = g.n1 > g.n2 ? g.b : g.a;
         if (diff === 0) { name = g.a; other = g.b; }
-        return I_num('There are ' + Math.max(g.n1, g.n2) + ' ' + name + ' and ' + Math.min(g.n1, g.n2) + ' ' + other + '. How many more ' + name + ' than ' + other + '?', diff, {
+        return I_num('There are ' + Math.max(g.n1, g.n2) + ' ' + count(g.a === g.b ? g.a : name, Math.max(g.n1, g.n2)) + ' and ' +
+          Math.min(g.n1, g.n2) + ' ' + count(other, Math.min(g.n1, g.n2)) + '. How many more ' + name + ' than ' + other + '?', diff, {
           visual: vis, b: 0.6,
           explain: ['Match one to one; the leftovers are the difference.', Math.max(g.n1, g.n2) + ' − ' + Math.min(g.n1, g.n2) + ' = ' + diff + '.', 'So the answer is <b>' + diff + '</b>.'],
           teach: '"How many more" is the difference: subtract the smaller count from the larger one.'
@@ -12854,7 +13038,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* how many fewer */
       function () {
         var smallName = g.n1 < g.n2 ? g.a : g.b, bigName = g.n1 < g.n2 ? g.b : g.a;
-        return I_num('There are ' + Math.min(g.n1, g.n2) + ' ' + smallName + ' and ' + Math.max(g.n1, g.n2) + ' ' + bigName + '. How many fewer ' + smallName + ' than ' + bigName + '?', diff, {
+        return I_num('There are ' + Math.min(g.n1, g.n2) + ' ' + count(smallName, Math.min(g.n1, g.n2)) + ' and ' +
+          Math.max(g.n1, g.n2) + ' ' + count(bigName, Math.max(g.n1, g.n2)) + '. How many fewer ' + smallName + ' than ' + bigName + '?', diff, {
           visual: vis, b: 0.7,
           explain: ['Match one to one and count the unmatched ' + bigName + '.', Math.max(g.n1, g.n2) + ' − ' + Math.min(g.n1, g.n2) + ' = ' + diff + '.', 'So the answer is <b>' + diff + '</b>.'],
           teach: '"How many fewer" is the same difference as "how many more", read from the other group.'
@@ -12914,6 +13099,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var OBJ = ['shells', 'sticker stars', 'baseball cards', 'apples', 'marbles', 'pencil tops'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function singular(t) {
+    var s = String(t);
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  function count(t, n) { return n === 1 ? singular(t) : t; }
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
@@ -13028,7 +13220,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* a story comparison */
       function () {
         var t = pair(rng, L);
-        return I_bool(ct + ', ' + w + ' collected ' + t[0] + ' ' + o + ' and ' + w2 + ' collected ' + t[1] + '. Did ' + w + ' collect more?', t[0] > t[1], {
+        return I_bool(ct + ', ' + w + ' collected ' + t[0] + ' ' + count(o, t[0]) + ' and ' + w2 + ' collected ' + t[1] + '. Did ' + w + ' collect more?', t[0] > t[1], {
           b: 0.5,
           explain: ['Compare the two counts: ' + t[0] + ' and ' + t[1] + '.', 'The larger count is ' + Math.max(t[0], t[1]) + '.', 'So the answer is <b>' + (t[0] > t[1] ? 'Yes' : 'No') + '</b>.'],
           teach: 'A comparison story is still a number comparison: find the two counts and compare them.'
@@ -13048,8 +13240,25 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'With three numbers, find the extreme first, then check the others against it.'
         });
       },
-      /* lvl 4-5 stretch: build the extreme from digits */
+      /* lvl 4-5 stretch: build the extreme from digits — only for skills whose
+         own numbers reach two digits. A card for "up to 5" never prints 97. */
       function () {
+        if (L < 22) {
+          var pool = [], pv = Math.max(3, Math.min(L, 9) - 1);
+          for (var q = 1; q <= pv; q++) pool.push(q);
+          var t3 = R.sample(rng, pool, 3).slice();
+          var srt = t3.slice().sort(function (a, b) { return a - b; });
+          var pickMax = R.chance(rng, 0.5);
+          var ans = pickMax ? srt[2] : srt[0];
+          return MC(rng, 'Which is the ' + (pickMax ? 'greatest' : 'least') + ' of ' + t3.join(', ') + '?', String(ans),
+            t3.filter(function (v) { return v !== ans; }).map(String), {
+            b: 0.8,
+            explain: ['Put the numbers in order: ' + srt.join(', ') + '.',
+              (pickMax ? 'The greatest is the last one.' : 'The least is the first one.'),
+              'So the answer is <b>' + ans + '</b>.'],
+            teach: 'Ordering the numbers makes the extreme obvious.'
+          });
+        }
         var d = R.sample(rng, [1, 2, 3, 4, 5, 6, 7, 8, 9], 2);
         var hi = Math.max(d[0], d[1]) * 10 + Math.min(d[0], d[1]), lo = Math.min(d[0], d[1]) * 10 + Math.max(d[0], d[1]);
         var askMax = R.chance(rng, 0.5);
@@ -13076,6 +13285,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
  * The frame is the model, not decoration: a five-frame for the small limits, a
  * ten-frame (or two) once the limit passes 10, and "how many more" always asked
  * against the frame the learner can see.
+ *
+ * What this family used to get wrong is the Pre-K contract, not the arithmetic:
+ * a skill named "… up to 3" never prints 8, never asks about the next full ten,
+ * never sends a learner to fill a frame bigger than the skill's own numbers, and
+ * never writes "1 counters" or "fill 1 row of 5 boxes of 5". Every number that
+ * reaches the card is capped by `limit`, and the frame is named once.
  * ============================================================================= */
 (function () {
   'use strict';
@@ -13088,6 +13303,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var OBJ = ['counters', 'cubes', 'apples', 'marbles', 'shells', 'stickers'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function singular(t) {
+    var s = String(t);
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  function count(t, n) { return n === 1 ? singular(t) : t; }
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
@@ -13101,14 +13323,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var sh = R.shuffle(rng, opts);
     return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
   }
+  /* one honest name for the frame, used the same way in every sentence */
+  function frameName(F) { return F === 5 ? 'five-frame' : F === 10 ? 'ten-frame' : 'frame of ' + F; }
 
   /* ================================ oneMoreLess =========================== */
   ARCH('oneMoreLess', function (rng, lvl, p) {
     var L = cap(p.limit || 10, 3, 20), ask = p.ask || 'more', model = p.model || 'pictures';
-    var n = R.int(rng, 1, cap(L - 1, 2, L)), o = pick(rng, OBJ), one = o.replace(/s$/, ''), w = pick(rng, WHO), ct = pick(rng, CTX);
+    var n = R.int(rng, 1, cap(L - 1, 2, L)), o = pick(rng, OBJ), one = singular(o), w = pick(rng, WHO), ct = pick(rng, CTX);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
     var vis = model === 'frames' ? V.tenframe(n, { frames: n <= 5 ? 1 : cap(Math.ceil(n / 10), 1, 3), label: n + ' ' + o })
-      : model === 'pictures' ? V.array(1, cap(n, 1, 12), { label: n + ' ' + o }) : null;
+      : model === 'pictures' ? V.array(1, cap(n, 1, 12), { label: n + ' ' + o, noun: o }) : null;
     var teach = 'One more moves one step forward in the count; one less moves one step back.';
 
     return build(rng, [
@@ -13116,7 +13340,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         return I_num(ct + ', what is one more than ' + n + '?', n + 1, {
           visual: vis, b: lo,
-          explain: ['Start at ' + n + ' in the count.', 'Say the next number: ' + (n + 1) + '.', 'So the answer is <b>' + n + ' + 1 = ' + (n + 1) + '</b>.'],
+          explain: ['Start at ' + n + ' in the count.', 'Say the next number: ' + (n + 1) + '.',
+            'So the answer is <b>' + n + ' + 1 = ' + (n + 1) + '</b>.'],
           teach: teach
         });
       },
@@ -13124,159 +13349,261 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         return I_num('What is one less than ' + n + '?', n - 1, {
           visual: vis, b: lo + 0.1,
-          explain: ['Start at ' + n + ' in the count.', 'Say the number before it: ' + (n - 1) + '.', 'So the answer is <b>' + n + ' − 1 = ' + (n - 1) + '</b>.'],
+          explain: ['Start at ' + n + ' in the count.', 'Say the number before it: ' + (n - 1) + '.',
+            'So the answer is <b>' + n + ' − 1 = ' + (n - 1) + '</b>.'],
           teach: teach
         });
       },
       /* both at once, written in two boxes */
       function () {
         return I_parts('Write the number that is one less, and the number that is one more, for ' + n + '.', ['one less', 'one more'], [{ k: 'n', v: n - 1 }, { k: 'n', v: n + 1 }], {
-          visual: vis, b: 0.4,
-          explain: ['One less than ' + n + ' is ' + (n - 1) + '.', 'One more than ' + n + ' is ' + (n + 1) + '.', 'So the answers are <b>' + (n - 1) + ' and ' + (n + 1) + '</b>.'],
-          teach: 'A number sits between its neighbour below and its neighbour above.'
+          visual: vis, b: lo + 0.2,
+          explain: ['One less than ' + n + ' is ' + (n - 1) + '.', 'One more than ' + n + ' is ' + (n + 1) + '.',
+            'The number in the middle stays ' + n + '.'],
+          teach: 'One less and one more sit on either side of the same number.'
         });
       },
-      /* add one to the model */
+      /* a picture of n, the next number asked for by name */
       function () {
-        return I_num('There are ' + n + ' ' + o + '. How many would that be with 1 more ' + one + '?', n + 1, {
-          visual: vis, b: lo - 0.2,
-          explain: ['Count what is shown: ' + n + '.', 'Add 1 more ' + one + '.', 'So the answer is <b>' + (n + 1) + '</b>.'],
-          teach: 'Adding one more gives the next number in the count.'
+        return I_num('Count the ' + o + ' on the model. What number comes just after ' + n + '?', n + 1, {
+          visual: vis, b: lo + 0.1,
+          explain: ['The model shows ' + n + ' ' + count(o, n) + '.', 'The number after ' + n + ' when counting is ' + (n + 1) + '.',
+            'So the answer is <b>' + (n + 1) + '</b>.'],
+          teach: 'Counting on one step always lands on one more.'
         });
       },
-      /* take one away from the model */
+      /* a picture of n, the number before asked for */
       function () {
-        return I_num('There are ' + n + ' ' + o + '. How many would that be with 1 fewer ' + one + '?', Math.max(0, n - 1), {
-          visual: vis, b: lo,
-          explain: ['Count what is shown: ' + n + '.', 'Take away 1 ' + one + '.', 'So the answer is <b>' + (n - 1) + '</b>.'],
-          teach: 'Taking one away gives the number before it in the count.'
+        return I_num('The model shows ' + n + ' ' + count(o, n) + '. What number comes just before ' + n + '?', n - 1, {
+          visual: vis, b: lo + 0.2,
+          explain: ['The model shows ' + n + ' ' + count(o, n) + '.', 'The number before ' + n + ' is ' + (n - 1) + '.',
+            'So the answer is <b>' + (n - 1) + '</b>.'],
+          teach: 'Counting back one step always lands on one less.'
         });
       },
-      /* judge a neighbour claim */
+      /* judgement: the claim is stated, the learner checks it. A wrong claim
+         still stays inside the skill's own numbers. */
       function () {
-        var m = cap(n + (R.chance(rng, 0.5) ? 1 : -1), 0, L + 1), which = R.chance(rng, 0.5);
-        var truth = which ? (m === n + 1) : (m === n - 1);
-        return I_bool('Is ' + m + ' one ' + (which ? 'more' : 'less') + ' than ' + n + '?', truth, {
-          visual: vis, b: 0.5,
-          explain: ['One ' + (which ? 'more' : 'less') + ' than ' + n + ' is ' + (which ? n + 1 : n - 1) + '.', 'The card says ' + m + '.', (truth ? 'They match' : 'They do not match') + ', so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
-          teach: 'Neighbours in the count are exactly one apart.'
+        var right = n + 1;
+        var claim = R.chance(rng, 0.5) ? right : cap(right + (R.chance(rng, 0.5) ? 1 : -1), 0, L);
+        if (claim === right) claim = right < L ? cap(right + 1, 0, L) : right - 1;
+        return I_bool(w + ' says the number that is one more than ' + n + ' is ' + claim + '. Is ' + w + ' right?', claim === right, {
+          visual: vis, b: lo + 0.3,
+          explain: ['One more than ' + n + ' means one step forward in the count.', 'That number is ' + right + '.',
+            w + ' said ' + claim + ', so the answer is <b>' + (claim === right ? 'Yes' : 'No') + '</b>.'],
+          teach: 'Check a claim about one more by counting the step yourself.'
         });
       },
-      /* choose the neighbour */
+      /* a number line of the count, one step hidden */
       function () {
-        var up = R.chance(rng, 0.5), ans = up ? n + 1 : n - 1;
-        var wrongs = [cap(ans + 1, 0, L + 2), cap(ans - 1, 0, L + 2), n].filter(function (v) { return v !== ans; });
-        return MC(rng, 'Which number is one ' + (up ? 'more' : 'less') + ' than ' + n + '?', String(ans), wrongs.map(String), {
-          visual: vis, b: 0.3,
-          explain: ['Count ' + (up ? 'on' : 'back') + ' one from ' + n + '.', 'That lands on ' + ans + '.', 'So the answer is <b>' + ans + '</b>.'],
-          teach: teach
+        var a = Math.max(0, n - 2), line = [];
+        for (var i = a; i <= Math.min(L, a + 5); i++) line.push(i === n ? '▢' : String(i));
+        return I_num('Complete the count: ' + line.join(', ') + '. What number does the ▢ stand for?', n, {
+          b: lo + 0.3,
+          explain: ['The count moves by ones.', 'The ▢ sits between ' + (n - 1) + ' and ' + (n + 1) + '.',
+            'So the answer is <b>' + n + '</b>.'],
+          teach: 'A count in order leaves exactly one whole number in each gap.'
         });
       },
-      /* complete the count */
+      /* the reverse: one more/less is known, the number is not */
       function () {
-        var a = cap(n - 1, 0, L);
-        return I_num('Finish the count: ' + a + ', ' + n + ', ___', n + 1, {
-          visual: vis, b: 0.2,
-          explain: ['The numbers go up by one each time.', 'After ' + n + ' comes ' + (n + 1) + '.', 'So the answer is <b>' + (n + 1) + '</b>.'],
-          teach: 'A count that climbs by one is a list of neighbours: each is one more.'
+        var m = R.int(rng, 2, L);
+        return I_num('One more than a number is ' + m + '. What is the number?', m - 1, {
+          b: lo + 0.4,
+          explain: ['One more than the answer is ' + m + '.', 'So the answer is one less than ' + m + '.',
+            'It is <b>' + (m - 1) + '</b>.'],
+          teach: 'One more works both ways: undo it by taking one away.'
         });
       },
-      /* lvl 4-5 stretch: two steps away */
+      /* lvl 4-5 stretch: k more / k less, only when the answer stays inside the
+         skill's own numbers */
       function () {
-        var k = R.int(rng, 2, 3);
-        return I_num('What is ' + k + ' more than ' + n + '?', n + k, {
-          visual: vis, b: 1.0,
-          explain: ['Count on ' + k + ' from ' + k + ' step' + (k === 1 ? '' : 's') + ' at a time.', n + ' + ' + k + ' = ' + (n + k) + '.', 'So the answer is <b>' + (n + k) + '</b>.'],
-          teach: 'Counting on several steps is the same as adding that many.'
+        var k = R.int(rng, 2, cap(Math.floor(L / 2), 2, 5)), more = R.chance(rng, 0.5);
+        if (more && n + k > L) more = false;
+        if (!more && n - k < 0) more = true;
+        var v = more ? n + k : n - k;
+        return I_num('What is ' + k + ' more than ' + n + '?', v, {
+          b: 1.0,
+          explain: ['Start at ' + n + '.', 'Count on ' + k + ' step' + (k === 1 ? '' : 's') + ' from ' + n + ': ' + n + ' + ' + k + '.',
+            'So the answer is <b>' + v + '</b>.'],
+          teach: 'One more, two more: the step is the same idea, repeated.'
         });
       }
-    ], lvl <= 2 ? [4, 4, 2, 4, 3, 2, 3, 3, 0] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 3, 3, 2] : [2, 2, 3, 3, 3, 3, 3, 3, 4]);
+    ], lvl <= 2 ? [4, 4, 2, 4, 3, 2, 3, 3, 0] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 3, 2] : [2, 3, 3, 3, 3, 3, 3, 4]);
   }, ['PK', 'K', 'G1']);
 
-  /* =============================== countTenFrame ========================== */
+  /* ============================== countTenFrame ============================ */
   ARCH('countTenFrame', function (rng, lvl, p) {
-    var L = cap(p.limit || 10, 3, 40), F = cap(p.frames || 10, 5, 10), ask = p.ask || 'show';
-    var n = R.int(rng, 1, L), frames = cap(Math.ceil(Math.max(1, n) / F), 1, 4), full = frames * F;
-    var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, w = pick(rng, WHO), ct = pick(rng, CTX);
-    var FNAME = F === 5 ? 'row of 5 boxes' : 'ten-frame';
-    var frameVis = function (q, label) {
-      if (F === 10) return V.tenframe(q, { frames: frames, label: label });
-      var rr = [], ii; for (ii = 0; ii < F; ii++) rr.push(ii < q ? '●' : '');
-      return V.grid({ rows: 1, cols: F, cells: [rr], label: label });
-    };
-    var vis = frameVis(n, 'counters on ' + frames + ' ' + FNAME + (frames === 1 ? '' : 's'));
-    var teach = 'A ' + FNAME + ' holds ' + F + ' counters, so a full one is worth ' + F + '.';
+    var L = cap(p.limit || 10, 3, 40);
+    var F = p.frames === 20 ? 20 : (L <= 5 ? 5 : 10);          /* five-frames stay small */
+    var full = F;
+    var frames = cap(Math.ceil(L / full), 1, 4);
+    var ask = p.ask || 'countOn';
+    var fname = frameName(F);
+    /* n never passes the skill's own limit; the frame never holds more than it */
+    var n = R.int(rng, 1, cap(L - 1, 1, Math.min(L, full * frames) - 1));
+    var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    /* A frame holds `full` boxes; a number bigger than one frame is shown on as
+       many frames as it needs, filled row by row. Drawing a single frame for 17
+       and asking about 17 is the model lying. */
+    function frameCells(_, filled) {
+      var cols = full === 10 ? 5 : full, per = cols * (full === 10 ? 2 : 1);
+      var nf = cap(Math.ceil(Math.max(1, filled) / per), 1, Math.max(1, frames));
+      var cells = [], idx = 0, total = nf * per;
+      for (var r = 0; r < nf * (full === 10 ? 2 : 1); r++) {
+        var line = [];
+        for (var c = 0; c < cols; c++) { line.push(idx < filled ? '●' : ''); idx++; }
+        cells.push(line);
+      }
+      void total;
+      return { rows: cells.length, cols: cols, cells: cells };
+    }
+    function frameVis(filled, label) {
+      var g = frameCells(0, filled);
+      return V.grid({ rows: g.rows, cols: g.cols, cells: g.cells, label: label });
+    }
+    function twoFrameGrid(a, b) {
+      var ga = frameCells(0, a), gb = frameCells(0, b);
+      return V.grid({ rows: ga.rows + gb.rows, cols: ga.cols, cells: ga.cells.concat(gb.cells), label: 'two ' + fname + 's' });
+    }
+    function counters(k) { return k === 1 ? 'counter' : 'counters'; }
+    function have(k) {
+      return k === 0 ? 'There are no counters on the ' + fname + '.'
+        : 'There ' + (k === 1 ? 'is 1 counter' : 'are ' + k + ' counters') + ' on the ' + fname + '.';
+    }
+    var teach = 'A frame shows a number at a glance: full rows first, then count the rest.';
 
     return build(rng, [
-      /* official anchor — read the frame and say how many. */
+      /* official anchor — read the frame and say how many. The caption never
+         states the count the frame exists to show. */
       function () {
-        return I_num(ct + ', how many counters are shown on the frame?', n, {
-          visual: vis, b: lo,
-          explain: ['Count the full frames first: each holds ' + F + '.', 'Then count the extra counters.', 'So the answer is <b>' + n + '</b>.'],
+        return I_num('How many counters are shown on the ' + fname + '?', n, {
+          visual: frameVis(n, 'counters on the ' + fname), b: lo,
+          explain: ['Count the filled boxes: ' + n + '.', 'Empty boxes are not counted.',
+            'So the answer is <b>' + n + '</b>.'],
           teach: teach
         });
       },
-      /* how many more to fill the frame */
+      /* the same reading, as a numeral choice inside the skill's own numbers */
       function () {
-        return I_num('How many more counters fill ' + frames + ' ' + FNAME + (frames === 1 ? '' : 's') + ' of ' + full + '?', full - n, {
-          visual: vis, b: lo + 0.2,
-          explain: ['The frames hold ' + full + ' counters in all.', 'Count on from ' + n + ' to ' + full + '.', full + ' − ' + n + ' = ' + (full - n) + '.', 'So the answer is <b>' + (full - n) + '</b>.'],
-          teach: 'Empty spaces in a frame tell you how many more are needed to make a full one.'
+        var picks = [n];
+        [n + 1, n - 1, n + 2, n - 2].forEach(function (d) {
+          if (picks.length < 4 && d >= 0 && d <= L && d !== n) picks.push(d);
+        });
+        var sh = R.shuffle(rng, picks);
+        return I_choice('Which number tells how many counters are on the ' + fname + '?', sh, sh.indexOf(n), {
+          visual: frameVis(n, 'counters on the ' + fname), b: lo + 0.1,
+          explain: ['Count the filled boxes of the ' + fname + '.', 'The last number you say is ' + n + '.',
+            'Find ' + n + ' among the choices.', 'So the answer is <b>' + n + '</b>.'],
+          teach: 'A frame and a numeral name the same number.'
         });
       },
-      /* make the frame number */
+      /* how many more to make a stated total — inside the skill's own numbers */
       function () {
-        var have = cap(n - R.int(rng, 1, cap(n, 1, 4)), 0, n), need = n - have;
-        return I_num('There are ' + have + ' counters on the frame. How many more make ' + n + '?', need, {
-          visual: frameVis(have, have + ' counters so far'), b: lo - 0.2,
-          explain: ['Start at ' + have + ' and count on to ' + n + '.', have + ' + ' + need + ' = ' + n + '.', 'So the answer is <b>' + need + '</b>.'],
-          teach: 'Counting on from the number you have finds how many more to add.'
+        var X = R.int(rng, n + 1, Math.max(n + 1, Math.min(L, full * frames)));
+        return I_num(have(n) + ' How many more make ' + X + '?', X - n, {
+          visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: lo + 0.2,
+          explain: ['The frame holds ' + n + ' ' + counters(n) + ' now.', 'Count on from ' + n + ' until you reach ' + X + '.',
+            X + ' − ' + n + ' = ' + (X - n) + ', so the answer is <b>' + (X - n) + '</b>.'],
+          teach: 'How many more is the gap between what you have and what you want.'
         });
       },
-      /* judge the frame */
+      /* how many more fill the frame — only when the frame fits the skill */
       function () {
-        var same = R.chance(rng, 0.5), m = same ? n : cap(n + (R.chance(rng, 0.5) ? 1 : -1), 0, full);
-        return I_bool('Does this frame show exactly ' + m + ' counters?', m === n, {
-          visual: vis, b: 0.3,
-          explain: ['Count the counters on the frame: ' + n + '.', 'The question asks about ' + m + '.', (m === n ? 'They match' : 'They do not match') + ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'],
-          teach: 'Count the frame yourself before you agree with a number.'
+        if (full > L) {                       /* a frame bigger than the skill's numbers */
+          var X2 = R.int(rng, n + 1, Math.max(n + 1, Math.min(L, full * frames)));
+          return I_num(have(n) + ' How many more make ' + X2 + '?', X2 - n, {
+            visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: lo + 0.2,
+            explain: ['The frame holds ' + n + ' ' + counters(n) + ' now.', 'Count on to ' + X2 + ': that is ' + (X2 - n) + ' more.',
+              'So the answer is <b>' + (X2 - n) + '</b>.'],
+            teach: 'How many more is the gap between what you have and what you want.'
+          });
+        }
+        /* "fill the frame" only makes sense while the frame is not already full
+           or past it — with 17 counters on two frames, the honest question is
+           "how many more make X", never "10 − 17". */
+        if (n >= full) {
+          var X3 = R.int(rng, n + 1, Math.max(n + 1, Math.min(L, full * frames)));
+          return I_num(have(n) + ' How many more make ' + X3 + '?', X3 - n, {
+            visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: lo + 0.2,
+            explain: ['The frame holds ' + n + ' ' + counters(n) + ' now.', 'Count on to ' + X3 + ': that is ' + (X3 - n) + ' more.',
+              'So the answer is <b>' + (X3 - n) + '</b>.'],
+            teach: 'How many more is the gap between what you have and what you want.'
+          });
+        }
+        return I_num('How many more counters fill the ' + fname + '?', full - n, {
+          visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: lo + 0.3,
+          explain: ['The ' + fname + ' holds ' + full + ' boxes.', full + ' − ' + n + ' = ' + (full - n) + '.',
+            'So the answer is <b>' + (full - n) + '</b>.'],
+          teach: 'How many more is the empty boxes left in the frame.'
         });
       },
-      /* which description matches the frame */
+      /* take away from the frame */
       function () {
-        var f = Math.floor(n / F), r = n % F;
-        var right = f + ' full row' + (f === 1 ? '' : 's') + ' of ' + F + ' and ' + r + ' more';
-        var wrongs = [Math.max(0, f - 1) + ' full rows of ' + F + ' and ' + (r + F) + ' more', f + ' full rows of ' + F + ' and ' + (r + 1) + ' more', (f + 1) + ' full rows of ' + F + ' and ' + r + ' more'].filter(function (s) { return s !== right; });
-        return MC(rng, 'Which description matches the frame?', right, wrongs, {
-          visual: vis, b: 0.5,
-          explain: ['Count the full frames: ' + f + '.', 'Count the extra counters: ' + r + '.', 'So the frame is <b>' + right + '</b>.'],
-          teach: 'Full frames plus extra counters is how a frame is read out loud.'
+        var take = R.int(rng, 1, n), left = n - take;
+        return I_num('The ' + fname + ' shows ' + n + ' ' + counters(n) + '. Cross out ' + take +
+          ' ' + counters(take) + '. How many are left?', left, {
+          visual: frameVis(n, n + ' ' + counters(n)), b: lo + 0.3,
+          explain: ['Start with ' + n + ' ' + counters(n) + '.', 'Take away ' + take + '.', n + ' − ' + take + ' = ' + left + '.',
+            'So the answer is <b>' + left + '</b>.'],
+          teach: 'Covering part of the frame is the same subtraction as crossing out.'
         });
       },
-      /* the missing partner of the frame number */
+      /* yes / no on a frame */
       function () {
-        var a = cap(n % F === 0 ? F : n % F, 1, F), b = F - a;
-        return I_num(a + ' and how many more make ' + F + '?', b, {
-          visual: frameVis(a, a + ' counters in one ' + FNAME), b: 0.4,
-          explain: ['The frame holds ' + F + '.', 'Count on from ' + a + ' to ' + F + '.', a + ' + ' + b + ' = ' + F + '.', 'So the answer is <b>' + b + '</b>.'],
-          teach: 'Making a full frame is the same as making ' + F + '.'
+        var same = R.chance(rng, 0.5), m = n;
+        if (!same) {
+          var cand = [];
+          for (var d = -2; d <= 2; d++) if (d !== 0 && n + d >= 1 && n + d <= L) cand.push(n + d);
+          m = cand.length ? pick(rng, cand) : n;
+        }
+        return I_bool('Does this ' + fname + ' show exactly ' + m + ' ' + counters(m) + '?', m === n, {
+          visual: frameVis(n, 'counters on the ' + fname), b: lo + 0.3,
+          explain: ['Count the filled boxes: ' + n + '.', 'The question asks about ' + m + '.',
+            (m === n ? 'They match, so the answer is <b>Yes</b>.' : n + ' is not ' + m + ', so the answer is <b>No</b>.')],
+          teach: 'Read the frame yourself before you agree with a number.'
         });
       },
-      /* two frames, how many in all */
+      /* two frames, only when both fit inside the skill's own numbers */
       function () {
-        var a = R.int(rng, 1, F), b = R.int(rng, 1, F);
-        return I_num('One frame has ' + a + ' counters and another has ' + b + '. How many in all?', a + b, {
-          visual: V.grid({ rows: 2, cols: F, cells: [(function () { var r = [], i; for (i = 0; i < F; i++) r.push(i < a ? '●' : ''); return r; })(), (function () { var r = [], i; for (i = 0; i < F; i++) r.push(i < b ? '●' : ''); return r; })()], label: 'two frames' }), b: 0.6,
-          explain: ['Fill one frame first: ' + Math.min(a, F) + '.', 'Then add the rest: ' + (a + b) + '.', 'So the answer is <b>' + (a + b) + '</b>.'],
-          teach: 'Make a full frame first, then add what is left over.'
+        var a = R.int(rng, 1, Math.max(1, Math.min(full, L - 1)));
+        var b = R.int(rng, 1, Math.max(1, Math.min(full, L - a)));
+        return I_num('One ' + fname + ' has ' + a + ' ' + counters(a) + ' and another has ' + b +
+          '. How many in all?', a + b, {
+          visual: twoFrameGrid(a, b), b: 0.5,
+          explain: ['The first frame holds ' + a + '.', 'Count on with the second frame: ' + a + ' + ' + b + '.',
+            'So the answer is <b>' + (a + b) + '</b>.'],
+          teach: 'Two frames are one count that does not stop at the first frame.'
         });
       },
-      /* lvl 4-5 stretch: fill up to the next ten */
+      /* lvl 4-5 stretch: fill up to the next ten — only for skills whose own
+         numbers reach a ten, never for "up to 3" or "up to 5" */
       function () {
+        if (L < 10) {
+          var X3 = R.int(rng, n + 1, Math.max(n + 1, Math.min(L, full * frames)));
+          return I_num(have(n) + ' How many more make ' + X3 + '?', X3 - n, {
+            visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: 0.5,
+            explain: ['The frame holds ' + n + ' ' + counters(n) + ' now.', 'Count on to ' + X3 + ': that is ' + (X3 - n) + ' more.',
+              'So the answer is <b>' + (X3 - n) + '</b>.'],
+            teach: 'How many more is the gap between what you have and what you want.'
+          });
+        }
         var next = Math.ceil((n + 1) / 10) * 10;
+        /* Only call it "the next full ten" when a full ten is inside the
+           skill's own numbers; otherwise ask the honest make-X question. */
+        if (next > L) {
+          var X4 = R.int(rng, n + 1, Math.max(n + 1, Math.min(L, full * frames)));
+          return I_num(have(n) + ' How many more make ' + X4 + '?', X4 - n, {
+            visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: 0.5,
+            explain: ['The frame holds ' + n + ' ' + counters(n) + ' now.', 'Count on to ' + X4 + ': that is ' + (X4 - n) + ' more.',
+              'So the answer is <b>' + (X4 - n) + '</b>.'],
+            teach: 'How many more is the gap between what you have and what you want.'
+          });
+        }
         return I_num('How many more counters reach the next full ten above ' + n + '?', next - n, {
-          visual: frameVis(n, 'counters up to ' + next), b: 1.0,
-          explain: ['The next full ten above ' + n + ' is ' + next + '.', 'Count on: ' + next + ' − ' + n + ' = ' + (next - n) + '.', 'So the answer is <b>' + (next - n) + '</b>.'],
+          visual: frameVis(n, n + ' ' + counters(n) + ' so far'), b: 1.0,
+          explain: ['The next full ten above ' + n + ' is ' + next + '.', 'Count on: ' + next + ' − ' + n + ' = ' + (next - n) + '.',
+            'So the answer is <b>' + (next - n) + '</b>.'],
           teach: 'Rounding up to the next ten is counting the empty spaces in the last frame.'
         });
       }
@@ -13330,6 +13657,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      Templates must never add another "s" ("tenss", "oness", "fivess"). */
   function byText(st) {
     return st === 1 ? 'ones' : st === 2 ? 'twos' : st === 3 ? 'threes' : st === 4 ? 'fours' : st === 5 ? 'fives' : 'tens';
+  }
+  /* "the 2th number" is not English. Ordinals are spelled, not suffixed. */
+  var ORDWORDS = ['zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth',
+    'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth'];
+  function ordWord(n) {
+    if (n >= 0 && n < ORDWORDS.length) return ORDWORDS[n];
+    var tens = { 20: 'twentieth', 30: 'thirtieth', 40: 'fortieth', 50: 'fiftieth', 60: 'sixtieth', 70: 'seventieth', 80: 'eightieth', 90: 'ninetieth' };
+    if (tens[n]) return tens[n];
+    var base = Math.floor(n / 10) * 10, rest = n % 10;
+    if (base >= 20 && rest && tens[base]) return tens[base].replace(/y$/, 'ieth') + '-' + ORDWORDS[rest];
+    return n + 'th';
   }
 
   /* A run of the count that fits inside the skill's own limit — the shown terms
@@ -13466,14 +13804,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'Between means the number you say on the way from one number to the next.'
         });
       },
-      /* judgement on somebody else's counting */
+      /* judgement on somebody else's counting. The claim stays inside the
+         skill's own numbers, and the jump is named with a real word: "the 2th
+         number" is not English, "the second number" is. */
       function () {
         var good = R.chance(rng, 0.5), right = s.start + (s.jumps) * st;
-        var claim = good ? right : right + (R.chance(rng, 0.5) ? st : (st > 1 ? 1 : 1) * R.int(rng, 1, 2));
-        if (claim === right) claim = right + 1;
-        return I_bool(w + ' counts by ' + byText(st) + ' from ' + s.start + ' and says the ' + s.jumps + 'th number is ' + claim + '. Is ' + w + ' right?', claim === right, {
+        var lo4 = Math.max(0, right - 2 * st), hi4 = Math.min(L, right + 2 * st);
+        var claim = good ? right : R.int(rng, lo4, hi4);
+        if (claim === right) claim = right < hi4 ? hi4 : lo4;
+        if (claim > L || claim < 0) claim = right;
+        return I_bool(w + ' counts by ' + byText(st) + ' from ' + s.start + ' and says the ' + ordWord(s.jumps) + ' number is ' + claim + '. Is ' + w + ' right?', claim === right, {
           visual: model(rng, p, s, right), b: 0.6,
-          explain: ['Start at ' + s.start + ' and take ' + s.jumps + ' jumps of ' + st + '.', 'That lands on ' + right + '.', w + ' said ' + claim + ', so the answer is <b>' + (claim === right ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Start at ' + s.start + ' and take ' + s.jumps + ' jump' + (s.jumps === 1 ? '' : 's') + ' of ' + st + '.', 'That lands on ' + right + '.', w + ' said ' + claim + ', so the answer is <b>' + (claim === right ? 'Yes' : 'No') + '</b>.'],
           teach: 'Check a counting claim by doing the jumps yourself from the same starting number.'
         });
       },
@@ -14409,12 +14751,25 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     cand.forEach(function (v) { if (v >= 0 && v <= lim && v !== n && out.indexOf(v) < 0) out.push(v); });
     return out;
   }
-  function model(rng, n, mode, label) {
-    if (mode === 'frames') return V.tenframe(n, { frames: cap(Math.ceil(Math.max(1, n) / 10), 1, 10), label: label || 'counters on frames' });
-    var o = pick(rng, OBJ[mode] || OBJ.pictures);
-    if (n <= 0) return V.grid({ rows: 1, cols: 1, cells: [['']], label: 'an empty set' });
-    if (n > 6 && mode !== 'shapes') return V.tenframe(n, { frames: Math.ceil(n / 10), label: o });
-    return V.array(1, cap(n, 1, 12), { label: o });
+  function singular(t) {
+    var s = String(t);
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  function count(t, n) { return n === 1 ? singular(t) : t; }
+  /* The model is drawn from the SAME noun the words use, and its caption never
+     prints the count the learner is looking for. A model captioned "stars" over
+     a question about "fish" teaches the learner that pictures are decoration. */
+  function model(rng, n, mode, noun) {
+    var o = noun || pick(rng, OBJ[mode] || OBJ.pictures);
+    if (mode === 'frames') return V.tenframe(n, { frames: cap(Math.ceil(Math.max(1, n) / 10), 1, 10), label: 'counters on the frames' });
+    if (n <= 0) return V.grid({ rows: 1, cols: 1, cells: [['']], label: 'an empty set', noun: o });
+    if (n > 6 && mode !== 'shapes') return V.tenframe(n, { frames: cap(Math.ceil(n / 10), 1, 12), label: o + ' on the frames', noun: o });
+    /* A row is capped at 8 objects, so a bigger count is drawn in rows that
+       still hold exactly n — never a shorter row that quietly drops the rest. */
+    var per = Math.min(n, 8), rows = Math.ceil(n / per), left = n - rows * per;
+    return V.array(rows, per, { label: 'count the ' + o, noun: o, extra: left > 0 ? left : undefined });
   }
   function howMany(rng, lim, lvl) {
     var lo = lvl <= 1 ? Math.max(1, Math.round(lim * 0.15)) : lvl === 2 ? Math.max(2, Math.round(lim * 0.3)) : 1;
@@ -14513,9 +14868,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================ showNumber ============================ */
   ARCH('showNumber', function (rng, lvl, p) {
     var lim = cap(p.limit || 10, 1, 120), mode = p.mode || 'cubes', n = howMany(rng, lim, lvl);
-    var o = pick(rng, OBJ[mode] || OBJ.cubes), one = o[0].replace(/s$/, ''), ct = pick(rng, CTX), w = pick(rng, WHO);
+    var o = pick(rng, OBJ[mode] || OBJ.cubes), one = singular(o), ct = pick(rng, CTX), w = pick(rng, WHO);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
-    var vis = model(rng, n, mode, n + ' ' + o);
+    var vis = model(rng, n, mode, o);
     var teach = 'The same number can be shown with cubes, frames, pictures or a numeral — the quantity never changes.';
 
     return build(rng, [
@@ -14530,9 +14885,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* build the number from two parts */
       function () {
         var a = R.int(rng, 0, cap(n, 0, n)), b = n - a;
-        var right = a + ' ' + (a === 1 ? one : o) + ' and ' + b + ' more ' + o;
-        var wrongs = [(a + 1) + ' ' + one + ' and ' + Math.max(0, b - 1) + ' more ' + o, Math.max(0, a - 1) + ' ' + one + ' and ' + (b + 1) + ' more ' + o, a + ' ' + one + ' and ' + (b + 1) + ' more ' + o];
-        return MC(rng, 'Which pair shows ' + n + ' ' + o + ' in all?', right, wrongs.filter(function (s) { return s.indexOf('- ') < 0; }), {
+        var right = a + ' ' + count(o, a) + ' and ' + b + ' more ' + o;
+        var wrongs = [(a + 1) + ' ' + count(o, a + 1) + ' and ' + Math.max(0, b - 1) + ' more ' + o, Math.max(0, a - 1) + ' ' + count(o, a - 1) + ' and ' + (b + 1) + ' more ' + o, a + ' ' + count(o, a) + ' and ' + (b + 1) + ' more ' + o];
+        return MC(rng, 'Which pair shows ' + n + ' ' + count(o, n) + ' in all?', right, wrongs.filter(function (s) { return s.indexOf('- ') < 0; }), {
           visual: mode === 'frames' ? vis : null, b: 0.4,
           explain: ['Split ' + n + ' into two parts.', a + ' + ' + b + ' = ' + n + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'A number can be broken into two parts in many ways; the parts must add back to it.'
@@ -14541,7 +14896,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* how many more to reach the number */
       function () {
         var have = R.int(rng, 0, cap(n - 1, 0, Math.max(0, n - 1))), need = n - have;
-        return I_num(w + ' is showing ' + n + ' ' + o + ' and has ' + have + ' so far. How many more ' + o + ' do you need?', need, {
+        return I_num(w + ' is showing ' + n + ' ' + count(o, n) + ' and ' + (have === 0 ? 'has none yet' : 'has ' + have + ' ' + count(o, have) + ' so far') + '. How many more ' + o + ' do you need?', need, {
           visual: mode === 'frames' ? V.tenframe(have, { frames: cap(Math.ceil(Math.max(1, have) / 10), 1, 10), label: have + ' so far' }) : null, b: 0.5,
           explain: ['The goal is ' + n + '.', 'You already have ' + have + '.', 'Count on from ' + have + ' to ' + n + ': ' + need + ' more.', 'So the answer is <b>' + need + '</b>.'],
           teach: 'Counting out means adding on until the count reaches the number asked for.'
@@ -14549,9 +14904,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* yes / no on a shown model */
       function () {
-        var same = R.chance(rng, 0.5), m = same ? n : pick(rng, near(rng, n, lim));
-        return I_bool('Does this model show exactly ' + m + ' ' + o + '?', m === n, {
-          visual: model(rng, n, mode, ''), b: 0.3,
+        var alts = near(rng, n, lim).filter(function (v) { return v >= 1; });
+        var same = R.chance(rng, 0.5), m = same ? n : pick(rng, alts.length ? alts : [Math.max(1, n + 1)]);
+        return I_bool('Does this model show exactly ' + m + ' ' + count(o, m) + '?', m === n, {
+          visual: model(rng, n, mode, o), b: 0.3,
           explain: ['Count the model: that is ' + n + '.', 'The question asks about ' + m + '.', (m === n ? 'They match' : 'They do not match') + ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'],
           teach: 'A model shows one number only: count it before you agree with a claim.'
         });
@@ -14567,19 +14923,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* which model shows the number — described models */
       function () {
-        var right = 'a row of ' + n + ' ' + o;
+        var right = 'a row of ' + n + ' ' + count(o, n);
         var wrongs = ['a row of ' + cap(n + 1, 1, lim + 1) + ' ' + o, 'a row of ' + Math.max(1, n - 1) + ' ' + o, 'a row of ' + cap(n + 2, 1, lim + 2) + ' ' + o];
-        return MC(rng, 'Which model shows ' + n + ' ' + o + '?', right, wrongs.filter(function (s, i) { return i > 0 || n + 1 !== n; }), {
+        return MC(rng, 'Which model shows ' + n + ' ' + count(o, n) + '?', right, wrongs.filter(function (s, i) { return i > 0 || n + 1 !== n; }), {
           b: 0.6,
-          explain: ['' + n + ' ' + o + ' drawn in a row is one row with ' + n + ' counters.', 'Count to check: the row must end on ' + n + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: [n + ' ' + count(o, n) + ' drawn in a row is one row with ' + n + (n === 1 ? ' counter' : ' counters') + '.', 'Count to check: the row must end on ' + n + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'A row model shows a number by the number of counters in the row.'
         });
       },
       /* lvl 4-5 stretch: the same number in a different arrangement */
       function () {
         var rows = n >= 4 ? R.int(rng, 2, cap(Math.floor(n / 2), 2, 5)) : 1, per = rows ? Math.floor(n / rows) : n, left = n - rows * per;
-        return I_num('The ' + o + ' are lined up in ' + rows + ' row' + (rows === 1 ? '' : 's') + ' of ' + per + (left ? ', with ' + left + ' more beside them' : '') + '. How many ' + o + ' in all?', n, {
-          visual: rows > 1 ? V.array(rows, per, { label: rows + ' rows of ' + per }) : vis, b: 0.9,
+        return I_num('The ' + o + ' are lined up in ' + rows + ' row' + (rows === 1 ? '' : 's') + ' of ' + per + (left ? ', and ' + left + ' more ' + count(o, left) + (left === 1 ? ' sits' : ' sit') + ' beside them' : '') + '. How many ' + o + ' in all?', n, {
+          visual: rows > 1 ? V.array(rows, per, { label: rows + ' equal rows', noun: o, extra: left }) : vis, b: 0.9,
           explain: ['The rows hold ' + rows + ' × ' + per + ' = ' + (rows * per) + '.', left ? 'Add the ' + left + ' left over.' : 'Nothing is left over.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'Rearranging a set does not change its total: rows make counting faster.'
         });
@@ -15150,7 +15506,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* which sign makes the equation true */
       function () {
-        var left = s.op === 'sub' ? s.c - s.b : s.a + s.b, right = cap(left + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, 3), 0, s.L * 2);
+        var left = s.op === 'sub' ? s.c - s.b : s.a + s.b;
+        /* the other side of the comparison stays inside the skill's own numbers:
+           "up to 10" never shows "4 + 5 ○ 11" */
+        var lo2 = Math.max(0, left - 3), hi2 = Math.min(s.L, left + 3);
+        var right = R.int(rng, Math.min(lo2, Math.max(0, left - 1)), Math.max(hi2, Math.min(s.L, left + 1)));
+        if (right === left) right = left < hi2 ? hi2 : lo2;
         var leftExpr = s.op === 'sub' ? s.c + ' − ' + s.b : s.a + ' + ' + s.b;
         return I_cmp('Which sign makes this sentence true?   ' + leftExpr + ' ○ ' + right, left, right, {
           b: 0.5,
@@ -15160,7 +15521,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* true or false equation */
       function () {
-        var lie = R.chance(rng, 0.5), claim = lie ? cap(ans + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, 3), 0, s.L + 5) : ans;
+        /* a false claim stays inside the skill's own numbers: "up to 10" never
+           prints "9 + 1 = 13" */
+        var lie = R.chance(rng, 0.5);
+        var lo3 = Math.max(0, ans - 3), hi3 = Math.min(s.L, ans + 3);
+        var claim = ans;
+        if (lie) { claim = R.int(rng, lo3, hi3); if (claim === ans) claim = ans < hi3 ? hi3 : lo3; }
         var stmt = s.op === 'sub' ? s.c + ' − ' + s.b + ' = ' + claim : s.a + ' + ' + s.b + ' = ' + claim;
         return I_bool('Is this ' + opWord + ' sentence true?  ' + stmt, claim === ans, {
           b: 0.3,
@@ -15632,6 +15998,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var OBJ = ['blocks', 'cubes', 'stickers', 'apples', 'marbles', 'pencils', 'shells', 'cards', 'buttons', 'berries'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  function singular(t) {
+    var s = String(t);
+    if (/ies$/i.test(s)) return s.replace(/ies$/i, 'y');
+    if (/s$/i.test(s)) return s.replace(/s$/i, '');
+    return s;
+  }
+  /* "takes away 0 cubes" is not how anyone talks — "takes away none" is. */
+  function said(t, n) { return n === 0 ? 'no ' + t : n + ' ' + (n === 1 ? singular(t) : t); }
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
@@ -15700,9 +16074,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* story: the same fact as a take-away situation */
       function () {
-        return I_num(w + ' has ' + f.a + ' ' + (f.a === 1 ? one : o) + '. ' + w2 + ' takes away ' + f.b + ' ' + (f.b === 1 ? one : o) + '. How many ' + o + ' are left?', f.d, {
+        return I_num(w + ' has ' + said(o, f.a) + '. ' + w2 + ' takes away ' + (f.b === 0 ? 'none' : f.b + ' ' + (f.b === 1 ? one : o)) + '. How many ' + o + ' are left?', f.d, {
           visual: vis, b: lo + 0.1,
-          explain: ['There were ' + f.a + '.', f.b + ' were taken away.', f.a + ' − ' + f.b + ' = ' + f.d + '.', 'So the answer is <b>' + f.d + '</b>.'],
+          explain: ['There were ' + f.a + '.', (f.b === 0 ? 'None were taken away.' : f.b + ' were taken away.'), f.a + ' − ' + f.b + ' = ' + f.d + '.', 'So the answer is <b>' + f.d + '</b>.'],
           teach: 'A "how many are left" story is subtraction from the starting amount.'
         });
       },
@@ -15777,18 +16151,28 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'A crossed-out model shows subtraction: the whole, the part removed, and what remains.'
         });
       },
-      /* lvl 4-5 stretch: two-step with a friendly check */
+      /* lvl 4-5 stretch: two-step, and every number the chain prints — the
+         start, the step, the part taken away and the result — stays inside the
+         skill's own limit, so "up to 10" never shows 12 + 2 − 8. */
       function () {
-        var extra = R.int(rng, 1, cap(Math.max(1, Math.floor(f.lim / 4)), 1, 5));
-        var first = cap(f.a + extra, 0, 999), back = first - f.b;
-        if (back < 0) return I_num(f.a + ' − ' + f.b + ' + ' + 1 + ' =', f.d + 1, {
+        var lim = f.lim;
+        var k = R.int(rng, 1, cap(Math.max(1, Math.floor(lim / 4)), 1, 5));
+        var a = R.int(rng, 1, cap(lim - k, 1, lim));
+        var mid = a + k;
+        var b = R.int(rng, 1, cap(mid, 1, lim));
+        var res = mid - b;
+        if (res < 0 || res > lim || mid > lim) {
+          return I_num(f.a + ' − ' + f.b + ' =', f.d, {
+            b: 0.9,
+            explain: [f.a + ' − ' + f.b + ' = ' + f.d + '.', 'Take ' + f.b + ' away from ' + f.a + ' and ' + f.d + ' are left.',
+              'So the answer is <b>' + f.d + '</b>.'],
+            teach: 'Longer chains are still one step at a time, working from left to right.'
+          });
+        }
+        return I_num(ct + ', work left to right: ' + a + ' + ' + k + ' − ' + b + ' =', res, {
           b: 0.9,
-          explain: [f.a + ' − ' + f.b + ' = ' + f.d + '.', f.d + ' + 1 = ' + (f.d + 1) + '.', 'So the answer is <b>' + (f.d + 1) + '</b>.'],
-          teach: 'Do the subtraction first, then the extra step — one operation at a time.'
-        });
-        return I_num(ct + ', work left to right: ' + first + ' + ' + extra + ' − ' + (f.b + extra) + ' =', first - f.b - extra + extra, {
-          b: 0.9,
-          explain: ['Start: ' + first + ' + ' + extra + ' = ' + (first + extra) + '.', 'Then take away ' + (f.b + extra) + '.', 'So the answer is <b>' + (first - f.b) + '</b>.'],
+          explain: ['Start: ' + a + ' + ' + k + ' = ' + mid + '.', 'Then take away ' + b + '.', mid + ' − ' + b + ' = ' + res + '.',
+            'So the answer is <b>' + res + '</b>.'],
           teach: 'Longer chains are still one step at a time, working from left to right.'
         });
       }
@@ -20666,9 +21050,159 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   function caption(t) { return t ? h('div', { class: 'cap', text: String(t) }) : null; }
 
+  /* =============================================== the objects in a picture --
+   * A Pre-K card says "count the BUNNIES" and the model must show bunnies, not
+   * a row of anonymous dots. So a model carries the noun the words use, and the
+   * renderer draws THAT thing: a real triangle for "triangles", a cube for
+   * "cubes", an apple for "apples". Anything unknown falls back to a counter
+   * and is still countable — the picture is never the thing that breaks a card.
+   *
+   * Geometric shapes are drawn as SVG (crisp at any size, on every platform);
+   * living things and classroom objects use emoji, which every current platform
+   * ships. A shape the model asks for but cannot draw falls back to a counter.
+   */
+  var SHAPE_ATTR = {
+    circle: ['circle', { cx: 12, cy: 12, r: 10 }],
+    oval: ['ellipse', { cx: 12, cy: 12, rx: 11, ry: 8 }],
+    square: ['rect', { x: 2, y: 2, width: 20, height: 20, rx: 2 }],
+    rectangle: ['rect', { x: 1, y: 5, width: 22, height: 14, rx: 2 }],
+    triangle: ['path', { d: 'M12 3 L22 21 H2 Z' }],
+    diamond: ['path', { d: 'M12 2 L22 12 L12 22 L2 12 Z' }],
+    hexagon: ['polygon', { points: '12,2 21,7 21,17 12,22 3,17 3,7' }],
+    star: ['polygon', { points: '12,2 15.1,8.6 22.4,9.4 17,14.4 18.4,21.6 12,18.1 5.6,21.6 7,14.4 1.6,9.4 8.9,8.6' }],
+    heart: ['path', { d: 'M12 21 C4 15 2 10 5.5 6.5 C8 4 11 5 12 8 C13 5 16 4 18.5 6.5 C22 10 20 15 12 21 Z' }],
+    crescent: ['path', { d: 'M15 3 A10 10 0 1 0 15 21 A7.5 7.5 0 1 1 15 3 Z' }]
+  };
+  /* the noun a generator uses -> what to draw. `shape` draws SVG, `em` emoji. */
+  var NOUN_ART = [
+    [/^triangles?$/, { shape: 'triangle' }], [/^circles?$/, { shape: 'circle' }],
+    [/^(squares?|quadrilateral)$/, { shape: 'square' }], [/^(hexagons?|six[- ]sided)/, { shape: 'hexagon' }],
+    [/^(rectangles?|oblongs?)/, { shape: 'rectangle' }], [/^(diamonds?|rhombuses?)/, { shape: 'diamond' }],
+    [/^(ovals?|ellipses?)/, { shape: 'oval' }], [/^stars?$/, { shape: 'star' }],
+    [/^hearts?$/, { shape: 'heart' }], [/^crescents?$/, { shape: 'crescent' }],
+    [/^cubes?$/, { cube: 1 }], [/^(connecting|counting|unifix|linking) cubes$/, { cube: 1 }],
+    [/^(blocks?|building blocks|wooden blocks|base[- ]ten blocks?)/, { cube: 1 }],
+    [/^apples?$/, { em: '🍎' }], [/^bunnies$|^rabbits$/, { em: '🐰' }],
+    [/^fish$/, { em: '🐠' }], [/^(flowers?|tulips?)/, { em: '🌷' }],
+    [/^(baseball cards?|baseballs?)/, { em: '⚾' }], [/^(buttons?|tokens?)/, { dot: 1 }],
+    [/^(dots?|dot stickers?|sticker dots?|counters?|counting counters)/, { dot: 1 }],
+    [/^stickers$/, { ring: 1 }], [/^star stickers$/, { shape: 'star' }],
+    [/^shells?$/, { em: '🐚' }], [/^marbles$/, { ball: 1 }],
+    [/^(toys|teddy bears?)/, { em: '🧸' }], [/^pencils?$/, { em: '✏️' }],
+    [/^(erasers?|books?|school supplies|objects)$/, { em: '📚' }],
+    [/^cats?$/, { em: '🐱' }], [/^dogs?$/, { em: '🐶' }], [/^ducks?$/, { em: '🦆' }],
+    [/^frogs?$/, { em: '🐸' }], [/^bears?$/, { em: '🐻' }], [/^balls?$/, { ball: 1 }],
+    [/^trucks?$/, { em: '🚚' }], [/^seeds?$/, { em: '🌱' }], [/^pears?$/, { em: '🍐' }],
+    [/^stones?$/, { em: '🪨' }], [/^berries?$/, { em: '🫐' }],
+    [/^(shapes|pattern[- ]?block shapes|pattern blocks|figures)$/, { cyc: 1 }]
+  ];
+  function artFor(noun) {
+    var t = String(noun || '').trim().toLowerCase();
+    for (var i = 0; i < NOUN_ART.length; i++) if (NOUN_ART[i][0].test(t)) return NOUN_ART[i][1];
+    return { dot: 1 };
+  }
+  function shapeNode(name) {
+    var a = SHAPE_ATTR[name];
+    if (!a) return null;
+    return s('svg', { viewBox: '0 0 24 24', width: 22, height: 22, class: 'obj-shp' },
+      [s(a[0], {
+        cx: a[1].cx, cy: a[1].cy, r: a[1].r, rx: a[1].rx, ry: a[1].ry, x: a[1].x, y: a[1].y,
+        width: a[1].width, height: a[1].height, d: a[1].d, points: a[1].points,
+        fill: 'var(--accent)', 'fill-opacity': .82, stroke: 'var(--accent)', 'stroke-width': 1.2
+      })]);
+  }
+  function cubeNode() {
+    return s('svg', { viewBox: '0 0 24 24', width: 22, height: 22, class: 'obj-shp' }, [
+      s('path', { d: 'M4 8 L12 4 L20 8 L20 17 L12 21 L4 17 Z', fill: 'var(--accent)', 'fill-opacity': .18, stroke: 'var(--accent)', 'stroke-width': 1.4 }),
+      s('path', { d: 'M4 8 L12 12 L20 8 M12 12 L12 21', fill: 'none', stroke: 'var(--accent)', 'stroke-width': 1.2 })
+    ]);
+  }
+  function ballNode() {
+    return s('svg', { viewBox: '0 0 24 24', width: 22, height: 22, class: 'obj-shp' }, [
+      s('circle', { cx: 12, cy: 12, r: 10, fill: 'var(--accent)', 'fill-opacity': .8, stroke: 'var(--accent)' })
+    ]);
+  }
+  function ringNode() {
+    return s('svg', { viewBox: '0 0 24 24', width: 22, height: 22, class: 'obj-shp' }, [
+      s('circle', { cx: 12, cy: 12, r: 10, fill: 'color-mix(in srgb, var(--accent) 22%, transparent)', stroke: 'var(--accent)', 'stroke-width': 2 }),
+      s('circle', { cx: 12, cy: 12, r: 4, fill: 'var(--accent)' })
+    ]);
+  }
+  function dotNode(hollow) {
+    return h('span', { class: 'obj-dot' + (hollow ? ' hollow' : '') });
+  }
+  /* one object, drawn from the model's own description. `idx` lets a model of
+     generic "shapes" cycle through circle/square/triangle/hexagon instead of
+     printing the same figure twelve times. */
+  var SHAPE_CYCLE = ['circle', 'square', 'triangle', 'hexagon'];
+  function objectNode(o, idx) {
+    o = o || {};
+    var art = o.shape ? { shape: o.shape } : (o.noun ? artFor(o.noun) : {});
+    if (o.kind === 'dots' || o.kind === 'counters') art = { dot: 1 };
+    if (o.kind === 'shapes') art = { shape: o.shape || SHAPE_CYCLE[(idx || 0) % SHAPE_CYCLE.length] };
+    if (o.kind === 'cubes') art = { cube: 1 };
+    if (art.cyc) art = { shape: SHAPE_CYCLE[(idx || 0) % SHAPE_CYCLE.length] };
+    if (art.shape) { var n = shapeNode(art.shape); if (n) return h('span', { class: 'obj' }, [n]); }
+    if (art.cube) return h('span', { class: 'obj' }, [cubeNode()]);
+    if (art.ball) return h('span', { class: 'obj' }, [ballNode()]);
+    if (art.ring) return h('span', { class: 'obj' }, [ringNode()]);
+    if (art.em) return h('span', { class: 'obj em', text: art.em });
+    return h('span', { class: 'obj' }, [dotNode(o.hollow)]);
+  }
+
+  /* A row / array / ring of the objects a card names. The count is the only
+   * truth: rows × cols + extra must equal it, so a picture can never show a
+   * different number of objects than the answer claims. */
+  function objectField(count, o) {
+    o = o || {};
+    var n = Math.max(0, Math.min(count || 0, 120)), k = 0;
+    var one = function () { return objectNode(o, k++); };
+    if (o.ring && n > 2) {
+      var box = h('div', { class: 'ringbox' });
+      for (var i = 0; i < n; i++) {
+        var a = (i / n) * Math.PI * 2 - Math.PI / 2;
+        var el = one();
+        el.style.position = 'absolute';
+        el.style.left = (50 + 42 * Math.cos(a)).toFixed(2) + '%';
+        el.style.top = (50 + 42 * Math.sin(a)).toFixed(2) + '%';
+        el.style.transform = 'translate(-50%,-50%)';
+        box.appendChild(el);
+      }
+      return box;
+    }
+    var wrap = h('div', { class: 'objs' });
+    var rows = o.rows || 0, cols = o.cols || 0, extra = Math.max(0, +o.extra || 0);
+    if (rows > 1 || extra > 0) {                    /* rows × cols, then a partial row */
+      for (var r = 0; r < Math.max(1, rows); r++) {
+        var line = h('div', { class: 'oline' });
+        for (var c = 0; c < cols; c++) line.appendChild(one());
+        wrap.appendChild(line);
+      }
+      if (extra > 0) {
+        var part = h('div', { class: 'oline extra' });
+        for (var e = 0; e < extra; e++) part.appendChild(one());
+        wrap.appendChild(part);
+      }
+      return wrap;
+    }
+    var per = cols > 1 ? Math.min(cols, 10) : Math.max(1, n);
+    var line2 = h('div', { class: 'oline' });
+    for (var g = 0; g < n; g++) {
+      if (g && g % per === 0) { wrap.appendChild(line2); line2 = h('div', { class: 'oline' }); }
+      line2.appendChild(one());
+    }
+    wrap.appendChild(line2);
+    if (!n) return h('span', { class: 'tiny', text: 'none' });
+    return wrap;
+  }
+
   var DRAW = {
     /* ten-frame(s) with n counters */
     tenframe: function (v) {
+      var o = v.opts || {};
+      /* A frame may count anything: "5 apples on the frame" draws apples, not
+         generic counters, so the picture agrees with the words on the card. */
+      var named = o.noun || o.shape || o.kind || o.em;
       var frames = clamp(v.frames || Math.max(1, Math.ceil((v.n || 0) / 10)), 1, 4);
       var left = Math.max(0, Math.min(v.n || 0, frames * 10));
       var wrap = h('div', { class: 'tf' });
@@ -20676,7 +21210,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var fr = h('div', { class: 'frame' });
         for (var i = 0; i < 10; i++) {
           var idx = f * 10 + i;
-          fr.appendChild(h('div', { class: 'cell' + (idx < left ? ' on' : '') }));
+          if (named && idx < left) fr.appendChild(h('div', { class: 'cell on objcell' }, [objectNode(o, idx)]));
+          else fr.appendChild(h('div', { class: 'cell' + (idx < left ? ' on' : '') }));
         }
         wrap.appendChild(fr);
       }
@@ -20707,12 +21242,22 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
       return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }, g), caption(o.label)]);
     },
-    /* dot array */
+    /* a set of objects: dots, shapes, cubes, pictures — whatever the words name */
     array: function (v) {
       var rows = clamp(Math.round(v.rows || 1), 1, 12), cols = clamp(Math.round(v.cols || 1), 1, 20);
+      var o = v.opts || {};
+      var extra = Math.max(0, Math.min(+o.extra || 0, 20));
+      var named = o.kind || o.noun || o.shape || o.em;
+      if (named || o.ring) {
+        var field = objectField(rows * cols + extra, {
+          ring: o.ring, rows: rows, cols: cols, extra: extra,
+          noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed
+        });
+        return h('div', { class: 'viz' }, [field, caption(o.label)]);
+      }
       var grid = h('div', { class: 'dots', style: { gridTemplateColumns: 'repeat(' + cols + ', 15px)' } });
-      for (var i = 0; i < rows * cols; i++) grid.appendChild(h('div', { class: 'd' }));
-      return h('div', { class: 'viz' }, [grid, caption((v.opts || {}).label)]);
+      for (var i = 0; i < rows * cols + extra; i++) grid.appendChild(h('div', { class: 'd' }));
+      return h('div', { class: 'viz' }, [grid, caption(o.label)]);
     },
     /* fraction strips */
     frac: function (v) {
@@ -20743,7 +21288,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var rows = clamp(Math.round(v.rows || 1), 1, 12), cols = clamp(Math.round(v.cols || 1), 1, 16);
       var g = h('div', { class: 'areagrid', style: { gridTemplateColumns: 'repeat(' + cols + ', 24px)' } });
       for (var i = 0; i < rows * cols; i++) g.appendChild(h('div', { class: 'sq' }));
-      var lab = (v.opts || {}).label || (rows + ' × ' + cols + ' = ' + (rows * cols));
+      /* `noTotal`: the item's own area is the answer, so the grid counts nothing
+         out loud — the learner counts the unit squares. */
+      var lab = v.noTotal ? ((v.opts || {}).label || null) : ((v.opts || {}).label || (rows + ' × ' + cols + ' = ' + (rows * cols)));
       return h('div', { class: 'viz' }, [g, caption(lab)]);
     },
     /* base-ten blocks */
@@ -20758,7 +21305,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (v.tens) kids.push(grp('rod', v.tens));
       if (v.ones) kids.push(grp('cube', v.ones));
       if (!kids.length) kids.push(grp('cube', 0));
-      return h('div', { class: 'viz' }, [h('div', { class: 'blk' }, kids), caption(v.opts && v.opts.label || '')]);
+      var tot = (v.hundreds || 0) * 100 + (v.tens || 0) * 10 + (v.ones || 0);
+      return h('div', { class: 'viz' }, [h('div', { class: 'blk' }, kids), caption(v.noTotal ? null : tot)]);
     },
     /* analog clock */
     clock: function (v) {
@@ -20775,21 +21323,24 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       g.push(s('line', { x1: C, y1: C, x2: C + Math.sin(ha) * 26, y2: C - Math.cos(ha) * 26, stroke: 'currentColor', 'stroke-width': 4, 'stroke-linecap': 'round' }));
       g.push(s('line', { x1: C, y1: C, x2: C + Math.sin(ma) * 40, y2: C - Math.cos(ma) * 40, stroke: 'var(--accent)', 'stroke-width': 2.6, 'stroke-linecap': 'round' }));
       g.push(s('circle', { cx: C, cy: C, r: 3.4, fill: 'currentColor' }));
-      var label = (v.opts && v.opts.label) || (hh + ':' + ('0' + mm).slice(-2));
+      /* "What time is the clock showing?" must not print "3:25" under the face */
+      var label = v.noTotal ? null : ((v.opts && v.opts.label) || (hh + ':' + ('0' + mm).slice(-2)));
       return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 120 120', width: 150, height: 150 }, g), caption(label)]);
     },
     /* coins */
     coins: function (v) {
       var defs = [['q', '25¢', 25, '#b8b8c4'], ['d', '10¢', 10, '#c9ccd2'], ['n', '5¢', 5, '#c08a5a'], ['p', '1¢', 1, '#d9a066']];
+      /* "How many cents are these?" IS the total of the pile, so neither the
+         caption nor the per-pile counts may be printed for that card. */
       var kids = defs.filter(function (d) { return (v[d[0]] || 0) > 0; }).map(function (d) {
         var pile = h('div', { class: 'pile' });
         for (var i = 0; i < Math.min(v[d[0]], 12); i++) pile.appendChild(h('div', { class: 'coin', style: { background: d[3], marginBottom: '-22px' } }, d[1]));
-        pile.appendChild(h('div', { class: 'cnt', text: v[d[0]] + ' × ' + d[1] }));
+        if (!v.noTotal) pile.appendChild(h('div', { class: 'cnt', text: v[d[0]] + ' × ' + d[1] }));
         return pile;
       });
       if (!kids.length) kids.push(h('div', { class: 'tiny', text: 'no coins' }));
       var tot = (v.q || 0) * 25 + (v.d || 0) * 10 + (v.n || 0) * 5 + (v.p || 0);
-      return h('div', { class: 'viz' }, [h('div', { class: 'coins' }, kids), caption(v.opts && v.opts.label || '')]);
+      return h('div', { class: 'viz' }, [h('div', { class: 'coins' }, kids), caption(v.noTotal ? null : tot + '¢ = $' + (tot / 100).toFixed(2))]);
     },
     /* a sum of money as bills + coins */
     money: function (v) {
@@ -20800,6 +21351,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var n = Math.floor(cents / unit[i]);
         if (n) { out.push(n + ' × ' + name[i]); cents -= n * unit[i]; }
       }
+      if (v.noTotal)                    /* the amount IS the question: show the money */
+        return h('div', { class: 'viz' }, [caption(out.join('  ·  ') || '—')]);
       return h('div', { class: 'viz' }, [
         h('div', { style: { fontSize: '22px', fontWeight: '700' } }, (neg ? '−$' : '$') + (Math.abs(Math.round((+v.amt || 0) * 100)) / 100).toFixed(2)),
         caption(out.join('  ·  ') || '—')
@@ -21031,9 +21584,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     },
     /* number bond */
     numberbond: function (v) {
-      var parts = v.parts || [], kids = [h('div', { class: 'circ whole', text: nfmt(v.whole) }), h('div', { class: 'ln' })];
+      var parts = v.parts || [];
+      /* core marks the circle the card is asking for; it prints ▢, not the answer */
+      var whole = v.hideWhole ? '▢' : nfmt(v.whole);
+      var kids = [h('div', { class: 'circ whole', text: whole }), h('div', { class: 'ln' })];
       var col = h('div', { class: 'parts' });
-      parts.forEach(function (p) { col.appendChild(h('div', { class: 'circ', text: nfmt(p) })); });
+      parts.forEach(function (p, i) {
+        var hidden = (v.hideParts || []).indexOf(i) >= 0;
+        col.appendChild(h('div', { class: 'circ', text: hidden ? '▢' : nfmt(p) }));
+      });
       kids.push(col);
       return h('div', { class: 'viz' }, [h('div', { class: 'bond' }, kids)]);
     },
@@ -21054,16 +21613,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return h('div', { class: 'viz', style: { display: 'flex', gap: '14px', alignItems: 'center' } },
         [s('svg', { viewBox: '0 0 156 156', width: 156, height: 156 }, g), legend]);
     },
-    /* unit / arithmetic grid */
+    /* unit / attribute / scatter grid — a cell holding ● is an object, not a
+     * letter: with a noun on the model it draws that object, so "count the
+     * scattered circles" shows circles wherever the learner can point at them. */
     grid: function (v) {
       var rows = v.rows || (v.opts && v.opts.rows) || 0, cols = v.cols || (v.opts && v.opts.cols) || 0, o = v.opts || {};
       var cells = o.cells || null;
-      var t = h('table', { class: 'vtable' });
+      var art = (o.noun || o.shape || o.kind) ? o : null;
+      var t = h('table', { class: 'vtable' + (art ? ' objgrid' : '') });
       for (var r = 0; r < rows; r++) {
         var tr = h('tr');
         if (o.rowLabels && o.rowLabels[r] != null) tr.appendChild(h('th', { text: String(o.rowLabels[r]) }));
         for (var c = 0; c < cols; c++) {
           var val = cells ? (cells[r] ? cells[r][c] : '') : (o.rowLabels && o.rowLabels[r] != null && o.colLabels && o.colLabels[c] != null ? (+o.rowLabels[r] * +o.colLabels[c]) : '');
+          var mark = String(val == null ? '' : val).trim();
+          if (art && (mark === '●' || mark === '○')) {
+            var td = h('td');
+            td.appendChild(objectNode({ noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed, hollow: mark === '○' }));
+            tr.appendChild(td);
+            continue;
+          }
           tr.appendChild(h('td', { text: String(val == null ? '' : val) }));
         }
         t.appendChild(tr);
@@ -22392,264 +22961,6 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   if (window.MathPathUI.state) window.MathPathUI.boot();
 })();
-</script>
-<script>
-/* ============================================================================
- * G4-Part1 generators: Place Value (A), Addition (D), Subtraction (E)
- * 26 skills total
- * ========================================================================== */
-
-// Topic A: Place Value (12 skills)
-G('g4-place_value_models', function (rng, lvl) {
-  var n = R.int(rng, 1000 * Math.pow(10, Math.floor(lvl / 2)), Math.pow(10, 3 + Math.floor((lvl + 1) / 2)));
-  var h = Math.floor(n / 100) % 10, t = Math.floor(n / 10) % 10, o = n % 10;
-  return I_num('Which blocks show ' + n + '?', n, {
-    visual: V.blocks(Math.floor(n / 100), t, o, { label: '' }),
-    teach: 'Base-ten blocks: flats (hundreds), rods (tens), cubes (ones)',
-    explain: [n + ' = ' + Math.floor(n / 100) + ' hundreds, ' + t + ' tens, ' + o + ' ones']
-  });
-});
-
-G('g4-identify_place_value_names', function (rng, lvl) {
-  var n = R.int(rng, 1000, 1000000);
-  var placenames = ['ones', 'tens', 'hundreds', 'thousands', 'ten thousands', 'hundred thousands', 'millions'];
-  var pos = R.int(rng, 0, Math.min(6, Math.floor(Math.log10(n))));
-  var place = placenames[pos];
-  var divisor = Math.pow(10, pos);
-  var digit = Math.floor((n / divisor) % 10);
-  return I_choice('In ' + n + ', which digit is in the ' + place + ' place?', String(digit), [
-    String(digit),
-    String((digit + 1) % 10),
-    String((digit + 2) % 10)
-  ], {
-    teach: 'Place value: each position represents a power of 10',
-    explain: ['In ' + n + ', the ' + place + ' place has the digit ' + digit + '.']
-  });
-});
-
-G('g4-value_of_a_digit', function (rng, lvl) {
-  var n = R.int(rng, 1000, 100000);
-  var pos = R.int(rng, 0, Math.floor(Math.log10(n)));
-  var digit = Math.floor((n / Math.pow(10, pos)) % 10);
-  var value = digit * Math.pow(10, pos);
-  return I_num('What is the value of the digit ' + digit + ' in ' + n + '?', value, {
-    teach: 'The value of a digit = the digit × its place value',
-    explain: ['The digit ' + digit + ' is in the ' + Math.pow(10, pos) + 's place.',
-      'So its value is ' + digit + ' × ' + Math.pow(10, pos) + ' = ' + value + '.']
-  });
-});
-
-G('g4-relationship_between_place_values_10_times_as_much', function (rng, lvl) {
-  var n = R.int(rng, 1000, 10000);
-  var mult = Math.pow(10, R.int(rng, 1, 3));
-  var result = n * mult;
-  return I_num(n + ' × ' + mult + ' = ?', result, {
-    teach: 'Multiplying by 10, 100, or 1000 shifts digits left',
-    explain: [n + ' × ' + mult + ' = ' + result]
-  });
-});
-
-G('g4-find_10_or_100_times_a_number', function (rng, lvl) {
-  var n = R.int(rng, 100, 1000);
-  var mult = R.choice(rng, [10, 100]);
-  return I_num(mult + ' times ' + n + ' = ?', n * mult);
-});
-
-G('g4-convert_between_standard_and_expanded_form', function (rng, lvl) {
-  var n = R.int(rng, 1000, 100000);
-  if (R.chance(rng, 0.5)) {
-    var digits = String(n).split('').map(function(d, i) {
-      var place = Math.pow(10, String(n).length - 1 - i);
-      return parseInt(d) * place;
-    }).filter(function(x) { return x > 0; });
-    return I_str('Write ' + n + ' in expanded form', digits.join(' + '));
-  } else {
-    var parts = [];
-    for (var i = 0; i < String(n).length; i++) {
-      parts.push(parseInt(String(n)[i]) * Math.pow(10, String(n).length - 1 - i));
-    }
-    return I_num('What number is ' + parts.filter(function(x) { return x > 0; }).join(' + ') + '?', n);
-  }
-});
-
-G('g4-writing_numbers_up_to_one_million_convert_between_words_and_digits', function (rng, lvl) {
-  var n = R.int(rng, 10000, 1000000);
-  if (R.chance(rng, 0.5)) {
-    return I_num('Write ' + (n < 1000 ? n : n < 1000000 ? Math.floor(n / 1000) + ' thousand' + (n % 1000 ? ' ' + (n % 1000) : '') : n) + ' as a number.', n);
-  } else {
-    return I_str('Write ' + n + ' in words.', String(n));
-  }
-});
-
-G('g4-spell_word_names_for_numbers_up_to_one_million', function (rng, lvl) {
-  var n = R.int(rng, 1000, 1000000);
-  return I_str('Spell ' + n + ' in words.', String(n));
-});
-
-G('g4-writing_numbers_up_to_one_billion_convert_between_words_and_digits', function (rng, lvl) {
-  var n = R.int(rng, 1000000, 1000000000);
-  return I_num('Write ' + Math.floor(n / 1000000) + ' million' + (n % 1000000 ? ' ' + (n % 1000000) : '') + ' as a number.', n);
-});
-
-G('g4-place_value_word_problems', function (rng, lvl) {
-  var n = R.int(rng, 10000, 100000);
-  var digit = Math.floor(n / 1000) % 10;
-  return I_num(n + ' has ' + digit + ' in the thousands place. What number has twice as many thousands?', n + 1000 * digit);
-});
-
-G('g4-convert_between_place_values', function (rng, lvl) {
-  var tens = R.int(rng, 10, 50);
-  var ones = R.int(rng, 0, 9);
-  var total = tens * 10 + ones;
-  return I_num(tens + ' tens and ' + ones + ' ones = ?', total);
-});
-
-G('g4-place_value_review', function (rng, lvl) {
-  var modes = [0, 1, 2];
-  var mode = R.choice(rng, modes);
-  if (mode === 0) {
-    var n = R.int(rng, 1000, 10000);
-    return I_num('Round ' + n + ' to the nearest thousand.', Math.round(n / 1000) * 1000);
-  } else if (mode === 1) {
-    var a = R.int(rng, 1000, 5000);
-    var b = R.int(rng, 1000, 5000);
-    return I_num(a + ' + ' + b + ' = ?', a + b);
-  } else {
-    var x = R.int(rng, 100, 900);
-    return I_num('What is 10 times ' + x + '?', x * 10);
-  }
-});
-
-// Topic B: Comparing and ordering (5 skills) - subset
-G('g4-compare_numbers_up_to_one_million', function (rng, lvl) {
-  var a = R.int(rng, 1000, 1000000);
-  var b = R.int(rng, 1000, 1000000);
-  while (a === b) b = R.int(rng, 1000, 1000000);
-  return I_choice(a + ' _____ ' + b, a < b ? '<' : '>', [a < b ? '<' : '>', a < b ? '>' : '<', '='], {
-    teach: 'Compare place values left to right'
-  });
-});
-
-G('g4-compare_numbers_up_to_one_billion', function (rng, lvl) {
-  var a = R.int(rng, 1000000, 1000000000);
-  var b = R.int(rng, 1000000, 1000000000);
-  while (a === b) b = R.int(rng, 1000000, 1000000000);
-  return I_choice(a + ' _____ ' + b, a < b ? '<' : '>', [a < b ? '<' : '>', a < b ? '>' : '<', '=']);
-});
-
-// Topic D: Addition (8 skills)
-G('g4-estimate_sums', function (rng, lvl) {
-  var a = R.int(rng, 1000, 10000);
-  var b = R.int(rng, 1000, 10000);
-  var nearest = Math.pow(10, Math.floor(Math.log10(Math.max(a, b))));
-  var est = Math.round(a / nearest) * nearest + Math.round(b / nearest) * nearest;
-  return I_num('Estimate the sum. ' + a + ' + ' + b + ' ≈ ?', est, {
-    teach: 'Round each number, then add',
-    explain: [Math.round(a / nearest) * nearest + ' + ' + Math.round(b / nearest) * nearest + ' = ' + est]
-  });
-});
-
-G('g4-add_two_multi_digit_numbers', function (rng, lvl) {
-  var a = R.int(rng, 1000 * lvl, 10000 * lvl);
-  var b = R.int(rng, 1000 * lvl, 10000 * lvl);
-  return I_num(a + ' + ' + b + ' = ?', a + b, {
-    teach: 'Add by place value: start with ones, then tens, then hundreds',
-    explain: ['Add the ones digits: ' + (a % 10) + ' + ' + (b % 10) + ' = ' + ((a + b) % 10),
-      'Add the tens, and so on.', 'Total: ' + (a + b)]
-  });
-});
-
-G('g4-properties_of_addition', function (rng, lvl) {
-  var modes = [0, 1];
-  var mode = R.choice(rng, modes);
-  if (mode === 0) {
-    var a = R.int(rng, 1000, 10000);
-    var b = R.int(rng, 1000, 10000);
-    return I_num(a + ' + ' + b + ' = ' + b + ' + ?', a);
-  } else {
-    var a = R.int(rng, 100, 500);
-    var b = R.int(rng, 100, 500);
-    var c = R.int(rng, 100, 500);
-    return I_num('(' + a + ' + ' + b + ') + ' + c + ' = ' + a + ' + (' + b + ' + ' + c + ') = ?', a + b + c);
-  }
-});
-
-G('g4-add_3_or_more_numbers_up_to_millions', function (rng, lvl) {
-  var a = R.int(rng, 1000, 100000);
-  var b = R.int(rng, 1000, 100000);
-  var c = R.int(rng, 1000, 100000);
-  return I_num(a + ' + ' + b + ' + ' + c + ' = ?', a + b + c);
-});
-
-G('g4-addition_fill_in_the_missing_digits', function (rng, lvl) {
-  var a = R.int(rng, 1000, 10000);
-  var b = R.int(rng, 1000, 10000);
-  var sum = a + b;
-  var missing_pos = R.int(rng, 0, 3);
-  var missing_digit = parseInt(String(sum)[missing_pos]);
-  var prompt = String(a) + ' + ' + String(b) + ' = ' + String(sum).slice(0, missing_pos) + '___' + String(sum).slice(missing_pos + 1);
-  return I_num('Fill in the missing digit: ' + prompt, missing_digit);
-});
-
-G('g4-choose_numbers_with_a_particular_sum', function (rng, lvl) {
-  var target = R.int(rng, 5000, 20000);
-  var a = R.int(rng, 1000, target - 1000);
-  var b = target - a;
-  return I_num('Two numbers have a sum of ' + target + '. One number is ' + a + '. What is the other number?', b);
-});
-
-// Topic E: Subtraction (6 skills)
-G('g4-estimate_differences', function (rng, lvl) {
-  var a = R.int(rng, 5000, 50000);
-  var b = R.int(rng, 1000, a - 1000);
-  var nearest = Math.pow(10, Math.floor(Math.log10(a)));
-  var est = Math.round(a / nearest) * nearest - Math.round(b / nearest) * nearest;
-  return I_num('Estimate. ' + a + ' - ' + b + ' ≈ ?', est);
-});
-
-G('g4-subtract_two_multi_digit_numbers', function (rng, lvl) {
-  var a = R.int(rng, 5000, 50000);
-  var b = R.int(rng, 1000, a - 1000);
-  return I_num(a + ' - ' + b + ' = ?', a - b);
-});
-
-G('g4-subtraction_fill_in_the_missing_digits', function (rng, lvl) {
-  var a = R.int(rng, 5000, 50000);
-  var b = R.int(rng, 1000, a - 1000);
-  var diff = a - b;
-  return I_num(a + ' - ' + b + ' = ?', diff);
-});
-
-G('g4-choose_numbers_with_a_particular_difference', function (rng, lvl) {
-  var target = R.int(rng, 1000, 10000);
-  var a = R.int(rng, target + 1000, target + 20000);
-  var b = a - target;
-  return I_num('Two numbers have a difference of ' + target + '. The larger is ' + a + '. What is the smaller number?', b);
-});
-
-// Extend Topic C (Rounding) with more skills
-G('g4-rounding_up_to_hundred_thousands_place', function (rng, lvl) {
-  var n = R.int(rng, 10000, 1000000);
-  var place = R.int(rng, 1, 5);
-  var divisor = Math.pow(10, place);
-  var rounded = Math.round(n / divisor) * divisor;
-  return I_num('Round ' + n + ' to the nearest ' + divisor + '.', rounded);
-});
-
-G('g4-rounding_up_to_millions_place', function (rng, lvl) {
-  var n = R.int(rng, 100000, 10000000);
-  var divisor = Math.pow(10, R.int(rng, 3, 6));
-  var rounded = Math.round(n / divisor) * divisor;
-  return I_num('Round ' + n + ' to the nearest ' + divisor + '.', rounded);
-});
-
-G('g4-round_a_number_to_any_place_up_to_hundred_thousands', function (rng, lvl) {
-  var n = R.int(rng, 10000, 1000000);
-  var place = R.int(rng, 0, 5);
-  var divisor = Math.pow(10, place);
-  var rounded = Math.round(n / divisor) * divisor;
-  return I_num('Round ' + n + ' to the nearest ' + divisor + '.', rounded);
-});
 </script>
 </body>
 </html>
