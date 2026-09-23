@@ -16661,6 +16661,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var COLOR = [{ g: '🔴', w: 'red' }, { g: '🔵', w: 'blue' }, { g: '🟡', w: 'yellow' }, { g: '🟢', w: 'green' }];
   var SHAPE = [{ g: '■', w: 'square' }, { g: '▲', w: 'triangle' }, { g: '●', w: 'circle' }, { g: '◆', w: 'diamond' }];
   var SIZE = [{ g: '▪', w: 'small square' }, { g: '⬛', w: 'large square' }];
+  /* "classify and sort" (K): every object carries a colour AND a shape, and the
+   * glyph shows both, so a card may sort by one rule and count by that same
+   * rule. A pool of loose colour words mixed with shape words made "how many
+   * are circles" true for the coloured circles too. */
+  var BOTH = [
+    { g: '🟥', w: 'red square', c: 'red', s: 'square' },
+    { g: '🟦', w: 'blue square', c: 'blue', s: 'square' },
+    { g: '🟨', w: 'yellow square', c: 'yellow', s: 'square' },
+    { g: '🔺', w: 'red triangle', c: 'red', s: 'triangle' },
+    { g: '🔷', w: 'blue diamond', c: 'blue', s: 'diamond' },
+    { g: '🟩', w: 'green square', c: 'green', s: 'square' }
+  ];
 
   /* ================================ patterns ============================== */
   ARCH('patterns', function (rng, lvl, p) {
@@ -16863,12 +16875,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ============================== sortClassify ============================= */
   ARCH('sortClassify', function (rng, lvl, p) {
     var by = p.by || 'shape', ask = p.ask || 'sort', ct = pick(rng, CTX);
-    var pool = by === 'color' ? COLOR : by === 'shape' ? SHAPE : SHAPE.concat(COLOR);
+    var pool = by === 'color' ? COLOR : by === 'shape' ? SHAPE : BOTH;
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
-    var ruleWord = by === 'color' ? 'colour' : by === 'shape' ? 'shape' : 'shape or colour';
+    /* "classify and sort" gives one rule per card, never both at once: an object
+     * that is a red square sorts into "red" by colour and into "square" by
+     * shape, so a card that names both rules has two right answers. The rule is
+     * chosen here and every template on the card follows it. */
+    var attr = (by === 'both' || by === 'samediff') ? (R.chance(rng, 0.5) ? 'c' : 's') : 'w';
+    var ruleWord = (by === 'color' || attr === 'c') ? 'colour' : 'shape';
     var teach = 'Sorting needs one rule at a time; a Venn diagram counts what belongs to each circle and what belongs to both.';
     var nameOf = function (t) { return t.w; };
-    var groupOf = function (t) { return t.w; };
+    var groupOf = function (t) { return t[attr]; };
     var SIDES = { square: 4, diamond: 4, triangle: 3, circle: 0, red: 0, blue: 0, yellow: 0, green: 0 };
 
     /* Two groups, never more. Five objects drawn at random from a pool of four
@@ -16877,11 +16894,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      * no single other pile. Every card here gets a named majority of four and
      * one thing that breaks the rule. */
     var uniq = [], seen = [], i;
-    for (i = 0; i < pool.length; i++) if (seen.indexOf(pool[i].w) < 0) { seen.push(pool[i].w); uniq.push(pool[i]); }
+    /* one representative per GROUP under this card's rule, so the two piles
+     * really are two and the picture splits 3 / 2 */
+    for (i = 0; i < pool.length; i++) { var gv = groupOf(pool[i]); if (seen.indexOf(gv) < 0) { seen.push(gv); uniq.push(pool[i]); } }
     var pair = R.sample(rng, uniq, 2), A = pair[0], B = pair[1];
     var items = R.shuffle(rng, [A, A, A, B, B]);
     var glyphs = items.map(function (t) { return t.g; });
-    var grp = A.w, other = B.w;
+    var grp = groupOf(A), other = groupOf(B);
 
     /* the two Venn circles: colour + round for the colour pool, 4 sides +
      * 3 sides for the shape pool. Both rules are checked against the object,
@@ -16894,9 +16913,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           holds: function (t) { return [t.w === c.w, true]; }
         };
       }
+      if (by === 'both') {
+        var o = pick(rng, BOTH), cc = o.c, ss = o.s;
+        return {
+          a: cc + ' shapes', b: ss + ' shapes',
+          holds: function (t) { return [t.c === cc, t.s === ss]; }
+        };
+      }
       return {
         a: 'shapes with 4 sides', b: 'shapes with 3 sides',
-        holds: function (t) { return [SIDES[t.w] === 4, SIDES[t.w] === 3]; }
+        holds: function (t) { var sw = t.s || t.w; return [SIDES[sw] === 4, SIDES[sw] === 3]; }
       };
     };
 
@@ -16912,29 +16938,43 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* count one group */
       function () {
-        var t = R.chance(rng, 0.5) ? A : B;
-        var n = items.filter(function (q) { return groupOf(q) === t.w; }).length;
-        return I_num('Look at the picture. How many of them are ' + t.w + '?', n, {
+        var v = R.chance(rng, 0.5) ? grp : other;
+        var n = items.filter(function (q) { return groupOf(q) === v; }).length;
+        return I_num('Look at the picture. How many of them are ' + v + ' shapes?', n, {
           visual: row(glyphs, 'the objects to sort'), b: lo - 0.2,
-          explain: ['Find every ' + t.w + ' in the picture.', 'Count them: ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: ['Find every ' + v + ' shape in the picture.', 'Count them: ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'Counting a group means counting only the objects that match the rule.'
         });
       },
       /* same or different */
       function () {
-        var same = R.chance(rng, 0.5), a = pick(rng, items), b = same ? a : pick(rng, pool.filter(function (t) { return t.w !== a.w; }));
-        var right = (a.w === b.w ? 'same' : 'different');
-        return MC(rng, 'Are these two objects the same or different?', right, [right === 'same' ? 'different' : 'same'], {
+        var same = R.chance(rng, 0.5), a = pick(rng, items);
+        var b = same ? a : pick(rng, pool.filter(function (t) { return groupOf(t) !== groupOf(a); }));
+        var right = (groupOf(a) === groupOf(b) ? 'same' : 'different');
+        return MC(rng, 'Are these two objects the same or different by ' + ruleWord + '?', right, [right === 'same' ? 'different' : 'same'], {
           visual: V.grid({ rows: 1, cols: 2, cells: [[a.g, b.g]], label: 'two objects' }), b: 0.1,
-          explain: ['Compare them by ' + ruleWord + '.', a.w + ' and ' + b.w + ' are ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Compare them by ' + ruleWord + '.', nameOf(a) + ' is ' + groupOf(a) + ' and ' + nameOf(b) + ' is ' + groupOf(b) + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Same and different are always decided by one named feature.'
         });
       },
-      /* which one does not belong — four objects follow the rule, ONE does not */
+      /* which one does not belong — four objects follow the rule, ONE does not.
+       * The two wrong answers name shapes that are NOT in the picture: the
+       * question asks which object shown does not belong, so a name the picture
+       * never shows cannot be a defensible choice. Naming only the shared shape
+       * left the card with two options and a fifty-folds guess. */
       function () {
         var odd = R.chance(rng, 0.5) ? A : B, keep = odd === A ? B : A;
         var set = R.shuffle(rng, [keep, keep, keep, keep, odd]);
-        return MC(rng, 'Which object does NOT belong with the others?', nameOf(odd), [nameOf(keep)], {
+        var oddIsShape = SHAPE.indexOf(odd) >= 0;
+        var absent = pool.filter(function (t) {
+          return t.w !== odd.w && t.w !== keep.w && (SHAPE.indexOf(t) >= 0) === oddIsShape;
+        });
+        var wrongs = R.shuffle(rng, absent).slice(0, 2).map(nameOf);
+        /* a pool with nothing else to name falls back to the shared shape, so the
+         * card never ends up with a single option to click */
+        if (wrongs.length < 2) wrongs.push(nameOf(keep));
+        wrongs = wrongs.filter(function (x) { return x !== nameOf(odd); });
+        return MC(rng, 'Which object does NOT belong with the others?', nameOf(odd), wrongs, {
           visual: row(set.map(function (t) { return t.g; }), 'four of these go together'), b: 0.6,
           explain: ['Four of them are ' + nameOf(keep) + '.', 'The ' + nameOf(odd) + ' is the one that is not ' + nameOf(keep) + '.', 'So the answer is <b>' + nameOf(odd) + '</b>.'],
           teach: 'The odd one out is the one that breaks the rule the others follow.'
@@ -16970,7 +17010,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* Venn diagram: count both circles */
       function () {
-        var all = R.sample(rng, SHAPE, 4), k = R.int(rng, 1, 2);
+        var all = R.sample(rng, pool, 4), k = R.int(rng, 1, 2);
         var setA = all.slice(0, 3), setB = all.slice(3 - k, 3).concat(all.slice(3, 4));
         var both = setA.filter(function (t) { return setB.indexOf(t) >= 0; }).length;
         return I_num('Circle A holds ' + setA.map(nameOf).join(', ') + '. Circle B holds ' + setB.map(nameOf).join(', ') + '. How many objects are in BOTH circles?', both, {
@@ -16982,7 +17022,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* lvl 4-5 stretch: place one object in a two-circle Venn */
       function () {
         var rules = vennRules();
-        var t = by === 'color' ? pick(rng, COLOR) : pick(rng, SHAPE);
+        var t = pick(rng, pool);
         var m = rules.holds(t);
         var right = m[0] && m[1] ? 'in both circles' : m[0] ? 'only in the first circle' : m[1] ? 'only in the second circle' : 'in neither circle';
         var opts = ['only in the first circle', 'only in the second circle', 'in both circles', 'in neither circle'];
