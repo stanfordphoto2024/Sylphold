@@ -84,6 +84,10 @@ nav.tabs button:disabled { opacity: .4; cursor: default; }
 .pill.good { background: var(--good-soft); border-color: transparent; color: var(--good); }
 .pill.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
 .pill.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+/* the level picker sits where the old level pill sat: same size, same shape,
+   and it is a real <select> so keyboard and screen readers work for free */
+select.lvlpick { font: inherit; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); border: 1px solid transparent; color: var(--accent); white-space: nowrap; max-width: 15ch; cursor: pointer; }
+select.lvlpick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ----------------------------------------------------------------- cards -- */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px; margin: 14px 0; }
@@ -6521,7 +6525,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       sk: {},                          // id -> {m,a,c,s,lvl,b,last,due}
       diag: null,                      // {phase, band, asked, results, done}
       climb: null,                     // {band, streak, wrong, …} the learner's level
-      sess: { asked: 0, correct: 0, streak: 0, best: 0, started: 0, mode: 'study' },
+      sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0, mode: 'study' },
       bestEver: 0,
       log: [],
       settings: { autoNext: true, hints: true, reviewShare: 0.22 },
@@ -6543,10 +6547,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   var STATUS_LABEL = { new: 'Not started', learning: 'Learning', developing: 'Developing', proficient: 'Proficient', mastered: 'Mastered', gap: 'Needs reteaching' };
 
-  /* ------------------------------------------------------- answer update --- */
-  function record(st, item, ok, rng) {
+  /* ------------------------------------------------------- answer update ---
+   * A skipped card is not a wrong answer. Putting a card away unread says
+   * nothing about what the learner knows, so it must not move θ, age a skill's
+   * mastery, break a streak, or sit in the accuracy denominator as a miss.
+   * It is counted and reported on its own line instead. */
+  function record(st, item, ok, rng, skipped) {
     var s = S(st, item.skill);
     var p = prob(st.theta, item.b);
+    if (skipped) {
+      st.sess.skipped = (st.sess.skipped || 0) + 1;
+      st.log.push({ t: now(), id: item.skill, ok: 0, b: +item.b.toFixed(1), p: +p.toFixed(2), lvl: s.lvl, skip: 1 });
+      if (st.log.length > 4000) st.log = st.log.slice(-3000);
+      return { p: p, status: statusOf(s), mastery: s.m, skipped: true };
+    }
     var first = s.a < 3, lr = first ? 0.36 : 0.20;
     st.theta = clamp(st.theta + K_THETA * ((ok ? 1 : 0) - p), -10, 125);
     anchorTheta(st);
@@ -6843,6 +6857,24 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     LV.band = BANDS[j - 1]; LV.cover = {};
     return 'down';
   }
+  /* Practice asks the level the learner chose and stays there. Ten right in a
+     row must not quietly move a four-year-old onto Grade-1 cards, and three
+     wrong must not drop them back a rung: the level is a decision the learner
+     (or the grown-up beside them) makes from the header, the ladder, or the
+     end of a probe — never a side effect of a warm-up run. The streak still
+     counts, because the card uses it to pick a harder or easier item within the
+     level. The probe is the one place that still moves: that is a placement
+     test, and moving is what it is for. */
+  function levelIsPinned(st) { return !(st.settings && st.settings.levelMoves === true); }
+  function levelStay(LV, ok) {
+    if (ok) {
+      LV.streak = (LV.streak || 0) + 1; LV.wrong = 0;
+      LV.best = Math.max(LV.best || 0, LV.streak);
+      return null;
+    }
+    LV.streak = 0; LV.wrong = (LV.wrong || 0) + 1;
+    return null;
+  }
   /* the next skill of a level: the one just missed, else the least-asked one */
   function levelPick(LV, b, rng) {
     var list = bandSkills(b); if (!list.length) return null;
@@ -6888,13 +6920,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     item.climb = item.levelInfo;
     return item;
   }
-  function climbAnswer(st, item, ok, rng) {
+  function climbAnswer(st, item, ok, rng, skipped) {
     var C = climbState(st);
-    var r = record(st, item, ok, rng);            // θ, mastery and the log stay live
+    var r = record(st, item, ok, rng, skipped);   // θ, mastery and the log stay live
+    if (skipped) {                                 /* the level is untouched by a skip */
+      r.moved = null; r.band = C.band; r.label = BAND_LABEL[C.band] || C.band;
+      r.level = C.band; r.levelLabel = BAND_LABEL[C.band] || C.band;
+      r.streak = C.streak; r.need = CLIMB_NEED; r.wrong = C.wrong; r.drop = CLIMB_DROP;
+      r.done = !!C.done;
+      return r;
+    }
     C.asked++;
     if (ok) C.correct++;
     else C.pin = item.skill;                      // the next card is a similar one
-    var moved = levelMove(C, ok);
+    var moved = levelIsPinned(st) ? levelStay(C, ok) : levelMove(C, ok);
     if (moved === 'top') C.done = true;
     if (moved) anchorLevel(st, C.band);           // θ walks onto the new level with them
     C.hist.push({ t: now(), band: C.band, ok: ok ? 1 : 0 });
@@ -6978,7 +7017,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created };
   }
   function load() {
-    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true } };
+    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true } };
     try {
       var raw = localStorage.getItem(KEY); if (!raw) return base;
       var o = JSON.parse(raw);
@@ -6994,11 +7033,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      away; the all-time numbers are rebuilt from the per-skill counters, which
      are exact and never trimmed. */
   function openVisit(st) {
-    if (!st.sess) st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: 0 };
+    if (!st.sess) st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 };
     var started = st.sess.started || 0;
     if (!started || now() - started > VISIT_MS) {
       st.bestEver = Math.max(st.bestEver || 0, st.sess.best || 0, st.sess.streak || 0);
-      st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: now(), mode: st.sess.mode || 'study' };
+      st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: now(), mode: st.sess.mode || 'study' };
     }
     return st.sess;
   }
@@ -7028,7 +7067,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     openVisit(st);                          /* a fresh sitting starts the counters at zero */
     var self = {
       st: st, rng: rng, BANDS: BANDS, BAND_LABEL: BAND_LABEL, STATUS_LABEL: STATUS_LABEL,
-      record: function (item, ok) { var r = record(st, item, ok, rng); return r; },
+      record: function (item, ok, skipped) { var r = record(st, item, ok, rng, skipped); return r; },
       nextItem: function (o) { return nextItem(st, rng, o); },
       reteach: function (id, lvl) { return reteach(st, rng, id, lvl); },
       placement: function () { return placement(st); },
@@ -7058,12 +7097,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       diagFrom: function () { return (st.diag && st.diag.from) || null; },
       climbStart: function (b) { return climbStart(st, b); },
       climbNext: function () { return climbNext(st, rng); },
-      climbAnswer: function (item, ok) { return climbAnswer(st, item, ok, rng); },
+      climbAnswer: function (item, ok, skipped) { return climbAnswer(st, item, ok, rng, skipped); },
       climbHome: function () { return climbHomeBand(st); },
       CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
       diagLimit: function () { return (st.diag && st.diag.limit) || DIAG_LIMIT; },
       prob: function (b) { return prob(st.theta, b); },
-      reset: function () { st.sk = {}; st.theta = 0; st.thetaSeen = 0; st.log = []; st.diag = null; st.climb = null; st.bestEver = 0; st.sess = { asked: 0, correct: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' }; },
+      reset: function () { st.sk = {}; st.theta = 0; st.thetaSeen = 0; st.log = []; st.diag = null; st.climb = null; st.bestEver = 0; st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' }; },
       save: function () { return save(st); },
       exportJSON: function () { return JSON.stringify(serialize(st), null, 1); },
       importJSON: function (txt) {
@@ -15814,7 +15853,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (a[0] === b[0]) b = pick(rng, FLAT.filter(function (q) { return q[0] !== a[0]; }));
         return I_bool('Does the ' + a[0] + ' have more sides than the ' + b[0] + '?', a[1] > b[1], {
           b: 0.7,
-          explain: ['A ' + a[0] + ' has ' + a[1] + ' sides.', 'A ' + b[0] + ' has ' + b[1] + ' sides.', (a[1] > b[1] ? 'Yes' : 'No') + ', ' + a[1] + (a[1] > b[1] ? ' is more than ' : ' is not more than ') + b[1] + ', so the answer is <b>' + (a[1] > b[1] ? 'Yes' : 'No') + '</b>.'],
+          explain: [article(a[0]) + ' has ' + a[1] + ' sides.', article(b[0]) + ' has ' + b[1] + ' sides.', (a[1] > b[1] ? 'Yes' : 'No') + ', ' + a[1] + (a[1] > b[1] ? ' is more than ' : ' is not more than ') + b[1] + ', so the answer is <b>' + (a[1] > b[1] ? 'Yes' : 'No') + '</b>.'],
           teach: 'Compare shapes by counting the feature the question names.'
         });
       },
@@ -23450,7 +23489,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var lv = h('div', { class: 'lvl', title: 'difficulty step ' + lvl + ' of 5' });
     for (var i = 1; i <= 5; i++) lv.appendChild(h('i', { class: i <= lvl ? 'on' : '' }));
 
-    var whyChip = item.climb ? h('span', { class: 'pill accent', text: item.climb.label + ' · ' + item.climb.level + '/' + item.climb.of })
+    var whyChip = item.climb ? h('span', { class: 'pill accent', text: item.climb.label })
       : item.reteach ? h('span', { class: 'pill warn', text: 'retry · easier' })
       : item.diag ? h('span', { class: 'pill accent', text: 'placement probe · ' + (item.diag.label || '') })
         : item.why === 'review' ? h('span', { class: 'pill', text: 'spaced review' })
@@ -23458,24 +23497,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             : item.why === 'ahead' ? h('span', { class: 'pill accent', title: 'the next skills have no items yet', text: 'a head start' })
               : item.why === 'consolidate' ? h('span', { class: 'pill', title: 'newer skills have no items yet', text: 'keeping it sharp' }) : null;
 
-    /* the one rule, shown on the card it applies to: this many right in a row
-       and the next level's questions start; one wrong and the count restarts */
-    var lvInfo = item.levelInfo, lvLine = null;
-    if (lvInfo) {
-      var bi = E.BANDS.indexOf(lvInfo.band);
-      var nxt = E.BAND_LABEL[E.BANDS[Math.min(bi + 1, E.BANDS.length - 1)]] || 'the next level';
-      var prv = bi > 0 ? (E.BAND_LABEL[E.BANDS[bi - 1]] || '') : '';
-      var dots = h('div', { class: 'dots' });
-      for (var di = 0; di < lvInfo.need; di++) dots.appendChild(h('i', { class: di < lvInfo.streak ? 'on' : '' }));
-      var left = lvInfo.need - lvInfo.streak;
-      lvLine = h('div', { class: 'lvline' }, [
-        dots,
-        h('span', { class: 'tiny', text: (lvInfo.streak ? left + ' more right in a row' : left + ' right in a row') + ' moves up to ' + nxt })
-      ]);
-      if (lvInfo.wrong && prv) {
-        lvLine.appendChild(h('span', { class: 'tiny', style: { color: 'var(--warn)' }, text: (lvInfo.drop - lvInfo.wrong) + ' more wrong drops to ' + prv }));
-      }
-    }
+    /* Practice asks the level chosen from the header and stays there: nothing on
+       this card counts down toward the next level, so no rule line is printed. */
+    var lvLine = null;
 
     var card = h('div', { class: 'card', id: 'card' }, [
       h('div', { class: 'skillhead' }, [
@@ -23637,9 +23661,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         try { done = E.diagAnswer(S.item, ok); } catch (e) { done = null; }
         if (done) S.diagReport = done;
       } else if (S.item.climb) {
-        more = E.climbAnswer(S.item, ok);
+        more = E.climbAnswer(S.item, ok, skipped);
       } else {
-        more = E.record(S.item, ok);
+        more = E.record(S.item, ok, skipped);
       }
       E.save();
     } catch (e) {
@@ -23970,14 +23994,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
       return h('div', {}, [head, h('div', { class: 'skill-list' }, out)]);
     });
-    clear(view).appendChild(h('div', {}, [
-      h('div', { class: 'card tight' }, [
-        h('div', { class: 'row between' }, [
-          h('h2', { text: 'The skill ladder' }),
-          h('span', { class: 'tiny', text: L.length + ' skills · ' + bands.length + ' levels' })
-        ])
-      ])
-    ].concat(rowsOut)));
+    /* the level list, straight away: no title card above it */
+    clear(view).appendChild(h('div', {}, rowsOut));
   }
 
   function viewReport() {
@@ -23994,68 +24012,61 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var spark = h('div', { class: 'row', style: { gap: '3px', alignItems: 'flex-end', height: '46px' } });
     log.forEach(function (r) {
       spark.appendChild(h('div', {
-        title: (r.b != null ? 'difficulty ' + Math.round(r.b) : '') + (r.ok ? ' · correct' : ' · wrong'),
-        style: { width: '7px', height: (8 + clamp((r.b == null ? 0 : r.b) / scale, 0, 1) * 34) + 'px', background: r.ok ? 'var(--good)' : 'var(--bad)', borderRadius: '2px', opacity: .8 }
+        title: (r.b != null ? 'difficulty ' + Math.round(r.b) : '') + (r.skip ? ' · skipped' : (r.ok ? ' · correct' : ' · wrong')),
+        style: { width: '7px', height: (8 + clamp((r.b == null ? 0 : r.b) / scale, 0, 1) * 34) + 'px', background: r.skip ? 'var(--line)' : (r.ok ? 'var(--good)' : 'var(--bad)'), borderRadius: '2px', opacity: .8 }
       }));
     });
-    /* every number here is a rate over what the learner really did. The old
-       card divided by counters that never reset and by bands of 400 skills, so
-       "accuracy" was an all-time average and every bar sat at 0%. */
-    var sessAcc = st.sess.asked ? Math.round(st.sess.correct / st.sess.asked * 100) : 0;
+    /* Every number on this card is a rate over what the learner actually did in
+       THIS sitting. A skipped card is not an answer: it is counted on its own
+       pill, kept out of the accuracy denominator, and it neither breaks a
+       streak nor ages a skill. The counters belong to one sitting and reset
+       after two hours away (engine: openVisit). */
+    var sess = st.sess || {};
+    var answered = sess.asked || 0, right = sess.correct || 0, skipped = sess.skipped || 0;
+    var sessAcc = answered ? Math.round(right / answered * 100) : 0;
     var allAcc = tot.a ? Math.round(tot.c / tot.a * 100) : 0;
     var here = per[lv.band] || {};
-    var dots = h('div', { class: 'dots' });
-    for (var i = 0; i < lv.need; i++) dots.appendChild(h('i', { class: i < lv.streak ? 'on' : '' }));
-    var toNext = lv.need - lv.streak;
-    var levelLine = lv.streak
-      ? toNext + ' more right in a row moves you up to ' + lv.next
-      : lv.need + ' right in a row moves you up to ' + lv.next;
-    var rows = p.bands.map(function (b) {
-      var g = per[b] || {};
-      var pct = Math.round((g.rate || 0) * 100);
-      var cls = 'barrow' + (g.verdict === 'ready' ? ' m' : (g.att && g.rate < 0.35 ? ' g' : ''));
-      return h('div', { class: cls }, [
-        h('div', { text: (b === lv.band ? '▸ ' : '') + (E.BAND_LABEL[b] || b) }),
-        h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: pct + '%' } })]),
-        h('div', { class: 'val', title: g.a ? g.c + ' of ' + g.a + ' answers right' : '', text: g.att ? (g.mast || 0) + '/' + g.att + ' · ' + Math.round((g.acc || 0) * 100) + '%' : '—' })
-      ]);
-    });
+    var started = sess.started ? new Date(sess.started) : null;
+    var since = started ? started.getHours() + ':' + ('0' + started.getMinutes()).slice(-2) : null;
     clear(view).appendChild(h('div', {}, [
       h('div', { class: 'card' }, [
         h('div', { class: 'row between' }, [
           h('h2', { text: 'This session' }),
-          h('span', { class: 'pill', text: (st.sess.asked || 0) + ' items' })
+          h('span', { class: 'pill', title: 'cards answered in this sitting', text: answered + ' answered' })
         ]),
         h('div', { class: 'row', style: { marginTop: '8px' } }, [
-          h('span', { class: 'pill good', text: 'accuracy ' + sessAcc + '%' }),
-          h('span', { class: 'pill', text: 'streak ' + (st.sess.streak || 0) }),
-          h('span', { class: 'pill', text: 'best ' + (st.sess.best || 0) })
+          h('span', { class: 'pill good', title: right + ' of ' + answered + ' answered right', text: 'accuracy ' + sessAcc + '%' }),
+          h('span', { class: 'pill', title: 'right answers in a row, this sitting', text: 'streak ' + (sess.streak || 0) }),
+          h('span', { class: 'pill', title: 'best run of right answers this sitting', text: 'best ' + (sess.best || 0) }),
+          skipped ? h('span', { class: 'pill warn', title: 'put away without an answer: not counted as wrong', text: skipped + ' skipped' }) : null
         ]),
         h('div', { class: 'tiny', style: { marginTop: '8px' } },
-          tot.a ? 'All together: ' + tot.a + ' items answered · ' + allAcc + '% right · best streak ' + (st.bestEver || st.sess.best || 0) + ' · ' + tot.mast + ' skills mastered'
-            + (st.diag && st.diag.done && st.diag.asked ? ' (including ' + st.diag.asked + ' placement-probe questions, which are not counted as a session)' : '')
+          answered || skipped
+            ? (since ? 'This sitting opened at ' + since + '. ' : '')
+            + 'Accuracy counts the ' + answered + ' cards answered — ' + right + ' right'
+            + (skipped ? ', and the ' + skipped + ' skipped card' + (skipped === 1 ? '' : 's') + ' are not counted as wrong' : '')
+            + '. Two hours away opens a new sitting.'
             : 'Nothing answered yet — every count below starts when the first answer goes in.'),
+        h('div', { class: 'tiny', style: { marginTop: '4px' } },
+          tot.a ? 'All time: ' + tot.a + ' answers · ' + allAcc + '% right · best streak ' + (st.bestEver || st.sess.best || 0) + ' · ' + tot.mast + ' skills mastered'
+            + (st.diag && st.diag.done && st.diag.asked ? ' (the ' + st.diag.asked + ' placement-probe questions are counted here, not as a session)' : '')
+            : ''),
         h('h3', { text: 'Last ' + log.length + ' items (height = difficulty)' }),
         log.length ? spark : h('div', { class: 'muted', text: 'Answer something to see your trace.' })
       ]),
       h('div', { class: 'card' }, [
         h('div', { class: 'row between' }, [
           h('h2', { text: 'Your level' }),
-          h('span', { class: 'pill accent', text: lv.label + ' · ' + lv.index + '/' + lv.of })
+          levelPicker(lv)
         ]),
-        h('div', { class: 'lvline' }, [dots, h('span', { class: 'tiny', text: levelLine })]),
-        lv.prev ? h('div', { class: 'tiny', text: lv.drop + ' wrong in a row moves you back to ' + lv.prev + '.' }) : null,
         h('div', { class: 'tiny', style: { marginTop: '6px' } },
-          here.att ? 'At ' + lv.label + ': ' + here.a + ' items answered · ' + Math.round((here.acc || 0) * 100) + '% right · ' + here.att + ' of ' + here.n + ' skills tried · ' + here.mast + ' mastered'
+          'Practice keeps this level until you change it — right answers and wrong ones never move it.'),
+        h('div', { class: 'tiny', style: { marginTop: '6px' } },
+          here.att ? 'At ' + lv.label + ': ' + here.a + ' answers · ' + Math.round((here.acc || 0) * 100) + '% right · ' + here.att + ' of ' + here.n + ' skills tried · ' + here.mast + ' mastered'
             : 'At ' + lv.label + ': nothing answered here yet.'),
         h('div', { class: 'row', style: { marginTop: '12px' } }, [
           h('button', { class: 'btn small', type: 'button', on: { click: function () { location.hash = '#ladder'; } } }, 'Open this level')
         ])
-      ]),
-      h('div', { class: 'card' }, [
-        h('h2', { text: 'Progress by level' }),
-        h('div', { class: 'tiny', style: { margin: '4px 0 10px' }, text: 'Bar and first number: skills mastered out of the ones tried here. Second: answers right at that level.' }),
-        h('div', { class: 'bars' }, rows)
       ]),
       h('div', { class: 'card' }, [
         h('h2', { text: 'Settings' }),
@@ -24440,15 +24451,33 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     clear(bar).appendChild(h('div', { class: 'bar-in' }, [
       h('div', { class: 'brand' }, [h('div', { class: 'glyph', text: 'π' }), 'MathPath']),
       h('div', { class: 'meter' }, [
-        h('span', { class: 'pill accent', text: lv.label + ' · ' + lv.index + '/' + lv.of }),
-        lv.streak ? h('span', { class: 'pill good', title: lv.streak + ' right in a row — ' + (lv.need - lv.streak) + ' more for ' + lv.next, text: '🔥 ' + lv.streak + '/' + lv.need }) : null,
-        st.sess.asked ? h('span', { class: 'pill', text: acc + '%' }) : null
+        levelPicker(lv),
+        st.sess.asked ? h('span', { class: 'pill', title: 'answered right in this sitting', text: acc + '%' }) : null
       ]),
       h('nav', { class: 'tabs' }, [
         tab('practice', 'Practice'), tab('plan', 'Plan'), tab('ladder', 'Ladder'), tab('report', 'Report'),
         h('button', { type: 'button', class: S.view === 'diag' ? 'on' : '', on: { click: function () { location.hash = '#diag'; } }, text: E.diagActive() ? 'Probe ●' : 'Probe' })
       ])
     ]));
+  }
+  /* The level is chosen here and Practice keeps it. A run of right answers does
+   * not move a learner onto harder questions, and a run of wrong ones does not
+   * drop them: changing the level is a decision made from this picker, from the
+   * ladder, or by finishing the probe — never a side effect of practising. */
+  function levelPicker(lv) {
+    var sel = h('select', { class: 'lvlpick', title: 'Choose the level to practise' });
+    E.BANDS.forEach(function (b) { sel.appendChild(h('option', { value: b, text: E.BAND_LABEL[b] || b })); });
+    sel.value = lv.band;
+    sel.addEventListener('change', function () {
+      var b = sel.value || E.level().band;
+      if (!E.st.settings) E.st.settings = {};
+      E.st.settings.mode = 'climb';               /* ask this level, not the plan */
+      E.climbStart(b);
+      S.manual = null; S.queue = []; S.item = null;
+      E.save(); render();
+      toast('Now asking ' + (E.BAND_LABEL[b] || b));
+    });
+    return sel;
   }
   function tab(name, label) {
     return h('button', {
