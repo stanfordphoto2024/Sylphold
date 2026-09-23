@@ -15883,10 +15883,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
     var sorted = rows.slice().sort(function (a, b) { return b[1] - a[1]; }), tot = n + n2 + n3;
     var top = sorted[0], low = sorted[sorted.length - 1], diff = top[1] - low[1];
+    /* The picture graph is ONE ROW PER CHOICE, and the row that gets drawn is
+     * the row the learner has to count. `rows` and `cols` here used to be the
+     * transpose of the cell matrix (rows:10 cols:3 over a 3×10 matrix), so the
+     * card drew ten rows of three cells: every choice showed ●●● and seven rows
+     * were empty, and no count on the card could be read off it. The grid is now
+     * sized from the matrix itself — three rows, as many columns as the largest
+     * count — so every dot the item claims is actually on the page. */
+    var graphCols = cap(Math.max.apply(null, rows.map(function (r) { return r[1]; })), 1, 20);
     var visual = kind === 'tally' ? V.table(['Choice', 'Tally'], rows.map(function (r) { return [r[0], tally(r[1])]; }))
       : kind === 'table' ? V.table(['Choice', 'Count'], rows.map(function (r) { return [r[0], String(r[1])]; }))
         : kind === 'bar' ? V.bars(rows.map(function (r) { return { label: r[0], v: r[1] }; }), { yMax: L })
-          : V.grid({ rows: cap(L, 1, 10), cols: 3, cells: (function () { var g = [], r, i; for (r = 0; r < 3; r++) { var col = []; for (i = 0; i < cap(L, 1, 10); i++) col.push(i < rows[r][1] ? '●' : ''); g.push(col); } return g; })(), rowLabels: rows.map(function (r) { return r[0]; }), label: 'one row per choice' });
+          : V.grid({ rows: rows.length, cols: graphCols, cells: (function () { var g = [], r, i; for (r = 0; r < rows.length; r++) { var col = []; for (i = 0; i < graphCols; i++) col.push(i < rows[r][1] ? '●' : ''); g.push(col); } return g; })(), rowLabels: rows.map(function (r) { return r[0]; }), label: 'one row per choice' });
     var teach = 'A graph is a picture of counts: read the count for each row before you compare anything.';
 
     return build(rng, [
@@ -16694,10 +16702,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return build(rng, [
       /* official anchor — complete the repeating pattern. */
       function () {
+        /* The card empties the LAST box of the shown row, so the answer is the
+         * term that was in it: seq[seq.length - 1]. `next` is the term AFTER the
+         * whole row, which belongs to the "what comes next" card where every box
+         * is filled — using it here marked core[0] correct while the picture
+         * asked for the last term of the core, and the genuinely right shape was
+         * left sitting in the wrong-answer buttons. */
+        var fill = seq[seq.length - 1];
         var shown = seq.slice(0, seq.length - 1).map(function (t) { return t.g; }).concat(['❒']);
-        return MC(rng, ct + ', complete the pattern. What goes in the empty box?', next.w, distract(next.w), {
+        return MC(rng, ct + ', complete the pattern. What goes in the empty box?', fill.w, distract(fill.w), {
           visual: row(shown, 'the pattern with one box empty'), b: lo,
-          explain: ['Find the core that repeats: ' + wordsOf(core).join(', ') + '.', 'The last box comes after ' + seq[seq.length - 2].w + '.', 'So the answer is <b>' + next.w + '</b>.'],
+          explain: ['Find the core that repeats: ' + wordsOf(core).join(', ') + '.', 'The empty box comes after ' + seq[seq.length - 2].w + ', so it holds ' + fill.w + '.', 'So the answer is <b>' + fill.w + '</b>.'],
           teach: teach
         });
       },
@@ -16976,7 +16991,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         wrongs = wrongs.filter(function (x) { return x !== nameOf(odd); });
         return MC(rng, 'Which object does NOT belong with the others?', nameOf(odd), wrongs, {
           visual: row(set.map(function (t) { return t.g; }), 'four of these go together'), b: 0.6,
-          explain: ['Four of them are ' + nameOf(keep) + '.', 'The ' + nameOf(odd) + ' is the one that is not ' + nameOf(keep) + '.', 'So the answer is <b>' + nameOf(odd) + '</b>.'],
+          explain: ['Four of them are like this: ' + nameOf(keep) + '.', 'The ' + nameOf(odd) + ' is the one that does not match.', 'So the answer is <b>' + nameOf(odd) + '</b>.'],
           teach: 'The odd one out is the one that breaks the rule the others follow.'
         });
       },
@@ -19376,6 +19391,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       names.forEach(function (q) { if (!seen[q]) { seen[q] = 1; uniq.push(q); } });
       var other = function (x) { var w = uniq.filter(function (q) { return q !== x; }); return w.length ? w : ['star']; };
       var teach = 'Say which end you start from, then look ' + where[0].replace('on the ', '') + '.';
+      /* Where a picture ACTUALLY is, read off the row the card draws. Every
+       * position sentence on these cards is written from this one helper, so a
+       * sentence can never contradict the picture printed beside it. */
+      var posOf = function (i) { return k === 1 ? where[0] : (i === 0 ? where[0] : (i === k - 1 ? where[1] : 'in the middle')); };
+      var notAt = function (i) { return where.concat(k >= 3 ? ['in the middle'] : []).filter(function (x) { return x !== posOf(i); }); };
       return six(rng, [
         function () {
           return MC(rng, 'Look at the picture. Which one is ' + where[0] + '?', names[0], other(names[0]), {
@@ -19392,10 +19412,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           });
         },
         function () {
-          var truth = R.chance(rng, 0.5);
-          return I_bool('Is the ' + names[truth ? 0 : k - 1] + ' ' + (truth ? where[0] : where[0]) + '?', truth, {
+          /* Both ends are asked now, and the truth is read off the picture. The
+           * wording used to be `(truth ? where[0] : where[0])`, so the false case
+           * silently reused the first end and every No card was the same
+           * "is the last one on the left?" question. */
+          var idx = R.int(rng, 0, k - 1), w = pick(rng, where), truth = posOf(idx) === w;
+          return I_bool('Is the ' + names[idx] + ' ' + w + '?', truth, {
             visual: vis, b: 0.3,
-            explain: ['Look at the ' + (horiz ? 'left end' : 'top') + ': that is a ' + names[0] + '.', 'The question asks about the ' + names[truth ? 0 : k - 1] + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+            explain: ['Look at the picture and find the ' + names[idx] + '.', 'It is ' + posOf(idx) + (truth ? '' : ', not ' + w) + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
             teach: teach
           });
         },
@@ -19424,18 +19448,31 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           });
         },
         function () {
-          return I_bool('Is the ' + names[0] + ' ' + where[1] + '?', k === 1, {
+          var idx = R.int(rng, 0, k - 1), right = 'the ' + names[idx] + ' is ' + posOf(idx);
+          var wrongs = notAt(idx).map(function (x) { return 'the ' + names[idx] + ' is ' + x; });
+          return MC(rng, 'Look at the picture. Which sentence matches it?', right, wrongs, {
             visual: vis, b: 0.6,
-            explain: ['The ' + where[1] + ' one is a ' + names[k - 1] + '.', 'The question asks about the ' + names[0] + '.', 'So the answer is <b>' + (k === 1 ? 'Yes' : 'No') + '</b>.'],
-            teach: teach
+            explain: ['Find the ' + names[idx] + ' in the picture.', 'It is ' + posOf(idx) + '.', 'So the answer is <b>' + right + '</b>.'],
+            teach: 'A position sentence names the thing and where it is.'
           });
         },
         function () {
-          var move = pick(rng, uniq);
-          return MC(rng, 'You move the ' + move + ' to ' + where[1] + '. Which sentence says that?', 'the ' + move + ' is ' + where[1], ['the ' + move + ' is at home', 'the ' + move + ' is asleep'], {
+          /* This card used to read "you move the dog to on the right" and keyed
+           * "the dog is on the right" correct while the picture still showed the
+           * dog on the LEFT. Nothing on the card moves, so the learner who read
+           * the picture honestly — "the dog is on the left" — was marked wrong by
+           * a sentence about a move that never happens. The true sentence about
+           * the picture is the answer now, and every distractor is false for the
+           * picture printed on the card. */
+          var idx = R.int(rng, 0, k - 1), right = 'the ' + names[idx] + ' is ' + posOf(idx);
+          var wrongs = [], i;
+          for (i = 0; i < names.length; i++) if (i !== idx) wrongs.push('the ' + names[i] + ' is ' + posOf(idx));
+          var off = notAt(idx);
+          if (off.length) wrongs.push('the ' + names[idx] + ' is ' + off[0]);
+          return MC(rng, 'Look at the picture. Which sentence is true?', right, wrongs, {
             visual: vis, b: 1.0,
-            explain: ['The new place is ' + where[1] + '.', 'That is what the first sentence says.', 'So the answer is <b>the ' + move + ' is ' + where[1] + '</b>.'],
-            teach: 'A position sentence names the thing and the place.'
+            explain: ['Check each sentence against the picture.', 'The ' + names[idx] + ' is ' + posOf(idx) + ', so that sentence is the true one.', 'So the answer is <b>' + right + '</b>.'],
+            teach: 'A position sentence is true only when it matches the picture.'
           });
         }
       ], lvl);
