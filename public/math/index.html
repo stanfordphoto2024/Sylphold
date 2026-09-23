@@ -337,7 +337,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-22 — 37 modules inlined:
+/* MathPath 2026-09-23 — 37 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -15663,9 +15663,50 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function others(list, x, k, rng) { return R.sample(rng, list.filter(function (v) { return v !== x; }), k); }
   function tally(n) { var g = Math.floor(n / 5), r = n % 5, s = '', i; for (i = 0; i < g; i++) s += '|||| '; s += '||||'.slice(0, r); return s.trim() || '0'; }
 
-  var FLAT = [['circle', 0, 'round, with no corners'], ['triangle', 3, 'three straight sides'], ['square', 4, 'four equal sides'], ['rectangle', 4, 'four sides and four square corners'], ['hexagon', 6, 'six straight sides'], ['oval', 0, 'like a stretched circle']];
-  var SOLID = [['cube', 'six square faces'], ['sphere', 'a perfectly round ball'], ['cone', 'a circular base and one point on top'], ['cylinder', 'two circular bases and a curved side'], ['rectangular prism', 'six rectangular faces'], ['pyramid', 'a polygon base and faces that meet at one point']];
-  var REAL3 = { cube: ['dice', 'rubik cube', 'gift box'], sphere: ['ball', 'marble', 'orange'], cone: ['ice-cream cone', 'party hat', 'traffic cone'], cylinder: ['can', 'battery', 'tube'], 'rectangular prism': ['book', 'shoe box', 'brick'], pyramid: ['tent', 'a slice of loaf-shape bread', 'the pyramids'] };
+  /* A description is only usable as a question when ONE shape in the pool has
+   * it, so every wording here is written against the whole pool: a square also
+   * has four sides and four square corners, so the rectangle is asked by the
+   * one thing a square is not — two long sides and two short ones. A circle and
+   * an oval are both round with no corners, so the circle is the shape whose
+   * width never changes and the oval is the one that is stretched out.
+   * Row: [name, sides, the one description only this shape answers]. */
+  var FLAT = [['circle', 0, 'a round edge that is the same width all the way around'], ['triangle', 3, 'three straight sides'], ['square', 4, 'four equal sides'], ['rectangle', 4, 'two long sides and two short sides'], ['hexagon', 6, 'six straight sides'], ['oval', 0, 'a round edge that is longer than it is wide']];
+  /* Row: [name, the one description only this solid answers, flat faces]. */
+  var SOLID = [['cube', 'six square faces', 6], ['sphere', 'a single round surface', 0], ['cone', 'a circular base and one point on top', 1], ['cylinder', 'two circular bases and a curved side', 2], ['rectangular prism', 'six rectangular faces, like a cereal box', 6], ['pyramid', 'a polygon base and faces that meet at one point', 5]];
+  /* Sort groups. A shape may belong to exactly ONE of the groups offered, so a
+   * group is kept as a list of the shapes that fit it and the item picks the
+   * two groups the shape is NOT in. (A cone rolls and has a point; a cylinder
+   * rolls and stacks flat — those two labels can never share a card.) */
+  var FIT3 = {
+    'shapes that can roll': ['sphere', 'cylinder', 'cone'],
+    'shapes with a point on top': ['cone', 'pyramid'],
+    'shapes with 6 flat faces': ['cube', 'rectangular prism'],
+    'shapes that are like a ball': ['sphere'],
+    'shapes with a circular base': ['cylinder', 'cone'],
+    'shapes with 5 faces': ['pyramid']
+  };
+  var FIT2 = {
+    'shapes with 3 sides': ['triangle'],
+    'shapes with 4 sides': ['square', 'rectangle'],
+    'shapes with 6 sides': ['hexagon'],
+    'shapes with no straight sides': ['circle', 'oval']
+  };
+  /* Real objects, each tagged with the shape it shows. An object may only be
+   * used as a WRONG answer when it shows a different shape than the one asked
+   * for, so the wrong answers are drawn from the rest of the table, never from
+   * a fixed list that happens to contain the answer. */
+  var REAL2 = [['a plate', 'circle'], ['a clock', 'circle'], ['a wheel', 'circle'], ['a coin', 'circle'],
+  ['an egg', 'oval'], ['a mirror', 'oval'], ['a racetrack', 'oval'],
+  ['a slice of pizza', 'triangle'], ['a road sign', 'triangle'], ['a sandwich cut in half', 'triangle'],
+  ['a tile', 'square'], ['a cracker', 'square'], ['a square photo', 'square'],
+  ['a book', 'rectangle'], ['a door', 'rectangle'], ['a desk', 'rectangle'],
+  ['a honeycomb', 'hexagon']];
+  var REAL3 = [['a dice', 'cube'], ['a gift box', 'cube'], ['a rubik cube', 'cube'],
+  ['a ball', 'sphere'], ['a marble', 'sphere'], ['an orange', 'sphere'],
+  ['an ice-cream cone', 'cone'], ['a party hat', 'cone'], ['a traffic cone', 'cone'],
+  ['a can', 'cylinder'], ['a battery', 'cylinder'], ['a tube', 'cylinder'],
+  ['a book', 'rectangular prism'], ['a shoe box', 'rectangular prism'], ['a brick', 'rectangular prism'],
+  ['a pyramid', 'pyramid'], ['a pyramid-shaped tent', 'pyramid']];
   var CATS = [['apples', 'pears', 'bananas'], ['cats', 'dogs', 'fish'], ['red', 'blue', 'yellow'], ['soccer', 'swimming', 'dancing'], ['monday', 'tuesday', 'friday'], ['books', 'games', 'puzzles']];
   var DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -15680,73 +15721,90 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
     var teach = 'Shapes are sorted by their features: sides and corners for flat shapes, faces edges and vertices for solids.';
 
+    var article = function (n) { return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + n; };
+    var flatNamed = function (n) { for (var i = 0; i < FLAT.length; i++) if (FLAT[i][0] === n) return FLAT[i]; return null; };
+    /* A sort card is only worth asking when the shape fits ONE of the groups on
+     * the card, so the groups are read off FIT2/FIT3: the answer is a group the
+     * shape is in, the two wrong answers are groups it is clearly not in. */
+    var groupSort = function (name, fits) {
+      var labels = [], k, rights = [], wrongs = [];
+      for (k in fits) labels.push(k);
+      for (var j = 0; j < labels.length; j++) (fits[labels[j]].indexOf(name) >= 0 ? rights : wrongs).push(labels[j]);
+      var right = pick(rng, rights);
+      wrongs = R.sample(rng, wrongs, 2);
+      return MC(rng, 'Sort this shape: ' + article(name) + '. Which group does it belong to?', right, wrongs, {
+        b: 0.3,
+        explain: ['Read the name of each group.', article(name) + ' fits ' + right + '.', 'It does not fit ' + wrongs[0] + ', and it does not fit ' + wrongs[1] + '.', 'So the answer is <b>' + right + '</b>.'],
+        teach: 'Sorting shapes needs one rule; test the shape against that rule.'
+      });
+    };
+
     return build(rng, [
       /* official anchor — name the shape from its defining features. */
       function () {
         if (useSolid) return MC(rng, ct + ', which solid has ' + sol[1] + '?', sol[0], others(SOLID.map(function (q) { return q[0]; }), sol[0], 3, rng), {
           b: lo,
-          explain: ['Look at the features: ' + sol[1] + '.', 'That describes a ' + sol[0] + '.', 'So the answer is <b>' + sol[0] + '</b>.'],
+          explain: ['Look at the features: ' + sol[1] + '.', 'That describes ' + article(sol[0]) + '.', 'So the answer is <b>' + sol[0] + '</b>.'],
           teach: teach
         });
         return MC(rng, ct + ', which flat shape has ' + flat[2] + '?', flat[0], others(FLAT.map(function (q) { return q[0]; }), flat[0], 3, rng), {
           b: lo,
-          explain: ['Look at the features: ' + flat[2] + '.', 'That describes a ' + flat[0] + '.', 'So the answer is <b>' + flat[0] + '</b>.'],
+          explain: ['Look at the features: ' + flat[2] + '.', 'That describes ' + article(flat[0]) + '.', 'So the answer is <b>' + flat[0] + '</b>.'],
           teach: teach
         });
       },
-      /* count the sides or faces */
+      /* count the sides or the flat faces */
       function () {
-        if (useSolid) return I_num('How many faces does a ' + sol[0] + ' have?', sol[0] === 'cube' || sol[0] === 'rectangular prism' ? 6 : sol[0] === 'pyramid' ? 5 : sol[0] === 'cone' ? 2 : sol[0] === 'cylinder' ? 3 : 1, {
-          visual: V.solid(sol[0] === 'cube' ? 'cube' : sol[0] === 'rectangular prism' ? 'prism' : sol[0] === 'pyramid' ? 'pyramid' : 'prism', { w: 3, h: 3, l: 3 }), b: 0.4,
-          explain: ['A face is a flat surface you could trace.', 'Count them one by one on a ' + sol[0] + '.', 'So the answer is <b>' + (sol[0] === 'cube' || sol[0] === 'rectangular prism' ? 6 : sol[0] === 'pyramid' ? 5 : sol[0] === 'cone' ? 2 : sol[0] === 'cylinder' ? 3 : 1) + '</b>.'],
-          teach: 'Flat surfaces are faces; a curved surface is not a face.'
+        if (useSolid) return I_num('How many flat faces does ' + article(sol[0]) + ' have?', sol[2], {
+          visual: V.solid(sol[0] === 'rectangular prism' ? 'prism' : sol[0], { w: 3, h: 3, l: 3 }), b: 0.4,
+          explain: ['A flat face is a flat surface you could trace.', 'Count the flat faces on ' + article(sol[0]) + '.', 'So the answer is <b>' + sol[2] + '</b>.'],
+          teach: 'A flat face is a flat surface; a curved surface is not flat.'
         });
-        return I_num('How many sides does a ' + flat[0] + ' have?', flat[1], {
+        return I_num('How many sides does ' + article(flat[0]) + ' have?', flat[1], {
           b: lo + 0.1,
-          explain: ['A side is a straight line from one corner to the next.', 'Count around the ' + flat[0] + ': ' + flat[1] + ' sides.', 'So the answer is <b>' + flat[1] + '</b>.'],
+          explain: ['A side is a straight line from one corner to the next.', 'Count around ' + article(flat[0]) + ': ' + flat[1] + ' sides.', 'So the answer is <b>' + flat[1] + '</b>.'],
           teach: 'A circle has no straight sides, so it has no corners either.'
         });
       },
       /* sort by a feature */
       function () {
-        var groups = useSolid ? ['shapes that roll', 'shapes that stack flat', 'shapes with a point'] : ['shapes with 3 sides', 'shapes with 4 sides', 'shapes with no straight sides'];
-        var right = useSolid
-          ? (sol[0] === 'sphere' || sol[0] === 'cylinder' || sol[0] === 'cone' ? groups[0] : sol[0] === 'pyramid' ? groups[2] : groups[1])
-          : (flat[1] === 3 ? groups[0] : flat[1] === 4 ? groups[1] : groups[2]);
-        return MC(rng, 'Sort this shape: a' + (useSolid ? ' ' + sol[0] : ' ' + flat[0]) + '. Which group does it belong to?', right, groups.filter(function (g) { return g !== right; }), {
-          b: 0.3,
-          explain: ['Look at what the shape can do.', 'A ' + (useSolid ? sol[0] : flat[0]) + ' fits ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
-          teach: 'Sorting shapes needs one rule; test the shape against that rule.'
-        });
+        return groupSort(useSolid ? sol[0] : flat[0], useSolid ? FIT3 : FIT2);
       },
       /* classify a stated claim */
       function () {
-        var claim = useSolid ? 'A ' + sol[0] + ' is flat.' : 'A ' + flat[0] + ' has ' + (flat[1] + 1) + ' sides.';
+        var claim = useSolid ? article(sol[0]) + ' is flat.' : article(flat[0]) + ' has ' + (flat[1] + 1) + ' sides.';
         var truth = false;
-        if (!useSolid && flat[1] === 0) { claim = 'A ' + flat[0] + ' has no corners.'; truth = true; }
+        if (!useSolid && flat[1] === 0) { claim = article(flat[0]) + ' has no corners.'; truth = true; }
         return I_bool('Is this statement true?   ' + claim, truth, {
           b: 0.5,
-          explain: [useSolid ? 'A ' + sol[0] + ' is a solid shape, so it is not flat.' : 'Count the sides of a ' + flat[0] + ': ' + flat[1] + '.', 'Compare with the statement.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          explain: [useSolid ? article(sol[0]) + ' is a solid shape, so it is not flat.' : 'Count the sides of ' + article(flat[0]) + ': ' + flat[1] + '.', 'Compare with the statement.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
           teach: 'Judge a shape statement by checking the feature it names.'
         });
       },
-      /* select the solid vs the flat shape */
+      /* select the solid vs the flat shape: the three wrong answers are drawn
+       * from the OTHER pile, so exactly one option answers the question. */
       function () {
-        var wantSolid = R.chance(rng, 0.5), right = wantSolid ? pick(rng, SOLID)[0] : pick(rng, FLAT)[0];
-        var pool = wantSolid ? SOLID.map(function (q) { return q[0]; }) : FLAT.map(function (q) { return q[0]; });
-        return MC(rng, 'Which of these is a' + (wantSolid ? ' three-dimensional' : ' flat') + ' shape?', right, others(pool, right, 3, rng), {
+        var wantSolid = R.chance(rng, 0.5);
+        var right = pick(rng, wantSolid ? SOLID : FLAT)[0];
+        var pool = (wantSolid ? FLAT : SOLID).map(function (q) { return q[0]; });
+        return MC(rng, 'Which of these is ' + article(wantSolid ? 'three-dimensional' : 'flat') + ' shape?', right, R.sample(rng, pool, 3), {
           b: 0.4,
-          explain: ['A solid shape takes up space; a flat shape lies on the page.', 'The ' + (wantSolid ? 'solid' : 'flat') + ' one here is the ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['A solid shape takes up space; a flat shape lies on the page.', 'The ' + (wantSolid ? 'solid' : 'flat') + ' one here is the ' + right + '.', 'The other three are ' + (wantSolid ? 'flat' : 'solid') + ' shapes.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Two dimensions are length and width; a third adds depth or thickness.'
         });
       },
-      /* a real object with this shape */
+      /* a real object with this shape: wrong answers are objects that show a
+       * DIFFERENT shape, taken from the same table — never a fixed list that
+       * can hold a second object with the shape being asked for. */
       function () {
-        var key = useSolid ? sol[0] : flat[0], real = (REAL3[key] || ['a slice of pizza', 'a plate', 'a book'])[0];
-        var wrongReal = R.sample(rng, ['a ball', 'a book', 'a can', 'a plate', 'a ice-cream cone', 'a dice'].filter(function (v) { return v !== real; }), 3);
-        return MC(rng, 'Which real object is shaped like a ' + key + '?', real, wrongReal, {
+        var key = useSolid ? sol[0] : flat[0];
+        var table = useSolid ? REAL3 : REAL2;
+        var mine = table.filter(function (q) { return q[1] === key; });
+        var rest = table.filter(function (q) { return q[1] !== key; });
+        var real = pick(rng, mine), wrongReal = R.sample(rng, rest, 3);
+        return MC(rng, 'Which real object is shaped like ' + article(key) + '?', real[0], wrongReal.map(function (q) { return q[0]; }), {
           b: 0.6,
-          explain: ['Picture a ' + key + ': ' + (useSolid ? sol[1] : flat[2]) + '.', 'The ' + real + ' matches that shape.', 'So the answer is <b>' + real + '</b>.'],
+          explain: ['Picture ' + article(key) + ': ' + (useSolid ? sol[1] : flat[2]) + '.', real[0] + ' is shaped like ' + article(key) + '.', 'So the answer is <b>' + real[0] + '</b>.'],
           teach: 'Math shapes hide inside everyday objects; look for the defining feature.'
         });
       },
@@ -15760,13 +15818,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'Compare shapes by counting the feature the question names.'
         });
       },
-      /* lvl 4-5 stretch: the odd one out */
+      /* lvl 4-5 stretch: the odd one out. Two shapes are chosen that DO share a
+       * side count and the third is chosen so it does not — otherwise every
+       * shape on the card is a defensible odd one out. */
       function () {
-        var three = R.sample(rng, FLAT, 3), odd = pick(rng, three), keep = three.filter(function (q) { return q[0] !== odd[0]; });
-        var right = odd[0];
-        return MC(rng, 'Three shapes are shown. Which one is the odd one out because of its number of sides?', right, keep.map(function (q) { return q[0]; }), {
+        var PAIRS = [['circle', 'oval'], ['square', 'rectangle']];
+        var pair = pick(rng, PAIRS).map(flatNamed);
+        var third = pick(rng, FLAT.filter(function (q) { return q[1] !== pair[0][1]; }));
+        var three = R.shuffle(rng, [pair[0], pair[1], third]);
+        var right = third[0];
+        return MC(rng, 'Three shapes are shown. Which one is the odd one out because of its number of sides?', right, [pair[0][0], pair[1][0]], {
           visual: V.table(['Shape', 'Sides'], three.map(function (q) { return [q[0], String(q[1])]; })), b: 1.0,
-          explain: ['Read the sides from the table.', keep[0][0] + ' and ' + keep[1][0] + ' both have ' + keep[0][1] + ' sides.', 'The odd one out is <b>' + right + '</b>.'],
+          explain: ['Read the number of sides in the table.', pair[0][0] + ' and ' + pair[1][0] + ' both have ' + pair[0][1] + ' sides.', third[0] + ' has ' + third[1] + ', so the odd one out is <b>' + right + '</b>.'],
           teach: 'The odd one out is decided by one feature; check every candidate against it.'
         });
       }
@@ -16762,34 +16825,59 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   ARCH('sortClassify', function (rng, lvl, p) {
     var by = p.by || 'shape', ask = p.ask || 'sort', ct = pick(rng, CTX);
     var pool = by === 'color' ? COLOR : by === 'shape' ? SHAPE : SHAPE.concat(COLOR);
-    var items = [], i;
-    for (i = 0; i < 5; i++) items.push(pick(rng, pool));
-    var glyphs = items.map(function (t) { return t.g; });
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
     var ruleWord = by === 'color' ? 'colour' : by === 'shape' ? 'shape' : 'shape or colour';
     var teach = 'Sorting needs one rule at a time; a Venn diagram counts what belongs to each circle and what belongs to both.';
     var nameOf = function (t) { return t.w; };
-    var groupOf = function (t) { return by === 'color' ? t.w : t.w.replace(' square', '').replace(' circle', ''); };
-    var groups = [];
-    items.forEach(function (t) { var g = groupOf(t); if (groups.indexOf(g) < 0) groups.push(g); });
-    var grp = groups[0], other = groups.length > 1 ? groups[1] : groups[0];
-    var nGrp = items.filter(function (t) { return groupOf(t) === grp; }).length;
+    var groupOf = function (t) { return t.w; };
+    var SIDES = { square: 4, diamond: 4, triangle: 3, circle: 0, red: 0, blue: 0, yellow: 0, green: 0 };
+
+    /* Two groups, never more. Five objects drawn at random from a pool of four
+     * names produced cards asking "which one does NOT belong" with three
+     * objects genuinely left out, and cards asking "which way sorts them" with
+     * no single other pile. Every card here gets a named majority of four and
+     * one thing that breaks the rule. */
+    var uniq = [], seen = [], i;
+    for (i = 0; i < pool.length; i++) if (seen.indexOf(pool[i].w) < 0) { seen.push(pool[i].w); uniq.push(pool[i]); }
+    var pair = R.sample(rng, uniq, 2), A = pair[0], B = pair[1];
+    var items = R.shuffle(rng, [A, A, A, B, B]);
+    var glyphs = items.map(function (t) { return t.g; });
+    var grp = A.w, other = B.w;
+
+    /* the two Venn circles: colour + round for the colour pool, 4 sides +
+     * 3 sides for the shape pool. Both rules are checked against the object,
+     * so the card cannot grade "neither" when the object is in fact in both. */
+    var vennRules = function () {
+      if (by === 'color') {
+        var c = pick(rng, COLOR);
+        return {
+          a: c.w + ' shapes', b: 'round shapes',
+          holds: function (t) { return [t.w === c.w, true]; }
+        };
+      }
+      return {
+        a: 'shapes with 4 sides', b: 'shapes with 3 sides',
+        holds: function (t) { return [SIDES[t.w] === 4, SIDES[t.w] === 3]; }
+      };
+    };
 
     return build(rng, [
       /* official anchor — put each object in the group that matches the rule. */
       function () {
-        var t = pick(rng, items);
-        return MC(rng, ct + ', sort by ' + ruleWord + '. Which group does the ' + nameOf(t) + ' belong to?', groupOf(t), groups.filter(function (g) { return g !== groupOf(t); }).concat(['none of these groups']), {
+        var t = pick(rng, items), wrong = groupOf(t) === grp ? other : grp;
+        return MC(rng, ct + ', sort by ' + ruleWord + '. Which group does the ' + nameOf(t) + ' belong to?', groupOf(t), [wrong, 'none of these groups'], {
           visual: row(glyphs, 'the objects to sort'), b: lo,
-          explain: ['The rule is ' + ruleWord + '.', 'The ' + nameOf(t) + ' matches ' + groupOf(t) + '.', 'So the answer is <b>' + groupOf(t) + '</b>.'],
+          explain: ['The rule is ' + ruleWord + '.', 'The ' + nameOf(t) + ' matches ' + groupOf(t) + '.', 'It does not match ' + wrong + '.', 'So the answer is <b>' + groupOf(t) + '</b>.'],
           teach: teach
         });
       },
       /* count one group */
       function () {
-        return I_num('Look at the picture. How many of them are ' + grp + '?', nGrp, {
+        var t = R.chance(rng, 0.5) ? A : B;
+        var n = items.filter(function (q) { return groupOf(q) === t.w; }).length;
+        return I_num('Look at the picture. How many of them are ' + t.w + '?', n, {
           visual: row(glyphs, 'the objects to sort'), b: lo - 0.2,
-          explain: ['Find every ' + grp + ' in the picture.', 'Count them: ' + nGrp + '.', 'So the answer is <b>' + nGrp + '</b>.'],
+          explain: ['Find every ' + t.w + ' in the picture.', 'Count them: ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'Counting a group means counting only the objects that match the rule.'
         });
       },
@@ -16797,25 +16885,25 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         var same = R.chance(rng, 0.5), a = pick(rng, items), b = same ? a : pick(rng, pool.filter(function (t) { return t.w !== a.w; }));
         var right = (a.w === b.w ? 'same' : 'different');
-        return MC(rng, 'Are these two objects the ' + right + ' or the other?', right, [right === 'same' ? 'different' : 'same'], {
+        return MC(rng, 'Are these two objects the same or different?', right, [right === 'same' ? 'different' : 'same'], {
           visual: V.grid({ rows: 1, cols: 2, cells: [[a.g, b.g]], label: 'two objects' }), b: 0.1,
           explain: ['Compare them by ' + ruleWord + '.', a.w + ' and ' + b.w + ' are ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Same and different are always decided by one named feature.'
         });
       },
-      /* which one does not belong */
+      /* which one does not belong — four objects follow the rule, ONE does not */
       function () {
-        var odd = pick(rng, items), keep = items.filter(function (t) { return groupOf(t) !== groupOf(odd); });
-        if (!keep.length) return I_bool('Are all of these ' + grp + '?', nGrp === items.length, { visual: row(glyphs, 'the objects'), b: 0.3, explain: ['Count how many are ' + grp + ': ' + nGrp + ' of ' + items.length + '.', 'So the answer is <b>' + (nGrp === items.length ? 'Yes' : 'No') + '</b>.'], teach: teach });
-        return MC(rng, 'Which object does NOT belong with the others?', nameOf(odd), keep.map(nameOf), {
-          visual: row(glyphs, 'four of these go together'), b: 0.6,
-          explain: ['Most of them are ' + keep.map(groupOf)[0] + '.', 'The ' + nameOf(odd) + ' is ' + groupOf(odd) + '.', 'So the answer is <b>' + nameOf(odd) + '</b>.'],
+        var odd = R.chance(rng, 0.5) ? A : B, keep = odd === A ? B : A;
+        var set = R.shuffle(rng, [keep, keep, keep, keep, odd]);
+        return MC(rng, 'Which object does NOT belong with the others?', nameOf(odd), [nameOf(keep)], {
+          visual: row(set.map(function (t) { return t.g; }), 'four of these go together'), b: 0.6,
+          explain: ['Four of them are ' + nameOf(keep) + '.', 'The ' + nameOf(odd) + ' is the one that is not ' + nameOf(keep) + '.', 'So the answer is <b>' + nameOf(odd) + '</b>.'],
           teach: 'The odd one out is the one that breaks the rule the others follow.'
         });
       },
       /* judge a sort */
       function () {
-        var t = pick(rng, items), claim = R.chance(rng, 0.5) ? groupOf(t) : (groups.filter(function (g) { return g !== groupOf(t); })[0] || groupOf(t));
+        var t = pick(rng, items), claim = R.chance(rng, 0.5) ? groupOf(t) : (groupOf(t) === grp ? other : grp);
         return I_bool('Does the ' + nameOf(t) + ' go in the ' + claim + ' group?', claim === groupOf(t), {
           visual: row(glyphs, 'the objects to sort'), b: 0.4,
           explain: ['The rule is ' + ruleWord + '.', 'The ' + nameOf(t) + ' is ' + groupOf(t) + '.', 'So the answer is <b>' + (claim === groupOf(t) ? 'Yes' : 'No') + '</b>.'],
@@ -16824,33 +16912,44 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* the two groups written out */
       function () {
-        var g1 = items.filter(function (t) { return groupOf(t) === grp; }).map(nameOf), g2 = items.filter(function (t) { return groupOf(t) !== grp; }).map(nameOf);
-        var right = grp + ': ' + g1.join(', ') + '  |  other: ' + (g2.length ? g2.join(', ') : 'none');
-        var wrongs = [grp + ': ' + g2.join(', ') + '  |  other: ' + (g1.length ? g1.join(', ') : 'none'), grp + ': ' + g1.slice(0, 1).join(', ') + '  |  other: ' + items.map(nameOf).join(', ')].filter(function (s) { return s !== right && s.indexOf(': ,') < 0 && s !== 'other: '; });
+        var g1 = items.filter(function (t) { return groupOf(t) === grp; }).map(nameOf);
+        var g2 = items.filter(function (t) { return groupOf(t) !== grp; }).map(nameOf);
+        var right = grp + ': ' + g1.join(', ') + '  |  other: ' + g2.join(', ');
+        /* every wrong answer here has to be FALSE, not merely different: an
+         * option that names the other pile and lists the same two groups is
+         * the same sort written the other way round, so it is not a distractor. */
+        var wrongs = [
+          grp + ': ' + g1.slice(0, g1.length - 1).join(', ') + '  |  other: ' + g2.concat(g1.slice(-1)).join(', '),
+          grp + ': ' + g2.join(', ') + '  |  other: ' + g1.join(', '),
+          grp + ': none  |  other: ' + items.map(nameOf).join(', ')
+        ].filter(function (x) { return x !== right && x.indexOf(': none  |  other: ') < 0 || g1.length === 0; });
         return MC(rng, 'Which way sorts these objects correctly?', right, wrongs, {
           visual: row(glyphs, 'the objects to sort'), b: 0.7,
-          explain: ['Sort one object at a time.', 'The ' + grp + ' group ends up with ' + g1.length + ' objects.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Sort one object at a time.', 'The ' + grp + ' group ends up with ' + g1.length + ' objects and the other with ' + g2.length + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'A correct sort puts every object in exactly one group.'
         });
       },
       /* Venn diagram: count both circles */
       function () {
-        var setA = [], setB = [], both = [], all = R.sample(rng, SHAPE, 3);
-        all.forEach(function (t, i) { if (i % 2 === 0) setA.push(t); if (i < 2) setB.push(t); });
-        all.forEach(function (t) { if (setA.indexOf(t) >= 0 && setB.indexOf(t) >= 0) both.push(t); });
-        var right = both.length;
-        return I_num('Circle A holds ' + setA.map(nameOf).join(', ') + '. Circle B holds ' + setB.map(nameOf).join(', ') + '. How many objects are in BOTH circles?', right, {
+        var all = R.sample(rng, SHAPE, 4), k = R.int(rng, 1, 2);
+        var setA = all.slice(0, 3), setB = all.slice(3 - k, 3).concat(all.slice(3, 4));
+        var both = setA.filter(function (t) { return setB.indexOf(t) >= 0; }).length;
+        return I_num('Circle A holds ' + setA.map(nameOf).join(', ') + '. Circle B holds ' + setB.map(nameOf).join(', ') + '. How many objects are in BOTH circles?', both, {
           visual: V.table(['Circle A', 'Circle B'], [[setA.map(nameOf).join(', '), setB.map(nameOf).join(', ')]]), b: 0.9,
-          explain: ['List what each circle holds.', 'The objects in both lists are the overlap.', 'There are <b>' + right + '</b> of them.'],
+          explain: ['List what each circle holds.', 'The objects in both lists are the overlap.', 'There ' + (both === 1 ? 'is <b>1</b> of them.' : 'are <b>' + both + '</b> of them.')],
           teach: 'The overlap of a Venn diagram holds what the two rules share.'
         });
       },
-      /* lvl 4-5 stretch: sort into a Venn */
+      /* lvl 4-5 stretch: place one object in a two-circle Venn */
       function () {
-        var two = R.sample(rng, SHAPE, 2), t = pick(rng, two);
-        return MC(rng, 'One circle holds shapes with 4 sides, the other holds ' + (by === 'color' ? 'red' : 'blue') + ' shapes. Where does the ' + t.w + ' go?', t.w === 'square' ? 'only in the 4-sides circle' : 'in neither circle', ['only in the coloured circle', 'in both circles'], {
-          b: 1.1,
-          explain: ['Test the first rule: does it have 4 sides?', 'Test the second rule: is it the colour named?', 'The ' + t.w + ' matches <b>only one rule</b>, so it goes in one circle.'],
+        var rules = vennRules();
+        var t = by === 'color' ? pick(rng, COLOR) : pick(rng, SHAPE);
+        var m = rules.holds(t);
+        var right = m[0] && m[1] ? 'in both circles' : m[0] ? 'only in the first circle' : m[1] ? 'only in the second circle' : 'in neither circle';
+        var opts = ['only in the first circle', 'only in the second circle', 'in both circles', 'in neither circle'];
+        return MC(rng, 'One circle holds ' + rules.a + ', the other holds ' + rules.b + '. Where does the ' + nameOf(t) + ' go?', right, opts.filter(function (o) { return o !== right; }), {
+          visual: V.grid({ rows: 1, cols: 1, cells: [[t.g]], label: 'the object to place' }), b: 1.1,
+          explain: ['Rule one, ' + rules.a + ': ' + (m[0] ? 'yes' : 'no') + '.', 'Rule two, ' + rules.b + ': ' + (m[1] ? 'yes' : 'no') + '.', 'So the object goes <b>' + right + '</b>.'],
           teach: 'In a Venn diagram an object can be in one circle, both, or neither.'
         });
       }
