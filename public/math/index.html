@@ -341,8 +341,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-23 — 37 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
+/* MathPath 2026-09-24 — 38 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -19846,14 +19846,34 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var wrongs = (c.wrongs || []).filter(function (w) { return w != null && String(w) !== String(ansText); });
     if (!wrongs.length && val != null) wrongs = BC.near(val, 2).map(function (v) { return nfmt(v); });
     var qs = c.qs && c.qs.length ? c.qs.slice() : LEADS.slice();
+    /* An expression that already carries the hole must not be dressed in a
+       second one: "Solve. {e} = ?" over "420 − ? = 337" printed
+       "Solve. 420 − ? = 337 = ?", which asks a question twice. */
+    if (/[?]/.test(String(c.expr == null ? '' : c.expr))) {
+      qs = ['Solve. {e}', 'Find the missing number.  {e}', 'What number completes {e}?'];
+    }
+
+    /* Does the printed expression really HAVE the value being graded?
+       "4,329 + 1,875" does (6,204). "219,748" does not when the card grades
+       200,000, and "? × 7 = 63" cannot be evaluated at all. The equality
+       framings — "is it true or false that A = v", "A ○ v", "which value is
+       closest to A" — assert that equality, so they are only allowed when the
+       expression evaluates to the graded value. That one rule is what stopped
+       a rounding card from asking the learner to agree that 219,748 = 200,000
+       and a "closest to 7,481,562" choice from marking an option that was not
+       the closest. A handler that still wants a judgment card writes a
+       judgeQ/mcQ that states the relationship in words. */
+    var rawExpr = String(c.expr == null ? '' : c.expr);
+    var plain = /^[0-9,.\s+\-−×÷*\/()]+$/.test(rawExpr) && /[0-9]/.test(rawExpr);
+    var ev = plain ? evalExpr(rawExpr) : NaN;
+    var asserts = plain && isFinite(ev) && val != null && Math.abs(ev - val) < 1e-9;
+
     var forms = [];
     qs.forEach(function (q, i) { forms.push('q' + i); });
-    if (wrongs.length) {
-      forms.push('mc');
-      if (val != null || c.judgeQ) forms.push('judge');
-      if (val != null && c.spec.k === 'n') forms.push('nearest');
-    }
-    if (val != null && c.cmp !== false && c.spec.k === 'n') forms.push('cmp');
+    if (wrongs.length && (asserts || c.mcQ)) forms.push('mc');
+    if ((val != null && asserts) || c.judgeQ) forms.push('judge');
+    if (val != null && asserts && c.spec.k === 'n' && wrongs.length) forms.push('nearest');
+    if (val != null && c.cmp !== false && asserts && c.spec.k === 'n') forms.push('cmp');
     if (c.rev) forms.push('rev');
     if (c.story) forms.push('story');
     var f = BC.pick(rng, forms);
@@ -20290,6 +20310,24 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     });
     return out;
   };
+
+  /* Expanded form of a number, built as numbers and formatted once:
+     9,803 → [{d:9,place:3,v:9000,text:"9,000"}, {d:8,…,text:"800"}, {d:3,text:"3"}].
+     The first version of this code pasted a digit in front of a formatted place
+     value ("8" + "100" → "8100"), so a card read "8100 + 31 + ? = 9,803" while
+     the grader expected 9,000. A place is a number, not a string to glue onto. */
+  UP.expanded = function (n) {
+    var s = String(Math.abs(Math.round(n))), out = [], i, d, pv;
+    for (i = 0; i < s.length; i++) {
+      d = +s.charAt(i);
+      if (!d) continue;
+      pv = d * Math.pow(10, s.length - 1 - i);
+      out.push({ d: d, place: s.length - 1 - i, v: pv, text: UP.comma(pv) });
+    }
+    return out;
+  };
+  /* the same parts as the strings a card prints: "9,000 + 800 + 3" */
+  UP.expandedStr = function (n) { return UP.expanded(n).map(function (p) { return p.text; }).join(' + '); };
 
   /* ------------------------------------------------- number drawing -------- */
   /* an n-digit number, never starting with 0 */
@@ -20751,13 +20789,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return UP.build(rng, [
       function () {                       /* expanded → standard */
         var d = lvlDigits(rng, lvl, 3, 6);
-        var n = BC.nDigits(rng, d), s = String(n), parts = [], i;
-        for (i = 0; i < s.length; i++) if (+s.charAt(i)) parts.push(s.charAt(i) + UP.comma(Math.pow(10, s.length - 1 - i)));
-        var expr = parts.join(' + ');
+        var n = BC.nDigits(rng, d);
+        var parts = UP.expanded(n);
+        if (parts.length < 2) return null;
+        var expr = parts.map(function (q) { return q.text; }).join(' + ');
         return calc(rng, {
           expr: expr,
           spec: { k: 'n', v: n },
-          steps: parts.slice(0, 3).concat([parts.length + ' parts add to one number.']),
+          steps: parts.slice(0, 3).map(function (q) { return q.d + ' × ' + UP.comma(q.v / q.d) + ' = ' + q.text; })
+            .concat(['Add the parts place by place.']),
           wrongs: UP.slips(n, UP.placeSlip(n, 1)),
           teach: 'Expanded form writes each digit with its place value; adding the parts gives standard form.',
           qs: ['Write the standard form of {e}.', 'What number is {e}?', 'Solve. {e} = ?'],
@@ -20766,40 +20806,64 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {                       /* standard → expanded */
         var d = lvlDigits(rng, lvl, 3, 5);
-        var n = BC.nDigits(rng, d), s = String(n);
-        var parts = [];
-        var i;
-        for (i = 0; i < s.length; i++) if (+s.charAt(i)) parts.push(s.charAt(i) + UP.comma(Math.pow(10, s.length - 1 - i)));
-        var ans = parts.join(' + ');
-        var wrongs = [];
-        var alt = parts.slice(0, parts.length - 1).join(' + ');
-        wrongs.push(alt + ' + ' + parts[parts.length - 1].replace('1,', ''));
-        wrongs.push(s.split('').join(' + ') + ' (place values missing)');
-        var prompt = 'Write ' + UP.comma(n) + ' in expanded form.';
-        return UP.mc(rng, prompt, ans, wrongs, {
+        var n = BC.nDigits(rng, d);
+        var parts = UP.expanded(n);
+        if (parts.length < 2) return null;
+        var last = parts[parts.length - 1];
+        var ans = parts.map(function (q) { return q.text; }).join(' + ');
+        var digitsOnly = String(n).split('').filter(function (c) { return c !== '0'; }).join(' + ');
+        var lostPlace = parts.slice(0, parts.length - 1).map(function (q) { return q.text; }).join(' + ') + ' + ' + last.d;
+        var wrongPlace = parts.slice(0, parts.length - 1).map(function (q) { return q.text; }).join(' + ') + ' + ' + UP.comma(last.v * 10);
+        var wrongs = [digitsOnly, lostPlace, wrongPlace].filter(function (w) { return w !== ans; });
+        if (wrongs.length < 2) return null;
+        return UP.mc(rng, 'Write ' + UP.comma(n) + ' in expanded form.', ans, wrongs, {
+          steps: parts.slice(0, 3).map(function (q) { return q.d + ' × ' + UP.comma(q.v / q.d) + ' = ' + q.text; }),
           teach: 'Expanded form names every place value, not just the digits.',
           b: 0.2
         });
       },
       function () {                       /* which part is missing */
         var d = lvlDigits(rng, lvl, 3, 5);
-        var n = BC.nDigits(rng, d), s = String(n);
-        var idx = [], j;
-        for (j = 0; j < s.length; j++) if (+s.charAt(j)) idx.push(j);
-        if (idx.length < 2) return null;
-        var hide = BC.pick(rng, idx);
-        var shown = [];
-        for (j = 0; j < s.length; j++) if (j !== hide && +s.charAt(j)) shown.push(s.charAt(j) + UP.comma(Math.pow(10, s.length - 1 - j)));
-        var shownSum = 0;
-        for (j = 0; j < s.length; j++) if (j !== hide && +s.charAt(j)) shownSum += +s.charAt(j) * Math.pow(10, s.length - 1 - j);
-        var ans = n - shownSum;
-        return calc(rng, {
-          expr: shown.join(' + ') + ' + ? = ' + UP.comma(n),
-          spec: { k: 'n', v: ans },
-          steps: ['The parts shown add to ' + UP.comma(shownSum) + '.', UP.comma(n) + ' − ' + UP.comma(shownSum) + ' = ' + UP.comma(ans)],
-          wrongs: UP.slips(ans, [+s.charAt(hide), +s.charAt(hide) * Math.pow(10, s.length - 1 - hide) * 10]),
-          teach: 'A missing part of an expanded number is what is left after the shown places are subtracted.',
-          b: 0.4
+        var n = BC.nDigits(rng, d);
+        var parts = UP.expanded(n);
+        var big = parts.filter(function (q) { return q.v >= 10; });
+        if (parts.length < 3 || !big.length) return null;
+        var hide = BC.pick(rng, big);
+        var shown = parts.filter(function (q) { return q !== hide; });
+        var shownSum = n - hide.v;
+        var ans = hide.v;
+        var shownStr = shown.map(function (q) { return q.text; }).join(' + ');
+        var eqn = shownStr + ' + ? = ' + UP.comma(n);
+        var steps = ['The parts shown add to ' + UP.comma(shownSum) + '.',
+          UP.comma(n) + ' − ' + UP.comma(shownSum) + ' = ' + UP.comma(ans)];
+        var teach = 'A missing part of an expanded number is what is left after the shown places are subtracted.';
+        var form = BC.int(rng, 0, 3);
+        if (form === 1) {
+          return UP.mc(rng, 'Choose the missing part.   ' + eqn, UP.comma(ans),
+            [String(hide.d), UP.comma(hide.v * 10), UP.comma(shownSum)], {
+            steps: steps, teach: teach, b: 0.4
+          });
+        }
+        if (form === 2) {
+          var lie = BC.pick(rng, [hide.d, hide.v * 10, hide.v + 10]);
+          var truth = lie === hide.v;
+          return UP.judge('Is the missing part ' + UP.comma(lie) + '?', truth, {
+            sub: eqn, steps: steps, teach: teach, b: 0.5
+          });
+        }
+        /* Built directly, never through BC.card: an expression that already
+           contains "?" and "=" cannot be asked as "is this equal to it" or
+           "which value is closest to it" without inventing bad arithmetic. */
+        var ask = BC.int(rng, 0, 1);
+        if (ask === 1) {
+          var who = BC.who(rng);
+          return I_num(who + ' wrote the number ' + UP.comma(n) + ' in expanded form but erased one part:  ' + eqn
+            + '   Which part was erased?', ans, {
+            explain: BC.last(steps, UP.comma(ans)), teach: teach, b: 0.5
+          });
+        }
+        return I_num('One part is missing from ' + eqn + '  What is it?', ans, {
+          explain: BC.last(steps, UP.comma(ans)), teach: teach, b: 0.4
         });
       }
     ]);
@@ -20957,18 +21021,23 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             UP.comma(big) + ' ÷ ' + UP.comma(small) + ' = 10'],
           wrongs: [100, 9, 1000],
           teach: 'Adjacent place values always differ by a factor of ten.',
+          qs: [who + ' has ' + UP.comma(big) + ' ' + placeName(place) + ' and ' + other + ' has ' + UP.comma(small) + ' ' + placeName(place - 1) + '. How many times as much does ' + who + ' have?',
+            'How many times as much as ' + UP.comma(small) + ' is ' + UP.comma(big) + '?'],
+          mcQ: 'How many times as much as ' + UP.comma(small) + ' is ' + UP.comma(big) + '?',
+          judgeQ: 'Is ' + UP.comma(big) + ' ' + '{e}' + ' times as much as ' + UP.comma(small) + '?',
           b: 0.3
         });
       },
       function () {                       /* expanded form story */
         var d = lvlDigits(rng, lvl, 3, 5);
-        var n = BC.nDigits(rng, d), s = String(n);
-        var parts = [], i;
-        for (i = 0; i < s.length; i++) if (+s.charAt(i)) parts.push(s.charAt(i) + UP.comma(Math.pow(10, s.length - 1 - i)));
+        var n = BC.nDigits(rng, d);
+        var parts = UP.expanded(n);
+        if (parts.length < 2) return null;
         return calc(rng, {
-          expr: parts.join(' + '),
+          expr: parts.map(function (q) { return q.text; }).join(' + '),
           spec: { k: 'n', v: n },
-          steps: parts.slice(0, 3).concat(['Add the parts together.']),
+          steps: parts.slice(0, 3).map(function (q) { return q.d + ' × ' + UP.comma(q.v / q.d) + ' = ' + q.text; })
+            .concat(['Add the parts together.']),
           wrongs: UP.slips(n, UP.placeSlip(n, 2)),
           teach: 'Expanded form is the same number written one place at a time.',
           b: 0.1
@@ -21102,6 +21171,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'Round by finding the two benchmarks in that place, then go to the nearer one; a 5 in the next digit sends it up.',
           qs: ['Round {e} to the nearest ' + placeWord(place) + '.', 'What is {e} to the nearest ' + placeWord(place) + '?',
             'Nearest ' + placeWord(place) + ': {e}'],
+          /* the printed number is NOT equal to the rounded one, so the judgment
+             and choice cards must say which relationship they are asking about */
+          mcQ: 'Which number is ' + UP.comma(n) + ' rounded to the nearest ' + placeWord(place) + '?',
+          judgeQ: 'Is ' + UP.comma(n) + ' rounded to the nearest ' + placeWord(place) + ' equal to {e}?',
           b: 0
         });
       },
@@ -21145,6 +21218,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           visual: V.table(head, table),
           qs: ['The table rounds to the nearest ' + placeWord(place) + '. What is the missing output?',
             'Complete the rounding table for {e}.'],
+          mcQ: 'Which value completes the rounding table?',
+          judgeQ: 'Is the missing output {e}?',
           b: 0.4
         });
       },
@@ -21255,11 +21330,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {                       /* which is the better estimate */
         var d = lvlDigits(rng, lvl, 3, 5);
         var f = isAdd ? drawAdd(rng, lvl, d, null) : drawSub(rng, lvl, d, null);
-        var est = Math.round(f.ans / 100) * 100;
-        var wrongs = [est + 100, est - 100, Math.round(f.ans / 1000) * 1000 + 100];
-        return UP.mc(rng, 'Which is the best estimate for ' + UP.comma(f.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f.b) + '?',
-          String(est), wrongs.filter(function (v) { return v !== est; }).map(String), {
-          teach: 'Round each number to the same place first, then compute with the rounded numbers.',
+        /* the estimate the card grades is the rounded-fact value, and the rule
+           is printed; the options are checked so exactly one is closest */
+        var p = Math.pow(10, Math.max(1, d - 2));
+        var ra = Math.round(f.a / p) * p, rb = Math.round(f.b / p) * p;
+        if (ra < p || rb < p) return null;
+        var est = isAdd ? ra + rb : ra - rb;
+        if (est <= 0) return null;
+        var exact = f.ans;
+        var opts = [est, est + p, est - p, Math.round(exact / (p * 10)) * p * 10];
+        var seen = {}, keep = [];
+        opts.forEach(function (v) { if (!seen[v] && v > 0) { seen[v] = 1; keep.push(v); } });
+        if (keep.length < 3 || keep[0] !== est) return null;
+        var dist = keep.map(function (v) { return Math.abs(v - exact); });
+        var best = Math.min.apply(null, dist);
+        if (dist.filter(function (v) { return v === best; }).length !== 1) return null;
+        return UP.mc(rng, 'Which is the best estimate for ' + UP.comma(f.a) + (isAdd ? ' + ' : ' − ') + UP.comma(f.b) + ' after rounding to the nearest ' + (p === 10 ? 'ten' : p === 100 ? 'hundred' : 'thousand') + '?',
+          String(est), keep.slice(1).map(String), {
+          steps: ['Round ' + UP.comma(f.a) + ' to ' + UP.comma(ra) + ' and ' + UP.comma(f.b) + ' to ' + UP.comma(rb) + '.',
+            UP.comma(ra) + (isAdd ? ' + ' : ' − ') + UP.comma(rb) + ' = ' + UP.comma(est) + '.'],
+          teach: 'Round every number to the same place first, then compute with the rounded numbers.',
           b: 0.3
         });
       },
@@ -21295,68 +21385,259 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     ]);
   });
 
-  /* ---- estimation ------------------------------------------------------- */
+  /* ---- estimation -------------------------------------------------------
+   * An estimate is only right relative to a stated rule, so every card below
+   * names the rounding it wants and grades the value that rule produces.
+   *
+   * The first version printed "Estimate 4,317 + 2,148", graded 6,400, listed
+   * the exact sum 6,465 as a WRONG answer, and its Yes/No form asked the
+   * learner to agree that "4,317 + 2,148 = 6,400" was TRUE — arithmetic the
+   * card invented. Its product and quotient forms graded numbers that were
+   * never printed at all, and a card for "Estimate sums" could draw a division
+   * problem because the operation was decided after the draw.
+   *
+   * Here the operation comes from the skill title, the rule is printed on the
+   * card, and every judgment form states the exact value inside its steps.
+   */
+  var PLACE_WORD = { 10: 'ten', 100: 'hundred', 1000: 'thousand', 10000: 'ten thousand' };
+  function placeWord(p) { return PLACE_WORD[p] || 'hundred'; }
+  function rnd(x, p) { return Math.round(x / p) * p; }
+  function opSym(kind) { return kind === 'sub' ? ' − ' : kind === 'mul' ? ' × ' : kind === 'div' ? ' ÷ ' : ' + '; }
+  function opWord(kind) { return kind === 'sub' ? 'subtract' : kind === 'mul' ? 'multiply' : 'add'; }
+
+  /* two numbers rounded to the same place, the drawn fact the card prints */
+  function roundPair(rng, lvl, kind) {
+    var d = lvlDigits(rng, lvl, 3, 5);
+    var p = Math.pow(10, Math.max(1, d - 2));
+    var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
+    var ra = rnd(a, p), rb = rnd(b, p);
+    if (ra < p || rb < p) return null;
+    if (kind === 'sub' && ra <= rb) {
+      var sw = a; a = b; b = sw;
+      var sw2 = ra; ra = rb; rb = sw2;
+    }
+    var est = kind === 'sub' ? ra - rb : ra + rb;
+    var exact = kind === 'sub' ? a - b : a + b;
+    if (est <= 0 || exact <= 0) return null;
+    return { a: a, b: b, ra: ra, rb: rb, est: est, exact: exact, p: p };
+  }
+  /* a dividend whose nearest hundred the divisor divides exactly */
+  function compatible(rng) {
+    var m = BC.int(rng, 10, 99), R = m * 100;
+    var divs = [2, 3, 4, 5, 6, 8].filter(function (k) { return R % k === 0; });
+    if (!divs.length) return null;
+    var k = BC.pick(rng, divs), q = R / k;
+    var delta = BC.int(rng, -49, 49);
+    if (!delta || rnd(R + delta, 100) !== R || R + delta < 1000) return null;
+    return { a: R + delta, R: R, k: k, q: q };
+  }
+
   UP.on(/^estimate (sums|differences|products|quotients)/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
-    var kind = /difference/.test(t) ? 'sub' : /product/.test(t) ? 'mul' : /quotient/.test(t) ? 'div' : 'add';
-    return UP.build(rng, [
-      function () {                       /* round then compute */
+    var want = [];
+    if (/sums/.test(t)) want.push('add');
+    if (/differences/.test(t)) want.push('sub');
+    if (/products/.test(t)) want.push('mul');
+    if (/quotients/.test(t)) want.push('div');
+    if (!want.length) want = ['add', 'sub', 'mul', 'div'];
+    var kind = BC.pick(rng, want);
+    var sym = opSym(kind);
+    var bigMul = /by 2-digit|by a 2-digit|multiply by 2/.test(t);
+    var cmpAsk = /compare quotients/.test(t);
+
+    /* ---------------- sums and differences -------------------------------- */
+    function roundForms() {
+      var teach = 'Estimate by rounding every number to the same place first, then do the easy problem.';
+      return [
+        function () {
+          var f = roundPair(rng, lvl, kind);
+          if (!f) return null;
+          var steps = ['Round ' + UP.comma(f.a) + ' to ' + UP.comma(f.ra) + ' and ' + UP.comma(f.b) + ' to ' + UP.comma(f.rb) + '.',
+            UP.comma(f.ra) + sym + UP.comma(f.rb) + ' = ' + UP.comma(f.est) + '.'];
+          var ask = BC.int(rng, 0, 2);
+          if (ask === 1) {
+            var who = BC.who(rng), other = BC.pick(rng, BC.WHO.filter(function (x) { return x !== who; }));
+            var obj = BC.thing(rng);
+            var story = kind === 'sub'
+              ? who + ' had ' + UP.comma(f.a) + ' ' + obj + ' and gave ' + UP.comma(f.b) + ' away. About how many are left?'
+              : who + ' collected ' + UP.comma(f.a) + ' ' + obj + ' and ' + other + ' collected ' + UP.comma(f.b) + '. About how many are there in all?';
+            return I_num(story + '  Round to the nearest ' + placeWord(f.p) + '.', f.est, {
+              explain: BC.last(steps, UP.comma(f.est)), teach: teach, b: 0.2
+            });
+          }
+          if (ask === 2) {
+            var wrongs = [UP.comma(f.exact), UP.comma(f.est + f.p), UP.comma(f.est - f.p)]
+              .filter(function (w) { return w !== UP.comma(f.est); });
+            return UP.mc(rng, 'Which is the estimate for ' + UP.comma(f.a) + sym + UP.comma(f.b) + ' after rounding each number to the nearest ' + placeWord(f.p) + '?',
+              UP.comma(f.est), wrongs, { steps: steps, teach: teach, b: 0.1 });
+          }
+          return I_num('Estimate.  Round each number to the nearest ' + placeWord(f.p) + ', then ' + opWord(kind) + '.   ' + UP.comma(f.a) + sym + UP.comma(f.b),
+            f.est, { explain: BC.last(steps, UP.comma(f.est)), teach: teach, b: 0 });
+        },
+
+        function () {                       /* closest estimate — one option wins */
+          var f = roundPair(rng, lvl, kind);
+          if (!f) return null;
+          var opts = [f.est, f.est + f.p, f.est - f.p, rnd(f.exact, f.p * 10)];
+          var seen = {}, keep = [];
+          opts.forEach(function (v) { if (!seen[v] && v > 0) { seen[v] = 1; keep.push(v); } });
+          if (keep.length < 3 || keep[0] !== f.est) return null;
+          var dist = keep.map(function (v) { return Math.abs(v - f.exact); });
+          var best = Math.min.apply(null, dist);
+          if (dist.filter(function (d0) { return d0 === best; }).length !== 1) return null;
+          return UP.mc(rng, 'Which is the closest estimate for ' + UP.comma(f.a) + sym + UP.comma(f.b) + '?',
+            UP.comma(f.est), keep.slice(1).map(function (v) { return UP.comma(v); }), {
+            steps: ['Work out the exact answer: ' + UP.comma(f.a) + sym + UP.comma(f.b) + ' = ' + UP.comma(f.exact) + '.',
+              'Compare each choice with ' + UP.comma(f.exact) + '; the smallest distance wins.'],
+            teach: 'The closest estimate is the choice with the smallest distance to the exact answer.',
+            b: 0.3
+          });
+        },
+
+        function () {                       /* reasonable or not, judged on size */
+          var f = roundPair(rng, lvl, kind);
+          if (!f) return null;
+          var slips = [f.est * 10, Math.round(f.est / 10), f.est + f.p * 100]
+            .filter(function (s) { return s > 0 && s !== f.est && s !== f.exact; });
+          var slip = slips.length ? BC.pick(rng, slips) : 0;
+          var useLie = slip > 0 && R.chance(rng, 0.5) && Math.abs(slip - f.exact) > f.p * 4;
+          var claim = useLie ? slip : f.est;
+          var truth = !useLie;
+          return I_bool('Is ' + UP.comma(claim) + ' a reasonable answer for ' + UP.comma(f.a) + sym + UP.comma(f.b) + '?', truth, {
+            explain: BC.last(['The exact answer is ' + UP.comma(f.exact) + '.',
+              'A reasonable estimate has the same size as ' + UP.comma(f.exact) + '.',
+              'The statement says ' + UP.comma(claim) + ', which is ' + (truth ? 'the same size' : 'a different size entirely') + '.'],
+              truth ? 'Yes' : 'No'),
+            teach: 'A reasonable estimate has the same size as the exact answer; a place-value slip does not.',
+            b: 0.4
+          });
+        },
+
+        function () {                       /* exact value vs the rounded result */
+          var f = roundPair(rng, lvl, kind);
+          if (!f) return null;
+          var more = f.exact > f.est;
+          if (f.exact === f.est) return null;
+          return I_bool('Rounded to the nearest ' + placeWord(f.p) + ':  ' + UP.comma(f.ra) + sym + UP.comma(f.rb) + ' = ' + UP.comma(f.est) + '.  Is the exact value of ' + UP.comma(f.a) + sym + UP.comma(f.b) + ' greater than ' + UP.comma(f.est) + '?',
+            more, {
+            explain: BC.last(['Rounded: ' + UP.comma(f.ra) + sym + UP.comma(f.rb) + ' = ' + UP.comma(f.est) + '.',
+              'Exact: ' + UP.comma(f.a) + sym + UP.comma(f.b) + ' = ' + UP.comma(f.exact) + '.',
+              UP.comma(f.exact) + (more ? ' is greater than ' : ' is less than ') + UP.comma(f.est) + '.'],
+              more ? 'Yes' : 'No'),
+            teach: 'Compare the exact answer with the rounded one; rounding down makes the estimate too small.',
+            b: 0.5
+          });
+        }
+      ];
+    }
+
+    /* ---------------- products -------------------------------------------- */
+    function productForms() {
+      var teach = 'Estimate a product by rounding the factors to their highest places, then multiply the easy numbers.';
+      function draw() {
         var d = lvlDigits(rng, lvl, 3, 5);
-        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
-        var place = Math.max(1, d - 2);
-        var ra = Math.round(a / Math.pow(10, place)) * Math.pow(10, place);
-        var rb = Math.round(b / Math.pow(10, place)) * Math.pow(10, place);
-        if (ra === 0 || rb === 0) return null;
-        var ans, exact;
-        if (kind === 'sub') { if (rb > ra) { var tm = ra; ra = rb; rb = tm; } ans = ra - rb; exact = a - b; }
-        else if (kind === 'add') { ans = ra + rb; exact = a + b; }
-        else if (kind === 'mul') { ans = ra * BC.int(rng, 2, 9); exact = a * BC.int(rng, 2, 9); ans = exact; }
-        else { var k = BC.int(rng, 2, 9); ans = Math.round(exact = Math.round(a / k) * k) ; }
-        return calc(rng, {
-          expr: UP.comma(a) + (kind === 'sub' ? ' − ' : kind === 'mul' ? ' × ' : kind === 'div' ? ' ÷ ' : ' + ') + UP.comma(b),
-          spec: { k: 'n', v: ans },
-          steps: ['Round ' + UP.comma(a) + ' to ' + UP.comma(ra) + '.',
-            'Round ' + UP.comma(b) + ' to ' + UP.comma(rb) + '.',
-            UP.comma(ra) + (kind === 'sub' ? ' − ' : kind === 'add' ? ' + ' : ' × ') + UP.comma(rb) + ' = ' + UP.comma(ans)],
-          wrongs: UP.slips(ans, [exact]),
-          teach: 'Estimate by rounding each number to the same place, then compute with the rounded numbers.',
-          qs: ['Estimate {e}.', 'What is the best estimate for {e}?', 'About how much is {e}?'],
-          b: 0
-        });
-      },
-      function () {                       /* which estimate is closest */
-        var d = lvlDigits(rng, lvl, 3, 5);
-        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
-        var exact = kind === 'sub' ? (a > b ? a - b : b - a) : a + b;
-        var est = Math.round(exact / 100) * 100;
-        var opts = [String(est), String(est + 100), String(est - 100), String(Math.round(exact / 1000) * 1000)];
-        var seen = {}, keep = [];
-        opts.forEach(function (v) { if (!seen[v] && +v > 0) { seen[v] = 1; keep.push(v); } });
-        if (keep.length < 3) return null;
-        return UP.mc(rng, 'Which is the closest estimate for ' + UP.comma(a) + (kind === 'sub' ? ' − ' : ' + ') + UP.comma(b) + '?',
-          String(est), keep.filter(function (v) { return v !== String(est); }), {
-          teach: 'The closest estimate is the one with the smallest distance to the exact answer.',
-          b: 0.2
-        });
-      },
-      function () {                       /* reasonable or not */
-        var d = lvlDigits(rng, lvl, 3, 4);
-        var a = BC.nDigits(rng, d), b = BC.nDigits(rng, Math.max(1, d - 1));
-        var exact = kind === 'sub' ? Math.abs(a - b) : a + b;
-        var claim = exact * BC.pick(rng, [10, 1, 1]);
-        var truth = claim === exact;
-        return calc(rng, {
-          expr: UP.comma(a) + (kind === 'sub' ? ' − ' : ' + ') + UP.comma(b),
-          spec: { k: 'bool', v: truth },
-          steps: ['Rounding both numbers to the nearest hundred gives an answer near ' + UP.comma(Math.round(exact / 100) * 100) + '.',
-            'The statement says ' + UP.comma(claim) + '.'],
-          teach: 'A reasonable estimate has the same size and the same first digits as the exact answer.',
-          qs: ['Is ' + UP.comma(claim) + ' a reasonable answer for {e}?'],
-          b: 0.4
-        });
+        var a = BC.nDigits(rng, d);
+        var pa = Math.pow(10, Math.max(1, d - 2));
+        var ra = rnd(a, pa);
+        if (ra < pa) return null;
+        var k, rk;
+        if (bigMul) {
+          k = BC.int(rng, 11, 99); rk = rnd(k, 10);
+          if (rk < 10 || rk === k) return null;
+        } else {
+          k = BC.int(rng, 2, 9); rk = k;
+        }
+        return { a: a, ra: ra, k: k, rk: rk, pa: pa, est: ra * rk, exact: a * k };
       }
-    ]);
+      /* the rule the card prints, and the arithmetic that rule produces */
+      function rule(f) {
+        return 'Round ' + UP.comma(f.a) + ' to the nearest ' + placeWord(f.pa) +
+          (bigMul ? ' and ' + f.k + ' to the nearest ten' : '') + '.';
+      }
+      function steps(f) {
+        return [rule(f) + '  ' + UP.comma(f.a) + ' → ' + UP.comma(f.ra) + (bigMul ? ', ' + f.k + ' → ' + f.rk + '.' : '.'),
+          UP.comma(f.ra) + ' × ' + f.rk + ' = ' + UP.comma(f.est) + '.'];
+      }
+      return [
+        function () {
+          var f = draw();
+          if (!f) return null;
+          return I_num('Estimate ' + UP.comma(f.a) + ' × ' + f.k + '.  ' + rule(f), f.est,
+            { explain: BC.last(steps(f), UP.comma(f.est)), teach: teach, b: 0 });
+        },
+        function () {
+          var f = draw();
+          if (!f) return null;
+          var wrongs = [UP.comma(f.exact), UP.comma(f.ra * (f.rk + (bigMul ? 10 : 1))), UP.comma(f.ra * Math.max(1, f.rk - (bigMul ? 10 : 1)))]
+            .filter(function (w) { return w !== UP.comma(f.est); });
+          if (wrongs.length < 2) return null;
+          return UP.mc(rng, 'Which is the best estimate for ' + UP.comma(f.a) + ' × ' + f.k + ' after rounding each factor?',
+            UP.comma(f.est), wrongs, { steps: steps(f), teach: teach, b: 0.2 });
+        },
+        function () {
+          var f = draw();
+          if (!f) return null;
+          var who = BC.who(rng), obj = BC.thing(rng);
+          return I_num(who + ' filled ' + UP.comma(f.a) + ' boxes with ' + f.k + ' ' + obj + ' in each box. About how many ' + obj + ' did ' + who + ' use?  ' + rule(f),
+            f.est, { explain: BC.last(steps(f), UP.comma(f.est)), teach: teach, b: 0.3 });
+        }
+      ];
+    }
+
+    /* ---------------- quotients ------------------------------------------- */
+    function quotientForms() {
+      var teach = 'Estimate a quotient by replacing the dividend with a compatible number it rounds to that the divisor divides exactly.';
+      function stepsOf(f) {
+        return ['Round ' + UP.comma(f.a) + ' to ' + UP.comma(f.R) + ', a compatible number for ' + f.k + '.',
+          UP.comma(f.R) + ' ÷ ' + f.k + ' = ' + UP.comma(f.q) + '.'];
+      }
+      return [
+        function () {
+          var f = compatible(rng);
+          if (!f) return null;
+          return I_num('Estimate ' + UP.comma(f.a) + ' ÷ ' + f.k + '.  Round the dividend to the nearest hundred first.',
+            f.q, { explain: BC.last(stepsOf(f), UP.comma(f.q)), teach: teach, b: 0.1 });
+        },
+        function () {
+          var f = compatible(rng);
+          if (!f) return null;
+          var wrongs = [UP.comma(f.R), UP.comma(f.q * 10), UP.comma(Math.max(1, f.q - 100))]
+            .filter(function (w) { return w !== UP.comma(f.q); });
+          if (wrongs.length < 2) return null;
+          return UP.mc(rng, 'Which is the best estimate for ' + UP.comma(f.a) + ' ÷ ' + f.k + '?', UP.comma(f.q), wrongs,
+            { steps: stepsOf(f), teach: teach, b: 0.3 });
+        },
+        function () {                       /* compare two estimates, same order exactly */
+          var a1 = compatible(rng), a2 = compatible(rng);
+          if (!a1 || !a2) return null;
+          if (Math.abs(a1.q - a2.q) < 100) return null;
+          var e1 = a1.a / a1.k, e2 = a2.a / a2.k;
+          if ((e1 > e2) !== (a1.q > a2.q)) return null;      /* estimate and exact must agree */
+          var prompt = 'Estimate each quotient with compatible numbers, then choose >, < or =.   '
+            + UP.comma(a1.a) + ' ÷ ' + a1.k + '  ○  ' + UP.comma(a2.a) + ' ÷ ' + a2.k;
+          return I_cmp(prompt, a1.q, a2.q, {
+            explain: BC.last(['Round ' + UP.comma(a1.a) + ' to ' + UP.comma(a1.R) + ': ' + UP.comma(a1.R) + ' ÷ ' + a1.k + ' = ' + UP.comma(a1.q) + '.',
+              'Round ' + UP.comma(a2.a) + ' to ' + UP.comma(a2.R) + ': ' + UP.comma(a2.R) + ' ÷ ' + a2.k + ' = ' + UP.comma(a2.q) + '.',
+              UP.comma(a1.q) + ' and ' + UP.comma(a2.q) + ' compare as ' + (a1.q > a2.q ? '>' : '<') + '.'],
+              a1.q > a2.q ? '>' : '<'),
+            teach: 'Estimate each quotient first, then compare the two estimates.',
+            b: 0.5
+          });
+        },
+        function () {
+          var f = compatible(rng);
+          if (!f) return null;
+          var who = BC.who(rng), obj = BC.thing(rng);
+          return I_num(who + ' shares ' + UP.comma(f.a) + ' ' + obj + ' equally among ' + f.k + ' classes. About how many does each class get?  Round the dividend to the nearest hundred.',
+            f.q, { explain: BC.last(stepsOf(f), UP.comma(f.q)), teach: teach, b: 0.2 });
+        }
+      ];
+    }
+
+    var pool = cmpAsk ? quotientForms() : kind === 'mul' ? productForms() : kind === 'div' ? quotientForms() : roundForms();
+    return UP.build(rng, pool);
   });
+
 
   /* ---- properties of the operations ------------------------------------- */
   UP.on(/^properties of (addition|multiplication|division)/, function (rng, lvl, p, sk) {
@@ -21474,6 +21755,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'Only one ten could be carried, so the carried digit is 1.'],
           wrongs: [0, 2, 10],
           teach: 'A column that reaches ten or more carries exactly one into the next column.',
+          qs: ['Working in columns: ' + a + ' + ' + b + ' = ' + (a + b) + '. How much is carried into the next column?',
+            'In the sum ' + a + ' + ' + b + ' = ' + (a + b) + ', which digit is carried?'],
+          mcQ: 'In ' + a + ' + ' + b + ' = ' + (a + b) + ', how much is carried into the next column?',
           b: -0.2
         });
       },
@@ -21559,7 +21843,1233 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: ['One number is ' + UP.comma(one) + '.', UP.comma(sum) + ' − ' + UP.comma(one) + ' = ' + UP.comma(other)],
           wrongs: UP.slips(other, [sum]),
           teach: 'Given the sum and one addend, subtract to find the other.',
+          qs: ['Two numbers add to ' + UP.comma(sum) + ' and one of them is ' + UP.comma(one) + '. What is the other?',
+            'One addend of ' + UP.comma(sum) + ' is ' + UP.comma(one) + '. Find the other.'],
+          mcQ: 'Which number goes with ' + UP.comma(one) + ' to make ' + UP.comma(sum) + '?',
+          judgeQ: 'Does ' + UP.comma(one) + ' + {e} = ' + UP.comma(sum) + '?',
           b: 0.3
+        });
+      }
+    ]);
+  });
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 98-gen-fam-band-o1-fractions.js — the FRACTION handlers for the upper bands.
+ *
+ * Fractions are where the catalogue's family classifier stops being useful:
+ * "Add fractions with like denominators using area models" is filed under
+ * addFacts, "Find the range" under functions. The title is the standard, so
+ * every handler here is registered on UP by title and draws the mathematics
+ * the title asks for — an area model when the title says area models, a number
+ * line when it says number lines, a recipe when it says recipes.
+ *
+ * Difficulty is structural, per CONTRACT §4:
+ *   lvl 1-2  denominators under 8, answers inside one whole, models shown
+ *   lvl 3    the standard case, denominators to 12, answers may pass one whole
+ *   lvl 4-5  mixed numbers, regrouping, multi-step, reverse asks, judgment
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var BC = GLOB.BC, UP = GLOB.UP;
+  var R = GLOB.R;
+  var I_NUM = GLOB.I_num, I_FRAC = GLOB.I_frac, I_CHOICE = GLOB.I_choice, I_CMP = GLOB.I_cmp,
+    I_BOOL = GLOB.I_bool, I_STR = GLOB.I_str, I_PARTS = GLOB.I_parts;
+
+  /* ------------------------------------------------ fraction drawing ------- */
+  var DEN = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  function denFor(rng, lvl) {
+    if (lvl <= 2) return BC.pick(rng, [2, 3, 4, 5, 6, 8]);
+    if (lvl === 3) return BC.pick(rng, [3, 4, 5, 6, 8, 10, 12]);
+    return BC.pick(rng, DEN);
+  }
+  /* a proper fraction, reduced, never 0/ d */
+  function frac(rng, lvl, d) {
+    d = d || denFor(rng, lvl);
+    var n = BC.int(rng, 1, d - 1);
+    var g = gcd(n, d);
+    return { n: n, d: d, rn: n / g, rd: d / g, v: n / d };
+  }
+  function unitFrac(rng, lvl, d) {
+    d = d || denFor(rng, lvl);
+    return { n: 1, d: d, rn: 1, rd: d, v: 1 / d };
+  }
+  /* a mixed number with a proper fraction part */
+  function mixed(rng, lvl) {
+    var d = denFor(rng, lvl), w = BC.int(rng, 1, lvl >= 4 ? 6 : 3), n = BC.int(rng, 1, d - 1);
+    return { w: w, n: n, d: d, imp: w * d + n, v: w + n / d };
+  }
+  function frText(n, d) { var r = reduce(n, d); return r.d === 1 ? String(r.n) : r.n + '/' + r.d; }
+  function frWords(n, d) { return n + '⁄' + d; }
+  function mixedText(w, n, d) { return w + ' ' + n + '⁄' + d; }
+
+  /* two fractions sharing a numerator or a denominator (4.NF.2 shape) */
+  function frPair(rng, lvl, mode) {
+    var d = denFor(rng, lvl), a, b, guard = 0;
+    do {
+      if (mode === 'den') { a = { n: BC.int(rng, 1, d - 1), d: d }; b = { n: BC.int(rng, 1, d - 1), d: d }; }
+      else if (mode === 'num') { var n = BC.int(rng, 1, 6); var d2 = denFor(rng, lvl); a = { n: n, d: d }; b = { n: n, d: d2 }; }
+      else { a = { n: BC.int(rng, 1, 9), d: denFor(rng, lvl) }; b = { n: BC.int(rng, 1, 9), d: denFor(rng, lvl) }; }
+      guard++;
+    } while (Math.abs(a.n / a.d - b.n / b.d) < 1e-9 && guard < 40);
+    a.v = a.n / a.d; b.v = b.n / b.d;
+    return { a: a, b: b };
+  }
+
+  /* ------------------------------------------------ card builders ---------- */
+  /* A fraction card is built directly. BC.card's equality framings ("is A = v
+     true", "which value is closest to A") were written for whole numbers and
+     quietly assert things like 2/8 + 3/8 = 5/16. */
+  function ask(rng, prompt, n, d, o) {
+    o = o || {};
+    return I_FRAC(prompt, n, d, {
+      sub: o.sub, visual: o.visual, unit: o.unit, simplest: o.simplest,
+      answerText: o.answerText || (o.typed ? frText(n, d) : mixedStr(n, d)),
+      explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0, mis: o.mis
+    });
+  }
+  function choose(rng, prompt, answer, wrongs, o) {
+    o = o || {};
+    var str = String(answer);
+    /* An option that is equivalent to the answer would be a second correct
+       choice: 18/48 and 24/64 are the same amount even though they look
+       different, and the grader is right to refuse the card. */
+    var pool = [], seen = {};
+    (wrongs || []).forEach(function (w) {
+      w = String(w);
+      if (w === str || seen[w]) return;
+      try { if (strEquiv(w, str)) return; } catch (e) { }
+      seen[w] = 1; pool.push(w);
+    });
+    if (pool.length < 2) return null;
+    return UP.mc(rng, prompt, str, pool.slice(0, 3), {
+      steps: o.steps, explain: o.explain, teach: o.teach, visual: o.visual, b: o.b || 0
+    });
+  }
+  /* prompt variety: the same fact asked in several ways keeps a skill from
+     collapsing into one card shape after the digits are ignored */
+  function lead(rng, arr) { return BC.pick(rng, arr); }
+  function yes(rng) { return R.chance(rng, 0.5); }
+  function judge(prompt, truth, o) {
+    o = o || {};
+    return I_BOOL(prompt, !!truth, {
+      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function compare(prompt, a, b, o) {
+    o = o || {};
+    return I_CMP(prompt, a, b, {
+      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+
+  /* -------------------------------------------------- shared contexts ------ */
+  var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
+  var FOOD = ['pizza', 'candy bar', 'loaf of bread', 'pan of brownies', 'bag of popcorn', 'pie', 'chocolate bar'];
+  var KID = ['swimming', 'reading', 'soccer', 'drawing', 'biking', 'chess', 'gardening'];
+  function who(rng) { return BC.pick(rng, WHO); }
+  function other(rng, not) { var pool = WHO.filter(function (x) { return x !== not; }); return BC.pick(rng, pool); }
+
+  function fracSum(a, b) {
+    var d = a.d === b.d ? a.d : a.d * b.d;
+    var n = a.d === b.d ? a.n + b.n : a.n * (d / a.d) + b.n * (d / b.d);
+    var r = reduce(n, d);
+    return { n: n, d: d, rn: r.n, rd: r.d, v: n / d };
+  }
+  function fracSub(a, b) {
+    var d = a.d === b.d ? a.d : a.d * b.d;
+    var n = a.d === b.d ? a.n - b.n : a.n * (d / a.d) - b.n * (d / b.d);
+    var r = reduce(n, d);
+    return { n: n, d: d, rn: r.n, rd: r.d, v: n / d };
+  }
+  function lcm(a, b) { return a * b / gcd(a, b); }
+  /* the same fraction written on a different denominator */
+  function onDen(rng, f, d2) {
+    var k = d2 / f.d;
+    return { n: f.n * k, d: d2, v: f.v };
+  }
+
+  /* ======================================================================= */
+  /* ============  FRACTION MEANING  (T.1, T.2, T.10, U.2)  ================= */
+  /* ======================================================================= */
+  UP.on(/^fractions of a (whole|group)/, function (rng, lvl, p, sk) {
+    var group = /group/.test(UP.t(sk));
+    return UP.build(rng, [
+      function () {                       /* how much of the whole is shaded */
+        var d = denFor(rng, lvl), n = BC.int(rng, 1, d - 1);
+        return ask(rng, 'A ' + BC.pick(rng, FOOD) + ' is cut into ' + d + ' equal parts. ' + n + ' parts are ' +
+          BC.pick(rng, ['eaten', 'shared', 'given away', 'left']) + '. What fraction is it?', n, d, {
+          visual: V.frac({ n: n, d: d }),
+          explain: ['The whole is ' + d + ' equal parts, so each part is 1/' + d + '.', n + ' of those parts are ' + n + '/' + d + '.'],
+          teach: 'The denominator counts the equal parts of one whole; the numerator counts the parts you have.',
+          b: -0.2
+        });
+      },
+      function () {                       /* a group: how many objects */
+        var d = denFor(rng, lvl), total = d * BC.int(rng, 2, lvl >= 4 ? 8 : 4);
+        var n = BC.int(rng, 1, d - 1);
+        var ans = total / d * n;
+        var w = who(rng);
+        return I_NUM(w + ' has ' + total + ' ' + BC.pick(rng, ['marbles', 'stickers', 'pencils', 'shells']) +
+          '. ' + n + '/' + d + ' of them are ' + BC.pick(rng, ['blue', 'dented', 'spotted', 'winning']) + '. How many are?',
+          ans, {
+          visual: V.array(total / d, d, {}),
+          explain: ['Split ' + total + ' into ' + d + ' equal groups: ' + total + ' ÷ ' + d + ' = ' + (total / d) + '.',
+            n + ' of those groups is ' + (total / d) + ' × ' + n + ' = ' + ans + '.'],
+          teach: 'A fraction of a group means dividing the group into that many equal parts and taking the numerator worth.',
+          b: 0.1
+        });
+      },
+      function () {                       /* which picture shows the fraction */
+        var d = denFor(rng, lvl), n = BC.int(rng, 1, d - 1);
+        var wrongs = [];
+        for (var i = 0; i < 3; i++) {
+          var dn = BC.pick(rng, DEN), nn = BC.int(rng, 1, dn - 1);
+          if (nn / dn !== n / d) wrongs.push(nn + '/' + dn);
+        }
+        return choose(rng, 'Which fraction names the shaded part?', n + '/' + d, wrongs, {
+          visual: V.frac({ n: n, d: d }),
+          steps: ['Count the equal parts: ' + d + '.', 'Count the shaded parts: ' + n + '.', 'So the fraction is ' + n + '/' + d + '.'],
+          teach: 'Shaded parts over total equal parts is the fraction of the whole.',
+          b: -0.3
+        });
+      },
+      function () {                       /* is this fraction under or over one */
+        var d = denFor(rng, lvl), n = BC.int(rng, 1, d * (lvl >= 4 ? 2 : 1));
+        var claim = BC.int(rng, 1, 3);
+        var truth = n >= claim * d;
+        return judge('Is ' + n + '/' + d + ' at least ' + claim + ' whole' + (claim > 1 ? 's' : '') + '?', truth, {
+          visual: V.frac({ n: n, d: d }),
+          explain: [d + '/' + d + ' makes one whole.', n + ' ÷ ' + d + ' = ' + Math.floor(n / d) + ' whole(s) with ' + (n % d) + ' left over.',
+            'So ' + n + '/' + d + (truth ? ' reaches ' : ' does not reach ') + claim + ' whole(s).'],
+          teach: 'Compare the numerator with the denominator: a fraction is one whole when the numerator equals the denominator.',
+          b: 0.4
+        });
+      },
+      function () {                       /* story: fraction of time spent */
+        var d = denFor(rng, lvl), n = BC.int(rng, 1, d - 1);
+        var mins = d * BC.pick(rng, [10, 15, 30]);
+        var w = who(rng);
+        return I_NUM(w + ' practiced ' + BC.pick(rng, KID) + ' for ' + mins + ' minutes and spent ' + n + '/' + d + ' of that time warming up. How many minutes was the warm-up?',
+          mins / d * n, {
+          explain: ['One part of the time is ' + mins + ' ÷ ' + d + ' = ' + (mins / d) + ' minutes.',
+            n + ' parts is ' + (mins / d) + ' × ' + n + ' = ' + (mins / d * n) + ' minutes.'],
+          teach: 'Finding a fraction of a number means dividing by the denominator first, then multiplying by the numerator.',
+          b: 0.3
+        });
+      }
+    ]);
+  });
+
+  UP.on(/denominators of 10 and 100/, function (rng, lvl, p, sk) {
+    var dec = UP.has(sk, /^fractions and mixed numbers|^fractions with denominators/);
+    return UP.build(rng, [
+      function () {                       /* tenths → hundredths equivalence */
+        var n = BC.int(rng, 1, 9), d = 10;
+        return ask(rng, 'Write ' + n + '/10 as an equivalent fraction with a denominator of 100.', n * 10, 100, {
+          answerText: n * 10 + '/100',
+          visual: V.frac({ n: n, d: 10 }),
+          explain: ['Each tenth splits into ' + 10 + ' hundredths.', n + ' × 10 = ' + (n * 10) + ', on top of 100.'],
+          teach: 'Multiply numerator and denominator by the same number and the fraction does not change.',
+          b: -0.2
+        });
+      },
+      function () {                       /* hundredths → tenths */
+        var n = BC.int(rng, 1, 9) * 10 + BC.int(rng, 0, 0);
+        if (n % 10) return null;
+        return ask(rng, 'Write ' + n + '/100 in tenths.', n / 10, 10, {
+          answerText: (n / 10) + '/10',
+          visual: V.frac({ n: n, d: 100 }),
+          explain: [n + '/100 means ' + n + ' pieces of one hundredth.', 'Ten hundredths make one tenth, so divide by 10: ' + (n / 10) + '/10.'],
+          teach: 'Dividing numerator and denominator by the same number gives an equivalent fraction.',
+          b: 0.1
+        });
+      },
+      function () {                       /* mixed with denominator 100 */
+        var w = BC.int(rng, 1, 4), n = BC.int(rng, 1, 99);
+        return ask(rng, 'Write ' + w + ' ' + n + '/100 as an improper fraction.', w * 100 + n, 100, {
+          answerText: (w * 100 + n) + '/100',
+          explain: [w + ' whole is ' + w * 100 + '/100.', w * 100 + ' + ' + n + ' = ' + (w * 100 + n) + ' hundredths.'],
+          teach: 'One whole with denominator 100 is 100/100, so whole parts convert by multiplying by 100.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which is bigger: 7/10 or 70/100 */
+        var n = BC.int(rng, 1, 9);
+        var a = { n: n, d: 10 }, b = { n: n * 10 + BC.int(rng, 0, 9), d: 100 };
+        if (a.v === b.v) return null;
+        return compare('Which is greater, ' + n + '/10 or ' + b.n + '/100?', a.v, b.v, {
+          visual: V.frac([{ n: n, d: 10 }, { n: b.n, d: 100 }]),
+          explain: ['Write ' + n + '/10 as ' + (n * 10) + '/100.', 'Now compare ' + (n * 10) + '/100 with ' + b.n + '/100.'],
+          teach: 'Fractions with denominators 10 and 100 compare easily once both are written in hundredths.',
+          b: 0.2
+        });
+      },
+      function () {                       /* shading a model */
+        var n = BC.int(rng, 10, 99);
+        return I_NUM('How many hundredths are shaded in a grid that shows ' + n + ' of its 100 squares shaded?', n, {
+          visual: V.grid({ rows: 10, cols: 10 }),
+          explain: ['One square is 1/100.', n + ' squares are ' + n + '/100, which is ' + n + ' hundredths.'],
+          teach: 'A 10 by 10 grid models hundredths: each small square is one hundredth.',
+          b: -0.3
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ==================  EQUIVALENT FRACTIONS  (T.3–T.11)  ================== */
+  /* ======================================================================= */
+  UP.on(/equivalent fraction|lowest terms|simplest form/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var missing = /missing numerator|missing denominator/.test(t);
+    var numberLine = /number line/.test(t);
+    var areaModel = /area model/.test(t);
+    var patterns = /patterns of equivalent/.test(t);
+    return UP.build(rng, [
+      function () {                       /* multiply both parts */
+        var f = frac(rng, lvl);
+        var k = BC.int(rng, 2, lvl >= 3 ? 8 : 4);
+        if (missing) {
+          var shown = { n: f.n * k, d: f.d * k };
+          var hideDen = R.chance(rng, 0.5);
+          var ans = hideDen ? f.d * k : f.n * k;
+          var prompt = hideDen
+            ? 'Complete the equivalent fraction.  ' + f.n + '/' + f.d + ' = ' + shown.n + '/?'
+            : 'Complete the equivalent fraction.  ' + f.n + '/' + f.d + ' = ?/' + shown.d;
+          return I_NUM(prompt, ans, {
+            visual: areaModel ? V.area(f.d, k, {}) : undefined,
+            explain: ['The denominator changed from ' + f.d + ' to ' + (hideDen ? shown.d : f.d * k) + ', which is × ' + k + '.',
+              'Do the same to the numerator: ' + f.n + ' × ' + k + ' = ' + ans + '.'],
+            teach: 'Equivalent fractions multiply (or divide) top and bottom by the same number.',
+            b: 0.3
+          });
+        }
+        var eq = f.n * k + '/' + f.d * k;
+        var wrongs = [f.n * k + '/' + f.d, f.n + '/' + f.d * k, (f.n + k) + '/' + (f.d + k)];
+        if (numberLine) {
+          return choose(rng, 'Which fraction is equivalent to ' + f.n + '/' + f.d + '?', eq, wrongs, {
+            visual: V.numline(0, 1, [{ x: f.v, label: f.n + '/' + f.d }], {}),
+            steps: ['Multiply top and bottom by ' + k + ': ' + f.n + ' × ' + k + ' = ' + (f.n * k) + ', ' + f.d + ' × ' + k + ' = ' + (f.d * k) + '.'],
+            teach: 'On a number line, equivalent fractions land on the same point.',
+            b: 0.1
+          });
+        }
+        return choose(rng, 'Which fraction is equivalent to ' + f.n + '/' + f.d + '?', eq, wrongs, {
+          visual: areaModel ? V.area(f.d, k, { label: '' }) : V.frac({ n: f.n, d: f.d }),
+          steps: ['Multiply numerator and denominator by ' + k + '.', f.n + ' × ' + k + ' = ' + (f.n * k) + ' and ' + f.d + ' × ' + k + ' = ' + (f.d * k) + '.'],
+          teach: 'Equivalent fractions name the same amount: the parts change, the value does not.',
+          b: 0
+        });
+      },
+
+      function () {                       /* divide both parts (lowest terms) */
+        var g = BC.int(rng, 2, 6);
+        var r = { n: BC.int(rng, 1, 8), d: BC.pick(rng, [3, 4, 5, 6, 7, 8, 9]) };
+        if (r.n >= r.d) r.n = BC.int(rng, 1, r.d - 1);
+        var n = r.n * g, d = r.d * g;
+        if (gcd(n, d) !== g) return null;
+        var wantLowest = /lowest terms|simplest/.test(t);
+        if (wantLowest) {
+          return ask(rng, 'Write ' + n + '/' + d + ' in lowest terms.', r.n, r.d, {
+            answerText: r.n + '/' + r.d, typed: true, simplest: true,
+            explain: ['The largest number that divides ' + n + ' and ' + d + ' is ' + g + '.', n + ' ÷ ' + g + ' = ' + r.n + ', ' + d + ' ÷ ' + g + ' = ' + r.d + '.'],
+            teach: 'Divide numerator and denominator by their greatest common factor until only 1 divides both.',
+            b: 0.2
+          });
+        }
+        var wrongs = [r.n + '/' + d, n + '/' + r.d, (n - 1) + '/' + (d - 1)];
+        return choose(rng, 'Which fraction is equivalent to ' + n + '/' + d + '?', r.n + '/' + r.d, wrongs, {
+          steps: ['Divide top and bottom by ' + g + '.', n + ' ÷ ' + g + ' = ' + r.n + ' and ' + d + ' ÷ ' + g + ' = ' + r.d + '.'],
+          teach: 'Dividing numerator and denominator by the same number keeps the value.',
+          b: 0.1
+        });
+      },
+
+      function () {                       /* identify: are these equivalent */
+        var f = frac(rng, lvl);
+        var k = BC.int(rng, 2, 6);
+        var eq = { n: f.n * k, d: f.d * k };
+        var lie = R.chance(rng, 0.5) ? { n: eq.n + BC.int(rng, 1, 3), d: eq.d } : { n: eq.n, d: eq.d + BC.pick(rng, [1, 2, 3]) };
+        var truth = lie.n / lie.d === f.v;
+        return judge('Is ' + f.n + '/' + f.d + ' equivalent to ' + lie.n + '/' + lie.d + '?', truth, {
+          visual: numberLine ? V.numline(0, 1, [{ x: f.v }], {}) : V.frac([{ n: f.n, d: f.d }, { n: lie.n, d: lie.d }]),
+          explain: ['Cross-multiply to test: ' + f.n + ' × ' + lie.d + ' = ' + (f.n * lie.d) + ' and ' + lie.n + ' × ' + f.d + ' = ' + (lie.n * f.d) + '.',
+            (f.n * lie.d === lie.n * f.d ? 'They match, so the fractions are equivalent.' : 'They do not match, so the fractions are not equivalent.')],
+          teach: 'Two fractions are equivalent when the numerator of one times the denominator of the other equals the matching product.',
+          b: 0.4
+        });
+      },
+
+      function () {                       /* patterns of equivalent fractions */
+        if (!patterns) return null;
+        var base = { n: BC.int(rng, 1, 4), d: BC.pick(rng, [3, 4, 5, 6, 8]) };
+        if (base.n >= base.d) return null;
+        var k = BC.int(rng, 2, 5);
+        var seq = [];
+        for (var i = 1; i <= 3; i++) seq.push((base.n * i * k) + '/' + (base.d * i * k));
+        var next = (base.n * 4 * k) + '/' + (base.d * 4 * k);
+        var wrongs = [(base.n * 4 * k + 1) + '/' + (base.d * 4 * k), (base.n * 4 * k) + '/' + (base.d * 4 * k + 2), (base.n * 3 * k) + '/' + (base.d * 3 * k)];
+        return choose(rng, 'Complete the pattern of equivalent fractions: ' + seq.join(', ') + ', ?', next, wrongs, {
+          steps: ['Every term is ' + base.n + '/' + base.d + ' multiplied by ' + k + ', then by 2, 3…', 'The next term multiplies ' + base.n + '/' + base.d + ' by ' + 4 * k + '.'],
+          teach: 'A pattern of equivalent fractions multiplies numerator and denominator by the same growing number.',
+          b: 0.5
+        });
+      },
+
+      function () {                       /* which is the odd one out */
+        var f = frac(rng, lvl);
+        var ks = R.sample(rng, [2, 3, 4, 5, 6, 8], 2);
+        var eqs = [f.n + '/' + f.d];
+        ks.forEach(function (k) { eqs.push((f.n * k) + '/' + (f.d * k)); });
+        var odd = { n: f.n * BC.int(rng, 2, 6) + BC.int(rng, 1, 2), d: f.d * BC.int(rng, 2, 6) };
+        if (odd.n / odd.d === f.v) odd.n += 1;
+        var opts = R.shuffle(rng, eqs.concat([odd.n + '/' + odd.d]));
+        return choose(rng, 'Three of these fractions are equal. Which one is NOT ' + f.n + '/' + f.d + '?',
+          odd.n + '/' + odd.d, opts.filter(function (o) { return o !== odd.n + '/' + odd.d; }), {
+          steps: ['Compare each one with ' + f.n + '/' + f.d + ' by cross-multiplying.', 'The one whose products disagree is the odd one out.'],
+          teach: 'Fractions that look different can still be equal; the one whose cross-products disagree is not.',
+          b: 0.5
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* =====================  MIXED NUMBERS  (U.1–U.5)  ====================== */
+  /* ======================================================================= */
+  UP.on(/mixed number|improper fraction/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var toImp = /convert mixed numbers to improper/.test(t);
+    var toMix = /convert improper fractions to mixed/.test(t);
+    var both = /between improper fractions and mixed/.test(t);
+    var identify = /^identify mixed/.test(t);
+    return UP.build(rng, [
+      function () {                       /* model → mixed number */
+        var m = mixed(rng, lvl);
+        return ask(rng, 'How much of the model is shaded?', m.imp, m.d, {
+          answerText: m.w + ' ' + m.n + '/' + m.d,
+          visual: V.frac([{ n: m.d, d: m.d }, { n: m.n, d: m.d }]),
+          explain: ['One full model is ' + m.d + '/' + m.d + ' = ' + m.w + ' whole(s).', 'The extra shaded parts are ' + m.n + '/' + m.d + '.', 'Together: ' + m.w + ' ' + m.n + '/' + m.d + '.'],
+          teach: 'A mixed number counts the wholes first and then the parts of one more whole.',
+          b: -0.2
+        });
+      },
+      function () {                       /* mixed → improper */
+        var m = mixed(rng, lvl);
+        if (identify) return null;
+        return ask(rng, 'Write ' + m.w + ' ' + m.n + '/' + m.d + ' as an improper fraction.', m.imp, m.d, {
+          answerText: m.imp + '/' + m.d,
+          visual: V.frac([{ n: m.d, d: m.d }, { n: m.n, d: m.d }]),
+          explain: [m.w + ' whole is ' + m.w + ' × ' + m.d + ' = ' + (m.w * m.d) + ' ' + m.d + 'ths.', (m.w * m.d) + ' + ' + m.n + ' = ' + m.imp + ', so ' + m.imp + '/' + m.d + '.'],
+          teach: 'Multiply the whole by the denominator and add the numerator to convert a mixed number.',
+          b: 0.1
+        });
+      },
+      function () {                       /* improper → mixed */
+        var d = denFor(rng, lvl), w = BC.int(rng, 1, lvl >= 4 ? 7 : 4), n = BC.int(rng, 1, d - 1);
+        var imp = w * d + n;
+        if (toImp) return null;
+        return ask(rng, 'Write ' + imp + '/' + d + ' as a mixed number.', imp - w * d + w * d, d, {
+          answerText: w + ' ' + n + '/' + d,
+          explain: [d + ' ' + d + 'ths make one whole.', imp + ' ÷ ' + d + ' = ' + w + ' and ' + n + ' left over.', 'So the mixed number is ' + w + ' ' + n + '/' + d + '.'],
+          teach: 'Divide the numerator by the denominator: the quotient is the whole part and the remainder is the numerator.',
+          b: 0.2
+        });
+      },
+      function () {                       /* identify which is a mixed number */
+        if (!identify) return null;
+        var m = mixed(rng, lvl);
+        var wrongs = [m.n + '/' + m.d, (m.imp) + '/' + m.d, m.d + '/' + m.imp];
+        return choose(rng, 'Which number is a mixed number?', m.w + ' ' + m.n + '/' + m.d, wrongs, {
+          visual: V.frac([{ n: m.d, d: m.d }, { n: m.n, d: m.d }]),
+          steps: ['A mixed number has a whole-number part and a fraction part.', 'Only ' + m.w + ' ' + m.n + '/' + m.d + ' has both.'],
+          teach: 'A mixed number is one whole plus a fraction, written as a whole number next to a proper fraction.',
+          b: -0.3
+        });
+      },
+      function () {                       /* are these the same amount */
+        if (!both && !toMix && !toImp) return null;
+        var m = mixed(rng, lvl);
+        var claim = R.chance(rng, 0.5) ? m.imp : m.imp + BC.int(rng, 1, m.d);
+        var truth = claim === m.imp;
+        return judge('Is ' + m.w + ' ' + m.n + '/' + m.d + ' the same as ' + claim + '/' + m.d + '?', truth, {
+          explain: [m.w + ' × ' + m.d + ' = ' + (m.w * m.d) + ', plus ' + m.n + ' = ' + m.imp + '.', 'The claim says ' + claim + ' ' + m.d + 'ths.'],
+          teach: 'Convert the mixed number to an improper fraction before comparing the two amounts.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which model shows the mixed number */
+        var m = mixed(rng, lvl);
+        var ans = m.w + ' ' + m.n + '/' + m.d;
+        var wrongs = [m.w + ' ' + m.d + '/' + m.n, (m.w + 1) + ' ' + m.n + '/' + m.d, m.n + ' ' + m.w + '/' + m.d];
+        return choose(rng, 'Which mixed number matches the shaded models?', ans, wrongs, {
+          visual: V.frac([{ n: m.d, d: m.d }, { n: m.n, d: m.d }]),
+          steps: ['Full models: ' + m.w + '.', 'The last model has ' + m.n + ' of ' + m.d + ' parts shaded.', 'That is ' + m.w + ' ' + m.n + '/' + m.d + '.'],
+          teach: 'Count the fully shaded wholes, then read the partly shaded one as the fraction part.',
+          b: 0.2
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ==============  COMPARE AND ORDER FRACTIONS  (V.*)  ==================== */
+  /* ======================================================================= */
+  UP.on(/^compare (fractions|mixed numbers|sums|the)|^benchmark fraction|^order fraction|^graph (and )?(order|compare)|find smaller or larger fractions/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var models = /model/.test(t);
+    var numberLine = /number line/.test(t);
+    var bench = /benchmark/.test(t);
+    var order = /^order|graph and order/.test(t);
+    var mixedAsk = /mixed numbers/.test(t);
+
+    function pair() {
+      if (mixedAsk) {
+        var d = denFor(rng, lvl);
+        var a = mixed(rng, lvl), b = mixed(rng, lvl);
+        b = { w: b.w, n: BC.int(rng, 1, d - 1), d: d, imp: 0, v: b.w + b.n / d };
+        a = { w: a.w, n: BC.int(rng, 1, d - 1), d: d, imp: 0, v: a.w + a.n / d };
+        if (a.v === b.v) b.v = a.v + 0.25, b.n = Math.min(d - 1, b.n + 1), b.v = b.w + b.n / d;
+        return { a: a, b: b, txtA: a.w + ' ' + a.n + '/' + a.d, txtB: b.w + ' ' + b.n + '/' + b.d };
+      }
+      var mode = /like numerators/.test(t) ? 'num' : /like denominators/.test(t) ? 'den' : (lvl >= 4 ? 'any' : 'den');
+      var pr = frPair(rng, lvl, mode);
+      return { a: pr.a, b: pr.b, txtA: pr.a.n + '/' + pr.a.d, txtB: pr.b.n + '/' + pr.b.d };
+    }
+
+    return UP.build(rng, [
+      function () {                       /* the symbol between two fractions */
+        var q = pair();
+        if (q.a.v === q.b.v) return null;
+        return compare('Which symbol makes the comparison true?   ' + q.txtA + '  ○  ' + q.txtB, q.a.v, q.b.v, {
+          visual: models ? V.frac([{ n: q.a.n, d: q.a.d }, { n: q.b.n, d: q.b.d }])
+            : numberLine ? V.numline(0, 1, [{ x: q.a.v, label: q.txtA }, { x: q.b.v, label: q.txtB }], {}) : undefined,
+          explain: q.a.d === q.b.d
+            ? ['Same denominator, so compare the numerators: ' + q.a.n + ' vs ' + q.b.n + '.', (q.a.n > q.b.n ? q.txtA : q.txtB) + ' is the greater one.']
+            : q.a.n === q.b.n
+              ? ['Same numerator, so the fraction with the FEWER parts is larger: ' + q.a.d + ' vs ' + q.b.d + '.', (q.a.d < q.b.d ? q.txtA : q.txtB) + ' is greater.']
+              : ['Rewrite both over a common denominator ' + lcm(q.a.d, q.b.d) + '.', q.txtA + ' = ' + (q.a.n * (lcm(q.a.d, q.b.d) / q.a.d)) + '/' + lcm(q.a.d, q.b.d) + ' and ' + q.txtB + ' = ' + (q.b.n * (lcm(q.a.d, q.b.d) / q.b.d)) + '/' + lcm(q.a.d, q.b.d) + '.'],
+          teach: 'With equal denominators the larger numerator wins; with equal numerators the smaller denominator wins.',
+          b: 0
+        });
+      },
+
+      function () {                       /* which is greater, as a choice */
+        var q = pair();
+        if (q.a.v === q.b.v) return null;
+        var greater = q.a.v > q.b.v ? q.txtA : q.txtB;
+        var lesser = greater === q.txtA ? q.txtB : q.txtA;
+        var third = (BC.int(rng, 1, 9)) + '/' + (BC.pick(rng, DEN));
+        var askWord = /smaller|larger/.test(t) ? (R.chance(rng, 0.5) ? 'larger' : 'smaller') : (R.chance(rng, 0.5) ? 'greater' : 'lesser');
+        var want = /larger|greater/.test(askWord) ? greater : lesser;
+        var wrongs = [want === greater ? lesser : greater, third];
+        if (third === want || third === (want === greater ? lesser : greater)) return null;
+        return choose(rng, 'Which is the ' + askWord + ' fraction, ' + q.txtA + ' or ' + q.txtB + '?', want, wrongs, {
+          visual: models ? V.frac([{ n: q.a.n, d: q.a.d }, { n: q.b.n, d: q.b.d }]) : undefined,
+          steps: ['Compare the two fractions.', 'The ' + askWord + ' one is ' + want + '.'],
+          teach: 'Compare fractions by making the denominators equal, then look at the numerators.',
+          b: 0.1
+        });
+      },
+
+      function () {                       /* benchmark to 0, 1/2 or 1 */
+        if (!bench) return null;
+        var f = frac(rng, lvl);
+        var ans = f.v < 0.25 ? '0' : (f.v <= 0.75 ? '1/2' : '1');
+        var wrongs = ['0', '1/2', '1'].filter(function (w) { return w !== ans; });
+        return choose(rng, 'Which benchmark is ' + f.n + '/' + f.d + ' closest to?', ans, wrongs, {
+          visual: V.numline(0, 1, [{ x: f.n / f.d, label: f.n + '/' + f.d }], {}),
+          steps: ['Half of ' + f.d + ' is ' + (f.d / 2) + '.', f.n + (f.n < f.d / 2 ? ' is less than half of the parts' : ' is at least half of the parts') + '.', 'So ' + f.n + '/' + f.d + ' is closest to ' + ans + '.'],
+          teach: 'Benchmarks 0, 1/2 and 1 locate a fraction quickly: compare the numerator with half the denominator.',
+          b: 0.3
+        });
+      },
+
+      function () {                       /* missing numerator that makes a comparison */
+        if (!/missing numerator|missing denominator/.test(t)) return null;
+        var d = denFor(rng, lvl), d2 = d * BC.int(rng, 2, 4);
+        var n = BC.int(rng, 1, d - 1);
+        var target = n * (d2 / d);
+        return I_NUM('Complete the comparison.  ' + n + '/' + d + ' < ' + '?/' + d2 + '   (the smallest whole number that works)', target + 1, {
+          explain: [n + '/' + d + ' = ' + target + '/' + d2 + '.', 'One more than ' + target + ' over ' + d2 + ' is greater than ' + n + '/' + d + '.'],
+          teach: 'Write the fractions with the same denominator, then the comparison is only about numerators.',
+          b: 0.6
+        });
+      },
+
+      function () {                       /* order three fractions */
+        if (!order) return null;
+        var fs = [], i, j;
+        for (i = 0; i < 3; i++) fs.push(frac(rng, lvl));
+        var vals = fs.map(function (f) { return f.v; });
+        var seenV = {}, dup = false;
+        for (j = 0; j < vals.length; j++) { if (seenV[vals[j]]) dup = true; seenV[vals[j]] = 1; }
+        if (dup) return null;
+        var sorted = fs.slice().sort(function (x, y) { return x.v - y.v; });
+        var least = sorted[0], greatest = sorted[2];
+        var wantLeast = R.chance(rng, 0.5);
+        var ans = wantLeast ? least.n + '/' + least.d : greatest.n + '/' + greatest.d;
+        var wrongs = fs.map(function (f) { return f.n + '/' + f.d; }).filter(function (s) { return s !== ans; });
+        return choose(rng, 'Put ' + fs.map(function (f) { return f.n + '/' + f.d; }).join(', ') + ' in order. Which is the ' + (wantLeast ? 'least' : 'greatest') + '?',
+          ans, wrongs, {
+          visual: numberLine ? V.numline(0, 1, sorted.map(function (f) { return { x: f.v, label: f.n + '/' + f.d }; }), {}) : undefined,
+          steps: ['Compare each pair with a common denominator.', 'From smallest to greatest: ' + sorted.map(function (f) { return f.n + '/' + f.d; }).join(', ') + '.'],
+          teach: 'Ordering fractions is repeated comparison: find the least, then the least of what is left.',
+          b: 0.5
+        });
+      },
+
+      function () {                       /* recipe comparison */
+        if (!/recipe/.test(t)) return null;
+        var q = pair();
+        if (q.a.v === q.b.v) return null;
+        var w = who(rng);
+        var bigger = q.a.v > q.b.v ? q.txtA : q.txtB;
+        return choose(rng, w + ' is baking and needs ' + q.txtA + ' cup of milk or ' + q.txtB + ' cup. Which amount is more?',
+          bigger, [bigger === q.txtA ? q.txtB : q.txtA, 'the same amount'], {
+          steps: ['Compare ' + q.txtA + ' with ' + q.txtB + '.', 'The greater fraction is the larger amount of milk.'],
+          teach: 'In a recipe the greater fraction is the bigger amount of the ingredient, even when the numbers look close.',
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ============  DECOMPOSE FRACTIONS  (W.1–W.4)  ========================== */
+  /* ======================================================================= */
+  UP.on(/^decompose fractions/, function (rng, lvl, p, sk) {
+    var models = /model/.test(t_of(sk));
+    var multiple = /multiple ways/.test(t_of(sk));
+    function t_of(s) { return UP.t(s); }
+    return UP.build(rng, [
+      function () {                       /* unit-fraction sum */
+        var d = denFor(rng, lvl), n = BC.int(rng, 2, lvl >= 4 ? 11 : d - 1);
+        if (n >= d) return null;
+        var parts = [];
+        for (var i = 0; i < n; i++) parts.push('1/' + d);
+        return I_PARTS('Write ' + n + '/' + d + ' as a sum of unit fractions.',
+          parts, parts.map(function () { return { k: 'frac', n: 1, d: d }; }), {
+          visual: models ? V.frac({ n: n, d: d }) : undefined,
+          explain: ['One unit fraction is 1/' + d + '.', n + '/' + d + ' is ' + n + ' of them added together.'],
+          teach: 'Any fraction is a sum of unit fractions: the numerator counts how many copies of 1 over the denominator.',
+          b: -0.1
+        });
+      },
+      function () {                       /* two given parts */
+        var d = denFor(rng, lvl), n = BC.int(rng, 3, lvl >= 4 ? 11 : d - 1);
+        if (n < 3) return null;
+        var cut = BC.int(rng, 1, n - 2);
+        return I_NUM('One part of ' + n + '/' + d + ' is ' + cut + '/' + d + '. What is the other part?', n - cut, {
+          answerText: (n - cut) + '/' + d,
+          visual: models ? V.frac({ n: n, d: d }) : undefined,
+          explain: ['The two parts must add back to ' + n + '/' + d + '.', n + ' − ' + cut + ' = ' + (n - cut) + ', over the same denominator.'],
+          teach: 'Decomposing keeps the denominator and splits only the numerator.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which decomposition is correct */
+        var d = denFor(rng, lvl), n = BC.int(rng, 3, 6);
+        var good = '2/' + d + ' + ' + (n - 2) + '/' + d;
+        var wrongs = ['2/' + d + ' + ' + n + '/' + d, '1/' + d + ' + ' + n + '/' + d, (n - 1) + '/' + d + ' + ' + (n - 1) + '/' + d];
+        return choose(rng, 'Which sum equals ' + n + '/' + d + '?', good, wrongs, {
+          visual: models ? V.frac({ n: n, d: d }) : undefined,
+          steps: ['Add the numerators: 2 + ' + (n - 2) + ' = ' + n + '.', 'Keep the denominator ' + d + ', giving ' + n + '/' + d + '.'],
+          teach: 'A decomposition is correct when the numerators add back to the original numerator.',
+          b: 0.3
+        });
+      },
+      function () {                       /* two different decompositions */
+        if (!multiple) return null;
+        var d = denFor(rng, lvl), n = BC.int(rng, 4, 9);
+        var a = BC.int(rng, 1, n - 2), b = BC.int(rng, 1, n - 2);
+        var ans = a + '/' + d + ' + ' + (n - a) + '/' + d + ' and ' + b + '/' + d + ' + ' + (n - b) + '/' + d;
+        var wrongs = [a + '/' + d + ' + ' + n + '/' + d, n + '/' + d + ' + ' + b + '/' + d, a + '/' + d + ' + ' + (n - a) + '/' + (d + 1)];
+        return choose(rng, 'Which pair shows TWO different decompositions of ' + n + '/' + d + '?', ans, wrongs, {
+          steps: ['In each pair the numerators must add to ' + n + '.', 'The two pairs must not be the same split.'],
+          teach: 'A fraction has many decompositions; any two splits of the numerator work as long as the denominator stays.',
+          b: 0.5
+        });
+      },
+      function () {                       /* is this decomposition true */
+        var d = denFor(rng, lvl), n = BC.int(rng, 2, 8);
+        var cut = BC.int(rng, 1, n - 1);
+        var shifted = R.chance(rng, 0.5) ? cut + BC.int(rng, 1, 2) : cut;
+        var truth = shifted === cut;
+        return judge('Is ' + n + '/' + d + ' = ' + cut + '/' + d + ' + ' + shifted + '/' + d + ' true?', truth, {
+          visual: models ? V.frac({ n: n, d: d }) : undefined,
+          explain: [cut + ' + ' + shifted + ' = ' + (cut + shifted) + '.', (cut + shifted) + (cut + shifted === n ? ' equals ' : ' does not equal ') + n + ', so the parts' + (cut + shifted === n ? ' do' : ' do not') + ' rebuild ' + n + '/' + d + '.'],
+          teach: 'A decomposition is true when the parts add back to the whole fraction.',
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ====  ADD / SUBTRACT WITH LIKE DENOMINATORS  (W.5–W.11, X.1–X.15)  ==== */
+  /* ======================================================================= */
+  function likePair(rng, lvl, isSub, mixedAsk) {
+    var d = denFor(rng, lvl);
+    if (mixedAsk) {
+      var w1 = BC.int(rng, 1, 5), w2 = BC.int(rng, 0, 3);
+      var n1 = BC.int(rng, 1, d - 1), n2 = BC.int(rng, 0, d - 1);
+      if (isSub && (w1 < w2 || (w1 === w2 && n1 < n2))) { var sw = w1; w1 = w2 + 1; w2 = sw; }
+      var A = { w: w1, n: n1, d: d, imp: w1 * d + n1, v: w1 + n1 / d };
+      var B = { w: w2, n: n2, d: d, imp: w2 * d + n2, v: w2 + n2 / d };
+      return { a: A, b: B, mixed: true, d: d };
+    }
+    var nA = BC.int(rng, 1, lvl >= 4 ? 12 : d - 1);
+    var nB = BC.int(rng, 1, lvl >= 4 ? 12 : d - 1);
+    if (isSub && nB > nA) { var t3 = nA; nA = nB; nB = t3; }
+    return { a: { n: nA, d: d }, b: { n: nB, d: d }, mixed: false, d: d };
+  }
+  function mixedStr2(w, n, d) { return w === 0 ? (n ? n + '/' + d : '0') : (n ? w + ' ' + n + '/' + d : String(w)); }
+
+  UP.on(/^(add|subtract|add and subtract) (fractions|mixed numbers|3 or more fractions)|^(add|subtract) fractions|^subtract fractions/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var isSub = /^subtract/.test(t) || (/subtract/.test(t) && !/^add/.test(t));
+    var mixedAsk = /mixed numbers/.test(t);
+    var three = /3 or more/.test(t);
+    var models = /area model|strip model|number line|model/.test(t);
+    var recipe = /recipe/.test(t);
+    var word = /word problem/.test(t);
+    var multi = /multi-step/.test(t);
+    var noRegroup = /without regrouping/.test(t);
+
+    return UP.build(rng, [
+      function () {                       /* the plain sum or difference */
+        if (three) {
+          var d = denFor(rng, lvl), ns = R.sample(rng, R.range(d - 1).slice(1), 3);
+          if (ns.length < 3) return null;
+          var total = ns[0] + ns[1] + ns[2];
+          var rr = reduce(total, d);
+          return ask(rng, 'Add ' + ns.map(function (n) { return n + '/' + d; }).join(' + ') + '.', total, d, {
+            answerText: mixedStr(total, d),
+            explain: ['Add the numerators: ' + ns.join(' + ') + ' = ' + total + '.', 'Keep the denominator ' + d + (rr.n !== total ? ', which reduces to ' + rr.n + '/' + rr.d : '') + '.'],
+            teach: 'With like denominators every numerator counts the same size part, so only the numerators change.',
+            b: 0.3
+          });
+        }
+        var q = likePair(rng, lvl, isSub, mixedAsk);
+        if (q.mixed) {
+          var an = q.a.imp - q.b.imp;
+          if (isSub && an <= 0) return null;
+          var sumImp = isSub ? an : q.a.imp + q.b.imp;
+          if (!isSub && q.a.w + q.b.w > 12) return null;
+          var dispA = mixedStr2(q.a.w, q.a.n, q.d), dispB = mixedStr2(q.b.w, q.b.n, q.d);
+          if (noRegroup && isSub && q.a.n < q.b.n) return null;
+          return ask(rng, (isSub ? 'Subtract ' : 'Add ') + dispA + ' − ' + dispB + '.', sumImp - Math.floor(sumImp / q.d) * q.d + Math.floor(sumImp / q.d) * q.d, q.d, {
+            answerText: mixedStr(sumImp, q.d),
+            visual: models ? V.frac([{ n: q.a.imp, d: q.d }, { n: q.b.imp, d: q.d }]) : undefined,
+            explain: ['Turn each mixed number into an improper fraction: ' + q.a.imp + '/' + q.d + (isSub ? ' − ' : ' + ') + q.b.imp + '/' + q.d + '.',
+              q.a.imp + (isSub ? ' − ' : ' + ') + q.b.imp + ' = ' + sumImp + '.',
+              sumImp + '/' + q.d + ' = ' + mixedStr(sumImp, q.d) + '.'],
+            teach: 'Add or subtract the whole parts and the fraction parts, or convert to improper fractions first.',
+            b: isSub ? 0.5 : 0.3
+          });
+        }
+        var res = isSub ? fracSub(q.a, q.b) : fracSum(q.a, q.b);
+        if (res.n <= 0) return null;
+        if (!isSub && res.n > q.d * 3) return null;
+        var prompt = (isSub ? 'Subtract ' : 'Add ') + q.a.n + '/' + q.d + (isSub ? ' − ' : ' + ') + q.b.n + '/' + q.d + '.';
+        return ask(rng, prompt, res.n, res.d, {
+          answerText: mixedStr(res.n, res.d),
+          visual: models ? V.frac([{ n: q.a.n, d: q.d }, { n: q.b.n, d: q.d }]) : undefined,
+          explain: ['The denominators are already the same: ' + q.d + '.',
+            q.a.n + (isSub ? ' − ' : ' + ') + q.b.n + ' = ' + (isSub ? q.a.n - q.b.n : q.a.n + q.b.n) + '.',
+            (isSub ? 'So the difference is ' : 'So the sum is ') + mixedStr(res.n, res.d) + '.'],
+          teach: 'Add or subtract the numerators and keep the denominator; the parts never change size.',
+          b: isSub ? 0.2 : 0
+        });
+      },
+
+      function () {                       /* choose the correct sum */
+        var q = likePair(rng, lvl, isSub, false);
+        var res = isSub ? fracSub(q.a, q.b) : fracSum(q.a, q.b);
+        if (res.n <= 0) return null;
+        var ans = res.rn + '/' + res.rd;
+        var wrongs = [res.rn + '/' + (q.d * 2), (isSub ? q.a.n - q.b.n : q.a.n + q.b.n) + '/' + (q.a.n + q.b.n), res.rn + '/' + q.d];
+        wrongs = wrongs.filter(function (w, i, arr) { return w !== ans && arr.indexOf(w) === i; });
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'Which is ' + q.a.n + '/' + q.d + (isSub ? ' − ' : ' + ') + q.b.n + '/' + q.d + '?', ans, wrongs, {
+          steps: ['Keep the denominator ' + q.d + '.', q.a.n + (isSub ? ' − ' : ' + ') + q.b.n + ' = ' + (isSub ? q.a.n - q.b.n : q.a.n + q.b.n) + '.'],
+          teach: 'A common mistake is to add the denominators too; the parts stay the same size.',
+          b: 0.1
+        });
+      },
+
+      function () {                       /* missing part of a sum */
+        if (mixedAsk || three) return null;
+        var d = denFor(rng, lvl);
+        var total = BC.int(rng, 3, lvl >= 4 ? 11 : d - 1);
+        var shown = BC.int(rng, 1, total - 1);
+        var ans = total - shown;
+        return I_NUM('Complete the sum.  ' + shown + '/' + d + ' + ? = ' + total + '/' + d, ans, {
+          answerText: ans + '/' + d,
+          explain: ['The numerators must add to ' + total + '.', total + ' − ' + shown + ' = ' + ans + '.'],
+          teach: 'With like denominators a missing part is found by subtracting numerators.',
+          b: 0.4
+        });
+      },
+
+      function () {                       /* story */
+        if (!(word || multi || recipe)) return null;
+        var q = likePair(rng, lvl, isSub, mixedAsk);
+        var res = q.mixed ? { n: (isSub ? q.a.imp - q.b.imp : q.a.imp + q.b.imp), d: q.d } : (isSub ? fracSub(q.a, q.b) : fracSum(q.a, q.b));
+        if (res.n <= 0) return null;
+        var w = who(rng), o2 = other(rng, w), obj = BC.pick(rng, FOOD);
+        var dispA = q.mixed ? mixedStr2(q.a.w, q.a.n, q.d) : q.a.n + '/' + q.d;
+        var dispB = q.mixed ? mixedStr2(q.b.w, q.b.n, q.d) : q.b.n + '/' + q.d;
+        var story = isSub
+          ? w + ' had ' + dispA + ' ' + obj + ' and gave ' + dispB + ' to ' + o2 + '. How much is left?'
+          : w + ' ate ' + dispA + ' ' + obj + ' and ' + o2 + ' ate ' + dispB + '. How much ' + obj + ' was eaten in total?';
+        return ask(rng, story, res.n, q.mixed ? q.d : res.d, {
+          answerText: mixedStr(res.n, q.mixed ? q.d : res.d),
+          explain: ['Both amounts are in ' + q.d + 'ths, so the parts already match.',
+            dispA + (isSub ? ' − ' : ' + ') + dispB + ' = ' + mixedStr(res.n, q.d) + '.'],
+          teach: 'Fraction amounts add and subtract like whole numbers when the parts are the same size.',
+          b: 0.3
+        });
+      },
+
+      function () {                       /* judge a stated result */
+        var q = likePair(rng, lvl, isSub, false);
+        var res = isSub ? fracSub(q.a, q.b) : fracSum(q.a, q.b);
+        if (res.n <= 0) return null;
+        var lie = R.chance(rng, 0.5) ? res.rn + '/' + res.rd : res.rn + '/' + (res.rd + BC.pick(rng, [1, 2]));
+        var truth = lie === res.rn + '/' + res.rd;
+        return judge('Is ' + q.a.n + '/' + q.d + (isSub ? ' − ' : ' + ') + q.b.n + '/' + q.d + ' = ' + lie + '?', truth, {
+          explain: ['Work the numerators: ' + q.a.n + (isSub ? ' − ' : ' + ') + q.b.n + ' = ' + (isSub ? q.a.n - q.b.n : q.a.n + q.b.n) + '.',
+            'Over ' + q.d + ' that is ' + res.rn + '/' + res.rd + ', and the statement says ' + lie + '.'],
+          teach: 'Check a fraction statement by doing the numerator work first.',
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* compare sums and differences (X.8) */
+  UP.on(/^compare sums and differences/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {
+        var d = denFor(rng, lvl);
+        var a1 = BC.int(rng, 1, d - 1), b1 = BC.int(rng, 1, d - 1);
+        var a2 = BC.int(rng, 1, d - 1), b2 = BC.int(rng, 1, d - 1);
+        var left = a1 + b1, right = a2 - b2;
+        if (right <= 0 || left === right) return null;
+        return compare('Choose >, < or =.   ' + a1 + '/' + d + ' + ' + b1 + '/' + d + '  ○  ' + a2 + '/' + d + ' − ' + b2 + '/' + d,
+          left / d, right / d, {
+          explain: ['Left: ' + a1 + ' + ' + b1 + ' = ' + left + ' ' + d + 'ths.', 'Right: ' + a2 + ' − ' + b2 + ' = ' + right + ' ' + d + 'ths.',
+            left + ' ' + d + 'ths vs ' + right + ' ' + d + 'ths.'],
+          teach: 'When the denominators match, compare the results by their numerators alone.',
+          b: 0.4
+        });
+      },
+      function () {
+        var d = denFor(rng, lvl);
+        var a1 = BC.int(rng, 1, d - 1), b1 = BC.int(rng, 1, d - 1);
+        var total = a1 + b1;
+        var pick2 = BC.int(rng, 1, d - 1);
+        var ans = total > pick2 ? 'greater' : (total < pick2 ? 'less' : 'equal');
+        if (ans === 'equal') return null;
+        return choose(rng, 'Is ' + a1 + '/' + d + ' + ' + b1 + '/' + d + ' greater or less than ' + pick2 + '/' + d + '?', ans,
+          ans === 'greater' ? ['less', 'equal'] : ['greater', 'equal'], {
+          steps: ['The sum is ' + total + '/' + d + '.', 'Compare ' + total + ' with ' + pick2 + '.'],
+          teach: 'A sum of positive fractions is greater than either part; compare the numerators to be sure.',
+          b: 0.3
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ============  UNLIKE DENOMINATORS  (Y.1–Y.7)  ========================== */
+  /* ======================================================================= */
+  UP.on(/unlike denominators|denominators 10 and 100/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var isSub = /subtract/.test(t) && !/^add and subtract/.test(t);
+    var tenthish = /10 and 100/.test(t);
+    function pairU() {
+      if (tenthish) {
+        var n1 = BC.int(rng, 1, 9), n2 = BC.int(rng, 1, 9);
+        return { a: { n: n1 * 10, d: 100 }, b: { n: n2, d: 10 } };
+      }
+      var d1 = BC.pick(rng, [2, 3, 4, 5, 6, 8, 10, 12]);
+      var d2 = BC.pick(rng, [2, 3, 4, 5, 6, 8, 10, 12].filter(function (x) { return x !== d1; }));
+      return { a: { n: BC.int(rng, 1, d1 - 1), d: d1 }, b: { n: BC.int(rng, 1, d2 - 1), d: d2 } };
+    }
+    return UP.build(rng, [
+      function () {                       /* the sum/difference itself */
+        var q = pairU();
+        var L = lcm(q.a.d, q.b.d);
+        var an = q.a.n * (L / q.a.d), bn = q.b.n * (L / q.b.d);
+        var res = reduce(isSub ? an - bn : an + bn, L);
+        if (isSub && an - bn <= 0) return null;
+        return ask(rng, (isSub ? 'Subtract ' : 'Add ') + q.a.n + '/' + q.a.d + (isSub ? ' − ' : ' + ') + q.b.n + '/' + q.b.d + '.',
+          res.n, res.d, {
+          answerText: mixedStr(res.n, res.d),
+          explain: ['The least common denominator of ' + q.a.d + ' and ' + q.b.d + ' is ' + L + '.',
+            q.a.n + '/' + q.a.d + ' = ' + an + '/' + L + ' and ' + q.b.n + '/' + q.b.d + ' = ' + bn + '/' + L + '.',
+            an + (isSub ? ' − ' : ' + ') + bn + ' = ' + (isSub ? an - bn : an + bn) + ', over ' + L + '.'],
+          teach: 'Unlike denominators must become like ones first: rewrite both fractions over the least common denominator.',
+          b: 0.5
+        });
+      },
+      function () {                       /* choose the right common denominator */
+        var q = pairU();
+        var L = lcm(q.a.d, q.b.d);
+        var wrongs = [q.a.d * q.b.d === L ? L + q.a.d : q.a.d * q.b.d, Math.max(q.a.d, q.b.d), L + q.b.d];
+        wrongs = wrongs.filter(function (w, i, arr) { return w !== L && arr.indexOf(w) === i; });
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'What common denominator should you use for ' + q.a.n + '/' + q.a.d + ' and ' + q.b.n + '/' + q.b.d + '?',
+          L, wrongs, {
+          steps: ['List the multiples of ' + q.a.d + ' and ' + q.b.d + '.', 'The first one they share is ' + L + '.'],
+          teach: 'The least common denominator is the least common multiple of the two denominators.',
+          b: 0.2
+        });
+      },
+      function () {                       /* rewrite as equivalent like fractions */
+        var q = pairU();
+        var L = lcm(q.a.d, q.b.d);
+        return I_PARTS('Write both fractions over denominator ' + L + '.  ' + q.a.n + '/' + q.a.d + ' and ' + q.b.n + '/' + q.b.d,
+          [q.a.n + '/' + q.a.d + ' = ', q.b.n + '/' + q.b.d + ' = '],
+          [{ k: 'n', v: q.a.n * (L / q.a.d) }, { k: 'n', v: q.b.n * (L / q.b.d) }], {
+          explain: ['Multiply ' + q.a.n + '/' + q.a.d + ' by ' + (L / q.a.d) + '/' + (L / q.a.d) + ' to get ' + (q.a.n * (L / q.a.d)) + '/' + L + '.',
+            'Multiply ' + q.b.n + '/' + q.b.d + ' by ' + (L / q.b.d) + '/' + (L / q.b.d) + ' to get ' + (q.b.n * (L / q.b.d)) + '/' + L + '.'],
+          teach: 'Each fraction is renamed by multiplying numerator and denominator by the same number.',
+          b: 0.3
+        });
+      },
+      function () {                       /* judge a stated result */
+        var q = pairU();
+        var L = lcm(q.a.d, q.b.d);
+        var an = q.a.n * (L / q.a.d), bn = q.b.n * (L / q.b.d);
+        var trueN = isSub ? an - bn : an + bn;
+        if (trueN <= 0) return null;
+        var truth = reduce(trueN, L);
+        var lie = R.chance(rng, 0.5) ? truth.n + '/' + truth.d : (truth.n + BC.int(rng, 1, 3)) + '/' + truth.d;
+        return judge('Is ' + q.a.n + '/' + q.a.d + (isSub ? ' − ' : ' + ') + q.b.n + '/' + q.b.d + ' = ' + lie + '?', lie === truth.n + '/' + truth.d, {
+          explain: ['Rename over ' + L + ': ' + an + '/' + L + (isSub ? ' − ' : ' + ') + bn + '/' + L + ' = ' + trueN + '/' + L + '.',
+            'In lowest terms that is ' + truth.n + '/' + truth.d + ', and the statement says ' + lie + '.'],
+          teach: 'Renaming first makes the answer checkable: the denominators must match before numerators combine.',
+          b: 0.6
+        });
+      },
+      function () {                       /* story with unlike denominators */
+        var q = pairU();
+        var L = lcm(q.a.d, q.b.d);
+        var an = q.a.n * (L / q.a.d), bn = q.b.n * (L / q.b.d);
+        var trueN = isSub ? an - bn : an + bn;
+        if (trueN <= 0) return null;
+        var rr = reduce(trueN, L);
+        var w = who(rng), o2 = other(rng, w);
+        var act = isSub ? BC.pick(rng, ['gave away', 'ate', 'used', 'cut off']) : BC.pick(rng, ['and then added', 'and shared', 'combined with']);
+        return ask(rng, w + ' had ' + q.a.n + '/' + q.a.d + ' ' + BC.pick(rng, FOOD) + ' ' + (isSub ? act + ' ' + q.b.n + '/' + q.b.d : act + ' ' + q.b.n + '/' + q.b.d + ' ' + BC.pick(rng, FOOD)) + '. How much is there now?',
+          rr.n, rr.d, {
+          answerText: mixedStr(rr.n, rr.d),
+          explain: ['Rename both in ' + L + 'ths: ' + an + '/' + L + ' and ' + bn + '/' + L + '.', an + (isSub ? ' − ' : ' + ') + bn + ' = ' + trueN + ', so ' + rr.n + '/' + rr.d + '.'],
+          teach: 'Fraction word problems need the same rename step: unlike parts cannot be combined directly.',
+          b: 0.6
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ======  MULTIPLY FRACTIONS  (Z.*, AA.*, X.10 recipe multiples)  ======== */
+  /* ======================================================================= */
+  UP.on(/^multiply (fractions|mixed numbers|unit fractions|a fraction|the)|^multiples of (unit )?fractions|^fractions of a number|^model .*fraction.* multiply/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var unit = /unit fractions/.test(t);
+    var mixedAsk = /mixed numbers/.test(t);
+    var numberLine = /number line/.test(t);
+    var models = /model|area model|complete the equation/.test(t);
+    var ofNumber = /fractions of a number/.test(t);
+    var recipe = /recipe/.test(t);
+    var word = /word problem/.test(t);
+    var missing = /missing numbers/.test(t);
+
+    function draw() {
+      var f = unit ? unitFrac(rng, lvl) : frac(rng, lvl);
+      var k = BC.int(rng, 2, lvl >= 4 ? 8 : 5);
+      if (mixedAsk) {
+        var m = mixed(rng, lvl);
+        return { n: m.imp, d: m.d, k: k, label: m.w + ' ' + m.n + '/' + m.d, imp: true };
+      }
+      return { n: f.n, d: f.d, k: k, label: f.n + '/' + f.d, imp: false };
+    }
+    function resultOf(q) { return reduce(q.n * q.k, q.d); }
+
+    return UP.build(rng, [
+      function () {                       /* the product */
+        var q = draw();
+        var r = resultOf(q);
+        if (r.n * 1 / r.d > 30) return null;
+        if (ofNumber) {
+          var base = q.d * BC.int(rng, 2, 10);
+          var ans = base / q.d * q.n;
+          if (ans % 1) return null;
+          return I_NUM('Find ' + q.label + ' of ' + base + '.', ans, {
+            explain: ['One part of ' + base + ' is ' + base + ' ÷ ' + q.d + ' = ' + (base / q.d) + '.', q.n + ' parts is ' + (base / q.d) + ' × ' + q.n + ' = ' + ans + '.'],
+            teach: '“A fraction of a number” means divide by the denominator, then multiply by the numerator.',
+            b: 0.3
+          });
+        }
+        return ask(rng, 'Multiply ' + q.label + ' × ' + q.k + '.', r.n, r.d, {
+          answerText: mixedStr(r.n, r.d),
+          visual: numberLine ? V.numline(0, q.k * (q.n / q.d) + 1, [{ x: q.k * q.n / q.d, label: mixedStr(r.n, r.d) }], {})
+            : models ? V.frac({ n: q.n, d: q.d }) : undefined,
+          explain: ['Multiply only the numerator by the whole number: ' + q.n + ' × ' + q.k + ' = ' + (q.n * q.k) + '.',
+            'Keep the denominator ' + q.d + ', giving ' + (q.n * q.k) + '/' + q.d + (r.n !== q.n * q.k ? ' = ' + r.n + '/' + r.d : '') + '.'],
+          teach: 'Multiplying a fraction by a whole number means taking that many copies of the fraction; only the numerator grows.',
+          b: 0.2
+        });
+      },
+
+      function () {                       /* repeated addition framing */
+        var f = unit ? unitFrac(rng, lvl) : frac(rng, lvl);
+        var k = BC.int(rng, 2, 5);
+        var r = reduce(f.n * k, f.d);
+        var add = [];
+        for (var i = 0; i < k; i++) add.push(f.n + '/' + f.d);
+        return ask(rng, 'Rewrite as a product and solve: ' + add.join(' + '), r.n, r.d, {
+          answerText: mixedStr(r.n, r.d),
+          visual: numberLine ? V.numline(0, k * f.v + 1, [{ x: k * f.v }], {}) : undefined,
+          explain: [k + ' copies of ' + f.n + '/' + f.d + ' is ' + k + ' × ' + f.n + '/' + f.d + '.', f.n + ' × ' + k + ' = ' + (f.n * k) + ' over ' + f.d + '.'],
+          teach: 'Repeated addition of the same fraction is the same multiplication.',
+          b: 0.1
+        });
+      },
+
+      function () {                       /* which product matches a model */
+        if (!models) return null;
+        var f = frac(rng, lvl);
+        var k = BC.int(rng, 2, 4);
+        var r = reduce(f.n * k, f.d);
+        var ans = mixedStr(r.n, r.d);
+        var wrongs = [f.n + '/' + (f.d * k), (f.n + k) + '/' + f.d, f.n + '/' + f.d];
+        wrongs = wrongs.filter(function (w) { return w !== ans; });
+        return choose(rng, 'The model shows ' + k + ' groups of ' + f.n + '/' + f.d + '. Which is the product?', ans, wrongs, {
+          visual: V.frac({ n: f.n, d: f.d }),
+          steps: ['Each group is ' + f.n + '/' + f.d + '.', 'There are ' + k + ' groups, so ' + (f.n * k) + '/' + f.d + ' = ' + ans + '.'],
+          teach: 'A model of equal fraction groups shows multiplication: count the total shaded parts.',
+          b: 0.2
+        });
+      },
+
+      function () {                       /* missing factor */
+        if (!missing) return null;
+        var f = frac(rng, lvl);
+        var k = BC.int(rng, 2, 6);
+        var prod = reduce(f.n * k, f.d);
+        var ans = k;
+        return I_NUM('Find the missing number.  ' + f.n + '/' + f.d + ' × ? = ' + prod.n + '/' + prod.d, ans, {
+          explain: ['The numerators went from ' + f.n + ' to ' + (f.n * k) + '.', (f.n * k) + ' ÷ ' + f.n + ' = ' + ans + '.'],
+          teach: 'Undo the multiplication: divide the product’s numerator by the fraction’s numerator.',
+          b: 0.5
+        });
+      },
+
+      function () {                       /* story */
+        if (!(word || recipe)) return null;
+        var q = draw();
+        var r = resultOf(q);
+        var w = who(rng);
+        var ctx = recipe
+          ? w + ' is doubling a recipe that needs ' + q.label + ' cup of ' + BC.pick(rng, ['flour', 'sugar', 'milk', 'cocoa']) + '. How much is needed for ' + q.k + ' batches?'
+          : w + ' ran ' + q.label + ' mile ' + q.k + ' times. How far did ' + w + ' run?';
+        return ask(rng, ctx, r.n, r.d, {
+          answerText: mixedStr(r.n, r.d),
+          explain: ['Multiply the numerator: ' + q.n + ' × ' + q.k + ' = ' + (q.n * q.k) + ', over ' + q.d + '.',
+            mixedStr(r.n, r.d) + ' is the total.'],
+          teach: 'Scaling a recipe or a distance by a whole number is multiplying the fraction by that number.',
+          b: 0.4
+        });
+      },
+
+      function () {                       /* judge: does multiplying make it bigger */
+        var f = frac(rng, lvl);
+        var k = BC.int(rng, 2, 5);
+        var r = reduce(f.n * k, f.d);
+        var claim = reduce(f.n, f.d * k);
+        var truth = claim.n / claim.d === r.n / r.d;
+        return judge('Is ' + f.n + '/' + f.d + ' × ' + k + ' = ' + claim.n + '/' + claim.d + '?', truth, {
+          explain: ['The correct product is ' + (f.n * k) + '/' + f.d + ' = ' + mixedStr(r.n, r.d) + '.', 'Multiplying by a whole number makes the fraction larger, not smaller.'],
+          teach: 'Multiplying a fraction by a whole number grows the numerator; the denominator stays.',
+          b: 0.5
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ============  RELATE FRACTIONS AND DECIMALS  (BB.*)  =================== */
+  /* ======================================================================= */
+  UP.on(/^model decimals and fractions|^what decimal number|^(graph|decimal) .*decimal|^convert (fractions and mixed numbers to decimals|decimals to fractions)|^decimal number lines/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var toDec = /to decimals/.test(t);
+    var toFrac = /to fractions/.test(t);
+    var numberLine = /number line/.test(t);
+    return UP.build(rng, [
+      function () {                       /* model → decimal */
+        var d = R.chance(rng, 0.5) ? 10 : 100;
+        var n = BC.int(rng, 1, d - 1);
+        var ans = d === 10 ? (n / 10).toFixed(1) : (n / 100).toFixed(2);
+        return I_NUM('What decimal number is illustrated?', +ans, {
+          visual: d === 10 ? V.frac({ n: n, d: 10 }) : V.grid({ rows: 10, cols: 10 }),
+          explain: ['The model is divided into ' + d + ' equal parts and ' + n + ' are shaded.', n + '/' + d + ' = ' + ans + '.'],
+          teach: 'Tenths and hundredths are the fractions a decimal writes directly: 3/10 is 0.3 and 3/100 is 0.03.',
+          b: -0.2
+        });
+      },
+      function () {                       /* fraction → decimal */
+        if (toFrac) {
+          var w = R.chance(rng, 0.4) ? BC.int(rng, 1, 5) : 0;
+          var n = BC.int(rng, 1, 99);
+          var dec = (w + n / 100);
+          return ask(rng, 'Write ' + dec + ' as a mixed number.', w * 100 + n, 100, {
+            answerText: w ? w + ' ' + n + '/100' : n + '/100',
+            explain: [dec + ' is ' + w + ' whole plus ' + n + ' hundredths.', 'So it is ' + (w ? w + ' ' : '') + n + '/100.'],
+            teach: 'The digits after the decimal point are hundredths when there are two of them.',
+            b: 0.3
+          });
+        }
+        var d2 = R.chance(rng, 0.5) ? 10 : 100, n2 = BC.int(rng, 1, d2 - 1);
+        var ans2 = d2 === 10 ? (n2 / 10).toFixed(1) : (n2 / 100).toFixed(2);
+        return I_NUM('Write ' + n2 + '/' + d2 + ' as a decimal.', +ans2, {
+          visual: numberLine ? V.numline(0, 1, [{ x: n2 / d2, label: n2 + '/' + d2 }], {}) : undefined,
+          explain: ['Renaming to a denominator of ' + d2 + ' is already done.', n2 + '/' + d2 + ' = ' + ans2 + '.'],
+          teach: 'A fraction with denominator 10 or 100 converts straight to a decimal.',
+          b: 0.1
+        });
+      },
+      function () {                       /* decimal → fraction */
+        if (toDec) return null;
+        var n = BC.int(rng, 1, 9);
+        return ask(rng, 'Write 0.' + n + ' as a fraction.', n, 10, {
+          answerText: n + '/10', typed: true, simplest: true,
+          explain: ['0.' + n + ' means ' + n + ' tenths.', 'So the fraction is ' + n + '/10' + (gcd(n, 10) > 1 ? ', which reduces to ' + reduce(n, 10).n + '/' + reduce(n, 10).d : '') + '.'],
+          teach: 'One digit after the point is tenths; two digits are hundredths.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which decimal matches the fraction */
+        var d = R.chance(rng, 0.5) ? 10 : 100, n = BC.int(rng, 1, d - 1);
+        var ans = (n / d).toFixed(d === 10 ? 1 : 2);
+        var wrongs = [((n + 1) / d).toFixed(d === 10 ? 1 : 2), (n / 100).toFixed(2), (n / 10).toFixed(1)];
+        wrongs = wrongs.filter(function (w, i, arr) { return Number(w) !== Number(ans) && arr.indexOf(w) === i; });
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'Which decimal equals ' + n + '/' + d + '?', ans, wrongs, {
+          steps: ['Write the fraction with denominator ' + d + '.', 'Read it as a decimal: ' + ans + '.'],
+          teach: 'Convert by matching the denominator to the number of decimal places.',
+          b: 0.2
+        });
+      },
+      function () {                       /* place the decimal on a line */
+        if (!numberLine) return null;
+        var n = BC.int(rng, 1, 9);
+        var v = n / 10;
+        return I_NUM('A number line from 0 to 1 is split into 10 equal parts. What decimal is at the ' + n + 'th mark?', +v.toFixed(1), {
+          visual: V.numline(0, 1, [{ x: v, label: '?' }], {}),
+          explain: ['Each mark is one tenth.', 'The ' + n + 'th mark is ' + n + '/10 = 0.' + n + '.'],
+          teach: 'Number lines show decimals as distances: each tenth moves one mark to the right.',
+          b: 0
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ===========  FRACTIONS OF TIME UNITS  (FF.10)  ========================= */
+  /* ======================================================================= */
+  UP.on(/fractions of time units/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {
+        var half = R.chance(rng, 0.5);
+        var mins = half ? 30 : 60;
+        var frac = half ? { n: BC.int(rng, 1, 2), d: 2 } : { n: BC.int(rng, 1, 3), d: BC.pick(rng, [2, 3, 4, 6]) };
+        var ans = mins * frac.n / frac.d;
+        if (ans % 1) return null;
+        return I_NUM('How many minutes are ' + frac.n + '/' + frac.d + ' of ' + mins + ' minutes?', ans, {
+          explain: ['Split ' + mins + ' minutes into ' + frac.d + ' equal parts: ' + (mins / frac.d) + ' minutes each.', frac.n + ' parts is ' + (mins / frac.d) + ' × ' + frac.n + ' = ' + ans + ' minutes.'],
+          teach: 'Fractions of an hour work like any fraction of a number: divide by the denominator, multiply by the numerator.',
+          b: 0.2
+        });
+      },
+      function () {
+        var mins = BC.pick(rng, [15, 20, 30, 45]);
+        var ans = mins / 60;
+        var r = reduce(mins, 60);
+        var wrongs = [reduce(mins + 15, 60).n + '/' + reduce(mins + 15, 60).d, '1/' + BC.pick(rng, [3, 8]), reduce(60 - mins, 60).n + '/' + reduce(60 - mins, 60).d];
+        wrongs = wrongs.filter(function (w, i, arr) { return w !== r.n + '/' + r.d && arr.indexOf(w) === i; });
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'What fraction of an hour is ' + mins + ' minutes?', r.n + '/' + r.d, wrongs, {
+          steps: ['One hour is 60 minutes, so the fraction is ' + mins + '/60.', 'Divide top and bottom by ' + gcd(mins, 60) + ' to get ' + r.n + '/' + r.d + '.'],
+          teach: 'Minutes to hours is a fraction over 60, then written in lowest terms.',
+          b: 0.4
+        });
+      },
+      function () {
+        var h = BC.int(rng, 1, 3);
+        var mins = BC.pick(rng, [15, 30, 45]);
+        var total = h * 60 + mins;
+        var r = reduce(total, 60);
+        return ask(rng, 'Write ' + h + ' h ' + mins + ' min as a number of hours.', r.n, r.d, {
+          answerText: mixedStr(r.n, r.d),
+          explain: [h + ' h = ' + h * 60 + ' min, plus ' + mins + ' min = ' + total + ' min.', total + '/60 = ' + mixedStr(r.n, r.d) + ' hours.'],
+          teach: 'Mixed numbers of hours come from writing the leftover minutes over 60.',
+          b: 0.5
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ======  MEASUREMENT WORD PROBLEMS WITH FRACTIONS  (II.2)  ============== */
+  /* ======================================================================= */
+  UP.on(/measurement word problems with fractions/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* cm and mm fractions */
+        var d = BC.pick(rng, [2, 4, 5, 10]);
+        var n = BC.int(rng, 1, d - 1);
+        var cm = d * BC.int(rng, 1, 6);
+        var ans = cm / d * n * 10;
+        return I_NUM('A ribbon is ' + cm + ' cm long. ' + n + '/' + d + ' of it is cut off. How many millimetres is that?', ans, {
+          explain: [cm + ' ÷ ' + d + ' = ' + (cm / d) + ' cm, times ' + n + ' = ' + (cm / d * n) + ' cm.', (cm / d * n) + ' cm = ' + ((cm / d * n) * 10) + ' mm.'],
+          teach: 'Find the fraction of the length first, then convert the unit.',
+          b: 0.4
+        });
+      },
+      function () {                       /* adding mixed measures */
+        var d = BC.pick(rng, [4, 8]);
+        var n1 = BC.int(rng, 1, d - 1), n2 = BC.int(rng, 1, d - n1);
+        var w1 = BC.int(rng, 0, 3), w2 = BC.int(rng, 0, 2);
+        var imp = (w1 * d + n1) + (w2 * d + n2);
+        var rr = reduce(imp, d);
+        return ask(rng, 'Two boards measure ' + w1 + ' ' + n1 + '/' + d + ' m and ' + w2 + ' ' + n2 + '/' + d + ' m. What is the total length?',
+          rr.n, rr.d, {
+          answerText: mixedStr(rr.n, rr.d),
+          explain: ['Both are in ' + d + 'ths of a metre.', (w1 * d + n1) + ' + ' + (w2 * d + n2) + ' = ' + imp + ' ' + d + 'ths = ' + mixedStr(rr.n, rr.d) + ' m.'],
+          teach: 'Mixed measures add by converting each to the same fractional unit first.',
+          b: 0.5
+        });
+      },
+      function () {                       /* how much more is needed */
+        var d = BC.pick(rng, [4, 10]);
+        var have = BC.int(rng, 1, d * 2 - 1);
+        var need = have + BC.int(rng, 1, d - 1);
+        var rr = reduce(need - have, d);
+        return ask(rng, 'A recipe needs ' + mixedStr(need, d) + ' cups and you have ' + mixedStr(have, d) + ' cups. How much more do you need?',
+          rr.n, rr.d, {
+          answerText: mixedStr(rr.n, rr.d),
+          explain: ['Both amounts are in ' + d + 'ths.', need + ' − ' + have + ' = ' + (need - have) + ' ' + d + 'ths.'],
+          teach: 'Finding “how much more” with fractions is subtraction of the same-sized parts.',
+          b: 0.5
         });
       }
     ]);
@@ -22485,15 +23995,34 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'So <b>' + q + '</b> ' + k + ' are filled.']
         });
       },
-      /* 8 — true or false about the meaning. */
+      /* 8 — true or false about the meaning.
+         The sentence has to vary. Flipping a coin while printing the same
+         true definition asked the learner to disagree that 18 ÷ 9 means
+         splitting 18 into 9 equal groups. */
       function () {
+        var trueClaims = [
+          'means splitting ' + n + ' into ' + d + ' equal groups',
+          'means splitting ' + n + ' into equal groups of ' + q + ' each',
+          'shows how many groups of ' + d + ' fit in ' + n
+        ];
+        var falseClaims = [
+          'means adding ' + n + ' and ' + d + ' together',
+          'means ' + n + ' taken ' + d + ' times',
+          'means splitting ' + n + ' into ' + d + ' groups that are not equal',
+          'means taking ' + d + ' away from ' + n + ' once'
+        ];
         var right = R.chance(rng, 0.5);
-        return I_bool('Is it true that ' + n + ' ÷ ' + d + ' means splitting ' + n + ' into ' + d + ' equal groups?', right, {
+        var claim = right ? R.pick(rng, trueClaims) : R.pick(rng, falseClaims);
+        return I_bool('Is it true that ' + n + ' ÷ ' + d + ' ' + claim + '?', right, {
           b: 0.5,
-          teach: 'The divisor names the number of equal groups; the quotient is the size of each one.',
-          explain: ['In ' + n + ' ÷ ' + d + ' the total is ' + n + ' and the divisor is ' + d + '.',
-            'That does describe splitting ' + n + ' into ' + d + ' equal groups.',
-            'So the answer is <b>' + (right ? 'True' : 'False') + '</b>.']
+          teach: 'Division sorts a total into equal-size groups; the divisor names the groups and the quotient is how many in each.',
+          explain: right
+            ? ['In ' + n + ' ÷ ' + d + ' the total is ' + n + ' and the divisor is ' + d + '.',
+               d + ' equal groups of ' + q + ' make ' + n + ' in all, so the sentence really is the meaning of the division.',
+               'So the answer is <b>True</b>.']
+            : ['In ' + n + ' ÷ ' + d + ' the total is ' + n + ' and the divisor is ' + d + '.',
+               n + ' ÷ ' + d + ' = ' + q + ', which comes from equal groups — not ' + claim.replace(/^means /, '') + '.',
+               'So the answer is <b>False</b>.']
         });
       },
       /* 9 — order matters in division. */
