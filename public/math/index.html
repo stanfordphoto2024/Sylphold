@@ -346,7 +346,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-24 — 40 modules inlined:
+/* MathPath 2026-09-25 — 40 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -27655,6 +27655,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (inp && !S.answered && !TOUCH) setTimeout(function () { try { inp.focus(); } catch (e) { } }, 30);
     if (!S.answered) { var stxt = speechText(item); setTimeout(function () { speak(stxt); }, 60); }
     else stopSpeech();
+    /* A fresh question opens on the question itself — see showTop. */
+    if (!S.answered) setTimeout(showTop, TOUCH ? 10 : 0);
   }
 
   function renderActions() {
@@ -27901,6 +27903,32 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest', behavior: TOUCH ? 'smooth' : 'auto' });
     } catch (e) {
       try { fb.scrollIntoView(); } catch (e2) { }
+    }
+  }
+
+  /* The other half of the same problem. Checking an answer scrolls the page DOWN
+   * to the worked steps; the next card is then drawn while the viewport is still
+   * down there, so a learner on a phone sees the new card's answer box and its
+   * buttons and has to scroll all the way back up to find out what they are
+   * being asked. Every card must open on its question: pull the card's top back
+   * under the header whenever the page is looking at anything below it. */
+  function showTop() {
+    var card = $('#view .card');
+    if (!card || !card.getBoundingClientRect || !win.scrollTo) return;
+    var y, at;
+    try {
+      var box = card.getBoundingClientRect();
+      var header = $('header.bar');
+      var hh = header && header.getBoundingClientRect ? header.getBoundingClientRect().height : 0;
+      at = win.scrollY || 0;
+      y = Math.round(at + box.top - hh - 8);
+      if (!isFinite(y) || y < 0) y = 0;
+      if (Math.abs(at - y) < 4) return;               /* the question is already in view */
+    } catch (e) { return; }
+    try {
+      win.scrollTo({ top: y, behavior: TOUCH ? 'smooth' : 'auto' });
+    } catch (e) {
+      try { win.scrollTo(0, y); } catch (e2) { }
     }
   }
   /* ------------------------------------------------ reteach after wrong -- */
