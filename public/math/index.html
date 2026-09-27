@@ -6792,9 +6792,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      A learner who has never been placed starts on the first rung: Pre-K. */
   var CLIMB_NEED = 10;                      // consecutive correct to clear a level
   var CLIMB_DROP = 3;                       // consecutive wrong to drop a level
+  /* A missed skill is come back to twice — the same skill, a second try and a
+     third — and then practice moves on. Two retries is the point where a learner
+     either gets it or needs the teaching card, and a third card on the same skill
+     only teaches them to wait for the answer to be read out. */
+  var CLIMB_RETRIES = 2;
 
   function climbBlank() {
-    return { band: null, streak: 0, wrong: 0, asked: 0, correct: 0, best: 0, started: 0, cover: {}, pin: null, done: false, runs: 0, hist: [] };
+    return { band: null, streak: 0, wrong: 0, asked: 0, correct: 0, best: 0, started: 0, cover: {}, pin: null, retries: null, skip: null, done: false, runs: 0, hist: [] };
   }
   function climbState(st) {
     var C = st.climb; if (!C) C = st.climb = climbBlank();
@@ -6880,33 +6885,52 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     LV.streak = 0; LV.wrong = (LV.wrong || 0) + 1;
     return null;
   }
-  /* the next skill of a level: the one just missed, else the least-asked one */
-  function levelPick(LV, b, rng) {
+  /* the next skill of a level: the one just missed (while its two retries last),
+     else the one the learner has never met, else the least-asked one */
+  function levelPick(st, LV, b, rng) {
     var list = bandSkills(b); if (!list.length) return null;
-    if (LV.pin) {                                   // just missed one: same skill again
+    /* A missed skill comes back CLIMB_RETRIES times and then lets go. Before this
+       the pin was never cleared, so one wrong answer could keep the same skill on
+       the learner's screen for the rest of the level. */
+    if (LV.pin && (LV.retries == null || LV.retries > 0)) {
       for (var i = 0; i < list.length; i++) if (list[i].id === LV.pin) return list[i];
     }
     var cov = LV.cover[b] || (LV.cover[b] = {});
-    var best = [], low = Infinity;
-    for (var k = 0; k < list.length; k++) {
-      var n = cov[list[k].id] || 0;
-      if (n < low) { low = n; best = [list[k]]; }
-      else if (n === low) best.push(list[k]);
+    var skip = LV.skip; if (skip) LV.skip = null;       /* just retried twice: not again yet */
+    var live = [], j;
+    for (j = 0; j < list.length; j++) if (list[j].id !== skip) live.push(list[j]);
+    if (!live.length) live = list;
+    /* Skills the learner has never answered go first; inside that, the least
+       asked. A level is a survey of the level, and a skill never met is worth
+       more than a tenth card on one already got. */
+    var best = [], low = Infinity, k;
+    for (k = 0; k < live.length; k++) {
+      var s = st && st.sk ? st.sk[live[k].id] : null;
+      var n = (s && s.a > 0 ? 1000 : 0) + (cov[live[k].id] || 0);
+      if (n < low) { low = n; best = [live[k]]; }
+      else if (n === low) best.push(live[k]);
     }
     return best.length ? best[Math.floor(rng() * best.length)] : list[0];
   }
   /* one card from the level the learner is standing on, or null when nothing is
      written for it anywhere on the ladder */
-  function levelCard(st, LV, rng) {
+  function levelCard(st, LV, rng, opts) {
+    opts = opts || {};
     var b = climbLevelWithItems(LV.band); if (!b) return null;
     for (var pick = 0; pick < 12; pick++) {
-      var sk = levelPick(LV, b, rng); if (!sk) return null;
+      var sk = levelPick(st, LV, b, rng); if (!sk) return null;
       var cov = LV.cover[b] || (LV.cover[b] = {});
       cov[sk.id] = (cov[sk.id] || 0) + 1;
       var lvl = clamp(3 + (LV.streak >= 5 ? 1 : 0) - (LV.wrong > 0 ? 1 : 0), 1, 5);
+      var wasRetry = opts.retry && LV.pin && sk.id === LV.pin && (LV.retries == null || LV.retries > 0);
       var item = null, tries = 0;
       while (!item && tries++ < 8) { try { item = root.genFor(sk.id, rng, lvl); } catch (e) { item = null; } }
       if (!item) { cov[sk.id] = Math.max(0, (cov[sk.id] || 0) - 1); continue; }
+      if (wasRetry) {
+        item.retry = 1;                                  /* the card says what it is */
+        LV.retries = Math.max(0, (LV.retries == null ? CLIMB_RETRIES : LV.retries) - 1);
+        if (LV.retries === 0) { LV.skip = LV.pin; LV.pin = null; }   /* two is enough */
+      }
       item.lvl = lvl;
       item.levelInfo = {
         band: LV.band, label: BAND_LABEL[LV.band] || LV.band, level: bandIdx(LV.band) + 1, of: BANDS.length,
@@ -6920,7 +6944,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function climbNext(st, rng) {
     var C = climbState(st);
     if (C.done) return null;
-    var item = levelCard(st, C, rng);
+    var item = levelCard(st, C, rng, { retry: true });
     if (!item) return null;
     item.climb = item.levelInfo;
     return item;
@@ -6936,8 +6960,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return r;
     }
     C.asked++;
-    if (ok) C.correct++;
-    else C.pin = item.skill;                      // the next card is a similar one
+    if (ok) { C.correct++; C.pin = null; C.retries = null; }
+    else if (C.pin === item.skill && C.retries != null && C.retries > 0) {
+      /* a miss inside the two retries does not re-arm them: two is really two,
+         and then practice goes back to the rest of the level */
+    } else { C.pin = item.skill; C.retries = CLIMB_RETRIES; }
     var moved = levelIsPinned(st) ? levelStay(C, ok) : levelMove(C, ok);
     if (moved === 'top') C.done = true;
     if (moved) anchorLevel(st, C.band);           // θ walks onto the new level with them
@@ -7017,20 +7044,57 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ------------------------------------------------------------- storage --- */
   var KEY = 'mathpath.v1';
   var VISIT_MS = 2 * 3600 * 1000;      // two hours away ends a session
-  function save(st) { try { localStorage.setItem(KEY, JSON.stringify(serialize(st))); } catch (e) { } return st; }
+  var allowBlank = false;              // set only when the learner asked to clear their own record
+  /* A record is anything the learner has produced: an answer anywhere, a line of
+     the trace, a probe result, a streak. Nothing in this app is allowed to write
+     an empty state over a state that has one — a corrupt read, a state shape an
+     older build cannot parse, a save that runs before the record has loaded. The
+     only way progress leaves the device is the learner's own "Reset everything"
+     (which removes the key itself) or an import they confirm replaces a file
+     with nothing on it. `force` is reserved for exactly those two. */
+  function hasRecord(st) {
+    if (!st) return false;
+    if (st.thetaSeen || st.bestEver) return true;
+    if (st.diag || st.climb) return true;
+    if (st.log && st.log.length) return true;
+    var sk = st.sk || {}, k = Object.keys(sk), i;
+    for (i = 0; i < k.length; i++) if (sk[k[i]] && sk[k[i]].a > 0) return true;
+    return false;
+  }
+  function save(st, force) {
+    try {
+      if (!force && !allowBlank) {
+        var raw = localStorage.getItem(KEY);
+        if (raw && !hasRecord(st)) {
+          var stored = null;
+          try { stored = JSON.parse(raw); } catch (e) { stored = { unreadable: 1 }; }
+          if (hasRecord(stored)) return st;             // an empty state never overwrites a record
+        }
+      }
+      localStorage.setItem(KEY, JSON.stringify(serialize(st)));
+    } catch (e) { }
+    return st;
+  }
   function serialize(st) {
     return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created };
   }
   function load() {
     var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true } };
+    var raw = null;
     try {
-      var raw = localStorage.getItem(KEY); if (!raw) return base;
+      raw = localStorage.getItem(KEY); if (!raw) return base;
       var o = JSON.parse(raw);
       Object.keys(base).forEach(function (k) { if (o[k] !== undefined) base[k] = o[k]; });
       base.settings = Object.assign(base.settings, o.settings || {});
       base.sess = Object.assign(base.sess, o.sess || {});
       return base;
-    } catch (e) { return base; }
+    } catch (e) {
+      /* This build cannot read what is on the device. The record stays where it
+         is, and a copy of it goes under its own key so a later build, or the
+         Report's import, can still reach it. Nothing is thrown away here. */
+      try { if (raw && !localStorage.getItem(KEY + '.unreadable')) localStorage.setItem(KEY + '.unreadable', raw); } catch (e2) { }
+      return base;
+    }
   }
   /* "This session" has to mean this sitting. Counters used to be kept forever,
      so a learner who answered 300 items over three weeks was still told their
@@ -7042,7 +7106,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var started = st.sess.started || 0;
     if (!started || now() - started > VISIT_MS) {
       st.bestEver = Math.max(st.bestEver || 0, st.sess.best || 0, st.sess.streak || 0);
-      st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: now(), mode: st.sess.mode || 'study' };
+      /* the sitting is closed, not erased: its numbers go on the record, so the
+         learner can still see what they did yesterday after two hours away */
+      var closed = { started: started || 0, ended: now(), asked: st.sess.asked || 0, correct: st.sess.correct || 0, skipped: st.sess.skipped || 0, best: st.sess.best || 0 };
+      var hist = st.sess.hist || (st.sess.hist = []);
+      if (closed.asked || closed.skipped) { hist.push(closed); if (hist.length > 24) st.sess.hist = hist.slice(-24); }
+      st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: now(), mode: st.sess.mode || 'study', hist: st.sess.hist };
     }
     return st.sess;
   }
@@ -7053,12 +7122,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      from, and every state older than this one was defaulted to Kindergarten —
      a learner who never answered a single item belongs on the first rung. */
   function migrate(st) {
-    if (st.diag && (st.diag.done || st.diag.phase === 'probe')) {
-      if (!st.diag.cover || typeof st.diag.cover !== 'object') st.diag.cover = {};
-      if (st.diag.done && !st.diag.level) st.diag.level = st.diag.band || null;
-      if (!st.diag.level || BANDS.indexOf(st.diag.level) < 0) st.diag = null;   // bisection-era probe
-    } else if (st.diag) {
-      st.diag = null;
+    /* A probe result belongs to the learner's record, so a state this build
+       cannot place is repaired rather than deleted: the level it reached, else
+       the band of its last answered question, else nothing. When even that is
+       missing the probe is closed where it stands — every answer it collected
+       stays counted, and the Report still shows what was asked. */
+    if (st.diag) {
+      var D = st.diag;
+      if (!D.cover || typeof D.cover !== 'object') D.cover = {};
+      if (!D.level || BANDS.indexOf(D.level) < 0) {
+        var last = null, res = D.results || [], i;
+        for (i = res.length - 1; i >= 0; i--) { if (res[i] && res[i].band && BANDS.indexOf(res[i].band) >= 0) { last = res[i].band; break; } }
+        D.level = (D.band && BANDS.indexOf(D.band) >= 0) ? D.band : last;
+      }
+      if (!D.done && (!D.level || BANDS.indexOf(D.level) < 0)) { D.done = true; D.phase = 'done'; }
     }
     if (st.climb && (!st.climb.band || BANDS.indexOf(st.climb.band) < 0)) st.climb.band = null;
     if (st.climb && !st.thetaSeen && !(st.diag && st.diag.done)) st.climb.band = BANDS[0];
@@ -7107,11 +7184,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
       diagLimit: function () { return (st.diag && st.diag.limit) || DIAG_LIMIT; },
       prob: function (b) { return prob(st.theta, b); },
-      reset: function () { st.sk = {}; st.theta = 0; st.thetaSeen = 0; st.log = []; st.diag = null; st.climb = null; st.bestEver = 0; st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' }; },
-      save: function () { return save(st); },
+      /* The learner asked to clear their own record. This is the only path that
+         lets an empty state reach the device; nothing else in the app may. */
+      reset: function () {
+        allowBlank = true;
+        st.sk = {}; st.theta = 0; st.thetaSeen = 0; st.log = []; st.diag = null; st.climb = null; st.bestEver = 0; st.sess = { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: Date.now(), mode: 'study' };
+      },
+      clearDevice: function () { allowBlank = true; try { localStorage.removeItem(KEY); localStorage.removeItem(KEY + '.unreadable'); } catch (e) { } },
+      hasRecord: function () { return hasRecord(st); },
+      save: function (force) { return save(st, force); },
       exportJSON: function () { return JSON.stringify(serialize(st), null, 1); },
-      importJSON: function (txt) {
+      importJSON: function (txt, force) {
         var o = JSON.parse(txt);
+        /* a file with nothing on it does not get to erase this device unless the
+           learner says so — 'confirm' means "ask first", nothing was changed */
+        if (!force && !allowBlank && !hasRecord(o) && hasRecord(st)) return 'confirm';
         ['theta', 'thetaSeen', 'sk', 'sess', 'bestEver', 'log', 'diag', 'climb', 'settings', 'created'].forEach(function (k) { if (o[k] !== undefined) st[k] = o[k]; });
         return true;
       }
@@ -24519,8 +24606,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function judge(prompt, truth, o) {
     o = o || {};
+    /* a handler that writes its reasoning as `steps` still has to hand the card
+       real explain lines, exactly as UP.judge does: mkItem refuses a card with
+       no explanation, and the learner would get a yes/no with nothing behind it */
+    var ex = o.explain || (o.steps && o.steps.length ? o.steps : null);
+    if (!ex) ex = ['Work the mathematics behind the statement out first.',
+      'Compared with what you worked out, the statement is ' + (truth ? 'true' : 'false') + '.'];
     return I_BOOL(prompt, !!truth, {
-      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+      sub: o.sub, visual: o.visual, explain: ex, teach: o.teach, hint: o.hint, b: o.b || 0
     });
   }
   function compare(prompt, a, b, o) {
@@ -25868,6 +25961,495 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: ['Equal groups counted together is multiplication.', 'Splitting a total into equal shares is division.'],
           teach: 'Joining equal groups multiplies; splitting a total divides.',
           b: 0.4
+        });
+      }
+    ]);
+  });
+  /* ======================================================================= */
+  /* add 3 or more numbers up to millions                                    */
+  /* ======================================================================= */
+  UP.on(/^add 3 or more numbers up to millions/, function (rng, lvl) {
+    function draw(n, digits) {
+      var out = [], i, sum = 0, guard = 0, d = digits;
+      for (i = 0; i < n; i++) out.push(BC.nDigits(rng, d));
+      sum = out.reduce(function (a, v) { return a + v; }, 0);
+      while (sum > 9999999 && guard++ < 6) {
+        d = Math.max(3, d - 1); out = [];
+        for (i = 0; i < n; i++) out.push(BC.nDigits(rng, d));
+        sum = out.reduce(function (a, v) { return a + v; }, 0);
+      }
+      if (sum > 9999999) return null;
+      return { parts: out, sum: sum };
+    }
+    function expr(p) { return p.map(function (v) { return UP.comma(v); }).join(' + '); }
+    return UP.build(rng, [
+      function () {                       /* the column addition */
+        var p = draw(lvl <= 2 ? 3 : (lvl <= 4 ? 4 : BC.pick(rng, [3, 4, 5])), lvl <= 2 ? 4 : (lvl <= 4 ? 5 : 7));
+        if (!p) return null;
+        return ask(rng, 'Work out ' + expr(p.parts) + '.', p.sum, {
+          answerText: UP.comma(p.sum),
+          explain: ['Add the ones, then the tens, then every place in order, carrying what goes over.',
+            'The total is ' + UP.comma(p.sum) + '.'],
+          teach: 'Line the places up and add one column at a time.',
+          b: 0
+        });
+      },
+      function () {                       /* the same addition inside a story */
+        var p = draw(3, lvl <= 3 ? 4 : 5); if (!p) return null;
+        var who = BC.pick(rng, ['The school', 'The scout troop', 'The town', 'The class']);
+        var thing = BC.pick(rng, ['cans', 'books', 'seeds', 'tickets']);
+        return ask(rng, who + ' collected ' + expr(p.parts) + ' ' + thing + ' over three months. How many ' + thing + ' in all?', p.sum, {
+          answerText: UP.comma(p.sum),
+          explain: ['The three months are the three addends.', expr(p.parts) + ' = ' + UP.comma(p.sum) + '.'],
+          teach: 'A word problem that asks "in all" is the same column addition.',
+          b: 0.3
+        });
+      },
+      function () {                       /* which total is the right one */
+        var p = draw(3, 5); if (!p) return null;
+        var wrongs = UP.slips(p.sum, [p.sum + 1000, p.sum - 1000]);
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'Which is the total of ' + expr(p.parts) + '?', UP.comma(p.sum),
+          wrongs.slice(0, 3).map(function (w) { return UP.comma(w); }), {
+          steps: ['Add the ones column first, then carry.', expr(p.parts) + ' = ' + UP.comma(p.sum) + '.'],
+          teach: 'Estimate the total, then check each option against it.',
+          b: 0.4
+        });
+      },
+      function () {                       /* judge a claimed total */
+        var p = draw(3, 5); if (!p) return null;
+        var lie = rng() < 0.5 ? 0 : BC.pick(rng, [10, 100, 1000, -1000]);
+        var claim = p.sum + lie; if (claim <= 0) return null;
+        return judge('Is it true that ' + expr(p.parts) + ' = ' + UP.comma(claim) + '?', lie === 0, {
+          steps: ['Work the left side out: ' + UP.comma(p.sum) + '.',
+            lie === 0 ? 'That is exactly the total written on the right.' : 'The true total is ' + UP.comma(p.sum) + ', not ' + UP.comma(claim) + '.'],
+          teach: 'Never judge a total by how it sounds — work it out first.',
+          b: 0.5
+        });
+      },
+      function () {                       /* compare the total with a number */
+        var p = draw(3, 5); if (!p) return null;
+        var bench = Math.round((p.sum + BC.pick(rng, [-20000, -5000, 5000, 20000])) / 1000) * 1000;
+        if (bench === p.sum || bench <= 0) return null;
+        return compare('Choose >, < or =.   ' + expr(p.parts) + ' ○ ' + UP.comma(bench), p.sum, bench, {
+          explain: ['The sum is ' + UP.comma(p.sum) + '; the other side is ' + UP.comma(bench) + '.',
+            p.sum > bench ? 'So the sum is the greater side.' : 'So the sum is the smaller side.'],
+          teach: 'Work each side out, then compare the two numbers.',
+          b: 0.6
+        });
+      },
+      function () {                       /* the missing addend */
+        var p = draw(3, 5); if (!p) return null;
+        var hide = BC.int(rng, 0, 2);
+        var shown = p.parts.filter(function (v, i) { return i !== hide; });
+        if (shown.length !== 2) return null;
+        var seen = shown[0] + shown[1];
+        return ask(rng, 'Three numbers add to ' + UP.comma(p.sum) + '. Two of them are ' + UP.comma(shown[0]) + ' and ' + UP.comma(shown[1]) + '. What is the third?', p.parts[hide], {
+          answerText: UP.comma(p.parts[hide]),
+          explain: ['Add the two numbers you can see: ' + UP.comma(seen) + '.',
+            'Take them from the total: ' + UP.comma(p.sum) + ' − ' + UP.comma(seen) + ' = ' + UP.comma(p.parts[hide]) + '.'],
+          teach: 'A missing addend is a subtraction in disguise.',
+          b: 0.7
+        });
+      },
+      function () {                       /* closest to the total */
+        var p = draw(4, 5); if (!p) return null;
+        var lo = Math.floor(p.sum / 10000) * 10000, opts = [], k;
+        for (k = -1; k <= 2; k++) { var v = lo + k * 10000; if (v > 0 && v !== p.sum) opts.push(v); }
+        if (opts.length < 2) return null;
+        return choose(rng, 'Which number is closest to the sum of ' + expr(p.parts) + '?', UP.comma(p.sum),
+          opts.slice(0, 3).map(function (v) { return UP.comma(v); }), {
+          steps: ['The sum is exactly ' + UP.comma(p.sum) + '.', 'Closest means the smallest distance from that total.'],
+          teach: 'Work the sum out exactly first, then measure the distance to each option.',
+          b: 0.8
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* add and subtract numbers ending in zeros                                */
+  /* ======================================================================= */
+  UP.on(/^add and subtract numbers ending in zeros/, function (rng, lvl) {
+    function draw() {
+      var place = lvl <= 2 ? 1 : (lvl <= 4 ? BC.pick(rng, [1, 2]) : 2);
+      var step = Math.pow(10, place);
+      var a = BC.int(rng, 3, 90) * step, b = BC.int(rng, 1, 89) * step;
+      if (b >= a) { var t = a; a = b; b = t; }
+      if (a + b > (place === 1 ? 1800 : 18000)) return null;
+      return { a: a, b: b, sum: a + b, diff: a - b, place: place, step: step };
+    }
+    function f(n) { return UP.comma(n); }
+    return UP.build(rng, [
+      function () {                       /* the sum */
+        var p = draw(); if (!p) return null;
+        return ask(rng, lead(rng, ['What is {a} + {b}?', 'Work out {a} + {b}.', 'Add {a} and {b}.'])
+          .replace('{a}', f(p.a)).replace('{b}', f(p.b)), p.sum, {
+          answerText: f(p.sum),
+          explain: ['These are ' + (p.place === 1 ? 'tens' : 'hundreds') + ', so count them like single digits: ' +
+            (p.a / p.step) + ' + ' + (p.b / p.step) + ' = ' + (p.sum / p.step) + '.', 'Put the zeros back: ' + f(p.sum) + '.'],
+          teach: 'Numbers ending in zeros are the same facts at a bigger place value.',
+          b: -0.2
+        });
+      },
+      function () {                       /* the difference */
+        var p = draw(); if (!p) return null;
+        return ask(rng, lead(rng, ['What is {a} − {b}?', 'Work out {a} − {b}.', 'Subtract {b} from {a}.'])
+          .replace('{a}', f(p.a)).replace('{b}', f(p.b)), p.diff, {
+          answerText: f(p.diff),
+          explain: ['Count the ' + (p.place === 1 ? 'tens' : 'hundreds') + ': ' + (p.a / p.step) + ' − ' + (p.b / p.step) + ' = ' + (p.diff / p.step) + '.',
+            'Put the zeros back: ' + f(p.diff) + '.'],
+          teach: 'Subtract the same way at the bigger place value: the zeros just follow.',
+          b: 0
+        });
+      },
+      function () {                       /* a story on the sum */
+        var p = draw(); if (!p) return null;
+        var thing = BC.pick(rng, ['seats', 'books', 'visitors', 'trees']);
+        var place = BC.pick(rng, ['school', 'stadium', 'library', 'park']);
+        return ask(rng, 'One ' + place + ' has ' + f(p.a) + ' ' + thing + ' and another has ' + f(p.b) + '. How many ' + thing + ' are there in all?', p.sum, {
+          answerText: f(p.sum),
+          explain: ['Both counts end in the same zeros, so only the leading digits change.', f(p.a) + ' + ' + f(p.b) + ' = ' + f(p.sum) + '.'],
+          teach: 'Add the digits in front of the zeros, then write the zeros once.',
+          b: 0.3
+        });
+      },
+      function () {                       /* how many more, as a story */
+        var p = draw(); if (!p) return null;
+        var thing = BC.pick(rng, ['tickets', 'seats', 'points', 'cans']);
+        return ask(rng, 'One stand sold ' + f(p.a) + ' ' + thing + ' and another sold ' + f(p.b) + '. How many more did the first stand sell?', p.diff, {
+          answerText: f(p.diff),
+          explain: ['"How many more" is a subtraction.', f(p.a) + ' − ' + f(p.b) + ' = ' + f(p.diff) + '.'],
+          teach: 'Comparing two amounts is subtraction, even when both end in zeros.',
+          b: 0.4
+        });
+      },
+      function () {                       /* the missing addend */
+        var p = draw(); if (!p) return null;
+        return ask(rng, f(p.b) + ' + ? = ' + f(p.sum) + '. What number completes the addition?', p.a, {
+          answerText: f(p.a),
+          explain: ['Take the known addend from the total.', f(p.sum) + ' − ' + f(p.b) + ' = ' + f(p.a) + '.'],
+          teach: 'A missing addend is found by subtraction.',
+          b: 0.5
+        });
+      },
+      function () {                       /* judge a claim */
+        var p = draw(); if (!p) return null;
+        var useSum = rng() < 0.5 ? 'sum' : 'diff';
+        var truthVal = useSum === 'sum' ? p.sum : p.diff;
+        var lie = rng() < 0.5 ? 0 : BC.pick(rng, [p.step, -p.step, 10 * p.step, -10 * p.step]);
+        var claim = truthVal + lie; if (claim < 0) return null;
+        var op = useSum === 'sum' ? '+' : '−';
+        return judge('Is it true that ' + f(p.a) + ' ' + op + ' ' + f(p.b) + ' = ' + f(claim) + '?', lie === 0, {
+          steps: ['Work the left side out: ' + f(truthVal) + '.',
+            lie === 0 ? 'The statement says the same number.' : 'The statement says ' + f(claim) + ', which is not ' + f(truthVal) + '.'],
+          teach: 'Estimate with the leading digits — a slip shows up at once.',
+          b: 0.6
+        });
+      },
+      function () {                       /* compare sum and difference */
+        var p = draw(); if (!p) return null;
+        if (p.sum === p.diff) return null;
+        return compare('Choose >, < or =.   ' + f(p.a) + ' + ' + f(p.b) + ' ○ ' + f(p.a) + ' − ' + f(p.b), p.sum, p.diff, {
+          explain: ['Adding ' + f(p.b) + ' moves up from ' + f(p.a) + '; subtracting it moves down.',
+            'So the sum is the greater side.'],
+          teach: 'For any number added to a positive amount, the sum beats the difference.',
+          b: 0.7
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* use one multiplication fact to complete another                         */
+  /* ======================================================================= */
+  UP.on(/^use one multiplication fact to complete another/, function (rng, lvl) {
+    function base() {
+      var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9);
+      return { a: a, b: b, p: a * b };
+    }
+    function scaled(f, za, zb) {
+      var A = f.a * Math.pow(10, za), B = f.b * Math.pow(10, zb);
+      return { A: A, B: B, p: A * B, za: za, zb: zb };
+    }
+    function zeros(n) { var s = String(n), i = 0, k; for (k = s.length - 1; k >= 0 && s.charAt(k) === '0'; k--) i++; return i; }
+    return UP.build(rng, [
+      function () {                       /* one factor scaled up */
+        var f = base(), s = scaled(f, lvl <= 2 ? 1 : BC.int(rng, 1, 2), 0);
+        return ask(rng, 'Use ' + f.a + ' × ' + f.b + ' = ' + f.p + '. What is ' + s.A + ' × ' + s.B + '?', s.p, {
+          answerText: String(s.p),
+          explain: ['The small fact is ' + f.a + ' × ' + f.b + ' = ' + f.p + '.',
+            s.A + ' is ' + f.a + ' with ' + s.za + ' zero' + (s.za === 1 ? '' : 's') + ' added, so the product is ' + f.p + ' with ' + s.za + ' zero' + (s.za === 1 ? '' : 's') + ' added: ' + s.p + '.'],
+          teach: 'Keep the fact, count the zeros: a factor times ten multiplies the product by ten.',
+          b: -0.1
+        });
+      },
+      function () {                       /* both factors scaled up */
+        if (lvl <= 2) return null;
+        var f = base(), s = scaled(f, BC.int(rng, 1, 2), BC.int(rng, 1, 2));
+        if (s.p > 999999) return null;
+        return ask(rng, 'Use ' + f.a + ' × ' + f.b + ' = ' + f.p + ' to find ' + s.A + ' × ' + s.B + '.', s.p, {
+          answerText: String(s.p),
+          explain: ['Count the zeros on both sides: ' + s.za + ' on the first factor and ' + s.zb + ' on the second.',
+            'The product is ' + f.p + ' with ' + (s.za + s.zb) + ' zeros: ' + s.p + '.'],
+          teach: 'Zeros from both factors land in the product.',
+          b: 0.4
+        });
+      },
+      function () {                       /* the missing factor */
+        var f = base(), s = scaled(f, lvl <= 3 ? 1 : 2, 0);
+        return ask(rng, s.A + ' × ? = ' + s.p + '. Use ' + f.a + ' × ' + f.b + ' = ' + f.p + ' to complete it.', s.B, {
+          answerText: String(s.B),
+          explain: ['The product ' + s.p + ' has ' + zeros(s.p) + ' zeros; the known factor ' + s.A + ' has ' + zeros(s.A) + '.',
+            'The missing factor is ' + f.b + ' with ' + (zeros(s.p) - zeros(s.A)) + ' zeros: ' + s.B + '.'],
+          teach: 'Division undoes multiplication: strip the zeros, use the fact, put them back.',
+          b: 0.5
+        });
+      },
+      function () {                       /* which fact helps */
+        var f = base(), s = scaled(f, 1, BC.int(rng, 0, 1));
+        var right = f.a + ' × ' + f.b;
+        var wrongs = [f.a + ' + ' + f.b, (f.a + 1) + ' × ' + f.b, f.a + ' × ' + (f.b + 1)];
+        return choose(rng, 'Which fact helps you find ' + s.A + ' × ' + s.B + '?', right, wrongs, {
+          steps: ['Strip the zeros from ' + s.A + ' × ' + s.B + '.', 'What is left is ' + right + ' = ' + f.p + '.'],
+          teach: 'The fact under the zeros is the one worth finding.',
+          b: 0.2
+        });
+      },
+      function () {                       /* judge the scaled product */
+        var f = base(), s = scaled(f, BC.int(rng, 1, 2), 0);
+        var wrong = rng() < 0.5;
+        var claim = wrong ? s.p * 10 : s.p;
+        if (claim > 9999999) return null;
+        return judge('Is it true that ' + s.A + ' × ' + f.b + ' = ' + claim + '?', !wrong, {
+          steps: [f.a + ' × ' + f.b + ' = ' + f.p + ' still decides this.',
+            s.A + ' × ' + f.b + ' = ' + s.p + (wrong ? ', and ' + claim + ' has one zero too many.' : '.')],
+          teach: 'Count the zeros — that is the whole judgement.',
+          b: 0.3
+        });
+      },
+      function () {                       /* the same fact inside a story */
+        var f = base(), s = scaled(f, 1, 0);
+        var thing = BC.pick(rng, ['cans', 'pens', 'seeds', 'cookies']);
+        var where = BC.pick(rng, ['crates', 'trays', 'boxes', 'shelves']);
+        return ask(rng, 'Each ' + where.replace(/s$/, '') + ' holds ' + s.A + ' ' + thing + ', and there are ' + s.B + ' of them. How many ' + thing + ' are there?', s.p, {
+          answerText: String(s.p),
+          explain: ['Equal groups again: ' + s.A + ' × ' + s.B + '.', 'Use the fact ' + f.a + ' × ' + f.b + ' = ' + f.p + ' and add the zero: ' + s.p + '.'],
+          teach: 'Word problems with round numbers are multiplication facts with zeros on top.',
+          b: 0.4
+        });
+      },
+      function () {                       /* how many zeros in the product */
+        if (lvl <= 2) return null;
+        var f = base(), s = scaled(f, BC.int(rng, 1, 2), BC.int(rng, 1, 2));
+        if (String(s.p).length > 7) return null;
+        return ask(rng, 'How many zeros are at the end of the product of ' + s.A + ' × ' + s.B + '?', zeros(s.p), {
+          explain: ['' + s.A + ' has ' + zeros(s.A) + ' zero and ' + s.B + ' has ' + zeros(s.B) + ' at the end.',
+            'The fact ' + f.a + ' × ' + f.b + ' = ' + f.p + ' adds none itself, so the product ends in ' + zeros(s.p) + ' zeros.'],
+          teach: 'Zeros at the end of the factors are counted, not multiplied.',
+          b: 0.6
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* estimate to compare quotients                                           */
+  /* ======================================================================= */
+  UP.on(/^estimate to compare quotients/, function (rng, lvl) {
+    function draw() {
+      var d = BC.int(rng, 3, 9), q = BC.int(rng, 8, lvl <= 3 ? 20 : 40);
+      var mode = BC.pick(rng, ['above', 'below', 'exact']);
+      var delta = mode === 'exact' ? 0 : BC.int(rng, 1, d - 1) * (mode === 'above' ? 1 : -1);
+      var dividend = d * q + delta;
+      if (dividend < d || dividend > 9999) return null;
+      return { d: d, q: q, dividend: dividend, delta: delta, exact: dividend / d, compat: d * q };
+    }
+    function cmpWord(p) { return p.delta > 0 ? 'greater than ' + p.q : (p.delta < 0 ? 'less than ' + p.q : 'exactly ' + p.q); }
+    return UP.build(rng, [
+      function () {                       /* greater, less or exactly */
+        var p = draw(); if (!p) return null;
+        var right = cmpWord(p);
+        var wrongs = ['greater than ' + p.q, 'less than ' + p.q, 'exactly ' + p.q].filter(function (w) { return w !== right; });
+        return choose(rng, 'Without dividing exactly: is ' + p.dividend + ' ÷ ' + p.d + ' greater than, less than, or exactly ' + p.q + '?',
+          right, wrongs, {
+          steps: ['A number you can divide exactly is close by: ' + p.compat + ' ÷ ' + p.d + ' = ' + p.q + '.',
+            p.dividend + ' is ' + (p.delta > 0 ? 'more' : (p.delta < 0 ? 'less' : 'equal')) + ' than ' + p.compat + ', so the quotient is ' + right + '.'],
+          teach: 'Choose a compatible number near the dividend, divide that, and compare.',
+          b: 0
+        });
+      },
+      function () {                       /* compare the quotient with a number */
+        var p = draw(); if (!p || p.delta === 0) return null;
+        return compare('Choose >, < or =.   ' + p.dividend + ' ÷ ' + p.d + ' ○ ' + p.q, p.exact, p.q, {
+          explain: ['Compatible number: ' + p.compat + ' ÷ ' + p.d + ' = ' + p.q + '.',
+            p.dividend + ' is ' + Math.abs(p.delta) + ' ' + (p.delta > 0 ? 'more' : 'less') + ', so the quotient is on that side of ' + p.q + '.'],
+          teach: 'The comparison is decided by a compatible number, not by long division.',
+          b: 0.2
+        });
+      },
+      function () {                       /* true or false on a claim */
+        var p = draw(); if (!p || p.delta === 0) return null;
+        var claimGreater = rng() < 0.5 ? p.exact > p.q : p.exact < p.q;
+        return judge('Is it true that ' + p.dividend + ' ÷ ' + p.d + ' is greater than ' + p.q + '?', claimGreater, {
+          steps: ['Divide the compatible number: ' + p.compat + ' ÷ ' + p.d + ' = ' + p.q + '.',
+            'Since ' + p.dividend + ' is ' + Math.abs(p.delta) + ' away from ' + p.compat + ', the quotient is ' + (p.exact > p.q ? 'greater' : 'less') + ' than ' + p.q + '.'],
+          teach: 'A claim about size is judged by comparison, not by the exact quotient.',
+          b: 0.3
+        });
+      },
+      function () {                       /* a sharing story */
+        var p = draw(); if (!p) return null;
+        var thing = BC.pick(rng, ['stickers', 'pencils', 'cards', 'marbles']);
+        var group = BC.pick(rng, ['groups', 'tables', 'teams', 'boxes']);
+        var right = p.delta > 0 ? 'more than ' + p.q + ' each' : (p.delta < 0 ? 'less than ' + p.q + ' each' : 'exactly ' + p.q + ' each');
+        var wrongs = ['more than ' + p.q + ' each', 'less than ' + p.q + ' each', 'exactly ' + p.q + ' each']
+          .filter(function (w) { return w !== right; });
+        return choose(rng, 'A teacher shares ' + p.dividend + ' ' + thing + ' among ' + p.d + ' ' + group + '. Compare one share with ' + p.q + ': is it more, less, or exactly ' + p.q + '?', right, wrongs, {
+          steps: ['Use the compatible number ' + p.compat + ': ' + p.compat + ' ÷ ' + p.d + ' = ' + p.q + '.',
+            p.dividend + ' is ' + Math.abs(p.delta) + ' ' + (p.delta > 0 ? 'more' : 'less') + ' than that.'],
+          teach: 'Estimating a share is the same comparison with a story on it.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which division clears the benchmark */
+        var p = draw(); if (!p || p.delta <= 0) return null;
+        var others = [], i;
+        for (i = 0; i < 2; i++) {
+          var q2 = p.q - BC.int(rng, 1, 6);
+          if (q2 < 2) return null;
+          others.push(p.d * q2 - BC.int(rng, 0, p.d - 1));
+        }
+        var opts = others.map(String);
+        if (opts.length < 2) return null;
+        return choose(rng, 'Which division has a quotient greater than ' + p.q + '?', String(p.dividend) + ' ÷ ' + p.d, opts.map(function (o) { return o + ' ÷ ' + p.d; }), {
+          steps: ['Compare each dividend with ' + p.compat + ' = ' + p.d + ' × ' + p.q + '.',
+            'Only ' + p.dividend + ' is above it, so only that quotient clears ' + p.q + '.'],
+          teach: 'Same divisor, so compare the dividends — the bigger dividend has the bigger quotient.',
+          b: 0.6
+        });
+      },
+      function () {                       /* closest estimate */
+        var p = draw(); if (!p) return null;
+        var opts = [p.q - 10, p.q + 10, p.q + BC.int(rng, 1, 3) * 10].filter(function (v) { return v > 0 && v !== p.q; });
+        if (opts.length < 2) return null;
+        return choose(rng, 'Which estimate is closest to ' + p.dividend + ' ÷ ' + p.d + '?', String(p.q), opts.map(String), {
+          steps: ['Compatible number: ' + p.compat + ' ÷ ' + p.d + ' = ' + p.q + '.',
+            'The exact quotient is ' + p.exact.toFixed(2) + ', so ' + p.q + ' is nearer than any estimate ten away.'],
+          teach: 'The closest estimate is the compatible quotient, not a wild guess.',
+          b: 0.5
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* divide 3-digit numbers by 1-digit numbers using area models             */
+  /* ======================================================================= */
+  UP.on(/^divide 3-digit numbers by 1-digit numbers using area models/, function (rng, lvl) {
+    function draw() {
+      /* the dividend has to be three digits, so the quotient is drawn inside
+         the band the divisor allows rather than guessed and rejected */
+      var d = BC.int(rng, 2, 9);
+      var lo = Math.ceil(100 / d), hi = Math.floor(999 / d);
+      var qlo = Math.max(lo, lvl <= 2 ? 11 : 14), qhi = Math.min(hi, lvl <= 3 ? 30 : 90);
+      if (qhi < qlo) qhi = qlo;
+      var q = BC.int(rng, qlo, qhi);
+      var dividend = d * q;
+      if (dividend < 100 || dividend > 999) return null;
+      return { d: d, q: q, dividend: dividend };
+    }
+    function split(rng, p) {
+      /* the area model breaks the quotient into tens and ones */
+      var q1 = Math.floor(p.q / 10) * 10;
+      if (q1 <= 0 || q1 >= p.q) return null;
+      return { q1: q1, p1: p.d * q1, q2: p.q - q1, p2: p.d * (p.q - q1) };
+    }
+    return UP.build(rng, [
+      function () {                       /* the quotient, area model named */
+        var p = draw(); if (!p) return null;
+        return ask(rng, lead(rng, ['Use an area model to divide: {a} ÷ {b}.', 'Divide {a} by {b} with an area model.', 'Find {a} ÷ {b} using an area model.'])
+          .replace('{a}', p.dividend).replace('{b}', p.d), p.q, {
+          explain: ['The rectangle has area ' + p.dividend + ' and one side ' + p.d + '.',
+            p.d + ' × ' + p.q + ' = ' + p.dividend + ', so the other side is ' + p.q + '.'],
+          teach: 'An area model division asks for the missing side of a rectangle.',
+          b: 0
+        });
+      },
+      function () {                       /* a partial quotient */
+        if (lvl <= 2) return null;
+        var p = draw(); if (!p) return null;
+        var s = split(rng, p); if (!s || s.q2 === 0) return null;
+        return ask(rng, 'The area model splits ' + p.dividend + ' ÷ ' + p.d + ' into ' + s.p1 + ' ÷ ' + p.d + ' = ' + s.q1 + ' and ' + s.p2 + ' ÷ ' + p.d + '. What is the second part?', s.q2, {
+          explain: ['The whole is ' + p.dividend + ', and ' + s.p1 + ' is already divided.',
+            s.p2 + ' ÷ ' + p.d + ' = ' + s.q2 + '.'],
+          teach: 'Divide the easy part first, then the rest, then add the two quotient parts.',
+          b: 0.3
+        });
+      },
+      function () {                       /* the two parts add to the quotient */
+        var p = draw(); if (!p) return null;
+        var s = split(rng, p); if (!s) return null;
+        return ask(rng, s.p1 + ' ÷ ' + p.d + ' = ' + s.q1 + ' and ' + s.p2 + ' ÷ ' + p.d + ' = ' + s.q2 + '. What is ' + p.dividend + ' ÷ ' + p.d + '?', p.q, {
+          explain: ['An area model splits the rectangle into two parts.', s.q1 + ' + ' + s.q2 + ' = ' + p.q + '.'],
+          teach: 'The quotient parts add back to the whole quotient.',
+          b: 0.2
+        });
+      },
+      function () {                       /* the missing side of a rectangle */
+        var p = draw(); if (!p) return null;
+        var thing = BC.pick(rng, ['garden', 'field', 'yard', 'bed']);
+        return ask(rng, 'A rectangular ' + thing + ' covers ' + p.dividend + ' square metres. One side is ' + p.d + ' metres. How long is the other side?', p.q, {
+          answerText: String(p.q),
+          explain: ['Area = length × width, so the missing side is area ÷ known side.',
+            p.dividend + ' ÷ ' + p.d + ' = ' + p.q + '.'],
+          teach: 'Finding a missing side of a rectangle is division.',
+          b: 0.4
+        });
+      },
+      function () {                       /* choose the quotient */
+        var p = draw(); if (!p) return null;
+        var wrongs = UP.slips(p.q, [p.q + p.d, p.q - p.d]);
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'Which is ' + p.dividend + ' ÷ ' + p.d + '?', p.q, wrongs.map(String), {
+          steps: ['Multiply each option by ' + p.d + ' and look for ' + p.dividend + '.', p.d + ' × ' + p.q + ' = ' + p.dividend + '.'],
+          teach: 'Multiplication checks division: the right quotient multiplies back to the dividend.',
+          b: 0.3
+        });
+      },
+      function () {                       /* judge a claimed quotient */
+        var p = draw(); if (!p) return null;
+        var wrong = rng() < 0.5;
+        var claim = wrong ? p.q + BC.pick(rng, [1, 2, 10, -10]) : p.q;
+        if (claim <= 0 || claim === p.q && wrong) return null;
+        return judge('Is it true that ' + p.dividend + ' ÷ ' + p.d + ' = ' + claim + '?', !wrong, {
+          steps: ['Check by multiplying: ' + p.d + ' × ' + claim + ' = ' + (p.d * claim) + '.',
+            (p.d * claim) === p.dividend ? 'That is the dividend, so the claim is right.' : 'That is not ' + p.dividend + ', so it is wrong.'],
+          teach: 'Every division claim is checked with a multiplication.',
+          b: 0.5
+        });
+      },
+      function () {                       /* compare the quotient with a number */
+        var p = draw(); if (!p) return null;
+        var bench = p.q + BC.pick(rng, [-8, -3, 3, 8]);
+        if (bench <= 0 || bench === p.q) return null;
+        return compare('Choose >, < or =.   ' + p.dividend + ' ÷ ' + p.d + ' ○ ' + bench, p.q, bench, {
+          explain: ['The quotient is exactly ' + p.q + '.', p.q > bench ? 'So it is greater than ' + bench + '.' : 'So it is smaller than ' + bench + '.'],
+          teach: 'Work the quotient out, then compare — the area model is only the road there.',
+          b: 0.6
+        });
+      },
+      function () {                       /* the remainder left in the rectangle */
+        if (lvl <= 3) return null;
+        var p = draw(); if (!p) return null;
+        var r = BC.int(rng, 1, p.d - 1);
+        var dividend = p.dividend + r;
+        if (dividend > 999) return null;
+        return ask(rng, 'The area model divides ' + p.dividend + ' exactly into ' + p.q + ' rows of ' + p.d + '. With ' + dividend + ' squares, how many squares are left over?', r, {
+          explain: ['' + p.d + ' × ' + p.q + ' = ' + p.dividend + ' uses up the whole rows.',
+            dividend + ' − ' + p.dividend + ' = ' + r + ' squares that do not fill a row.'],
+          teach: 'A remainder is what is left when the equal rows are filled.',
+          b: 0.7
         });
       }
     ]);
@@ -27527,7 +28109,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================================================ */
   /* 3 · LINE GRAPHS (change over time)                               */
   /* ================================================================ */
-  UP.on(/^interpret line graphs/, function (rng, lvl, p, sk) {
+  UP.on(/^interpret line graphs|^create line graphs|^create and interpret line graphs/, function (rng, lvl, p, sk) {
     var SETS = [['temperature in the city', '°C', [18, 22, 25, 27, 24, 21, 19]],
       ['rainfall each month', 'cm', [2, 5, 8, 11, 7, 3]],
       ['height of the bean plant', 'cm', [1, 3, 6, 9, 12, 14]],
@@ -27620,7 +28202,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================================================ */
   /* 4 · FREQUENCY TABLES                                             */
   /* ================================================================ */
-  UP.on(/^interpret frequency tables to find|^create frequency tables|^interpret frequency tables/, function (rng, lvl, p, sk) {
+  UP.on(/^interpret frequency tables to find|^create frequency tables|^interpret frequency tables|^read a table$|^read a graph$/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
     var numerical = /numerical data/.test(t);
     var creating = /^create/.test(t);
@@ -27789,7 +28371,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================================================ */
   /* 5 · STEM-AND-LEAF PLOTS                                          */
   /* ================================================================ */
-  UP.on(/^interpret stem[- ]and[- ]leaf/, function (rng, lvl, p, sk) {
+  UP.on(/^interpret stem[- ]and[- ]leaf|^create stem[- ]and[- ]leaf/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
     var statAsk = /median|mode|range/.test(t);
     function draw() {
@@ -27924,9 +28506,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================================================ */
   /* 6 · MODE / MEDIAN / RANGE FROM ANY DISPLAY                       */
   /* ================================================================ */
-  UP.on(/^find the range|^find the mode, median, or range|^interpret tables to find/, function (rng, lvl, p, sk) {
+  UP.on(/^find the range|^find the mode, median, or range|^interpret tables to find|^find the mode$|^find the median$|^find the median or mode$/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
     var onlyRange = /find the range/.test(t);
+    /* the title names which statistic the standard asks for, so a skill that
+       says "find the mode" is not served a range card. A title naming none of
+       them (an interpret-tables skill) gets all three. */
+    var kMode = /mode/.test(t), kMed = /median/.test(t), kRng = /range/.test(t);
+    var anyStat = kMode || kMed || kRng;
+    var wantMode = !anyStat || kMode, wantMedian = !anyStat || kMed, wantRange = !anyStat || kRng;
     function dataset() {
       var n = BC.pick(rng, [7, 9, 11]), vals = [], i;
       var lo = BC.int(rng, 1, 40);
@@ -27938,6 +28526,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     return UP.build(rng, [
       function () {                       /* the range */
+        if (!wantRange) return null;
         var vals = dataset(); if (!vals) return null;
         var rg = rangeOf(vals);
         if (!rg) return null;
@@ -27951,7 +28540,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* the mode */
-        if (onlyRange) return null;
+        if (!wantMode) return null;
         var vals = dataset(); if (!vals) return null;
         var mo = modeOf(vals);
         if (mo.tied) return null;
@@ -27966,7 +28555,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* the median */
-        if (onlyRange) return null;
+        if (!wantMedian) return null;
         var vals = dataset(); if (!vals) return null;
         if (vals.length % 2 === 0) return null;
         var md = medianOf(vals);
@@ -27982,7 +28571,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* which display shares the same range */
-        if (onlyRange) return null;
+        if (!wantRange) return null;
         var vals = dataset(); if (!vals) return null;
         var rg = rangeOf(vals);
         if (!rg) return null;
@@ -30465,9 +31054,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var b = BC.int(rng, 2, 4), wb = BC.int(rng, 2, 5);
         var sa = a * wa, sb = b * wb;
         if (sa === sb) return null;
-        return ask(rng, w2fix(a, wa) + ' and ' + w2fix(b, wb) + ' — how much more did the saver with the bigger total save?', Math.abs(sa - sb), {
+        var who1 = BC.pick(rng, BC.WHO), who2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== who1; }));
+        var big = sa > sb ? who1 : who2;
+        return ask(rng, who1 + ' saves $' + a + ' a week for ' + wa + ' weeks, and ' + who2 + ' saves $' + b + ' a week for ' + wb + ' weeks. How much more did ' + big + ' save?',
+          Math.abs(sa - sb), {
           unit: '$',
-          explain: ['Totals: $' + sa + ' and $' + sb + '.', 'Difference: $' + Math.max(sa, sb) + ' − $' + Math.min(sa, sb) + ' = $' + Math.abs(sa - sb) + '.'],
+          explain: ['Totals: $' + a + ' × ' + wa + ' = $' + sa + ' and $' + b + ' × ' + wb + ' = $' + sb + '.',
+            'Difference: $' + Math.max(sa, sb) + ' − $' + Math.min(sa, sb) + ' = $' + Math.abs(sa - sb) + '.'],
           teach: 'Compare savings by their totals, then subtract.',
           b: 0.6
         });
@@ -32007,6 +32600,35 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     swept++;
   }
   GLOB.UP_SWEEP = swept;
+
+  /* A skill the classifier put in a family whose templates are about something
+     else is the same hole wearing a different hat: "Divide 3-digit numbers by
+     1-digit numbers using area models" arrived in geometryArea, so the ladder
+     shows it as having items and the learner gets no card at all. Where the
+     router has a handler for that title, the router takes the skill over — but
+     only for a generator that never once produced a card, so a family generator
+     that merely occasionally declines is left alone. */
+  function neverServes(id) {
+    var ok = 0, lv, it;
+    for (lv = 1; lv <= 5; lv += 2) {
+      try { it = GLOB.genFor(id, GLOB.seedRng(id.length * 7919 + lv * 104729), lv); } catch (e) { continue; }
+      if (it && it.spec && it.prompt && it.answerText) ok++;
+    }
+    return ok === 0;
+  }
+  var rescued = 0;
+  for (i = 0; i < SK.length; i++) {
+    var sk2 = SK[i];
+    if (BANDS.indexOf(sk2.band) < 0) continue;
+    if (!GEN[sk2.id]) continue;                  /* the sweep above took those */
+    if (!UP.find(sk2)) continue;                 /* nothing to rescue it with */
+    if (!neverServes(sk2.id)) continue;          /* its family serves it fine */
+    (function (row) {
+      GLOB.G(row.id, function (rng, lvl) { return UP.route(rng, lvl, {}, row); });
+    })(sk2);
+    rescued++;
+  }
+  GLOB.UP_RESCUE = rescued;
 })();
 
 </script>
@@ -32918,8 +33540,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var lv = h('div', { class: 'lvl', title: 'difficulty step ' + lvl + ' of 5' });
     for (var i = 1; i <= 5; i++) lv.appendChild(h('i', { class: i <= lvl ? 'on' : '' }));
 
-    var whyChip = item.climb ? h('span', { class: 'pill accent', text: item.climb.label })
+    var whyChip = item.climb ? h('span', { class: item.retry ? 'pill warn' : 'pill accent', text: item.climb.label + (item.retry ? ' · same skill again' : '') })
       : item.reteach ? h('span', { class: 'pill warn', text: 'retry · easier' })
+      : item.retry ? h('span', { class: 'pill warn', text: 'same skill again' })
       : item.diag ? h('span', { class: 'pill accent', text: 'placement probe · ' + (item.diag.label || '') })
         : item.why === 'review' ? h('span', { class: 'pill', text: 'spaced review' })
           : item.why === 'gap' ? h('span', { class: 'pill bad', text: 'closing a gap' })
@@ -32984,14 +33607,28 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var probeOver = S.item.diag && !E.diagActive();
       if (wrong && !S.item.diag) {
         /* The full solution is already on the card, so the buttons are only the
-         * way forward: another card of the same skill, the easier reteach pair,
-         * or on to the next skill. There is always at least one of them — a
-         * wrong answer must never be the end of the session. */
-        if (!S.reteachDone) {
-          box.appendChild(h('button', { class: 'btn primary', type: 'button', on: { click: next } }, 'Try a similar one'));
+         * way forward. A missed skill comes back twice — the engine holds the
+         * same skill for exactly two cards — and after that practice goes back
+         * to choosing across the level. "Move on" ends the retries early; one of
+         * these buttons is always on the card, because a wrong answer must never
+         * be the end of the session. */
+        var C = E.st.climb;
+        var armed = !!((C && C.pin === S.item.skill && C.retries != null && C.retries > 0));
+        if (armed && !S.reteachDone) {
+          box.appendChild(h('button', { class: 'btn primary', type: 'button', on: { click: next } }, 'Try the same skill again'));
           box.appendChild(h('button', { class: 'btn', type: 'button', on: { click: startReteach } }, 'Try an easier one'));
+          box.appendChild(h('button', {
+            class: 'btn ghost', type: 'button', title: 'stop the retries and move on to another skill',
+            on: {
+              click: function () {
+                if (C) { C.pin = null; C.retries = null; }
+                S.queue = []; next();
+              }
+            }
+          }, 'Move on'));
+        } else {
+          box.appendChild(h('button', { class: S.reteachDone ? 'btn primary' : 'btn ghost', type: 'button', on: { click: next } }, 'Next'));
         }
-        box.appendChild(h('button', { class: S.reteachDone ? 'btn primary' : 'btn ghost', type: 'button', on: { click: next } }, 'Next'));
       } else if (probeOver) {
         /* the last probe question is answered: the probe is over, so the only
          * way forward is the placement — never another question */
@@ -33104,6 +33741,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (rec.moved === 'up') toast('Level up — ' + rec.label);
     else if (rec.moved === 'down') toast('Stepping back to ' + rec.label);
     else if (rec.moved === 'top') toast('You cleared the whole ladder — Calculus.');
+    /* A missed card is answered with the same skill twice more, then practice
+     * goes back to choosing. In climb mode the engine holds the skill for two
+     * cards (CLIMB_RETRIES); outside it — one skill chosen from the ladder, or
+     * study mode — the same pair is queued here. A retry that is itself missed
+     * queues nothing: two retries is the whole rule. */
+    if (!ok && !skipped && !S.item.diag && !S.item.climb && !S.item.retry && !S.queue.length) {
+      var pair = [];
+      try {
+        pair = (E.reteach(S.item.skill, S.item.lvl || 3) || [])
+          .filter(function (x) { return x && x.role !== 'example'; }).slice(0, 2);
+      } catch (e) { pair = []; }
+      if (pair.length) { pair.forEach(function (x) { x.retry = 1; }); S.queue = pair; }
+    }
     /* Second pass at the action row: the engine now knows whether this was the
      * last probe question or the card that moved the learner up a level, and the
      * buttons have to say so. The first pass was the guarantee that a learner is
@@ -33485,6 +34135,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var here = per[lv.band] || {};
     var started = sess.started ? new Date(sess.started) : null;
     var since = started ? started.getHours() + ':' + ('0' + started.getMinutes()).slice(-2) : null;
+    /* a closed sitting is kept, not thrown away: two hours away opens a new one,
+       the numbers of every old one stay on the record */
+    var hist = sess.hist || [], histAns = 0, histLast = 0;
+    hist.forEach(function (s) { histAns += (s.asked || 0); if (s.ended) histLast = s.ended; });
+    var histLine = hist.length ? ' · ' + hist.length + ' earlier sitting' + (hist.length === 1 ? '' : 's')
+      + ' kept (' + histAns + ' answers' + (histLast ? ', last closed ' + new Date(histLast).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '') + ')' : '';
     clear(view).appendChild(h('div', {}, [
       h('div', { class: 'card' }, [
         h('div', { class: 'row between' }, [
@@ -33507,6 +34163,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         h('div', { class: 'tiny', style: { marginTop: '4px' } },
           tot.a ? 'All time: ' + tot.a + ' answers · ' + allAcc + '% right · best streak ' + (st.bestEver || st.sess.best || 0) + ' · ' + tot.mast + ' skills mastered'
             + (st.diag && st.diag.done && st.diag.asked ? ' (the ' + st.diag.asked + ' placement-probe questions are counted here, not as a session)' : '')
+            + histLine
             : ''),
         h('h3', { text: 'Last ' + log.length + ' items (height = difficulty)' }),
         log.length ? spark : h('div', { class: 'muted', text: 'Answer something to see your trace.' })
@@ -33576,8 +34233,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var f = inp.files && inp.files[0]; if (!f) return;
       var fr = new FileReader();
       fr.onload = function () {
-        try { E.importJSON(String(fr.result)); E.save(); toast('Progress imported'); location.reload(); }
-        catch (e) { toast('Could not read that file'); }
+        var txt = String(fr.result);
+        try {
+          /* an empty file is not allowed to erase this device behind the
+             learner's back: the engine refuses it and asks first */
+          if (E.importJSON(txt) === 'confirm') {
+            if (!win.confirm('That file has no progress on it. Replace the progress saved on this device with an empty record?')) { toast('Import cancelled — your progress is untouched'); return; }
+            E.importJSON(txt, true);
+          }
+          E.save(); toast('Progress imported'); location.reload();
+        } catch (e) { toast('Could not read that file'); }
       };
       fr.readAsText(f);
     };
@@ -33585,7 +34250,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function resetAll() {
     if (!win.confirm('Erase all progress on this device?')) return;
-    try { localStorage.removeItem('mathpath.v1'); } catch (e) { }
+    E.clearDevice();          // the one path that may clear a record: the learner asked
     location.reload();
   }
 
