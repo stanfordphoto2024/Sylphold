@@ -346,8 +346,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-26 — 44 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-router.js, 20-ui.js
+/* MathPath 2026-09-27 — 46 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-router.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -20293,8 +20293,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   };
   /* the generator handed to src/99-gen-arch.js for every skill of a band */
   UP.route = function (rng, lvl, p, sk) {
-    var h = UP.find(sk);
-    return h ? h(rng, lvl, p, sk) : null;
+    var t = UP.t(sk), i, it;
+    /* every handler whose regex matches gets a turn, registration order:
+       a handler that returns null says “these numbers do not fit me”, and the
+       next matching title-handler must be tried rather than leaving the learner
+       with no card at all. */
+    for (i = 0; i < HANDLERS.length; i++) {
+      if (!HANDLERS[i][0].test(t)) continue;
+      it = HANDLERS[i][1](rng, lvl, p, sk);
+      if (it) return it;
+    }
+    return null;
   };
   /* register this router as a band's implementation of each named family */
   UP.register = function (band, fams) {
@@ -22126,7 +22135,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   /* prompt variety: the same fact asked in several ways keeps a skill from
      collapsing into one card shape after the digits are ignored */
-  function lead(rng, arr) { return BC.pick(rng, arr); }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
   /* A template that always prints "Add 2/8 + 5/8." is ONE shape however the
    * numbers change, and the content gate counts shapes with the digits ignored.
    * Six honest ways to ask for the same sum or difference. */
@@ -23611,7 +23620,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       steps: o.steps, explain: o.explain, teach: o.teach, visual: o.visual, b: o.b || 0
     });
   }
-  function lead(rng, arr) { return BC.pick(rng, arr); }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
   var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
   function who(rng) { return BC.pick(rng, WHO); }
   function other(rng, not) { return BC.pick(rng, WHO.filter(function (x) { return x !== not; })); }
@@ -24520,7 +24529,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
     });
   }
-  function lead(rng, arr) { return BC.pick(rng, arr); }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
   function facts(rng, maxF, maxP) {
     var a = BC.int(rng, 2, maxF), b = BC.int(rng, 2, maxP), guard = 0;
     while (a * b > maxF * maxP && guard++ < 20) b = BC.int(rng, 2, maxP);
@@ -27199,7 +27208,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ------------------------------------------------- the shared question -- */
   /* Every graph card asks one of five things, phrased several ways so a skill
      does not collapse into a single card shape. */
-  function lead(rng, arr) { return BC.pick(rng, arr); }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
 
   function howManyMore(rng, a, b, la, lb, o) {
     var diff = Math.abs(a - b);
@@ -28032,7 +28041,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var I_NUM = GLOB.I_num, I_BOOL = GLOB.I_bool, I_PARTS = GLOB.I_parts;
 
   function calc(rng, cfg) { return UP.facts(rng, cfg); }
-  function lead(rng, arr) { return BC.pick(rng, arr); }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
 
   /* ---------------------------------------------------- shared geometry --- */
   var UNITS = ['cm', 'm', 'in', 'ft'];
@@ -29116,6 +29125,1700 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: [terms[1] + ' − ' + terms[0] + ' = ' + (terms[1] - terms[0]) + '.', terms[2] + ' − ' + terms[1] + ' = ' + (terms[2] - terms[1]) + '.'],
           teach: 'Check a rule by doing the subtraction between consecutive terms.',
           b: 0.5
+        });
+      }
+    ]);
+  });
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 98-gen-fam-band-o7-wordops.js — equations and multi-step word problems for
+ * the upper bands (G4 OA/Operations → G8).
+ *
+ *   I.*  equations with mixed operations: true or false · write equations to
+ *        represent word problems · solve equations · use equations to solve
+ *        word problems · understand parentheses
+ *   P.*  multi-step word problems: strip diagrams, equations, remainders,
+ *        reasonable answers, extra/missing information, guess-and-check
+ *
+ * Every card computes its answer from the drawn numbers. A strip diagram is
+ * drawn with the tape model (V.bar), an equation is a string the learner
+ * chooses, and a remainder story asks the question the remainder really
+ * answers (how many left over / how many more needed / how many full).
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var BC = GLOB.BC, UP = GLOB.UP;
+  var R = GLOB.R;
+  var I_NUM = GLOB.I_num, I_CHOICE = GLOB.I_choice, I_CMP = GLOB.I_cmp, I_BOOL = GLOB.I_bool,
+    I_PARTS = GLOB.I_parts, I_STR = GLOB.I_str;
+
+  function ask(rng, prompt, val, o) {
+    o = o || {};
+    return I_NUM(prompt, val, {
+      sub: o.sub, visual: o.visual, unit: o.unit,
+      answerText: o.answerText || (val == null ? '' : String(val)),
+      explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function choose(rng, prompt, answer, wrongs, o) {
+    o = o || {};
+    var str = String(answer), pool = [], seen = {};
+    (wrongs || []).forEach(function (w) {
+      w = String(w);
+      if (w === str || seen[w] || !w.trim()) return;
+      seen[w] = 1; pool.push(w);
+    });
+    if (pool.length < 2) return null;
+    return UP.mc(rng, prompt, str, pool.slice(0, 3), {
+      steps: o.steps, explain: o.explain, teach: o.teach, visual: o.visual, b: o.b || 0
+    });
+  }
+  function judge(prompt, truth, o) {
+    o = o || {};
+    return I_BOOL(prompt, !!truth, {
+      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function compare(prompt, a, b, o) {
+    o = o || {};
+    return I_CMP(prompt, a, b, {
+      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
+  function who(rng) { return BC.pick(rng, BC.WHO); }
+  function thing(rng) { return BC.pick(rng, BC.OBJ); }
+
+  /* ======================================================================= */
+  /* ====================  EQUATIONS  (I.4, I.13–I.16)  ==================== */
+  /* ======================================================================= */
+  UP.on(/^(equations with mixed operations|write equations to|solve equations|use equations to|understand parentheses)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var tf = /true or false/.test(t);
+    var parens = /parentheses/.test(t);
+    var writeEq = /write equations|write an equation|which equation/.test(t);
+    var storyEq = /use equations to solve/.test(t);
+    var solveOnly = /^solve equations/.test(t);
+    var letter = R.chance(rng, 0.5) ? 'n' : 'x';
+
+    return UP.build(rng, [
+      /* ---- one-step equations: the unknown on either side --------------- */
+      function () {                       /* n + a = c */
+        if (tf || parens || writeEq) return null;
+        var a = BC.int(rng, 11, 90), b = BC.int(rng, 6, 80);
+        return ask(rng, 'Solve the equation.   ' + letter + ' + ' + a + ' = ' + (a + b), b, {
+          explain: ['The sum is ' + (a + b) + ' and one addend is ' + a + '.', 'Undo the addition: ' + (a + b) + ' − ' + a + ' = ' + b + '.'],
+          teach: 'An equation is balanced: undo the operation to see the unknown.',
+          b: -0.2
+        });
+      },
+      function () {                       /* a − n = c  or  n − a = c */
+        if (tf || parens || writeEq) return null;
+        var b = BC.int(rng, 5, 40), c = BC.int(rng, 8, 90);
+        var flip = R.chance(rng, 0.5);
+        return ask(rng, flip ? 'Solve the equation.   ' + letter + ' − ' + b + ' = ' + c
+          : 'Solve the equation.   ' + (b + c) + ' − ' + letter + ' = ' + c, flip ? b + c : b, {
+          explain: flip
+            ? ['To isolate ' + letter + ', undo “minus ' + b + '” by adding ' + b + ' to both sides.', letter + ' = ' + c + ' + ' + b + ' = ' + (b + c) + '.']
+            : ['The unknown is the part taken away, and the difference says how far the top number was pulled down.', 'Subtract the difference from the top number: ' + (b + c) + ' − ' + c + ' = ' + b + '.'],
+          teach: 'Isolating the unknown means doing the opposite operation to both sides.',
+          b: 0.2
+        });
+      },
+      function () {                       /* a × n = c */
+        if (tf || parens || writeEq) return null;
+        var a = BC.int(rng, 3, 9), n = BC.int(rng, 4, 12);
+        return ask(rng, 'Solve the equation.   ' + a + ' × ' + letter + ' = ' + a * n, n, {
+          explain: ['Equal groups: ' + a + ' × ' + letter + ' reaches ' + a * n + '.', 'Division undoes multiplication: ' + a * n + ' ÷ ' + a + ' = ' + n + '.'],
+          teach: 'A missing factor is found with division.',
+          b: 0.1
+        });
+      },
+      function () {                       /* n ÷ a = c */
+        if (tf || parens || writeEq) return null;
+        var a = BC.int(rng, 3, 9), c = BC.int(rng, 4, 11);
+        return ask(rng, 'Solve the equation.   ' + letter + ' ÷ ' + a + ' = ' + c, a * c, {
+          explain: ['Splitting into ' + a + ' equal groups leaves ' + c + ' in each.', 'Multiply back: ' + a + ' × ' + c + ' = ' + a * c + '.'],
+          teach: 'A missing dividend is the quotient times the divisor.',
+          b: 0.3
+        });
+      },
+      function () {                       /* which value solves it — options */
+        if (tf || parens || writeEq) return null;
+        var a = BC.int(rng, 20, 60), n = BC.int(rng, 10, 40);
+        var c = a + n;
+        return choose(rng, 'Which value of ' + letter + ' makes ' + letter + ' + ' + a + ' = ' + c + ' true?',
+          n, [n + 1, n - 1, c, a], {
+          steps: ['Both sides must match: ' + c + ' − ' + a + ' = ' + n + '.', 'Check: ' + n + ' + ' + a + ' = ' + c + '.'],
+          teach: 'A solution is the value that makes both sides equal — check it in.',
+          b: 0.4
+        });
+      },
+      function () {                       /* is this a solution? judge */
+        if (tf || parens || writeEq) return null;
+        var a = BC.int(rng, 3, 9), n = BC.int(rng, 4, 12);
+        var claim = R.chance(rng, 0.5) ? n : BC.int(rng, 1, 14);
+        return judge('Is ' + letter + ' = ' + claim + ' a solution of ' + a + ' × ' + letter + ' = ' + a * n + '?',
+          claim === n, {
+          explain: ['Substitute: ' + a + ' × ' + claim + ' = ' + a * claim + '.', 'The equation says ' + a * n + '.', (a * claim === a * n ? 'They match' : 'They do not match') + '.'],
+          teach: 'Judge a solution by substituting it and comparing both sides.',
+          b: 0.5
+        });
+      },
+
+      /* ---- mixed operations: true/false (I.4) --------------------------- */
+      function () {                       /* a + b × c claimed wrong way */
+        if (!tf) return null;
+        var a = BC.int(rng, 4, 30), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 9);
+        var right = a + b * c, slip = (a + b) * c;
+        var claim = R.chance(rng, 0.5) ? right : slip;
+        return judge('Is ' + a + ' + ' + b + ' × ' + c + ' = ' + claim + ' true?', claim === right, {
+          explain: ['Multiply first: ' + b + ' × ' + c + ' = ' + b * c + '.', 'Then add: ' + a + ' + ' + (b * c) + ' = ' + right + '.', 'The statement says ' + claim + '.'],
+          teach: 'Order of operations decides everything: multiply before you add.',
+          b: -0.1
+        });
+      },
+      function () {                       /* (a+b) × c slip */
+        if (!tf) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 6);
+        var right = (a + b) * c, slip = a + b * c;
+        var claim = R.chance(rng, 0.5) ? right : slip;
+        return judge('Is (' + a + ' + ' + b + ') × ' + c + ' = ' + claim + ' true?', claim === right, {
+          explain: ['Parentheses first: ' + a + ' + ' + b + ' = ' + (a + b) + '.', 'Then multiply: ' + (a + b) + ' × ' + c + ' = ' + right + '.', 'The statement says ' + claim + '.'],
+          teach: 'Parentheses group work that must happen first.',
+          b: 0.2
+        });
+      },
+      function () {                       /* a × (b + c) distributive slip */
+        if (!tf) return null;
+        var a = BC.int(rng, 2, 8), b = BC.int(rng, 2, 8), c = BC.int(rng, 2, 8);
+        var right = a * (b + c), slip = a * b + c;
+        var claim = R.chance(rng, 0.5) ? right : slip;
+        return judge('Is ' + a + ' × (' + b + ' + ' + c + ') = ' + claim + ' true?', claim === right, {
+          explain: ['Inside first: ' + b + ' + ' + c + ' = ' + (b + c) + '.', 'Then ' + a + ' × ' + (b + c) + ' = ' + right + '.', 'The statement says ' + claim + '.'],
+          teach: 'Multiplying a sum means multiplying EACH part — the distributive property.',
+          b: 0.4
+        });
+      },
+      function () {                       /* a − b ÷ c order */
+        if (!tf) return null;
+        var c = BC.int(rng, 2, 9), q = BC.int(rng, 2, 9), a = BC.int(rng, 10, 60);
+        var right = a - c * q;
+        var claim = R.chance(rng, 0.5) ? right : Math.floor((a - c) / q) * 1;
+        if (a - c * q < 0) return null;
+        return judge('Is ' + a + ' − ' + c * q + ' ÷ ' + c + ' = ' + claim + ' true?', claim === right, {
+          explain: ['Divide first: ' + c * q + ' ÷ ' + c + ' = ' + q + '.', 'Then subtract: ' + a + ' − ' + q + ' = ' + right + '.', 'The statement says ' + claim + '.'],
+          teach: 'Division comes before subtraction, even when it is written second.',
+          b: 0.5
+        });
+      },
+      function () {                       /* parentheses change the value? */
+        if (!tf) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 7);
+        var withP = (a + b) * c, withoutP = a + b * c;
+        return judge('Do (' + a + ' + ' + b + ') × ' + c + ' and ' + a + ' + ' + b + ' × ' + c + ' give the same value?',
+          withP === withoutP, {
+          explain: ['With parentheses: ' + (a + b) + ' × ' + c + ' = ' + withP + '.', 'Without: ' + a + ' + ' + (b * c) + ' = ' + withoutP + '.', (withP === withoutP ? 'They match' : 'They do not match') + '.'],
+          teach: 'Parentheses move the work order, so they can change the whole value.',
+          b: 0.3
+        });
+      },
+      function () {                       /* same value, different grouping */
+        if (!tf) return null;
+        var a = BC.int(rng, 3, 12), b = BC.int(rng, 2, 8), c = BC.int(rng, 2, 8);
+        var left = a * b * c, right = a * (b * c);
+        return judge('Is ' + a + ' × ' + b + ' × ' + c + ' = ' + a + ' × (' + b + ' × ' + c + ')?', left === right, {
+          explain: ['Left to right: ' + a + ' × ' + b + ' = ' + (a * b) + ', × ' + c + ' = ' + left + '.', 'Grouped: ' + b + ' × ' + c + ' = ' + (b * c) + ', × ' + a + ' = ' + right + '.', 'Multiplying a chain is associative — grouping cannot change it.']
+            .concat([]),
+          teach: 'Grouping factors never changes a product: multiplication is associative.',
+          b: -0.2
+        });
+      },
+
+      /* ---- parentheses understanding (I.16) ----------------------------- */
+      function () {                       /* which expression matches the story */
+        if (!parens) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 7);
+        return choose(rng, '“Add ' + a + ' and ' + b + ', then multiply by ' + c + '.” Which expression matches?',
+          '(' + a + ' + ' + b + ') × ' + c,
+          [a + ' + ' + b + ' × ' + c, a + ' × (' + b + ' + ' + c + ')', '(' + a + ' + ' + b + ') + ' + c], {
+          steps: ['The addition must happen first, so it goes inside parentheses.', '(' + a + ' + ' + b + ') × ' + c + ' = ' + (a + b) * c + '.'],
+          teach: 'Parentheses say “this part happens first,” so they carry the story’s order.',
+          b: 0.2
+        });
+      },
+      function () {                       /* place the parentheses */
+        if (!parens) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 9);
+        var target = (a + b) * c;
+        if (a + b * c === target || a + b + c === target || a * (b + c) === target || a * b + c === target) return null;
+        return choose(rng, 'Where must parentheses go to make ' + a + ' + ' + b + ' × ' + c + ' = ' + target + '?',
+          '(' + a + ' + ' + b + ') × ' + c,
+          [a + ' + (' + b + ' × ' + c + ')', a + ' × (' + b + ' + ' + c + ')', '(' + a + ' × ' + b + ') + ' + c], {
+          steps: ['Try (' + a + ' + ' + b + ') × ' + c + ': ' + (a + b) + ' × ' + c + ' = ' + target + '.', 'The plain order gives ' + (a + b * c) + ' — not the target.'],
+          teach: 'Test each placement: the parentheses must make the arithmetic true.',
+          b: 0.7
+        });
+      },
+      function () {                       /* what do you do first */
+        if (!parens) return null;
+        var a = BC.int(rng, 3, 9), b = BC.int(rng, 2, 8), c = BC.int(rng, 2, 8);
+        var addForm = R.chance(rng, 0.5);
+        var form = addForm ? '(' + a + ' + ' + b + ') × ' + c : '(' + a + ' − ' + b + ') × ' + c;
+        if (!addForm && a <= b) return null;
+        var base = ['parentheses', 'the parentheses', 'inside the parentheses', 'the operation in parentheses', 'the parentheses first'];
+        var inner = addForm
+          ? ['addition', 'the addition', 'adding', 'add the two numbers first']
+          : ['subtraction', 'the subtraction', 'subtracting', 'subtract inside first'];
+        return I_STR('In ' + form + ', which operation do you perform FIRST?', base.concat(inner), {
+          answerText: 'the parentheses', b: 0.1,
+          explain: ['The rule: parentheses, then multiplication/division, then addition/subtraction.', 'The work inside the parentheses comes first.'],
+          teach: 'Parentheses mark the work that happens before everything else in the expression.'
+        });
+      },
+      function () {                       /* with vs without — compare */
+        if (!parens) return null;
+        var a = BC.int(rng, 3, 9), b = BC.int(rng, 2, 8), c = BC.int(rng, 2, 8);
+        var withP = (a + b) * c, withoutP = a + b * c;
+        if (withP === withoutP) return null;
+        return compare('Choose >, < or =.   (' + a + ' + ' + b + ') × ' + c + '  ○  ' + a + ' + ' + b + ' × ' + c, withP, withoutP, {
+          explain: ['With parentheses: ' + (a + b) + ' × ' + c + ' = ' + withP + '.', 'Without: ' + a + ' + ' + (b * c) + ' = ' + withoutP + '.', 'So the symbol is ' + (withP > withoutP ? '>' : '<') + '.'],
+          teach: 'Evaluate each side by the order of operations before comparing.',
+          b: 0.4
+        });
+      },
+      function () {                       /* does this expression need parentheses to match a value */
+        if (!parens) return null;
+        var a = BC.int(rng, 4, 12), b = BC.int(rng, 2, 6);
+        var plain = a + b * a, grouped = (a + b) * 1 * a;
+        if (plain === grouped) return null;
+        return judge('Does ' + a + ' + ' + b + ' × ' + a + ' equal (' + a + ' + ' + b + ') × ' + a + '?',
+          plain === grouped, {
+          explain: ['Plain: ' + a + ' + ' + (b * a) + ' = ' + plain + '.', 'Grouped: ' + (a + b) + ' × ' + a + ' = ' + grouped + '.', (plain === grouped ? 'They match' : 'They do not match') + '.'],
+          teach: 'Compare the two evaluations — parentheses only match when the values agree.',
+          b: 0.6
+        });
+      },
+
+      /* ---- write equations from stories (I.13) -------------------------- */
+      function () {                       /* add story → equation */
+        if (!writeEq && !storyEq) return null;
+        var a = BC.int(rng, 20, 70), s = BC.int(rng, 5, 40);
+        var w = who(rng), th = thing(rng);
+        return choose(rng, w + ' had ' + a + ' ' + th + ' and then collected ' + s + ' more; now there are ' + (a + s) + '. Which equation shows the story?',
+          a + ' + ' + s + ' = ' + (a + s),
+          [a + ' + ' + (a + s) + ' = ' + s, s + ' − ' + a + ' = ' + (a + s), a + ' − ' + s + ' = ' + (a + s)], {
+          steps: ['The parts are ' + a + ' and ' + s + '; the total is ' + (a + s) + '.', 'The equation joins the parts: ' + a + ' + ' + s + ' = ' + (a + s) + '.'],
+          teach: 'An equation is the story in symbols: parts on one side, total on the other.',
+          b: 0.3
+        });
+      },
+      function () {                       /* start-unknown story → equation */
+        if (!writeEq && !storyEq) return null;
+        var got = BC.int(rng, 14, 40), now = BC.int(rng, 60, 120);
+        var w = who(rng);
+        return choose(rng, 'Some marbles were in a jar. ' + w + ' adds ' + got + ', and now there are ' + now + '. Which equation finds the marbles that were in the jar first, m?',
+          'm + ' + got + ' = ' + now,
+          [now + ' + ' + got + ' = m', 'm − ' + now + ' = ' + got, 'm + ' + now + ' = ' + got], {
+          steps: ['Start m, add ' + got + ', end at ' + now + '.', 'That story is exactly: m + ' + got + ' = ' + now + '.'],
+          teach: 'Let the unknown stand for what the story does not tell you.',
+          b: 0.5
+        });
+      },
+      function () {                       /* equal-groups story → equation */
+        if (!writeEq && !storyEq) return null;
+        var g = BC.int(rng, 3, 8), each = BC.int(rng, 3, 9);
+        var w = who(rng);
+        return choose(rng, w + ' ties ' + g + ' ribbons with the same number of bells on each, ' + g * each + ' bells in all. Which equation finds the bells per ribbon, b?',
+          g + ' × b = ' + g * each,
+          [g + ' + b = ' + g * each, 'b ÷ ' + g + ' = ' + g * each, g + ' × ' + each + ' = b'], {
+          steps: ['Equal groups: ' + g + ' ribbons × the same count = ' + g * each + '.', 'So ' + g + ' × b = ' + g * each + '.'],
+          teach: 'Equal groups in a story become multiplication in an equation.',
+          b: 0.6
+        });
+      },
+      function () {                       /* equation → which story */
+        if (!writeEq && !storyEq) return null;
+        var a = BC.int(rng, 10, 30), s = BC.int(rng, 10, 30);
+        var th = thing(rng);
+        var right = 'Ked starts with k ' + th + ', finds ' + a + ' more, and now has ' + (a + s) + '.';
+        var wrong1 = 'Ked has ' + (a + s) + ' ' + th + ' and gives ' + a + ' away; how many are left?';
+        var wrong2 = 'Ked has ' + s + ' ' + th + ' and finds ' + (a + s) + ' more; how many in all?';
+        var wrong3 = 'Ked found ' + a + ' ' + th + ' each day for ' + s + ' days; how many in all?';
+        return choose(rng, 'Which story fits the equation k + ' + a + ' = ' + (a + s) + '?', right, [wrong1, wrong2, wrong3], {
+          steps: ['The equation starts with an unknown k, joins ' + a + ', and reaches ' + (a + s) + '.', 'Only the story “starts with k, then finds ' + a + '” behaves that way.'],
+          teach: 'Match each number in the equation to a number in the story before choosing.',
+          b: 0.7
+        });
+      },
+      function () {                       /* does this equation model the story */
+        if (!writeEq && !storyEq) return null;
+        var a = BC.int(rng, 20, 60), s = BC.int(rng, 5, 30);
+        var w = who(rng), th = thing(rng);
+        var story = w + ' has ' + a + ' ' + th + ' and gives ' + s + ' away.';
+        var good = a + ' − s = ' + (a - s);
+        var bad = a + ' + s = ' + (a - s);
+        var claim = R.chance(rng, 0.5) ? good : bad;
+        return judge(story + ' Does ' + claim + ' model the story?', claim === good, {
+          explain: ['The story takes ' + s + ' away, so the operation is subtraction.', 'That is ' + a + ' − s = ' + (a - s) + '.', (claim === good ? 'The claim matches' : 'The claim adds instead of subtracting') + '.'],
+          teach: 'An equation models a story when every operation matches what the story does.',
+          b: -0.1
+        });
+      },
+
+      /* ---- use equations to solve add/sub stories (I.15) ---------------- */
+      function () {                       /* solve the given equation, story sub */
+        if (!storyEq) return null;
+        var a = BC.int(rng, 20, 70), s = BC.int(rng, 5, 40);
+        var w = who(rng);
+        return ask(rng, w + ' fills a tray with ' + s + ' ' + thing(rng) + ' each row and there are ' + a + ' rows. The tray holds ' + a * s + '. Solve ' + letter + ' × ' + s + ' = ' + a * s + ' to check the rows.', a, {
+          explain: ['To undo × ' + s + ', divide both sides: ' + a * s + ' ÷ ' + s + ' = ' + a + '.', 'So ' + letter + ' = ' + a + ', matching the ' + a + ' rows in the story.'],
+          teach: 'The equation turns the story into one step you can undo.',
+          b: 0.3
+        });
+      },
+      function () {                       /* story → equation → its solution */
+        if (!storyEq) return null;
+        var start = BC.int(rng, 30, 90), got = BC.int(rng, 10, 50);
+        var w = who(rng);
+        return ask(rng, w + ' had ' + start + ' ' + thing(rng) + ', then got some more and now has ' + (start + got) + '. Solve ' + letter + ' + ' + start + ' = ' + (start + got) + ' for the ones collected.', got, {
+          explain: ['Undo the addition: ' + (start + got) + ' − ' + start + ' = ' + got + '.', 'So ' + letter + ' = ' + got + '.'],
+          teach: 'Write the equation from the story, then undo the operation to solve it.',
+          b: 0.4
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ============  MULTI-STEP WORD PROBLEMS  (P.1–P.12)  ================== */
+  /* ======================================================================= */
+  var CTX2 = ['at the school store', 'at the bake sale', 'on the field trip', 'at the recycling drive',
+    'in the library', 'at the animal shelter', 'in the garden', 'at the sports field'];
+
+  UP.on(/^(use strip diagrams|multi-step|multi step|word problems with extra|solve word problems using guess)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    if (/money|coins|bills|price|profit|savings|allowance/.test(t)) return null;   /* money stories belong to the money handler */
+    var addSub = /addition and subtraction/.test(t);
+    var strip = /strip diagram/.test(t);
+    var eqUse = /use equations/.test(t);
+    var remain = /remainder/.test(t);
+    var reasonable = /reasonable/.test(t);
+    var extraInfo = /extra or missing/.test(t);
+    var guess = /guess.and.check/.test(t);
+    var mulDiv = /multiplication|division/.test(t);
+    var generic = /^multi-step word problems$/.test(t) || /^multi step word problems$/.test(t);
+
+    /* a two-step add/sub story, drawn once and framed many ways */
+    function addStory(rng) {
+      var start = BC.int(rng, 20, 90), add = BC.int(rng, 10, 60), sub = BC.int(rng, 5, 40);
+      var w = who(rng), th = thing(rng), ct = BC.pick(rng, CTX2);
+      var ans = start + add - sub;
+      if (ans < 1) return null;
+      return {
+        w: w, th: th, ct: ct, start: start, add: add, sub: sub, ans: ans,
+        text: w + ' collected ' + start + ' ' + th + ' ' + ct + '. Later ' + w + ' collected ' + add + ' more, then gave ' + sub + ' away.'
+      };
+    }
+    function mulStory(rng) {
+      var g = BC.int(rng, 3, 9), each = BC.int(rng, 3, 12), out = BC.int(rng, 5, 30);
+      var w = who(rng), th = thing(rng), ct = BC.pick(rng, CTX2);
+      var ans = g * each - out;
+      if (ans < 1) return null;
+      return {
+        w: w, th: th, ct: ct, g: g, each: each, out: out, ans: ans,
+        text: w + ' packed ' + g + ' boxes with ' + each + ' ' + th + ' in each box ' + ct + '. Then ' + w + ' gave away ' + out + ' ' + th + '.'
+      };
+    }
+
+    return UP.build(rng, [
+      /* ---- the plain two-step solve ------------------------------------ */
+      function () {
+        if (remain || reasonable || extraInfo || guess || eqUse || strip) return null;
+        if (mulDiv && !addSub && !generic) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        return ask(rng, s.text + ' How many ' + s.th + ' does ' + s.w + ' have now?', s.ans, {
+          explain: ['First: ' + s.start + ' + ' + s.add + ' = ' + (s.start + s.add) + '.', 'Then give away: ' + (s.start + s.add) + ' − ' + s.sub + ' = ' + s.ans + '.'],
+          teach: 'Multi-step problems keep the story order: solve one step, then the next.',
+          b: -0.2
+        });
+      },
+      function () {
+        if (remain || reasonable || extraInfo || guess || eqUse || strip) return null;
+        if (addSub && !mulDiv && !generic) return null;
+        var s = mulStory(rng);
+        if (!s) return null;
+        return ask(rng, s.text + ' How many ' + s.th + ' are left?', s.ans, {
+          explain: ['Equal boxes first: ' + s.g + ' × ' + s.each + ' = ' + s.g * s.each + '.', 'Then give away: ' + s.g * s.each + ' − ' + s.out + ' = ' + s.ans + '.'],
+          teach: 'Find the total from the equal groups before the second step.',
+          b: 0.1
+        });
+      },
+
+      /* ---- strip diagrams (P.1, P.4, P.5) ------------------------------- */
+      function () {                       /* solve with the tape shown */
+        if (!strip) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        return ask(rng, 'Use the strip diagram. ' + s.text + ' How many now?', s.ans, {
+          visual: V.bar([{ v: s.start, label: 'started ' + s.start }, { v: s.add, label: 'then ' + s.add }]),
+          explain: ['The strip shows ' + s.start + ' plus ' + s.add + ' = ' + (s.start + s.add) + ' before any were given away.', 'Take off ' + s.sub + ': ' + (s.start + s.add) + ' − ' + s.sub + ' = ' + s.ans + '.'],
+          teach: 'A strip diagram lays the story out in bars so the steps are visible.',
+          b: -0.1
+        });
+      },
+      function () {                       /* which strip matches the story */
+        if (!strip) return null;
+        var s = mulStory(rng);
+        if (!s) return null;
+        var right = s.g + ' × ' + s.each + ', then − ' + s.out;
+        return choose(rng, 'Which strip plan solves: ' + s.text + ' How many are left?', right,
+          [s.g + ' + ' + s.each + ', then − ' + s.out, s.g + ' × ' + s.each + ', then + ' + s.out, s.g + ' × ' + s.out + ', then − ' + s.each], {
+          steps: ['The boxes are equal groups: ' + s.g + ' × ' + s.each + ' = ' + s.g * s.each + '.', 'Giving away is the second bar taken off: − ' + s.out + '.'],
+          teach: 'Reading a strip diagram means reading the operations in order.',
+          b: 0.4
+        });
+      },
+
+      /* ---- equations (P.3, P.6, P.7) ------------------------------------ */
+      function () {                       /* which equation matches the story */
+        if (!eqUse) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        var right = s.start + ' + ' + s.add + ' − ' + s.sub + ' = w';
+        return choose(rng, 'Which equation solves the story? ' + s.text + ' (w = how many now)', right,
+          [s.start + ' − ' + s.add + ' + ' + s.sub + ' = w', s.start + ' + ' + s.add + ' + ' + s.sub + ' = w', s.start + ' − ' + s.add + ' − ' + s.sub + ' = w'], {
+          steps: ['Collected ' + s.add + ' more: that is + ' + s.add + '.', 'Gave ' + s.sub + ' away: that is − ' + s.sub + '.', 'So ' + right + '.'],
+          teach: 'Translate the story’s actions into operations — the equation then solves itself.',
+          b: 0.3
+        });
+      },
+      function () {                       /* solve the equation that models it */
+        if (!eqUse) return null;
+        var s = mulStory(rng);
+        if (!s) return null;
+        return ask(rng, s.text + ' The equation ' + s.g + ' × ' + s.each + ' − ' + s.out + ' = w gives the ones left. What is w?', s.ans, {
+          explain: ['Multiply first: ' + s.g + ' × ' + s.each + ' = ' + s.g * s.each + '.', 'Then subtract: ' + s.g * s.each + ' − ' + s.out + ' = ' + s.ans + '.'],
+          teach: 'A model equation still follows the order of operations.',
+          b: 0.5
+        });
+      },
+
+      /* ---- remainders (P.9) --------------------------------------------- */
+      function () {
+        if (!remain && !generic) return null;
+        var total = BC.int(rng, 30, 90), per = BC.int(rng, 3, 9);
+        var q = Math.floor(total / per), r = total % per;
+        if (r === 0) return null;
+        var w = who(rng);
+        var askSide = R.chance(rng, 0.5);
+        if (askSide) {
+          return ask(rng, w + ' puts ' + total + ' ' + thing(rng) + ' into bags of ' + per + ' as fully as possible. How many ' + per + '-item bags are completely filled?', q, {
+            explain: [total + ' ÷ ' + per + ' = ' + q + ' remainder ' + r + '.', 'Only ' + q + ' bags are completely full — the ' + r + ' left over need a looser bag.'],
+            teach: 'The full groups are the quotient; the remainder is what does not fit.',
+            b: 0.3
+          });
+        }
+        return ask(rng, w + ' arranges ' + total + ' ' + thing(rng) + ' into rows of ' + per + '. How many are left over?', r, {
+          explain: [total + ' ÷ ' + per + ': ' + per + ' × ' + q + ' = ' + q * per + ' fit.', total + ' − ' + q * per + ' = ' + r + ' left over.'],
+          teach: 'Left-over amounts are the remainder — never the quotient.',
+          b: 0.2
+        });
+      },
+      function () {                       /* remainder interpretation: round up */
+        if (!remain && !generic) return null;
+        var total = BC.int(rng, 25, 80), per = BC.int(rng, 4, 8);
+        var q = Math.floor(total / per), r = total % per;
+        if (r === 0) return null;
+        var w = who(rng);
+        return choose(rng, w + ' needs a bench for every student: ' + total + ' students sit ' + per + ' to a bench. How many benches are needed?',
+          q + 1, [q, r, q * per], {
+          steps: [total + ' ÷ ' + per + ' = ' + q + ' benches full, ' + r + ' students left.', 'Those ' + r + ' still need a bench: ' + q + ' + 1 = ' + (q + 1) + '.'],
+          teach: 'When everyone needs a seat, a leftover means one more group.',
+          b: 0.6
+        });
+      },
+
+      /* ---- reasonable answers (P.10) ------------------------------------ */
+      function () {
+        if (!reasonable && !generic) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        var rounded = Math.round(s.ans / 10) * 10;
+        return choose(rng, 'Without an exact calculation: about how many ' + s.th + ' does ' + s.w + ' have now?',
+          rounded, [rounded + 120, Math.max(10, rounded - 110), rounded + 1], {
+          steps: ['Round the story: ' + Math.round(s.start / 10) * 10 + ' + ' + Math.round(s.add / 10) * 10 + ' − ' + Math.round(s.sub / 10) * 10 + ' ≈ ' + rounded + '.', 'Options far from that are not reasonable.'],
+          teach: 'A reasonable answer lands near the rounded story; check its size, not its digits.',
+          b: 0.4
+        });
+      },
+
+      /* ---- extra or missing information (P.11) -------------------------- */
+      function () {                       /* is the extra fact needed? */
+        if (!extraInfo) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        var extra = BC.pick(rng, ['The club meets on Thursdays', 'The school mascot is a heron', 'The walk home takes 12 minutes', 'The locker number is 38']);
+        var neededClaim = R.chance(rng, 0.5);
+        var claim = neededClaim ? 'That extra fact is needed to answer the question' : 'The question can be answered without that extra fact';
+        return judge(s.text + ' Extra fact: “' + extra + '”. ' + claim + '.', !neededClaim, {
+          explain: ['The count uses only ' + s.start + ', ' + s.add + ' and ' + s.sub + '.', '“' + extra + '” names nothing in the count.', 'So ' + (neededClaim ? 'the claim that it is needed is false' : 'the claim that it is not needed is true') + '.'],
+          teach: 'Extra information is a number or fact the question never uses — cross it out.',
+          b: 0.5
+        });
+      },
+      function () {                       /* which extra fact is not needed */
+        if (!extraInfo) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        return choose(rng, s.text + ' Which fact is NOT needed to find how many ' + s.th + ' are left?',
+          'The school mascot is a heron',
+          [s.start + ' ' + s.th + ' collected first', s.add + ' more collected later', s.sub + ' given away'], {
+          steps: ['The count uses ' + s.start + ', ' + s.add + ' and ' + s.sub + '.', 'The mascot has nothing to do with the total.'],
+          teach: 'Numbers the solution never touches are the extra ones.',
+          b: 0.6
+        });
+      },
+
+      /* ---- guess and check (P.12) --------------------------------------- */
+      function () {
+        if (!guess && !generic) return null;
+        var n = BC.int(rng, 6, 20), d = BC.int(rng, 2, 4), add = BC.int(rng, 4, 24);
+        var target = n * d + add;
+        return choose(rng, 'Guess-and-check: think of a number. Multiply it by ' + d + ', then add ' + add + ', and the result is ' + target + '. Which number was it?',
+          n, [n + 1, n - 1, n + d, target - add], {
+          steps: ['Check ' + n + ': ' + n + ' × ' + d + ' = ' + n * d + ', + ' + add + ' = ' + target + '.', 'That lands exactly on ' + target + '.'],
+          teach: 'Guess-and-check is honest algebra: try a value, check it, adjust until it fits.',
+          b: 0.5
+        });
+      },
+      function () {                       /* subtract then double */
+        if (!guess) return null;
+        var n = BC.int(rng, 10, 30), sub = BC.int(rng, 3, 9), dbl = BC.int(rng, 2, 3);
+        var target = (n - sub) * dbl;
+        return choose(rng, 'Think of a number. Subtract ' + sub + ', then ' + (dbl > 2 ? 'triple' : 'double') + ' it to reach ' + target + '. Which number?',
+          n, [n + 1, n - 1, n + sub], {
+          steps: ['Work backward: ' + target + ' ÷ ' + dbl + ' = ' + (n - sub) + '.', 'Add back ' + sub + ': ' + (n - sub) + ' + ' + sub + ' = ' + n + '.'],
+          teach: 'Checking backward (undoing each step) turns a guess into a plan.',
+          b: 0.7
+        });
+      },
+      function () {                       /* guess and check with a table hint */
+        if (!guess) return null;
+        var n = BC.int(rng, 6, 14), d = BC.int(rng, 2, 4), add = BC.int(rng, 3, 20);
+        var target = n * d + add;
+        var rows = [];
+        for (var g = Math.max(1, n - 2); g <= n + 2; g++) rows.push([String(g), String(g * d + add)]);
+        return choose(rng, 'The table shows the guess-and-check work. Which n makes the result ' + target + '?',
+          n, [n + 1, n - 1, n + 2], {
+          visual: V.table(['guess n', 'result'], rows),
+          steps: ['Find ' + target + ' in the result column.', 'Its row says n = ' + n + '; check: ' + n + ' × ' + d + ' + ' + add + ' = ' + target + '.'],
+          teach: 'A guess-and-check table makes every try visible, so the right guess is easy to spot.',
+          b: 0.3
+        });
+      },
+      function () {                       /* chickens-and-goats guess table */
+        if (!guess) return null;
+        var g = BC.int(rng, 4, 9), c = BC.int(rng, 3, 9);
+        var legs = g * 4 + c * 2, heads = g + c;
+        return choose(rng, 'A yard has chickens (2 legs) and goats (4 legs): ' + heads + ' animals, ' + legs + ' legs. Guess-and-check the goats — how many?',
+          g, [c, g + 1, legs / 4], {
+          steps: ['Try ' + g + ' goats: ' + g + ' × 4 = ' + g * 4 + ' goat legs and ' + c + ' × 2 = ' + c * 2 + ' chicken legs.', g * 4 + ' + ' + c * 2 + ' = ' + legs + ' ✓, and ' + g + ' + ' + c + ' = ' + heads + ' animals ✓.'],
+          teach: 'When two clues must both hold, each guess is worth checking against both.',
+          b: 0.9
+        });
+      },
+      function () {                       /* half of it plus… */
+        if (!guess) return null;
+        var half = BC.int(rng, 5, 18), add = BC.int(rng, 3, 24);
+        var n = half * 2;
+        var target = half + add;
+        return choose(rng, 'Think of a number. Take half of it, add ' + add + ', and the result is ' + target + '. Which number was it?',
+          n, [n + 2, n / 2, n - 2], {
+          steps: ['Work backward: ' + target + ' − ' + add + ' = ' + half + ', which is half the number.', 'So the number is ' + half + ' × 2 = ' + n + '.'],
+          teach: 'Undo each step in reverse order and the original number reappears.',
+          b: 0.6
+        });
+      },
+      function () {                       /* adjust the next guess */
+        if (!guess) return null;
+        var n = BC.int(rng, 8, 22), d = BC.int(rng, 2, 4), add = BC.int(rng, 3, 20);
+        var target = n * d + add;
+        var low = n - BC.int(rng, 1, 3), high = n + BC.int(rng, 1, 3);
+        var tried = R.chance(rng, 0.5) ? low : high;
+        var triedResult = tried * d + add;
+        if (triedResult === target) return null;
+        var wantUp = triedResult < target;
+        return choose(rng, 'The rule is “times ' + d + ', then add ' + add + '”. ' + BC.pick(rng, BC.WHO) + ' guessed ' + tried + ' and got ' + triedResult + ' instead of ' + target + '. Should the next guess be larger or smaller?',
+          wantUp ? 'larger' : 'smaller', ['smaller', 'larger', 'the same ' + tried], {
+          steps: ['Guess ' + tried + ' gave ' + triedResult + ', which is ' + (wantUp ? 'too small' : 'too big') + ' compared with ' + target + '.', 'The rule grows as the guess grows, so go ' + (wantUp ? 'up' : 'down') + '.'],
+          teach: 'Checking a guess tells you which way to move next — that is what makes guessing fast.',
+          b: 0.7
+        });
+      },
+
+      /* ---- shared extra shapes: compare + judge ------------------------- */
+      function () {                       /* which is bigger after both steps */
+        if (remain || extraInfo || guess) return null;
+        var s1 = addStory(rng), s2 = addStory(rng);
+        if (!s1 || !s2 || s1.ans === s2.ans) return null;
+        return compare('Choose >, < or =.   ' + s1.w + '’s total  ○  ' + s2.w + '’s total', s1.ans, s2.ans, {
+          sub: s1.w + ': ' + s1.start + ' + ' + s1.add + ' − ' + s1.sub + '.   ' + s2.w + ': ' + s2.start + ' + ' + s2.add + ' − ' + s2.sub + '.',
+          explain: [s1.w + ': ' + s1.start + ' + ' + s1.add + ' − ' + s1.sub + ' = ' + s1.ans + '.', s2.w + ': ' + s2.start + ' + ' + s2.add + ' − ' + s2.sub + ' = ' + s2.ans + '.', 'So the symbol is ' + (s1.ans > s2.ans ? '>' : '<') + '.'],
+          teach: 'Finish both stories before comparing — the totals decide.',
+          b: 0.5
+        });
+      },
+      function () {                       /* true/false on a proposed answer */
+        if (remain || extraInfo || guess) return null;
+        var s = addStory(rng);
+        if (!s) return null;
+        var claim = R.chance(rng, 0.5) ? s.ans : s.start + s.add + s.sub;
+        return judge(s.text + ' Is the answer ' + claim + '?', claim === s.ans, {
+          explain: ['Step 1: ' + s.start + ' + ' + s.add + ' = ' + (s.start + s.add) + '.', 'Step 2: ' + (s.start + s.add) + ' − ' + s.sub + ' = ' + s.ans + '.', 'The claim says ' + claim + '.'],
+          teach: 'Judge a proposed answer by running the story’s steps yourself.',
+          b: 0.6
+        });
+      }
+    ]);
+  });
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 98-gen-fam-band-o8-moneypat.js — money, financial literacy, and number
+ * patterns for the upper bands (G4 Q./RR./R. → G5+).
+ *
+ *   Q.*   coins and bills · compare · add/subtract · change and price ·
+ *         price lists · multi-step money stories
+ *   RR.*  fixed and variable expenses · profit · savings options ·
+ *         weekly allowance · financial institution vocabulary
+ *   R.*   number patterns: rules, mistakes, tables, input/output machines
+ *
+ * Money is computed in INTEGER CENTS and formatted once, so no card ever
+ * prints 0.30000000000000004. Every pattern has one rule the learner can
+ * state, and the answer follows from that rule — never from a guess.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var BC = GLOB.BC, UP = GLOB.UP;
+  var R = GLOB.R;
+  var I_NUM = GLOB.I_num, I_CHOICE = GLOB.I_choice, I_CMP = GLOB.I_cmp, I_BOOL = GLOB.I_bool,
+    I_PARTS = GLOB.I_parts, I_STR = GLOB.I_str;
+  var money = GLOB.money;
+
+  function ask(rng, prompt, val, o) {
+    o = o || {};
+    return I_NUM(prompt, val, {
+      sub: o.sub, visual: o.visual, unit: o.unit,
+      answerText: o.answerText,
+      explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function choose(rng, prompt, answer, wrongs, o) {
+    o = o || {};
+    var str = String(answer), pool = [], seen = {};
+    (wrongs || []).forEach(function (w) {
+      w = String(w);
+      if (w === str || seen[w] || !w.trim()) return;
+      seen[w] = 1; pool.push(w);
+    });
+    if (pool.length < 2) return null;
+    return UP.mc(rng, prompt, str, pool.slice(0, 3), {
+      steps: o.steps, explain: o.explain, teach: o.teach, visual: o.visual, b: o.b || 0
+    });
+  }
+  function judge(prompt, truth, o) {
+    o = o || {};
+    return I_BOOL(prompt, !!truth, {
+      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function compare(prompt, a, b, o) {
+    o = o || {};
+    return I_CMP(prompt, a, b, {
+      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+    });
+  }
+  function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
+  function who(rng) { return BC.pick(rng, BC.WHO); }
+
+  /* dollars as a learner types them: 6.25 */
+  function d(cents) { return (cents / 100).toFixed(2); }
+  /* dollars as a card prints them: $6.25 */
+  function us(cents) { return money(cents / 100); }
+  /* a money slip list: off-by-a-digit, wrong-place, and near misses in cents */
+  function moneySlips(cents) {
+    return [cents + 100, cents - 100, cents + 10, cents + 90, cents - 90, cents + 1, cents - 1]
+      .filter(function (c) { return c > 0; });
+  }
+
+  /* ======================================================================= */
+  /* =========================  MONEY  (Q.*)  ============================== */
+  /* ======================================================================= */
+  UP.on(/^(count coins and bills|compare money|add and subtract money|add, subtract, multiply, and divide money|find the change|price lists|multi-step word problems with money)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var counting = /count coins/.test(t);
+    var cmpMoney = /compare money/.test(t);
+    var addSub = /add and subtract money/.test(t);
+    var allOps = /multiply|divide/.test(t);
+    var change = /change|price, or amount paid|amount paid/.test(t);
+    var priceList = /price list/.test(t);
+    var multiMoney = /multi-step|multi step/.test(t);
+    var wordy = /word problem|multi-step|multi step|price list/.test(t);
+
+    return UP.build(rng, [
+      /* ---- counting (Q.1, Q.2) ------------------------------------------ */
+      function () {                       /* coins on the model */
+        if (!counting) return null;
+        var q = BC.int(rng, 2, 9), dd = BC.int(rng, 1, 9), n = BC.int(rng, 1, 8), pe = BC.int(rng, 0, 4);
+        var cents = q * 25 + dd * 10 + n * 5 + pe;
+        return ask(rng, lead(rng, ['How much money is shown?', 'Count the coins. How much in all?', 'What amount do these coins make?']), cents / 100, {
+          unit: '$', visual: V.coins(q, dd, n, pe),
+          explain: ['Count the quarters first: ' + q + ' × 25¢ = ' + q * 25 + '¢.', 'Then dimes, nickels and pennies: ' + dd * 10 + '¢ + ' + n * 5 + '¢ + ' + pe + '¢.', 'Total: ' + (q * 25 + dd * 10 + n * 5 + pe) + '¢ = <b>' + us(cents) + '</b>.'],
+          teach: 'Count the coins worth most first, then add the smaller ones on.',
+          b: -0.4
+        });
+      },
+      function () {                       /* bills and coins in words */
+        if (!counting) return null;
+        var b20 = R.chance(rng, 0.4) ? 1 : 0, b10 = BC.int(rng, 1, 2), b5 = BC.int(rng, 0, 3), b1 = BC.int(rng, 0, 4);
+        var q = BC.int(rng, 1, 3), dd = BC.int(rng, 0, 4);
+        var cents = b20 * 2000 + b10 * 1000 + b5 * 500 + b1 * 100 + q * 25 + dd * 10;
+        var parts = [];
+        if (b20) parts.push('1 bill of $20');
+        if (b10) parts.push(b10 + ' bills of $10');
+        if (b5) parts.push(b5 + ' bills of $5');
+        if (b1) parts.push(b1 + ' bills of $1');
+        if (q) parts.push(q + ' quarters');
+        if (dd) parts.push(dd + ' dimes');
+        return choose(rng, lead(rng, ['What amount is this?', 'Count the bills and coins. How much in all?']) + '\n' + parts.join(', ') + '.',
+          us(cents), moneySlips(cents).map(function (c) { return us(c); }), {
+          steps: ['Bills: ' + us(b20 * 2000 + b10 * 1000 + b5 * 500 + b1 * 100) + '.', 'Coins: ' + us(q * 25 + dd * 10) + '.', 'Together: ' + us(cents) + '.'],
+          teach: 'Add the bills first, then the coins — the order makes counting easy.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which set shows the amount */
+        if (!counting) return null;
+        var cents = BC.int(rng, 500, 1900);
+        var q = Math.floor(cents / 25), rest = cents % 25;
+        var right = q + ' quarters and ' + Math.floor(rest / 10) + ' dimes and ' + (rest % 10) + ' pennies';
+        var wrongA = (q + 1) + ' quarters and ' + Math.floor(rest / 10) + ' dimes and ' + (rest % 10) + ' pennies';
+        var wrongB = q + ' quarters and ' + (Math.floor(rest / 10) + 1) + ' dimes and ' + (rest % 10) + ' pennies';
+        return choose(rng, 'Which set of coins makes exactly ' + us(cents) + '?', right, [wrongA, wrongB,
+          q + ' quarters and ' + Math.floor(rest / 10) + ' dimes and ' + ((rest % 10) + 1) + ' pennies'], {
+          steps: [q + ' quarters = ' + q * 25 + '¢; ' + Math.floor(rest / 10) + ' dimes = ' + Math.floor(rest / 10) * 10 + '¢; ' + (rest % 10) + ' pennies = ' + (rest % 10) + '¢.', 'They add to ' + cents + '¢ = ' + us(cents) + '.'],
+          teach: 'A set matches the amount only when the coins add to it exactly.',
+          b: 0.5
+        });
+      },
+
+      /* ---- comparing (Q.3) ---------------------------------------------- */
+      function () {                       /* two amounts, fill the symbol */
+        if (!cmpMoney) return null;
+        var a = BC.int(rng, 300, 2500), diff = BC.int(rng, 5, 95);
+        var b = a + diff * (R.chance(rng, 0.5) ? 1 : -1);
+        if (b <= 0) b = a + diff;
+        return compare(lead(rng, ['Choose >, < or =.', 'Compare the two amounts.']), a / 100, b / 100, {
+          sub: us(a) + '  ○  ' + us(b),
+          explain: ['Left: ' + us(a) + ' = ' + a + '¢.', 'Right: ' + us(b) + ' = ' + b + '¢.', 'So the symbol is ' + (a > b ? '>' : '<') + '.'],
+          teach: 'Compare dollars first, then cents — the amounts are numbers like any other.',
+          b: -0.1
+        });
+      },
+      function () {                       /* which amount is more — MC */
+        if (!cmpMoney) return null;
+        var a = BC.int(rng, 400, 1600), b = a + BC.int(rng, 1, 9) * 10 + BC.pick(rng, [-1, 1]) * BC.int(rng, 1, 8);
+        return choose(rng, 'Which amount is greater?', us(b),
+          [us(a), us(a) + ' and ' + us(b) + ' are equal'], {
+          steps: [us(a) + ' = ' + a + '¢; ' + us(b) + ' = ' + b + '¢.', 'The greater amount is ' + us(b) + '.'],
+          teach: 'Same dollars, different cents: the bigger cents win.',
+          b: 0.1
+        });
+      },
+      function () {                       /* is the claim about more/less true */
+        if (!cmpMoney) return null;
+        var a = BC.int(rng, 200, 3000), b = a + BC.int(rng, 1, 120);
+        var flip = R.chance(rng, 0.5);
+        var left = flip ? a : b, right = flip ? b : a;
+        return judge(us(left) + ' is more than ' + us(right) + '.', left > right, {
+          explain: [us(left) + ' = ' + left + '¢.', us(right) + ' = ' + right + '¢.', 'The larger amount is ' + us(Math.max(left, right)) + ', so the statement is ' + (left > right ? 'true' : 'false') + '.'],
+          teach: 'Never judge by the digits alone — line the amounts up by place.',
+          b: 0.3
+        });
+      },
+
+      /* ---- add and subtract (Q.4, Q.7) ---------------------------------- */
+      function () {                       /* add two amounts in a story */
+        if (!addSub && !multiMoney) return null;
+        var a = BC.int(rng, 100, 900), b = BC.int(rng, 45, 600);
+        var w = who(rng);
+        var item1 = BC.pick(rng, ['a notebook', 'a smoothie', 'a key chain', 'a puzzle']);
+        var item2 = BC.pick(rng, ['a sticker sheet', 'a bag of popcorn', 'a bookmark', 'a jump rope']);
+        return ask(rng, w + ' bought ' + item1 + ' for ' + us(a) + ' and ' + item2 + ' for ' + us(b) + '. What is the total cost?', (a + b) / 100, {
+          unit: '$',
+          explain: ['Line up the dollars and cents: ' + us(a) + ' + ' + us(b) + '.', 'Cents: ' + (a % 100) + '¢ + ' + (b % 100) + '¢ = ' + ((a % 100) + (b % 100)) + '¢.', 'The total is ' + us(a + b) + '.'],
+          teach: 'Add money like any decimal: stack the amounts so dollars sit over dollars.',
+          b: -0.2
+        });
+      },
+      function () {                       /* subtract: how much more / change left */
+        if (!addSub && !multiMoney) return null;
+        var a = BC.int(rng, 600, 2500), b = BC.int(rng, 150, 550);
+        var w = who(rng);
+        return ask(rng, w + ' has ' + us(a) + ' and spends ' + us(b) + ' on a gift. How much is left?', (a - b) / 100, {
+          unit: '$',
+          explain: ['Start with ' + us(a) + ' and take away ' + us(b) + '.', a + '¢ − ' + b + '¢ = ' + (a - b) + '¢.', 'Left: ' + us(a - b) + '.'],
+          teach: 'Subtracting money is finding the difference — subtract cents, then dollars.',
+          b: 0.1
+        });
+      },
+      function () {                       /* add — options with the classic slips */
+        if (!addSub) return null;
+        var a = BC.int(rng, 205, 890), b = BC.int(rng, 110, 695);
+        return choose(rng, 'What is ' + us(a) + ' + ' + us(b) + '?', us(a + b),
+          [us(a + b + 90), us(a + b - 100), us(a + b + 100)], {
+          steps: ['Cents first: ' + (a % 100) + '¢ + ' + (b % 100) + '¢ = ' + ((a % 100) + (b % 100)) + '¢.', 'Then the dollars, carrying any 100¢ as $1.', 'Total: ' + us(a + b) + '.'],
+          teach: 'Carry the 100 cents across exactly like you carry a ten.',
+          b: 0.3
+        });
+      },
+
+      /* ---- change, price, paid (Q.5) ------------------------------------ */
+      function () {                       /* change = paid − price */
+        if (!change) return null;
+        var price = BC.int(rng, 205, 1250);
+        var paid = [1000, 2000, 500, 200][BC.int(rng, 0, 3)];
+        if (paid <= price) paid = 2000;
+        return ask(rng, lead(rng, ['Find the change.', 'How much change comes back?']) + ' ' + BC.pick(rng, BC.WHO) + ' pays ' + us(paid) + ' for an item that costs ' + us(price) + '.', (paid - price) / 100, {
+          unit: '$',
+          explain: ['Change is what the money paid has beyond the price.', paid + '¢ − ' + price + '¢ = ' + (paid - price) + '¢.', 'Change: ' + us(paid - price) + '.'],
+          teach: 'Change is the difference between what was paid and the price.',
+          b: 0
+        });
+      },
+      function () {                       /* price = paid − change */
+        if (!change) return null;
+        var paid = 2000, changeC = BC.int(rng, 215, 940);
+        return ask(rng, 'After paying ' + us(paid) + ', the cashier returned ' + us(changeC) + ' change. What was the price?', (paid - changeC) / 100, {
+          unit: '$',
+          explain: ['Price + change = money paid, so price = paid − change.', paid + '¢ − ' + changeC + '¢ = ' + (paid - changeC) + '¢.', 'Price: ' + us(paid - changeC) + '.'],
+          teach: 'Undo the transaction: paid minus change gives back the price.',
+          b: 0.4
+        });
+      },
+      function () {                       /* amount paid = price + change... or price + tax-free total */
+        if (!change) return null;
+        var price = BC.int(rng, 300, 1400), extra = BC.int(rng, 100, 800);
+        return ask(rng, 'A jacket costs ' + us(price) + ' and the scarf costs ' + us(extra) + '. ' + BC.pick(rng, BC.WHO) + ' hands the cashier exact money for both. How much was paid?', (price + extra) / 100, {
+          unit: '$',
+          explain: ['Exact money means no change, so paid = jacket + scarf.', price + '¢ + ' + extra + '¢ = ' + (price + extra) + '¢.', 'Paid: ' + us(price + extra) + '.'],
+          teach: 'When the change is zero, the amount paid is the total price.',
+          b: 0.5
+        });
+      },
+
+      /* ---- price lists (Q.6) -------------------------------------------- */
+      function () {                       /* two items from the board */
+        if (!priceList) return null;
+        var names = ['fruit', 'granola bar', 'juice box', 'pretzels', 'cheese crackers'];
+        var p0 = BC.int(rng, 55, 240), p1 = BC.int(rng, 65, 320), p2 = BC.int(rng, 45, 190);
+        var rows = [[names[0], us(p0)], [names[1], us(p1)], [names[2], us(p2)]];
+        return ask(rng, 'The snack cart price board is shown. How much for one ' + names[0] + ' and one ' + names[1] + '?', (p0 + p1) / 100, {
+          unit: '$', visual: V.table(['item', 'price'], rows),
+          explain: ['Read the board: ' + names[0] + ' costs ' + us(p0) + ', ' + names[1] + ' costs ' + us(p1) + '.', us(p0) + ' + ' + us(p1) + ' = ' + us(p0 + p1) + '.'],
+          teach: 'A price list is just a table of amounts — read each number before operating.',
+          b: -0.1
+        });
+      },
+      function () {                       /* difference between two prices */
+        if (!priceList) return null;
+        var names = ['soup', 'sandwich', 'apple slices', 'milk', 'yogurt'];
+        var p0 = BC.int(rng, 120, 400), p1 = BC.int(rng, 45, 110);
+        var rows = [[names[3], us(p1)], [names[4], us(p0)], [names[0], us(p1 + BC.int(rng, 20, 90))]];
+        return choose(rng, 'How much more does the ' + names[4] + ' cost than the ' + names[3] + '?', us(p0 - p1),
+          [us(p0 + p1), us(p0 - p1 + 100), us(p0 - p1 - 10)], {
+          steps: ['Read both prices from the board.', us(p0) + ' − ' + us(p1) + ' = ' + us(p0 - p1) + '.'],
+          teach: '“How much more” is a subtraction hiding inside a shopping story.',
+          b: 0.2
+        });
+      },
+      function () {                       /* enough money? judge */
+        if (!priceList) return null;
+        var p0 = BC.int(rng, 150, 600), p1 = BC.int(rng, 120, 500);
+        var have = p0 + p1 + BC.int(rng, -140, 260);
+        var rows = [['tubes of paint', us(p0)], ['brushes', us(p1)], ['paper', us(BC.int(rng, 80, 300))]];
+        return judge('Is ' + us(Math.max(50, have)) + ' enough to buy ' + us(p0) + ' paint and ' + us(p1) + ' brushes?', have >= p0 + p1, {
+          visual: V.table(['supply', 'price'], rows),
+          explain: ['Both supplies together: ' + us(p0) + ' + ' + us(p1) + ' = ' + us(p0 + p1) + '.', 'The money is ' + us(Math.max(50, have)) + '.', (have >= p0 + p1 ? 'It covers the total' : 'It falls short by ' + us(p0 + p1 - have)) + '.'],
+          teach: 'Compare the money with the total — enough means total ≤ money.',
+          b: 0.5
+        });
+      },
+
+      /* ---- all four operations (Q.8/Q.9 style) --------------------------- */
+      function () {                       /* multiply: equal priced items */
+        if (!allOps) return null;
+        var each = BC.int(rng, 95, 450), n = BC.int(rng, 3, 6);
+        return ask(rng, BC.pick(rng, BC.WHO) + ' buys ' + n + ' tickets at ' + us(each) + ' each. What is the total cost?', n * each / 100, {
+          unit: '$',
+          explain: ['Equal prices mean multiplication.', n + ' × ' + us(each) + ' = ' + us(n * each) + '.'],
+          teach: 'Buying the same price many times is multiplication with money.',
+          b: 0.3
+        });
+      },
+      function () {                       /* divide: sharing equally */
+        if (!allOps) return null;
+        var share = BC.int(rng, 150, 800), n = BC.pick(rng, [2, 3, 4]);
+        var word = { 2: 'Two', 3: 'Three', 4: 'Four' }[n];
+        return ask(rng, word + ' friends paid exactly ' + us(share * n) + ' for a shared pizza. How much did each pay?', share, {
+          unit: '$',
+          explain: ['Sharing equally is division.', share * n + '¢ ÷ ' + n + ' = ' + share + '¢.', 'Each paid ' + us(share) + '.'],
+          teach: 'Splitting a money amount into equal shares is division.',
+          b: 0.5
+        });
+      },
+      function () {                       /* mixed: buy then get change */
+        if (!allOps) return null;
+        var each = BC.int(rng, 120, 380), n = BC.int(rng, 2, 4);
+        var paid = 2000;
+        var total = each * n;
+        return ask(rng, n + ' pencils cost ' + us(each) + ' each. ' + BC.pick(rng, BC.WHO) + ' pays ' + us(paid) + '. How much change?', (paid - total) / 100, {
+          unit: '$',
+          explain: ['Step 1 multiply: ' + n + ' × ' + us(each) + ' = ' + us(total) + '.', 'Step 2 subtract: ' + us(paid) + ' − ' + us(total) + ' = ' + us(paid - total) + '.'],
+          teach: 'Multiply the equal prices first, then subtract from what was paid.',
+          b: 0.7
+        });
+      },
+
+      /* ---- multi-step money stories (Q.9, Q.10) -------------------------- */
+      function () {                       /* save then spend */
+        if (!multiMoney) return null;
+        var have = BC.int(rng, 900, 2500), spend1 = BC.int(rng, 150, 600), spend2 = BC.int(rng, 120, 500);
+        var w = who(rng);
+        return ask(rng, w + ' has ' + us(have) + ' saved. ' + w + ' spends ' + us(spend1) + ' on a movie and ' + us(spend2) + ' on snacks. How much is left?', (have - spend1 - spend2) / 100, {
+          unit: '$',
+          explain: ['Total spent: ' + us(spend1) + ' + ' + us(spend2) + ' = ' + us(spend1 + spend2) + '.', 'Left: ' + us(have) + ' − ' + us(spend1 + spend2) + ' = ' + us(have - spend1 - spend2) + '.'],
+          teach: 'Two spends can be joined first — one subtraction does the same work.',
+          b: 0.2
+        });
+      },
+      function () {                       /* buy several, pay, change */
+        if (!multiMoney) return null;
+        var each = BC.int(rng, 145, 450), n = BC.int(rng, 2, 5);
+        var paid = [1000, 2000][BC.int(rng, 0, 1)];
+        var total = each * n;
+        if (paid <= total) return null;
+        return ask(rng, 'Autographs cost ' + us(each) + ' each. ' + BC.pick(rng, BC.WHO) + ' buys ' + n + ' and pays ' + us(paid) + '. How much change?', (paid - total) / 100, {
+          unit: '$',
+          explain: ['Multiply: ' + n + ' × ' + us(each) + ' = ' + us(total) + '.', 'Subtract from the money paid: ' + us(paid) + ' − ' + us(total) + ' = ' + us(paid - total) + '.'],
+          teach: 'Multi-step money keeps the story order: multiply, then subtract.',
+          b: 0.5
+        });
+      },
+      function () {                       /* reasonable estimate */
+        if (!multiMoney && !priceList) return null;
+        var a = BC.int(rng, 240, 480), b = BC.int(rng, 210, 460);
+        var exact = a + b;
+        var rounded = Math.round(exact / 100) * 100;
+        return choose(rng, 'About how much are ' + us(a) + ' and ' + us(b) + ' together?', us(rounded),
+          [us(rounded + 500), us(Math.max(100, rounded - 600)), us(exact)], {
+          steps: ['Round each: ' + us(Math.round(a / 100) * 100) + ' + ' + us(Math.round(b / 100) * 100) + '.', 'That is about ' + us(rounded) + ' — the exact total ' + us(exact) + ' sits right near it.'],
+          teach: 'Estimating money rounds to dollars; the reasonable option is near the rounded total.',
+          b: 0.6
+        });
+      },
+      function () {                       /* does the receipt add up */
+        if (!multiMoney && !addSub && !allOps) return null;
+        var a = BC.int(rng, 120, 480), b = BC.int(rng, 110, 420);
+        var claim = R.chance(rng, 0.5) ? a + b : a + b + BC.int(rng, 1, 9) * 100;
+        return judge('A receipt lists ' + us(a) + ' and ' + us(b) + '. Is the total ' + us(claim) + '?', claim === a + b, {
+          explain: ['Add the two amounts: ' + us(a) + ' + ' + us(b) + ' = ' + us(a + b) + '.', 'The receipt says ' + us(claim) + '.', (claim === a + b ? 'It adds up' : 'It does not add up') + '.'],
+          teach: 'Check a receipt by re-doing its arithmetic yourself.',
+          b: 0.4
+        });
+      },
+
+      /* ---- extra shapes for the compare / list / all-ops variants ------- */
+      function () {                       /* greatest of three amounts */
+        if (!cmpMoney) return null;
+        var a = BC.int(rng, 300, 900), b = a + BC.int(rng, 20, 300), c = b + BC.int(rng, 20, 400);
+        return choose(rng, 'Three amounts are ' + us(a) + ', ' + us(b) + ' and ' + us(c) + '. Which is the greatest?',
+          us(c), [us(a), us(b), us(c) + ' and ' + us(b) + ' are equal'], {
+          steps: ['Line them up: ' + a + '¢ < ' + b + '¢ < ' + c + '¢.', 'The greatest is ' + us(c) + '.'],
+          teach: 'Order the amounts by cents-in-total and the greatest rises to the top.',
+          b: 0.2
+        });
+      },
+      function () {                       /* nearest dollar */
+        if (!cmpMoney) return null;
+        var cents = BC.int(rng, 105, 1900);
+        var near = Math.round(cents / 100) * 100;
+        return choose(rng, 'Which amount is closest to ' + us(cents) + '?', us(near),
+          [us(near + 100), us(Math.max(100, near - 100)), us(near + 50)], {
+          steps: ['Round to the nearest dollar: ' + us(cents) + ' → ' + us(near) + '.', 'The other options are a whole dollar away.'],
+          teach: 'Closest-to means rounding: half a dollar or more rounds up.',
+          b: 0.4
+        });
+      },
+      function () {                       /* less-than judge */
+        if (!cmpMoney) return null;
+        var a = BC.int(rng, 500, 2800), b = a - BC.int(rng, 5, 190);
+        return judge(us(a) + ' is less than ' + us(b) + '.', false, {
+          explain: [us(a) + ' = ' + a + '¢ and ' + us(b) + ' = ' + b + '¢.', 'The larger amount is ' + us(a) + ', so “less than” is false.'],
+          teach: 'Flip the words and the truth flips too — check the direction first.',
+          b: -0.2
+        });
+      },
+      function () {                       /* which item costs most */
+        if (!priceList) return null;
+        var items = [['fruit', BC.int(rng, 60, 180)], ['pretzels', BC.int(rng, 190, 340)], ['cheese crackers', BC.int(rng, 90, 260)]];
+        var rows = items.map(function (it) { return [it[0], us(it[1])]; });
+        var maxI = items.reduce(function (m, it, i) { return it[1] > items[m][1] ? i : m; }, 0);
+        return choose(rng, 'Read the price board. Which single item costs the most?', items[maxI][0],
+          items.filter(function (it, i) { return i !== maxI; }).map(function (it) { return it[0]; }), {
+          visual: V.table(['item', 'price'], rows),
+          steps: ['Compare the three prices as cents.', items[maxI][0] + ' at ' + us(items[maxI][1]) + ' is the largest.'],
+          teach: 'On a price board the biggest number of cents is the costliest item.',
+          b: 0.1
+        });
+      },
+      function () {                       /* can $10 cover it */
+        if (!priceList) return null;
+        var price = BC.int(rng, 400, 1300);
+        var rows = [['popcorn', us(BC.int(rng, 80, 200))], ['nachos', us(price)], ['juice', us(BC.int(rng, 90, 240))]];
+        return judge('With exactly ' + us(1000) + ', can you buy the nachos for ' + us(price) + '?', price <= 1000, {
+          visual: V.table(['snack', 'price'], rows),
+          explain: ['You have ' + us(1000) + ' and the nachos cost ' + us(price) + '.', price <= 1000 ? 'The price fits inside the money.' : 'The price is beyond ' + us(1000) + ' by ' + us(price - 1000) + '.'],
+          teach: 'Money is enough exactly when the price is no bigger than the money.',
+          b: 0.3
+        });
+      },
+      function () {                       /* two of the same item */
+        if (!priceList) return null;
+        var price = BC.int(rng, 55, 240);
+        return ask(rng, 'How much for TWO ' + BC.pick(rng, ['juice boxes', 'cheese crackers', 'fruit cups']) + ' at ' + us(price) + ' each?', price * 2, {
+          unit: '$',
+          explain: ['Same price twice means × 2.', us(price) + ' × 2 = ' + us(price * 2) + '.'],
+          teach: 'Buying the same item twice doubles the price.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which costs more: two computed baskets */
+        if (!allOps) return null;
+        var a = BC.int(rng, 95, 350), n = BC.int(rng, 2, 4);
+        var b = BC.int(rng, 150, 700), m = BC.int(rng, 2, 3);
+        var t1 = a * n, t2 = b * m;
+        if (t1 === t2) return null;
+        return compare('Choose >, < or =.   ' + n + ' at ' + us(a) + '  ○  ' + m + ' at ' + us(b), t1 / 100, t2 / 100, {
+          explain: ['Left basket: ' + n + ' × ' + us(a) + ' = ' + us(t1) + '.', 'Right basket: ' + m + ' × ' + us(b) + ' = ' + us(t2) + '.', 'So the symbol is ' + (t1 > t2 ? '>' : '<') + '.'],
+          teach: 'Multiply each basket first — then the bigger total wins.',
+          b: 0.5
+        });
+      },
+      function () {                       /* money equation judge */
+        if (!allOps) return null;
+        var each = BC.int(rng, 90, 450), n = BC.int(rng, 2, 5);
+        var claim = each * n + (R.chance(rng, 0.5) ? 0 : BC.int(rng, 1, 9) * 50);
+        return judge(n + ' × ' + us(each) + ' = ' + us(claim) + '?', claim === each * n, {
+          explain: ['Multiply: ' + n + ' × ' + each + '¢ = ' + us(each * n) + '.', 'The claim says ' + us(claim) + '.', (claim === each * n ? 'It is right' : 'It is off') + '.'],
+          teach: 'Judge a money product by computing it yourself first.',
+          b: 0.6
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* =================  FINANCIAL LITERACY  (RR.*)  ======================== */
+  /* ======================================================================= */
+  UP.on(/^(identify fixed and variable|calculate profit|compare savings|budget a weekly|financial institution)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var fixedVar = /fixed and variable|fixed expense|variable expense/.test(t);
+    var profit = /profit/.test(t);
+    var savings = /savings/.test(t);
+    var budget = /allowance|budget/.test(t);
+    var vocab = /financial institution|vocabulary/.test(t);
+
+    return UP.build(rng, [
+      /* ---- fixed vs variable -------------------------------------------- */
+      function () {
+        if (!fixedVar) return null;
+        var fixed = BC.pick(rng, ['the $25 bus pass paid every month', 'the $12 phone plan paid every month', 'the $8 gym fee paid every month']);
+        var varA = BC.pick(rng, ['movie tickets bought now and then', 'ice cream after dinner', 'weekend bike-repair parts']);
+        var varB = BC.pick(rng, ['lemonade stand supplies', 'birthday gift money', 'arcade coins']);
+        return choose(rng, 'Which one is a FIXED expense — the same amount every month?', fixed,
+          [varA, varB, 'money spent on snacks when hungry'], {
+          steps: ['A fixed expense stays the same from month to month.', fixed.charAt(0).toUpperCase() + fixed.slice(1) + ' does exactly that.', 'The others change with what happens that month.'],
+          teach: 'Fixed expenses repeat the same amount; variable expenses change with your choices.',
+          b: 0.2
+        });
+      },
+      function () {
+        if (!fixedVar) return null;
+        var isVar = R.chance(rng, 0.5);
+        var item = isVar ? 'the money spent on arcade games each visit' : 'the $30 internet bill paid every month';
+        return judge('Is ' + item + ' a fixed expense?', !isVar, {
+          explain: ['Fixed means the same amount every month.', isVar ? 'Arcade money changes with every visit.' : 'The internet bill is the same every month.', 'So the statement is ' + (!isVar ? 'true' : 'false') + '.'],
+          teach: 'Ask one question: does the amount repeat the same every month?',
+          b: 0.4
+        });
+      },
+
+      /* ---- profit -------------------------------------------------------- */
+      function () {
+        if (!profit) return null;
+        var each = BC.int(rng, 75, 250), n = BC.int(rng, 8, 20);
+        var sales = each * n;
+        var cost = BC.int(rng, 300, sales - 200);
+        var w = who(rng);
+        return ask(rng, w + '’s bake sale brings in ' + us(sales) + '. Supplies cost ' + us(cost) + '. How much profit?', (sales - cost) / 100, {
+          unit: '$',
+          explain: ['Profit is what money in has beyond money out.', us(sales) + ' − ' + us(cost) + ' = ' + us(sales - cost) + '.'],
+          teach: 'Profit = money received − money spent; it is what the venture truly earned.',
+          b: 0.2
+        });
+      },
+      function () {
+        if (!profit) return null;
+        var cost = BC.int(rng, 400, 1200), profitC = BC.int(rng, 250, 900);
+        return choose(rng, 'A lemonade stand spent ' + us(cost) + ' and made ' + us(profitC) + ' profit. Which amount did it receive?', us(cost + profitC),
+          [us(cost + profitC + 100), us(Math.max(100, cost - profitC)), us(cost + profitC + 10)], {
+          steps: ['Received = spent + profit.', us(cost) + ' + ' + us(profitC) + ' = ' + us(cost + profitC) + '.'],
+          teach: 'The three money amounts are one equation: received − spent = profit.',
+          b: 0.5
+        });
+      },
+      function () {
+        if (!profit) return null;
+        var each = BC.int(rng, 60, 180), n = BC.int(rng, 6, 12), cost = BC.int(rng, 200, each * n - 150);
+        var claim = each * n - cost;
+        var lie = claim + BC.int(rng, 1, 9) * 50;
+        var shown = R.chance(rng, 0.5) ? claim : lie;
+        return judge('Selling ' + n + ' cups at ' + us(each) + ' each with ' + us(cost) + ' spent gives ' + us(shown) + ' profit.', shown === claim, {
+          explain: ['Money in: ' + n + ' × ' + us(each) + ' = ' + us(each * n) + '.', 'Profit: ' + us(each * n) + ' − ' + us(cost) + ' = ' + us(claim) + '.', 'The claim says ' + us(shown) + '.'],
+          teach: 'Run the profit story step by step before agreeing with the number.',
+          b: 0.6
+        });
+      },
+
+      /* ---- savings options ------------------------------------------------ */
+      function () {
+        if (!savings) return null;
+        var a = BC.int(rng, 2, 6), aWeeks = BC.int(rng, 4, 8);
+        var b = BC.int(rng, 2, 6), bWeeks = BC.int(rng, 4, 8);
+        var sa = a * aWeeks, sb = b * bWeeks;
+        if (sa === sb) return null;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var bigger = sa > sb ? w1 : w2;
+        return choose(rng, w1 + ' saves $' + a + ' a week for ' + aWeeks + ' weeks; ' + w2 + ' saves $' + b + ' a week for ' + bWeeks + ' weeks. Who saves more?',
+          bigger, [bigger === w1 ? w2 : w1, 'they save the same'], {
+          steps: [w1 + ': $' + a + ' × ' + aWeeks + ' = $' + sa + '.', w2 + ': $' + b + ' × ' + bWeeks + ' = $' + sb + '.', 'More belongs to ' + bigger + '.'],
+          teach: 'Rate × weeks decides the total savings; compute both before choosing.',
+          b: 0.3
+        });
+      },
+      function () {
+        if (!savings) return null;
+        var goal = BC.int(rng, 3, 8) * 10;
+        var a = BC.int(rng, 3, 5), b = BC.int(rng, 1, 2);
+        var sayFaster = R.chance(rng, 0.5);
+        return judge('Reaching a $' + goal + ' goal: saving $' + a + ' a week gets there ' + (sayFaster ? 'faster' : 'slower') + ' than $' + b + ' a week.', sayFaster, {
+          explain: ['Faster means fewer weeks: $' + goal + ' ÷ $' + a + ' = ' + (goal / a).toFixed(1) + ' weeks.', '$' + goal + ' ÷ $' + b + ' = ' + (goal / b).toFixed(1) + ' weeks.', 'The larger weekly saving finishes sooner, so the statement is ' + (sayFaster ? 'true' : 'false') + '.'],
+          teach: 'For the same goal, the bigger weekly saving always finishes sooner.',
+          b: 0.5
+        });
+      },
+
+      /* ---- allowance budget ---------------------------------------------- */
+      function () {
+        if (!budget) return null;
+        var allow = BC.pick(rng, [800, 1000, 1200, 1500]);
+        var spend = BC.int(rng, 150, allow - 200);
+        return ask(rng, BC.pick(rng, BC.WHO) + ' has a weekly allowance of ' + us(allow) + ' and spends ' + us(spend) + ' at the mall. How much is left to save?', (allow - spend) / 100, {
+          unit: '$',
+          explain: ['Left to save = allowance − spent.', us(allow) + ' − ' + us(spend) + ' = ' + us(allow - spend) + '.'],
+          teach: 'A budget is money in, money out, and what is left to keep.',
+          b: -0.1
+        });
+      },
+      function () {
+        if (!budget) return null;
+        var per = BC.int(rng, 3, 8) * 100;
+        var weeks = BC.int(rng, 4, 9);
+        return ask(rng, 'A game costs $' + (per * weeks / 100) + '. Saving $' + (per / 100) + ' a week, how many weeks until the money is saved?', weeks, {
+          explain: ['Total ÷ weekly saving = weeks.', '$' + (per * weeks / 100) + ' ÷ $' + (per / 100) + ' = ' + weeks + '.'],
+          teach: 'How long to save is a division: the goal split into weekly pieces.',
+          b: 0.4
+        });
+      },
+      function () {
+        if (!budget) return null;
+        var allow = BC.int(rng, 8, 15);
+        var want = BC.pick(rng, ['a $25 book', 'a $40 game', 'a $16 hoodie']);
+        var price = +want.match(/\d+/)[0];
+        var weeks = Math.ceil(price / allow);
+        return choose(rng, 'An allowance of $' + allow + ' a week: how many full weeks of saving reach ' + want + '?',
+          weeks, [weeks + 1, weeks - 1, price - allow], {
+          steps: ['$' + price + ' ÷ $' + allow + ' = ' + (price / allow).toFixed(2) + ' weeks.', 'Part-weeks are not paid, so round up: ' + weeks + ' weeks.'],
+          teach: 'Saving whole weeks means rounding the weeks up to the next full one.',
+          b: 0.7
+        });
+      },
+
+      /* ---- vocabulary ----------------------------------------------------- */
+      function () {
+        if (!vocab) return null;
+        var card = BC.pick(rng, [
+          { q: 'the place where you keep money safe and can save it', a: ['bank', 'a bank', 'bank account', 'a bank account'] },
+          { q: 'money you put INTO an account', a: ['deposit', 'a deposit', 'depositing', 'to deposit'] },
+          { q: 'the extra money you pay for borrowing money', a: ['interest', 'interest charges', 'an interest charge'] },
+          { q: 'a regular payment for a service, like phone or internet', a: ['bill', 'a bill', 'monthly bill', 'a monthly bill'] },
+          { q: 'a card that takes money straight out of your account', a: ['debit card', 'a debit card', 'debit'] },
+          { q: 'money you borrow and promise to pay back', a: ['loan', 'a loan', 'to loan', 'lend'] }
+        ]);
+        return I_STR('Financial vocabulary: what do you call ' + card.q + '?', card.a, {
+          answerText: card.a[0], b: 0.1,
+          explain: ['The word for “' + card.q + '” is ' + card.a[0] + '.', 'It is the everyday word for that money action.'],
+          teach: 'Money talk uses a few key words — bank, deposit, loan, interest, bill, budget.'
+        });
+      },
+      function () {
+        if (!vocab) return null;
+        var card = BC.pick(rng, [
+          { q: 'a plan for how you will spend and save your money', a: ['budget', 'a budget', 'budgeting'] },
+          { q: 'money you earn or receive', a: ['income', 'income money', 'an income'] },
+          { q: 'money that goes out when you buy things', a: ['expense', 'an expense', 'expenses', 'spending'] },
+          { q: 'money you keep aside for later', a: ['savings', 'save', 'saving', 'savings money'] }
+        ]);
+        return I_STR('Financial vocabulary: what do you call ' + card.q + '?', card.a, {
+          answerText: card.a[0], b: 0.3,
+          explain: ['“' + card.q + '” names ' + card.a[0] + '.', 'Use it whenever you plan money.'],
+          teach: 'Income in, expenses out, savings for later, budget for the plan.'
+        });
+      },
+
+      /* ---- extra shapes -------------------------------------------------- */
+      function () {                       /* which one IS variable */
+        if (!fixedVar) return null;
+        var varA = BC.pick(rng, ['movie tickets bought now and then', 'weekend ice cream', 'bike-repair parts when something breaks']);
+        var fixA = BC.pick(rng, ['the $15 internet bill', 'the $20 bus pass', 'the $10 phone plan']);
+        var fixB = BC.pick(rng, ['the $12 streaming plan', 'the $25 gym fee', 'the $18 insurance payment']);
+        return choose(rng, 'Which expense is VARIABLE — its amount changes from month to month?', varA,
+          [fixA, fixB, 'the rent paid on the first of every month'], {
+          steps: ['Variable means the amount depends on what happens that month.', varA.charAt(0).toUpperCase() + varA.slice(1) + ' changes with your choices.', 'The others repeat the same amount.'],
+          teach: 'Variable expenses come and go with your choices; fixed ones repeat the same.',
+          b: 0.4
+        });
+      },
+      function () {                       /* fixed or variable — word answer */
+        if (!fixedVar) return null;
+        var item = BC.pick(rng, [
+          { q: 'the $30 phone bill paid on the same day every month', a: true },
+          { q: 'money spent on snacks, which changes whenever you shop', a: false },
+          { q: 'a $50 car payment due every month', a: true },
+          { q: 'money spent at the arcade, once in a while', a: false }
+        ]);
+        return I_STR('Classify it: ' + item.q + ' — fixed or variable?', item.a
+          ? ['fixed', 'a fixed expense', 'fixed expense', 'fixed cost']
+          : ['variable', 'a variable expense', 'variable expense', 'variable cost'], {
+          answerText: item.a ? 'fixed' : 'variable', b: 0.2,
+          explain: ['Does the amount repeat the same every month? ' + (item.a ? 'It does — fixed.' : 'It does not — variable.')],
+          teach: 'One question classifies every expense: same amount every month, or not?'
+        });
+      },
+      function () {                       /* savings totals */
+        if (!savings) return null;
+        var per = BC.int(rng, 2, 6), weeks = BC.int(rng, 4, 9);
+        return ask(rng, BC.pick(rng, BC.WHO) + ' saves $' + per + ' every week for ' + weeks + ' weeks. How much is saved in total?', per * weeks, {
+          unit: '$',
+          explain: ['Equal amounts repeated: multiply.', '$' + per + ' × ' + weeks + ' = $' + per * weeks + '.'],
+          teach: 'Weekly saving × number of weeks is the total saved.',
+          b: -0.1
+        });
+      },
+      function () {                       /* who reaches the goal first */
+        if (!savings) return null;
+        var goal = BC.int(rng, 3, 8) * 10;
+        var a = BC.int(rng, 3, 6), b = BC.int(rng, 1, 3);
+        if (a === b) b = a + 1;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var faster = a > b ? w1 : w2;
+        return choose(rng, 'Same $' + goal + ' goal: ' + w1 + ' saves $' + a + ' a week and ' + w2 + ' saves $' + b + ' a week. Who reaches the goal first?',
+          faster, [faster === w1 ? w2 : w1, 'they reach it together'], {
+          steps: [w1 + ': $' + goal + ' ÷ $' + a + ' ≈ ' + (goal / a).toFixed(1) + ' weeks.', w2 + ': $' + goal + ' ÷ $' + b + ' ≈ ' + (goal / b).toFixed(1) + ' weeks.', 'The smaller number of weeks wins: ' + faster + '.'],
+          teach: 'Divide the goal by the weekly saving to see how many weeks each plan takes.',
+          b: 0.5
+        });
+      },
+      function () {                       /* how much more saved */
+        if (!savings) return null;
+        var a = BC.int(rng, 3, 6), wa = BC.int(rng, 5, 9);
+        var b = BC.int(rng, 2, 4), wb = BC.int(rng, 2, 5);
+        var sa = a * wa, sb = b * wb;
+        if (sa === sb) return null;
+        return ask(rng, w2fix(a, wa) + ' and ' + w2fix(b, wb) + ' — how much more did the saver with the bigger total save?', Math.abs(sa - sb), {
+          unit: '$',
+          explain: ['Totals: $' + sa + ' and $' + sb + '.', 'Difference: $' + Math.max(sa, sb) + ' − $' + Math.min(sa, sb) + ' = $' + Math.abs(sa - sb) + '.'],
+          teach: 'Compare savings by their totals, then subtract.',
+          b: 0.6
+        });
+      }
+    ]);
+  });
+
+  /* ======================================================================= */
+  /* ====================  NUMBER PATTERNS  (R.*)  ========================= */
+  /* ======================================================================= */
+  UP.on(/^(use a rule|what is true about|identify mistakes|complete an|complete a multiplication|write expressions|number patterns|solve word problems involving number patterns)/, function (rng, lvl, p, sk) {
+    var t = UP.t(sk);
+    var isRule = /use a rule/.test(t);
+    var isTrue = /what is true/.test(t);
+    var isMistake = /identify mistakes/.test(t);
+    var isComplete = /^complete an/.test(t);
+    var isMult = /^complete a multiplication/.test(t);
+    var isExpr = /write expressions/.test(t);
+    var isTableWP = /word problems involving number patterns/.test(t);
+    var isReview = /mixed review/.test(t);
+    var isStory = /word problems/.test(t) && !isTableWP;
+
+    /* draw an add-rule or multiply-rule sequence */
+    function addSeq(rng) {
+      var start = BC.int(rng, 1, 9), rule = BC.int(rng, 2, 9);
+      var seq = [start, start + rule, start + 2 * rule, start + 3 * rule];
+      return { seq: seq, rule: rule, kind: 'add', next: start + 4 * rule };
+    }
+    function mulSeq(rng) {
+      var start = BC.int(rng, 1, 4), rule = BC.int(rng, 2, 4);
+      var seq = [start, start * rule, start * rule * rule, start * rule * rule * rule];
+      if (seq[3] > 400) return null;
+      return { seq: seq, rule: rule, kind: 'mul', next: seq[3] * rule };
+    }
+    function seqOf(rng) {
+      var s = addSeq(rng);
+      return s;
+    }
+
+    return UP.build(rng, [
+      /* ---- use the stated rule to find the next term (R.1, R.5) --------- */
+      function () {
+        if (!(isRule || isComplete || isReview)) return null;
+        var s = addSeq(rng);
+        var blankAt = BC.int(rng, 2, 3);
+        var shown = s.seq.slice(0, blankAt + 1).join(', ') + ', ___';
+        var answer = s.seq.length > blankAt + 1 ? s.seq[blankAt + 1] : s.next;
+        return ask(rng, 'Complete the pattern.   ' + shown, answer, {
+          explain: ['Find the step: ' + s.seq[1] + ' − ' + s.seq[0] + ' = ' + s.rule + '.', 'Every term adds ' + s.rule + ': ' + s.seq[blankAt] + ' + ' + s.rule + ' = ' + answer + '.'],
+          teach: 'A number pattern repeats the same step — find the step, then follow it.',
+          b: -0.2
+        });
+      },
+      function () {
+        if (!(isRule || isComplete || isReview)) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        return ask(rng, 'Complete the pattern.   ' + s.seq.join(', ') + ', ___', s.next, {
+          explain: ['Check the step between terms: ' + s.seq[1] + ' ÷ ' + s.seq[0] + ' = ' + s.rule + '.', 'Multiplying keeps the same factor: ' + s.seq[3] + ' × ' + s.rule + ' = ' + s.next + '.'],
+          teach: 'Some patterns multiply each term by the same factor instead of adding.',
+          b: 0.4
+        });
+      },
+      function () {                       /* the rule stated up front */
+        if (!isRule) return null;
+        var s = addSeq(rng);
+        var blankAt = BC.int(rng, 1, 3);
+        var shown = s.seq.slice(0, blankAt + 1).join(', ') + ', ___';
+        var answer = s.seq.length > blankAt + 1 ? s.seq[blankAt + 1] : s.next;
+        return ask(rng, 'The rule is “add ' + s.rule + '”.   ' + shown, answer, {
+          explain: ['The rule says every term is ' + s.rule + ' more than the one before.', s.seq[blankAt] + ' + ' + s.rule + ' = ' + answer + '.'],
+          teach: 'A stated rule means you never guess — just apply it one step at a time.',
+          b: 0
+        });
+      },
+
+      /* ---- multiplication patterns (R.6) --------------------------------- */
+      function () {
+        if (!isMult && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        var blankAt = BC.int(rng, 1, 2);
+        var shown = s.seq.slice(0, blankAt + 1).join(', ') + ', ___';
+        var answer = s.seq.length > blankAt + 1 ? s.seq[blankAt + 1] : s.next;
+        return choose(rng, 'Which number continues the multiplication pattern?   ' + shown,
+          answer, [s.seq[blankAt] + s.rule, answer + s.rule, s.seq[blankAt] * (s.rule + 1)], {
+          steps: ['The step is × ' + s.rule + ': ' + s.seq[1] + ' ÷ ' + s.seq[0] + ' = ' + s.rule + '.', s.seq[blankAt] + ' × ' + s.rule + ' = ' + answer + '.'],
+          teach: 'In a multiplication pattern the factor, not the step, stays the same.',
+          b: 0.5
+        });
+      },
+
+      /* ---- find the mistake (R.4) ---------------------------------------- */
+      function () {
+        if (!isMistake && !isReview) return null;
+        var s = addSeq(rng);
+        var badAt = BC.int(rng, 1, 3);
+        var bad = s.seq[badAt] + BC.pick(rng, [1, -1, 2, -2, s.rule]);
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) bad = s.seq[badAt] + s.rule + 1;
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) return null;
+        var shown = s.seq.slice();
+        shown[badAt] = bad;
+        /* the answer is the number that SHOULD sit in the break — printing the
+           wrong number as the answer would print the card’s own answer */
+        return choose(rng, 'One number breaks the rule “add ' + s.rule + '”: ' + shown.join(', ') + '. What number should replace it?',
+          s.seq[badAt], [bad, s.seq[badAt] + s.rule, s.seq[badAt] - s.rule], {
+          steps: ['Rebuild from the start: ' + s.seq[0] + ', ' + s.seq[1] + ', ' + s.seq[2] + ', ' + s.seq[3] + '.', 'At the break the pattern needs ' + s.seq[badAt] + ', not ' + bad + '.'],
+          teach: 'Rebuild the pattern from its rule — the term that cannot be rebuilt is the mistake.',
+          b: 0.6
+        });
+      },
+
+      /* ---- what is true about the pattern (R.2, R.3) --------------------- */
+      function () {
+        if (!isTrue) return null;
+        var s = addSeq(rng);
+        var truth = BC.pick(rng, [
+          'Every term is ' + s.rule + ' more than the term before it.',
+          'The pattern grows by ' + s.rule + ' each time.',
+          s.seq[0] + ' is the starting number.'
+        ]);
+        var wrongs = [
+          'Every term is ' + (s.rule + 1) + ' more than the term before it.',
+          'The pattern doubles each time.',
+          'The terms get smaller as the pattern goes on.'
+        ];
+        return choose(rng, 'The pattern runs: ' + s.seq.join(', ') + ', …   Which statement is true?',
+          truth, wrongs, {
+          steps: ['Compare neighbours: ' + s.seq[1] + ' − ' + s.seq[0] + ' = ' + s.rule + '.', 'The same step repeats, so the pattern grows by ' + s.rule + ' each time.'],
+          teach: 'Test each statement against the terms — only one survives.',
+          b: 0.3
+        });
+      },
+      function () {                       /* true about the rule, not the terms */
+        if (!isTrue) return null;
+        var s = addSeq(rng);
+        var third = s.seq[2];
+        var truth = 'The third term is ' + third + '.';
+        var wrongs = [
+          'The third term is ' + (third + s.rule) + '.',
+          'The rule adds ' + (s.rule + 2) + ' each time.',
+          'The pattern starts at ' + (s.seq[0] + s.rule) + '.'
+        ];
+        return choose(rng, 'Rule: start at ' + s.seq[0] + ' and add ' + s.rule + ' each time. Which is true?',
+          truth, wrongs, {
+          steps: ['Build it: ' + s.seq[0] + ', ' + s.seq[1] + ', ' + s.seq[2] + ', ' + s.seq[3] + '.', 'That makes the third term ' + third + '.'],
+          teach: 'Apply the rule first, then judge — statements about built terms can be checked.',
+          b: 0.5
+        });
+      },
+
+      /* ---- tables and expressions (R.9, R.10) ---------------------------- */
+      function () {
+        if (!isExpr) return null;
+        var rule = BC.int(rng, 2, 8);
+        var ins = [1, 2, 3];
+        var outs = ins.map(function (v) { return v + rule; });
+        return choose(rng, 'Which expression gives the out from the in for this table?', 'n + ' + rule,
+          ['n × ' + rule, 'n + ' + (rule + 1), 'n − ' + rule], {
+          visual: V.table(['in', 'out'], ins.map(function (v, i) { return [String(v), String(outs[i])]; })),
+          steps: ['Compare a row: ' + ins[0] + ' → ' + outs[0] + ' is +' + rule + '.', 'Check the others: the same + ' + rule + ' works every time, so the expression is n + ' + rule + '.'],
+          teach: 'A table rule is an expression: the same operation on every in.',
+          b: 0.4
+        });
+      },
+      function () {                       /* complete the io table by its rule */
+        if (!isRule && !isReview && !isExpr) return null;
+        var rule = BC.int(rng, 2, 9);
+        var ins = [BC.int(rng, 2, 6), BC.int(rng, 7, 9), BC.int(rng, 10, 12)];
+        var outs = ins.map(function (v) { return v + rule; });
+        var hide = BC.int(rng, 0, 2);
+        return ask(rng, 'Use the rule “add ' + rule + '” to complete the table.', outs[hide], {
+          visual: V.table(['in', 'out'], ins.map(function (v, i) { return [String(v), i === hide ? '?' : String(outs[i])]; })),
+          explain: ['The rule adds ' + rule + ' to every in.', ins[hide] + ' + ' + rule + ' = ' + outs[hide] + '.'],
+          teach: 'Tables are patterns wearing a costume — the same rule fills every row.',
+          b: 0.2
+        });
+      },
+
+      /* ---- stories (R.7, R.12) ------------------------------------------- */
+      function () {
+        if (!isStory && !isTableWP) return null;
+        var per = BC.int(rng, 3, 9);
+        var days = BC.int(rng, 4, 8);
+        var w = who(rng), th = BC.pick(rng, ['seashells', 'stickers', 'pennies', 'pinecones']);
+        return ask(rng, w + ' collects ' + per + ' ' + th + ' every day at the beach. How many by day ' + days + '?', per * days, {
+          explain: ['The pattern adds ' + per + ' each day.', 'Day ' + days + ': ' + per + ' × ' + days + ' = ' + per * days + '.'],
+          teach: 'A steady daily pattern is multiplication in story clothes.',
+          b: 0.2
+        });
+      },
+      function () {                       /* machine story */
+        if (!isTableWP && !isReview) return null;
+        var a = BC.int(rng, 2, 5), b = BC.int(rng, 2, 9);
+        var input = BC.int(rng, 3, 9);
+        return ask(rng, 'A number machine multiplies by ' + a + ', then adds ' + b + '. Input ' + input + ' — what comes out?', input * a + b, {
+          explain: ['Step 1: ' + input + ' × ' + a + ' = ' + input * a + '.', 'Step 2: ' + input * a + ' + ' + b + ' = ' + (input * a + b) + '.'],
+          teach: 'Apply machine rules in order — the output of one step feeds the next.',
+          b: 0.6
+        });
+      },
+
+      /* ---- mixed review extra shapes ------------------------------------- */
+      function () {                       /* which rule makes this pattern */
+        if (!isReview && !isComplete) return null;
+        var s = addSeq(rng);
+        return choose(rng, 'Which rule makes the pattern ' + s.seq.join(', ') + ', …?',
+          'add ' + s.rule, ['add ' + (s.rule + 1), 'add ' + (s.rule - 1 > 0 ? s.rule - 1 : s.rule + 2), 'multiply by ' + s.rule], {
+          steps: ['Neighbours differ by ' + s.seq[1] + ' − ' + s.seq[0] + ' = ' + s.rule + '.', 'The same step repeats, so the rule is add ' + s.rule + '.'],
+          teach: 'The rule of an adding pattern is the gap between any two neighbours.',
+          b: 0.3
+        });
+      },
+      function () {                       /* judge a claimed term */
+        if (!isReview && !isRule && !isComplete) return null;
+        var s = addSeq(rng);
+        var claim = s.seq[3] + BC.pick(rng, [0, s.rule, -1, 2]);
+        return judge('The pattern ' + s.seq.slice(0, 3).join(', ') + ', … continues with ' + claim + '.', claim === s.seq[3], {
+          explain: ['The step is ' + s.rule + '.', s.seq[2] + ' + ' + s.rule + ' = ' + s.seq[3] + '.', 'The claim says ' + claim + '.'],
+          teach: 'Judge the next term by building it with the rule, not by how it looks.',
+          b: 0.5
+        });
+      },
+
+      /* ---- extra shapes: what-is-true, complete, multiplication ---------- */
+      function () {                       /* judge the step statement */
+        if (!isTrue) return null;
+        var s = addSeq(rng);
+        var claim = R.chance(rng, 0.5) ? s.rule : s.rule + BC.pick(rng, [1, 2]);
+        return judge('The pattern ' + s.seq.join(', ') + ', … grows by ' + claim + ' each time.', claim === s.rule, {
+          explain: ['Neighbours: ' + s.seq[1] + ' − ' + s.seq[0] + ' = ' + s.rule + '.', 'The same gap repeats, so the growth is ' + s.rule + '.', 'The claim says ' + claim + '.'],
+          teach: 'The growth of a pattern is the gap between any two neighbours.',
+          b: 0.2
+        });
+      },
+      function () {                       /* which statement is NOT true */
+        if (!isTrue) return null;
+        var s = addSeq(rng);
+        var lie = BC.pick(rng, [
+          'The terms get smaller as the pattern goes on.',
+          'The pattern doubles every time.',
+          'Every term is ' + (s.rule + 1) + ' more than the term before it.'
+        ]);
+        var trues = [
+          'The pattern grows by ' + s.rule + ' each time.',
+          s.seq[0] + ' is the starting number.',
+          'The second term is ' + s.seq[1] + '.'
+        ];
+        var pool = trues.filter(function (x) { return x !== lie; });
+        if (pool.length < 2) return null;
+        return choose(rng, 'The pattern runs ' + s.seq.join(', ') + ', …   Which statement is NOT true?',
+          lie, trues, {
+          steps: ['Check each statement against the terms.', 'Only the false one cannot be rebuilt from the rule.'],
+          teach: 'Test every statement — the impostor is the one the rule cannot produce.',
+          b: 0.5
+        });
+      },
+      function () {                       /* what is added each time */
+        if (!isTrue && !isReview) return null;
+        var s = addSeq(rng);
+        return choose(rng, 'Look at ' + s.seq.join(', ') + ', … What is added to get from one term to the next?',
+          s.rule, [s.rule + 1, s.rule - 1 > 0 ? s.rule - 1 : s.rule + 2, s.seq[0]], {
+          steps: [s.seq[1] + ' − ' + s.seq[0] + ' = ' + s.rule + '.', s.seq[2] + ' − ' + s.seq[1] + ' = ' + s.rule + ' — the same step again.'],
+          teach: 'A pattern’s secret is its step: measure it once and it repeats.',
+          b: 0.1
+        });
+      },
+      function () {                       /* complete — options instead of typed */
+        if (!isComplete && !isReview) return null;
+        var s = addSeq(rng);
+        return choose(rng, 'Which number continues the pattern ' + s.seq.join(', ') + ', …?',
+          s.next, [s.next + 1, s.seq[3] + s.rule + 1, s.seq[3] + s.rule - 1], {
+          steps: ['The step is add ' + s.rule + '.', s.seq[3] + ' + ' + s.rule + ' = ' + s.next + '.'],
+          teach: 'Extend the pattern by exactly one step — no more, no less.',
+          b: 0.2
+        });
+      },
+      function () {                       /* missing middle term */
+        if (!isComplete && !isRule && !isReview) return null;
+        var s = addSeq(rng);
+        var shown = [s.seq[0], s.seq[1], '?', s.seq[3]].join(', ');
+        return ask(rng, 'Find the missing number.   ' + shown, s.seq[2], {
+          explain: ['The step is ' + s.rule + ': ' + s.seq[1] + ' − ' + s.seq[0] + ' = ' + s.rule + '.', s.seq[1] + ' + ' + s.rule + ' = ' + s.seq[2] + '.', 'Check the next jump: ' + s.seq[2] + ' + ' + s.rule + ' = ' + s.seq[3] + ' ✓'],
+          teach: 'A missing middle term is fixed from both sides — the step must fit twice.',
+          b: 0.4
+        });
+      },
+      function () {                       /* story completion */
+        if (!isComplete && !isReview) return null;
+        var per = BC.int(rng, 2, 9);
+        var start = BC.int(rng, 1, 6);
+        var day4 = start + 3 * per;
+        return ask(rng, 'A snail climbs ' + per + ' cm further each hour. After four hours it has climbed ' + (start + 3 * per) + ' cm in the fourth hour pattern ' + start + ', ' + (start + per) + ', ' + (start + 2 * per) + ', ___. What is the blank?', day4, {
+          explain: ['Each hour adds ' + per + ' cm.', start + 2 * per + ' + ' + per + ' = ' + day4 + '.'],
+          teach: 'A growing story is still a pattern — the same step every time.',
+          b: 0.5
+        });
+      },
+      function () {                       /* multiplication pattern — typed */
+        if (!isMult && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        return ask(rng, 'Complete the multiplication pattern.   ' + s.seq.join(', ') + ', ___', s.next, {
+          explain: ['Check the factor: ' + s.seq[1] + ' ÷ ' + s.seq[0] + ' = ' + s.rule + '.', s.seq[3] + ' × ' + s.rule + ' = ' + s.next + '.'],
+          teach: 'In a multiplication pattern each term is the last term times the same factor.',
+          b: 0.2
+        });
+      },
+      function () {                       /* multiplication pattern — rule */
+        if (!isMult && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        return judge('The pattern ' + s.seq.join(', ') + ', … follows the rule “multiply by ' + s.rule + '”. It does.', s.kind === 'mul', {
+          explain: [s.seq[1] + ' ÷ ' + s.seq[0] + ' = ' + s.rule + '.', s.seq[2] + ' ÷ ' + s.seq[1] + ' = ' + s.rule + '.', 'The factor repeats, so the rule holds.'],
+          teach: 'A constant factor between neighbours proves the rule.',
+          b: 0.4
+        });
+      },
+      function () {                       /* expression: given in, find out */
+        if (!isExpr && !isReview) return null;
+        var rule = BC.int(rng, 2, 8);
+        var input = BC.int(rng, 3, 9);
+        return ask(rng, 'The rule is “out = in + ' + rule + '”. What is the out when the in is ' + input + '?', input + rule, {
+          explain: ['Apply the expression to the input.', input + ' + ' + rule + ' = ' + (input + rule) + '.'],
+          teach: 'An expression turns any in into its out by the same operation.',
+          b: 0.2
+        });
+      },
+      function () {                       /* expression: given out, find in */
+        if (!isExpr && !isReview) return null;
+        var rule = BC.int(rng, 2, 8);
+        var input = BC.int(rng, 3, 9);
+        return ask(rng, 'The rule is “out = in + ' + rule + '”. The out is ' + (input + rule) + '. What was the in?', input, {
+          explain: ['Undo the + ' + rule + '.', (input + rule) + ' − ' + rule + ' = ' + input + '.'],
+          teach: 'Working backward through an expression means undoing its operation.',
+          b: 0.5
+        });
+      },
+      function () {                       /* expression: which table matches */
+        if (!isExpr) return null;
+        var rule = BC.int(rng, 2, 8);
+        var ins = [2, 4, 6];
+        var outs = ins.map(function (v) { return v + rule; });
+        var rows = ins.map(function (v, i) { return [String(v), String(outs[i])]; });
+        var right = 'n + ' + rule;
+        return choose(rng, 'Which expression makes this table?', right,
+          ['n × ' + rule, 'n + ' + (rule + 1), 'n − ' + rule], {
+          visual: V.table(['in', 'out'], rows),
+          steps: ['Row ' + ins[0] + ': ' + ins[0] + ' → ' + outs[0] + ' is +' + rule + '.', 'Every row adds the same ' + rule + ', so the expression is n + ' + rule + '.'],
+          teach: 'A table’s expression is the operation that turns every in into its out.',
+          b: 0.3
         });
       }
     ]);
