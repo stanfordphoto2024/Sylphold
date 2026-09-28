@@ -34064,7 +34064,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       h('div', { class: 'card' }, [
         h('div', { class: 'row between' }, [
           h('h2', { text: 'Where you are' }),
-          h('span', { class: 'pill accent', text: p.bandLabel + ' · level ' + p.bandIndex + ' of ' + p.levels })
+          h('span', { class: 'pill accent', text: p.bandLabel })
         ]),
         h('div', { class: 'tiny', style: { marginTop: '6px' }, text: 'Skills tried: ' + p.attempted + (p.totals && p.totals.a ? ' · items answered: ' + p.totals.a : '') + ' · mastered: ' + ((p.totals && p.totals.mast) || 0) }),
         h('h3', { text: 'Readiness by band' }),
@@ -34341,7 +34341,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = S.diagReport, askedN = (E.st.diag && E.st.diag.asked) || 0;
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement result' }),
-        h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b> — level ' + p.bandIndex + ' of ' + p.levels + '. Practice starts here:' }),
+        h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b>. Practice starts here:' }),
         h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'From ' + askedN + ' probe questions' : '' }),
         h('div', { class: 'skill-list', style: { marginTop: '12px' } }, (p.plan || []).slice(0, 5).map(function (row) {
           return h('div', { class: 'skill' }, [
