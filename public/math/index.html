@@ -262,6 +262,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .vtable.objgrid td:empty { background: color-mix(in srgb, var(--ink-3) 7%, transparent); }
 .areagrid { display: grid; gap: 2px; }
 .areagrid .sq { width: 24px; height: 24px; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 3px; }
+/* a model of a hundred or more unit squares: the same cells, small enough that
+   all of them stay on the card and every one can still be counted */
+.areagrid.big { gap: 1px; }
+.areagrid.big .sq { width: 12px; height: 12px; border-radius: 2px; }
 .fracbar { margin: 6px 0; }
 .fracbar .strip { display: flex; width: min(300px, 70vw); height: 30px; border: 1.5px solid var(--ink-3); border-radius: 6px; overflow: hidden; }
 .fracbar .seg { flex: 1; border-right: 1px solid var(--ink-3); }
@@ -6912,11 +6916,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     return best.length ? best[Math.floor(rng() * best.length)] : list[0];
   }
-  /* one card from the level the learner is standing on, or null when nothing is
-     written for it anywhere on the ladder */
-  function levelCard(st, LV, rng, opts) {
-    opts = opts || {};
-    var b = climbLevelWithItems(LV.band); if (!b) return null;
+  /* cards are tried within one level's own skills */
+  function levelTry(st, LV, b, rng, opts) {
     for (var pick = 0; pick < 12; pick++) {
       var sk = levelPick(st, LV, b, rng); if (!sk) return null;
       var cov = LV.cover[b] || (LV.cover[b] = {});
@@ -6938,6 +6939,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         covered: Object.keys(cov).length, inLevel: bandSkills(b).length
       };
       return item;
+    }
+    return null;
+  }
+  /* one card from the level the learner is standing on, or null when nothing is
+     written for it anywhere on the ladder */
+  function levelCard(st, LV, rng, opts) {
+    opts = opts || {};
+    var b = climbLevelWithItems(LV.band); if (!b) return null;
+    var item = levelTry(st, LV, b, rng, opts);
+    if (item) return item;
+    /* Nothing came out of this level is not the same as nothing being written:
+       a generator can be silent for a stretch of its own numbers. The ladder is
+       walked before the card is given up on, so a probe never ends early and a
+       climb never stalls because twelve picks happened to land on dry numbers. */
+    var bi = bandIdx(b), d, fb;
+    for (d = 1; d < BANDS.length; d++) {
+      fb = null;
+      if (bi - d >= 0 && bandSkills(BANDS[bi - d]).length) fb = BANDS[bi - d];
+      else if (bi + d < BANDS.length && bandSkills(BANDS[bi + d]).length) fb = BANDS[bi + d];
+      if (fb && fb !== b) { item = levelTry(st, LV, fb, rng, opts); if (item) return item; }
     }
     return null;
   }
@@ -11566,7 +11587,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }
       return V.grid({ rows: rows2, cols: cols, cells: cells, label: 'count them all', noun: t });
     }
-    return V.array(1, n, opts('count from left to right', t));
+    /* One endless row is the one layout a card cannot show: with 25 blocks the
+       picture runs past the card and the learner counts a number that is not
+       the answer. Counting is taught by tens, so the plain layout is drawn as
+       rows of ten with the remainder beside them. */
+    var per = n <= 10 ? n : 10, r0 = Math.max(1, Math.floor(n / per)), left0 = n - r0 * per;
+    return V.array(r0, per, opts(r0 > 1 ? r0 + ' rows of ' + per : 'count from left to right', t, left0));
   }
   /* The arrangement the title names wins over the classifier's guess: a skill
      called "Count shapes in rings" draws rings whatever it wrote. */
@@ -13076,8 +13102,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* which attribute is being compared */
       function () {
-        var right = A.key === 'weight' ? 'how heavy it is' : A.key === 'capacity' ? 'how much it holds' : A.key === 'width' ? 'how wide it is' : A.key === 'height' ? 'how tall it is' : A.key === 'area' ? 'how much surface it covers' : 'how long it is';
-        var wrongs = ATTRIBUTE_WORDS.filter(function (x) { return x !== right; }).concat(A.key === 'area' ? [] : ['how much surface it covers']);
+        var right = s.key === 'weight' ? 'how heavy it is' : s.key === 'capacity' ? 'how much it holds' : s.key === 'width' ? 'how wide it is' : s.key === 'height' ? 'how tall it is' : s.key === 'area' ? 'how much surface it covers' : 'how long it is';
+        var wrongs = ATTRIBUTE_WORDS.filter(function (x) { return x !== right; }).concat(s.key === 'area' ? [] : ['how much surface it covers']);
         return MC(rng, ct + ', ' + w + ' compares two things to answer: ' + A.q + ' Which attribute is ' + w + ' comparing?', right, wrongs, {
           b: 0.5,
           explain: ['The question asks ' + A.q.replace('?', ''), 'That is a question about ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
@@ -13107,7 +13133,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* name the attribute from a finished comparison */
       function () {
-        var right = A.key === 'weight' ? 'weight' : A.key === 'capacity' ? 'capacity' : A.key === 'width' ? 'width' : A.key === 'height' ? 'height' : A.key === 'area' ? 'area' : 'length';
+        var right = s.key === 'weight' ? 'weight' : s.key === 'capacity' ? 'capacity' : s.key === 'width' ? 'width' : s.key === 'height' ? 'height' : s.key === 'area' ? 'area' : 'length';
         var wrongs = ['weight', 'capacity', 'width', 'height', 'length', 'area'].filter(function (x) { return x !== right; });
         return MC(rng, 'The ' + s.o1 + ' is ' + A.word + ' than the ' + s.o2 + '. Which attribute is being compared?', right, wrongs, {
           b: 0.6,
@@ -32897,19 +32923,36 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     },
     /* a set of objects: dots, shapes, cubes, pictures — whatever the words name */
     array: function (v) {
-      var rows = clamp(Math.round(v.rows || 1), 1, 12), cols = clamp(Math.round(v.cols || 1), 1, 20);
       var o = v.opts || {};
-      var extra = Math.max(0, Math.min(+o.extra || 0, 20));
+      /* The count IS the lesson. A model may never drop objects to fit the
+         card: a layout wider than the card is re-flowed into rows that fit,
+         and the total stays exactly what the generator asked for. A truncated
+         picture teaches a wrong number, and the learner cannot see it. */
+      var rawRows = clamp(Math.round(v.rows || 1), 1, 60), rawCols = clamp(Math.round(v.cols || 1), 1, 80);
+      var extra = Math.max(0, Math.min(+o.extra || 0, 40));
+      var total = rawRows * rawCols + extra;
+      var MAXC = 12, rows, cols, part;
+      if (rawCols <= MAXC && rawRows <= 12) { rows = rawRows; cols = rawCols; part = extra; }
+      else { rows = Math.floor(total / MAXC); part = total - rows * MAXC; cols = MAXC; }
+      /* More than a hundred loose counters is not a picture anyone can read off
+         a card, and dropping some of them would teach a wrong number: the same
+         total is drawn as unit squares, all of them, small enough to fit. */
+      if (total > 100) {
+        var gc = clamp(rawCols > 0 ? rawCols : 12, 6, 15);
+        var g2 = h('div', { class: 'areagrid big', style: { gridTemplateColumns: 'repeat(' + gc + ', 12px)' } });
+        for (var q2 = 0; q2 < total; q2++) g2.appendChild(h('div', { class: 'sq' }));
+        return h('div', { class: 'viz' }, [g2, caption(o.label)]);
+      }
       var named = o.kind || o.noun || o.shape || o.em;
       if (named || o.ring) {
-        var field = objectField(rows * cols + extra, {
-          ring: o.ring, rows: rows, cols: cols, extra: extra,
+        var field = objectField(total, {
+          ring: o.ring, rows: rows, cols: cols, extra: part,
           noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed
         });
         return h('div', { class: 'viz' }, [field, caption(o.label)]);
       }
       var grid = h('div', { class: 'dots', style: { gridTemplateColumns: 'repeat(' + cols + ', 15px)' } });
-      for (var i = 0; i < rows * cols + extra; i++) grid.appendChild(h('div', { class: 'd' }));
+      for (var i = 0; i < total; i++) grid.appendChild(h('div', { class: 'd' }));
       return h('div', { class: 'viz' }, [grid, caption(o.label)]);
     },
     /* fraction strips */
