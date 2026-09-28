@@ -346,7 +346,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-27 — 46 modules inlined:
+/* MathPath 2026-09-28 — 46 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-router.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -24271,7 +24271,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return choose(rng, lead(rng, ['Which decimal added to ' + fmt(a) + ' gives ' + fmt(target) + '?',
             'Add ' + fmt(a) + ' and a decimal to get ' + fmt(target) + '. Which decimal?',
             'Find the missing addend: ' + fmt(a) + ' + ? = ' + fmt(target) + '.'.replace('?', '?')]), fmt(ans), wrongs.map(fmt), {
-            visual: V.bar({ parts: 10, filled: Math.round(ans / 100) }, {}),
+            visual: V.bar([{ v: a / 100, label: fmt(a) }, { v: ans / 100, label: '?', hide: true }], { label: 'total ' + fmt(target) }),
             steps: ['Subtract the known part: ' + fmt(target) + ' − ' + fmt(a) + ' = ' + fmt(ans) + '.'],
             teach: 'A missing part is found with the opposite operation, even with decimals.',
             b: 0.4
@@ -24420,7 +24420,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var other = whole - part;
         return ask(rng, 'The bar shows a total of ' + (whole / 100).toFixed(2) + ' with one part ' + (part / 100).toFixed(2) + '. What is the other part?', other / 100, {
           answerText: (other / 100).toFixed(2),
-          visual: V.bar({ parts: 100, filled: Math.round(part) }, {}),
+          visual: V.bar([{ v: part / 100, label: (part / 100).toFixed(2) }, { v: other / 100, label: '?', hide: true }], { label: 'total ' + (whole / 100).toFixed(2) }),
           explain: ['The two parts fill the whole.', (whole / 100).toFixed(2) + ' − ' + (part / 100).toFixed(2) + ' = ' + (other / 100).toFixed(2) + '.'],
           teach: 'A part of a decimal whole is found by subtraction, exactly like a number bond.',
           b: 0.3
@@ -24431,7 +24431,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var a = BC.int(rng, 100, 400), b = BC.int(rng, 100, 400);
         return ask(rng, 'Two bars measure ' + (a / 100).toFixed(2) + ' and ' + (b / 100).toFixed(2) + '. What is the total length?', (a + b) / 100, {
           answerText: ((a + b) / 100).toFixed(2), unit: 'm',
-          visual: V.bar({ parts: 100, filled: Math.round((a + b) / 100) }, {}),
+          visual: V.bar([{ v: a / 100, label: (a / 100).toFixed(2) }, { v: b / 100, label: (b / 100).toFixed(2) }], { label: 'total = ?' }),
           explain: ['Put the bars end to end.', a + ' + ' + b + ' = ' + (a + b) + ' hundredths.'],
           teach: 'Joining decimal lengths means adding with the points lined up.',
           b: 0.3
@@ -24444,7 +24444,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var ans = whole - p1 - p2;
         return I_PARTS('The tank holds ' + (whole / 100).toFixed(2) + ' L and two taps filled ' + (p1 / 100).toFixed(2) + ' L and ' + (p2 / 100).toFixed(2) + ' L. How much is left?',
           ['left'], [{ k: 'n', v: ans / 100, tol: 0.001 }], {
-          visual: V.bar({ parts: 100, filled: Math.round((p1 + p2) / 10) }, {}),
+          visual: V.bar([{ v: p1 / 100, label: (p1 / 100).toFixed(2) }, { v: p2 / 100, label: (p2 / 100).toFixed(2) }, { v: ans / 100, label: '?', hide: true }], { label: 'capacity ' + (whole / 100).toFixed(2) + ' L' }),
           explain: ['Add the two filled parts: ' + (p1 / 100).toFixed(2) + ' + ' + (p2 / 100).toFixed(2) + ' = ' + ((p1 + p2) / 100).toFixed(2) + ' L.',
             (whole / 100).toFixed(2) + ' − ' + ((p1 + p2) / 100).toFixed(2) + ' = ' + (ans / 100).toFixed(2) + ' L.'],
           teach: 'A diagram with two known parts and a whole is solved by subtracting both parts.',
@@ -24457,7 +24457,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var diff = a - b;
         return ask(rng, 'One bar is ' + (a / 100).toFixed(2) + ' m and the other is ' + (b / 100).toFixed(2) + ' m. How much longer is the first?', diff / 100, {
           answerText: (diff / 100).toFixed(2), unit: 'm',
-          visual: V.bar({ parts: 100, filled: Math.round(a / 10), filled2: Math.round(b / 10) }, {}),
+          visual: V.bar([{ v: a / 100, label: (a / 100).toFixed(2) + ' m' }, { v: b / 100, label: (b / 100).toFixed(2) + ' m' }], { label: 'difference = ?' }),
           explain: ['Line the bars up at the left edge.', (a / 100).toFixed(2) + ' − ' + (b / 100).toFixed(2) + ' = ' + (diff / 100).toFixed(2) + ' m.'],
           teach: 'Comparing lengths on a diagram is subtraction of the two decimal measures.',
           b: 0.4
@@ -24470,7 +24470,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var lie = R.chance(rng, 0.5) ? left : left + BC.pick(rng, [100, -100, 10]);
         var truth = lie === left;
         return I_BOOL('The diagram shows ' + (part / 100).toFixed(2) + ' of ' + (whole / 100).toFixed(2) + '. Is the empty part ' + (lie / 100).toFixed(2) + '?', truth, {
-          visual: V.bar({ parts: 100, filled: Math.round(part / 10) }, {}),
+          visual: V.bar([{ v: part / 100, label: (part / 100).toFixed(2) }, { v: left / 100, label: '?', hide: true }], { label: 'whole ' + (whole / 100).toFixed(2) }),
           explain: ['Subtract the filled part: ' + (whole / 100).toFixed(2) + ' − ' + (part / 100).toFixed(2) + ' = ' + (left / 100).toFixed(2) + '.', 'The statement says ' + (lie / 100).toFixed(2) + '.'],
           teach: 'Check a diagram claim by doing the subtraction yourself.',
           b: 0.5
@@ -24553,7 +24553,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var have = BC.int(rng, 100, 700), need = have + BC.int(rng, 100, 300);
         return ask(rng, 'The diagram shows ' + (have / 100).toFixed(2) + ' filled of a tank that holds ' + (need / 100).toFixed(2) + '. How much more is needed?', (need - have) / 100, {
           answerText: ((need - have) / 100).toFixed(2), unit: 'L',
-          visual: V.bar({ parts: 100, filled: Math.round(have / 10) }, {}),
+          visual: V.bar([{ v: have / 100, label: (have / 100).toFixed(2) + ' L' }, { v: (need - have) / 100, label: '?', hide: true }], { label: 'holds ' + (need / 100).toFixed(2) + ' L' }),
           explain: ['Subtract the filled part.', (need / 100).toFixed(2) + ' − ' + (have / 100).toFixed(2) + ' = ' + ((need - have) / 100).toFixed(2) + '.'],
           teach: '“How much more” with decimals is subtraction of the two shown amounts.',
           b: 0.5
@@ -32929,9 +32929,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var tot = parts.reduce(function (a, p) { return a + Math.abs(+p.v || 0); }, 0) || 1;
       var segs = parts.map(function (p, i) {
         var w = Math.abs(+p.v || 0) / tot * 100;
+        /* hide marks the segment the learner is asked to work out: the tape
+           diagram keeps the shape of the problem without handing over the
+           number that answers it. */
+        var num = (p.hide || p.v == null) ? ''
+          : (String(p.label || '').indexOf(String(p.v)) < 0 ? ' ' + nfmt(+p.v || 0) : '');
         return h('div', {
           class: 'seg', style: { width: w.toFixed(2) + '%', background: PAL[i % PAL.length] },
-          text: (p.label != null ? p.label : '') + (p.v != null && String(p.label || '').indexOf(String(p.v)) < 0 ? ' ' + nfmt(+p.v || 0) : '')
+          text: (p.label != null ? p.label : '') + num
         });
       });
       return h('div', { class: 'viz' }, [h('div', { class: 'tape' }, segs), caption((v.opts || {}).label)]);
