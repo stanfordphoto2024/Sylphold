@@ -260,6 +260,15 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .ringbox { position: relative; width: 190px; height: 190px; margin: 4px auto; border-radius: 50%; border: 1.5px dashed color-mix(in srgb, var(--ink-3) 55%, transparent); }
 .vtable.objgrid td { padding: 4px 6px; }
 .vtable.objgrid td:empty { background: color-mix(in srgb, var(--ink-3) 7%, transparent); }
+/* tally marks: upright strokes with the fifth laid across them */
+.tally { display: inline-flex; gap: 12px; align-items: flex-end; min-height: 26px; }
+.tally .tgrp { position: relative; width: 30px; height: 26px; display: inline-block; }
+.tally .tstk { position: absolute; bottom: 3px; width: 2px; height: 20px; background: var(--ink); border-radius: 1px; }
+.tally .tstrk { position: absolute; left: -3px; top: 13px; width: 34px; height: 2px; background: var(--ink); transform: rotate(-18deg); border-radius: 1px; }
+.tchart { display: flex; flex-direction: column; gap: 6px; }
+.tchart .trow { display: flex; align-items: flex-end; gap: 12px; }
+.tchart .tlab { min-width: 74px; font-size: 13px; }
+
 .areagrid { display: grid; gap: 2px; }
 .areagrid .sq { width: 24px; height: 24px; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 3px; }
 /* a model of a hundred or more unit squares: the same cells, small enough that
@@ -947,6 +956,8 @@ var V = {
   array: function (rows, cols, opts) { return { k: 'array', rows: rows, cols: cols, opts: opts || {} }; },
   frac: function (bars) { return { k: 'frac', bars: [].concat(bars) }; },      // {n,d,label}
   bar: function (parts, opts) { return { k: 'bar', parts: parts, opts: opts || {} }; }, // bar model / tape diagram
+  tally: function (n, opts) { return { k: 'tally', n: n, opts: opts || {} }; },              // one tally row
+  tallychart: function (rows, opts) { return { k: 'tallychart', rows: rows, opts: opts || {} }; }, // [{label, v}]
   area: function (rows, cols, opts) { return { k: 'area', rows: rows, cols: cols, opts: opts || {} }; },
   blocks: function (h, t, o, opts) { return { k: 'blocks', hundreds: h || 0, tens: t || 0, ones: o || 0, opts: opts || {} }; },
   clock: function (h, m, opts) { return { k: 'clock', h: h, m: m, opts: opts || {} }; },
@@ -16047,7 +16058,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      * sized from the matrix itself — three rows, as many columns as the largest
      * count — so every dot the item claims is actually on the page. */
     var graphCols = cap(Math.max.apply(null, rows.map(function (r) { return r[1]; })), 1, 20);
-    var visual = kind === 'tally' ? V.table(['Choice', 'Tally'], rows.map(function (r) { return [r[0], tally(r[1])]; }))
+    var visual = kind === 'tally' ? V.tallychart(rows.map(function (r) { return { label: r[0], v: r[1] }; }), { label: 'each mark is one vote' })
       : kind === 'table' ? V.table(['Choice', 'Count'], rows.map(function (r) { return [r[0], String(r[1])]; }))
         : kind === 'bar' ? V.bars(rows.map(function (r) { return { label: r[0], v: r[1] }; }), { yMax: L })
           : V.grid({ rows: rows.length, cols: graphCols, cells: (function () { var g = [], r, i; for (r = 0; r < rows.length; r++) { var col = []; for (i = 0; i < graphCols; i++) col.push(i < rows[r][1] ? '●' : ''); g.push(col); } return g; })(), rowLabels: rows.map(function (r) { return r[0]; }), label: 'one row per choice' });
@@ -16082,23 +16093,32 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: '"How many more" on a graph is the difference of the two counts.'
         });
       },
-      /* read a tally row */
+      /* read a tally row — only for a skill that actually asks for tallies.
+         A bar-graph skill has no business handing out tally cards, and a
+         number-line skill even less. */
       function () {
+        if (kind !== 'tally') return null;
         var m = R.int(rng, 1, L);
-        return I_num('How many does this tally show?   ' + tally(m), m, {
-          b: 0.2,
+        return I_num('How many does this tally show?', m, {
+          visual: V.tally(m, { label: 'a tally' }), b: 0.2,
           explain: ['A group of five tally marks is four lines with a fifth across them.', 'Count the groups and the loose marks.', 'So the answer is <b>' + m + '</b>.'],
           teach: 'Tally marks are counted in groups of five, which makes big counts fast.'
         });
       },
-      /* make the row that matches a count */
+      /* find the row that holds a count — read from the drawn chart, never
+         from a row of pipe characters. */
       function () {
-        var m = R.int(rng, 2, L), right = tally(m);
-        var wrongs = [tally(cap(m + 1, 1, L + 1)), tally(Math.max(1, m - 1)), tally(cap(m + 2, 1, L + 2))].filter(function (s) { return s !== right; });
-        return MC(rng, 'Which tally row shows ' + m + ' votes?', right, wrongs, {
-          b: 0.4,
-          explain: ['Count out ' + m + ' in groups of five.', 'That is written ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
-          teach: 'To draw a tally, group by fives first and then add the loose marks.'
+        if (kind !== 'tally') return null;
+        var target = pick(rng, rows);
+        var right = target[0];
+        var wrongs = rows.filter(function (r) { return r[0] !== right && r[1] !== target[1]; }).map(function (r) { return r[0]; });
+        if (wrongs.length < 2) return null;
+        return MC(rng, 'Look at the tally chart. Which row shows ' + target[1] + ' votes?', right, wrongs, {
+          visual: visual, b: 0.4,
+          explain: ['Count the marks in each row: ' + rows.map(function (r) { return r[0] + ' = ' + r[1]; }).join(', ') + '.',
+            target[0] + ' has ' + target[1] + ' marks.',
+            'So the answer is <b>' + right + '</b>.'],
+          teach: 'Read a tally row by counting its groups of five, then match the count to the label.'
         });
       },
       /* which statement is true */
@@ -33337,7 +33357,42 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return wrap;
   }
 
+  /* A tally drawn the way it is written: four upright strokes with a fifth
+     lying across them, then the loose marks. Pipe characters in a sentence
+     taught the wrong count — a group of five showed as "||||" (four bars). */
+  function tallyMark(n) {
+    var groups = [], g = Math.floor((n || 0) / 5), r = (n || 0) % 5, i, j;
+    for (i = 0; i < g; i++) {
+      var grp = h('div', { class: 'tgrp' });
+      for (j = 0; j < 4; j++) grp.appendChild(h('i', { class: 'tstk', style: { left: (j * 7) + 'px' } }));
+      grp.appendChild(h('i', { class: 'tstrk' }));
+      groups.push(grp);
+    }
+    if (r || !groups.length) {
+      var loose = h('div', { class: 'tgrp', style: { width: (r * 7 + 2) + 'px' } });
+      for (j = 0; j < r; j++) loose.appendChild(h('i', { class: 'tstk', style: { left: (j * 7) + 'px' } }));
+      groups.push(loose);
+    }
+    return h('div', { class: 'tally' }, groups);
+  }
+
   var DRAW = {
+    /* one row of tally marks */
+    tally: function (v) {
+      return h('div', { class: 'viz' }, [tallyMark(+v.n || 0), caption((v.opts || {}).label)]);
+    },
+    /* a tally chart: a label and its tally row */
+    tallychart: function (v) {
+      var rows = (v.rows || []).slice(0, 8);
+      var box = h('div', { class: 'tchart' });
+      rows.forEach(function (r) {
+        box.appendChild(h('div', { class: 'trow' }, [
+          h('span', { class: 'tlab', text: (r.label != null ? r.label : (r[0] != null ? r[0] : '')) }),
+          tallyMark(+ (r.v != null ? r.v : r[1]) || 0)
+        ]));
+      });
+      return h('div', { class: 'viz' }, [box, caption((v.opts || {}).label)]);
+    },
     /* ten-frame(s) with n counters */
     tenframe: function (v) {
       var o = v.opts || {};
