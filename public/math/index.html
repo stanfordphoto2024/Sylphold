@@ -16972,75 +16972,117 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var scene = P.scene(items[0], items[1], items[2]);
     var flat = [], i;
     for (i = 0; i < scene.length; i++) { if (typeof scene[i] === 'string') flat.push(scene[i]); else flat = flat.concat(scene[i]); }
-    var vis = typeof scene[0] === 'string' ? V.grid({ rows: 1, cols: scene.length, cells: [scene], label: P.label }) : V.grid({ rows: scene.length, cols: 1, cells: scene, label: P.label });
+    var vis = typeof scene[0] === 'string'
+      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], label: P.label })
+      : V.grid({ rows: scene.length, cols: 1, cells: scene, label: P.label });
     var teach = 'Position words describe where something is compared with something else; say which one you start from.';
-    var names = ['square', 'triangle', 'circle', 'diamond', 'red circle', 'blue circle', 'yellow circle', 'green circle'];
     var nameOf = function (g) { var m = SHAPE.concat(COLOR).filter(function (t) { return t.g === g; })[0]; return m ? m.w : 'toy'; };
+    /* What the picture actually shows, in the order it is read. Every answer
+       below is taken from this list: the position word chooses the index, so a
+       card can never ask for the right-hand picture and mark the left one. */
+    var here = flat.map(nameOf);
+    var horizontal = kind === 'leftMiddleRight' || kind === 'beside' || kind === 'frontBehind';
+    var boxed = kind === 'insideOutside';
+    var axis = boxed ? '' : (horizontal ? 'left to right' : 'top to bottom');
+    var group = boxed ? 'picture' : (horizontal ? 'row' : 'stack');
+    var POSN = kind === 'topMiddleBottom' ? ['on top', 'in the middle', 'on the bottom']
+      : kind === 'aboveBelow' ? ['above the other one', 'below the other one']
+        : kind === 'frontBehind' ? ['in front', 'behind']
+          : boxed ? ['inside the box', 'outside the box']
+            : kind === 'beside' ? ['beside the empty box', 'not beside the empty box']
+              : ['on the left', 'in the middle', 'on the right'];
+    var REL = kind === 'topMiddleBottom' || kind === 'aboveBelow' ? ['above', 'below']
+      : kind === 'frontBehind' ? ['in front of', 'behind']
+        : boxed ? ['inside', 'outside']
+          : kind === 'beside' ? ['beside', 'not beside']
+            : ['to the left of', 'to the right of'];
+    function nameAt(n) { return here[Math.max(0, Math.min(n, here.length - 1))]; }
+    function idxOf(word) { var k = POSN.indexOf(word); return k < 0 ? 0 : k; }
+    function others(n) {
+      var out = [], seen = {};
+      here.forEach(function (x, ix) { if (ix !== n && x !== nameAt(n) && !seen[x]) { seen[x] = 1; out.push(x); } });
+      return out;
+    }
 
     return build(rng, [
-      /* official anchor — name the position of one object in the picture. */
+      /* official anchor — name the picture that sits in the position asked for. */
       function () {
-        var q = kind === 'leftMiddleRight' ? 'Which picture is in the middle?' : kind === 'topMiddleBottom' ? 'Which picture is in the middle of the stack?' : kind === 'insideOutside' ? 'Is the toy inside the box or outside the box?' : kind === 'aboveBelow' ? 'Which picture is above the other?' : kind === 'beside' ? 'Which picture is beside the empty box?' : 'Which picture is behind the other?';
-        var right = kind === 'leftMiddleRight' || kind === 'topMiddleBottom' ? nameOf(flat[1]) : kind === 'insideOutside' ? 'inside' : kind === 'aboveBelow' || kind === 'frontBehind' ? nameOf(flat[0]) : nameOf(flat[flat.length - 2]);
-        var wrongs = kind === 'insideOutside' ? ['outside'] : names.filter(function (x) { return x !== right && flat.map(nameOf).indexOf(x) >= 0; });
-        return MC(rng, ct + ', look at the picture. ' + q, right, wrongs.length ? wrongs : names.filter(function (x) { return x !== right; }).slice(0, 2), {
+        if (boxed) {
+          return MC(rng, ct + ', look at the picture. Is the toy inside the box or outside the box?',
+            'inside', ['outside'], {
+            visual: vis, b: lo,
+            explain: ['The box is drawn around one toy.', 'The toy is inside it.', 'So the answer is <b>inside</b>.'],
+            teach: teach
+          });
+        }
+        var word = pick(rng, POSN), idx = idxOf(word), right = nameAt(idx);
+        var wrongs = others(idx);
+        if (!wrongs.length) return null;
+        return MC(rng, 'Look at the picture. Which picture is ' + word + '?', right, wrongs, {
           visual: vis, b: lo,
-          explain: ['Look at where each picture is.', 'The one the question asks for is ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Read the picture ' + axis + '.', 'The picture ' + word + ' is a ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: teach
         });
       },
-      /* judge a position sentence */
+      /* judge a position sentence — the sentence is checked against the picture,
+         so a true claim uses the order the pictures really lie in. */
       function () {
-        var truth = R.chance(rng, 0.5), a = nameOf(flat[0]), b = nameOf(flat[Math.min(1, flat.length - 1)]);
-        var word = P.words[truth ? 0 : 1];
-        return I_bool('Look at the picture. Is the ' + a + ' ' + word + ' the ' + b + '?', truth, {
+        if (flat.length < 2 || boxed || kind === 'beside') return null;
+        var a = nameAt(0), b = nameAt(1);
+        var rel = pick(rng, REL), truth = rel === REL[0];
+        return I_bool('Look at the picture. Is the ' + a + ' ' + rel + ' the ' + b + '?', truth, {
           visual: vis, b: lo + 0.2,
-          explain: ['Start from the ' + b + ' and look ' + word + '.', 'The picture shows the ' + a + ' ' + P.words[0] + ' the ' + b + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Find the ' + b + ' first, then look ' + rel + ' it.',
+            'The picture shows the ' + a + ' ' + REL[0] + ' the ' + b + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
           teach: teach
         });
       },
-      /* who is in this position */
+      /* which sentence says what the picture shows */
       function () {
-        var idx = R.int(rng, 0, flat.length - 1), right = nameOf(flat[idx]);
-        var wrongs = flat.map(nameOf).filter(function (x) { return x !== right; });
-        return MC(rng, 'Look at the picture. Which picture is ' + pick(rng, P.words) + '?', right, wrongs, {
-          visual: vis, b: 0.2,
-          explain: ['Find the position named in the question.', 'The picture there is a ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
-          teach: 'Position words only make sense with a starting point; find it first.'
-        });
-      },
-      /* move it: where does it end up */
-      function () {
-        var right = pick(rng, P.words);
-        return MC(rng, 'The ' + nameOf(flat[0]) + ' moves so that it is ' + right + ' the ' + nameOf(flat[Math.min(1, flat.length - 1)]) + '. Which sentence says that?', 'the ' + nameOf(flat[0]) + ' is ' + right, ['the ' + nameOf(flat[0]) + ' is under the table', 'the ' + nameOf(flat[0]) + ' is at home'], {
+        if (flat.length < 2 || boxed || kind === 'beside') return null;
+        var a = nameAt(0), b = nameAt(1);
+        var rel = pick(rng, REL);
+        var right = 'The ' + a + ' is ' + rel + ' the ' + b;
+        var wrongs = REL.filter(function (x) { return x !== rel; })
+          .map(function (x) { return 'The ' + a + ' is ' + x + ' the ' + b; });
+        wrongs.push('The ' + b + ' is ' + rel + ' the ' + a);
+        wrongs = wrongs.filter(function (s, ix, arr) { return s !== right && arr.indexOf(s) === ix; });
+        if (wrongs.length < 2) return null;
+        return MC(rng, ct + ', which sentence says what the picture shows?', right, wrongs, {
           visual: vis, b: 0.5,
-          explain: ['The new position is ' + right + '.', 'That is what the first sentence says.', 'So the answer is <b>the ' + nameOf(flat[0]) + ' is ' + right + '</b>.'],
-          teach: 'A position sentence names the object, the position word, and the reference object.'
+          explain: ['Read the picture ' + (axis || 'as it lies') + ': ' + here.join(', ') + '.',
+            'So the ' + a + ' is ' + rel + ' the ' + b + '.',
+            'So the answer is <b>' + right + '</b>.'],
+          teach: 'A position sentence names the object, the position word, and the object it is compared with.'
         });
       },
-      /* count by position */
+      /* count the pictures in the scene */
       function () {
-        var n = flat.length, k = R.int(rng, 1, cap(n, 1, 3));
-        return I_num('How many pictures are in this picture?', n, {
+        var n = flat.length;
+        return I_num('How many pictures are in the ' + group + '?', n, {
           visual: vis, b: -0.3,
-          explain: ['Count the pictures one by one.', 'The last number said is ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: ['Count the pictures one by one ' + (axis || '') + '.',
+            'The last number said is ' + n + '.',
+            'So the answer is <b>' + n + '</b>.'],
           teach: 'Position pictures still have a count: count them in order so none is missed.'
         });
       },
-      /* describe the whole layout */
+      /* read the whole picture in order */
       function () {
-        var right = flat.map(nameOf).join(', ') + ' from top to bottom';
-        /* Both old distractors were the REVERSED list — one was joined with " , "
-           so it merely LOOKED different from the other. A rotation gives a second
-           order that is genuinely wrong. */
-        var seq = flat.map(nameOf);
+        if (boxed || !axis) return null;
+        var right = here.join(', ') + ' from ' + axis;
+        var seq = here.slice();
         var rot = seq.length > 2 ? seq.slice(1).concat(seq[0]) : seq.slice();
-        var wrongs = [seq.slice().reverse().join(', ') + ' from top to bottom',
-          rot.join(', ') + ' from top to bottom']
-          .filter(function (s, i, arr) { return s !== right && arr.indexOf(s) === i; });
-        return MC(rng, 'Which list matches the picture?', right, wrongs, {
+        var wrongs = [seq.slice().reverse().join(', ') + ' from ' + axis,
+          rot.join(', ') + ' from ' + axis]
+          .filter(function (s, ix, arr) { return s !== right && arr.indexOf(s) === ix; });
+        if (!wrongs.length) return null;
+        return MC(rng, 'Which list matches the picture, read ' + axis + '?', right, wrongs, {
           visual: vis, b: 0.7,
-          explain: ['Read the picture in order.', 'That gives ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Read the picture ' + axis + ' from the first picture to the last.',
+            'That gives ' + right + '.',
+            'So the answer is <b>' + right + '</b>.'],
           teach: 'Reading a picture in a fixed order keeps the description straight.'
         });
       },
@@ -17050,11 +17092,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         for (r = 0; r < 3; r++) { var line = []; for (c = 0; c < 4; c++) line.push(r === target.r && c === target.c ? '⭐' : '⬜'); cells.push(line); }
         return I_num('The star is in row ' + (target.r + 1) + '. Which column is it in? Number the columns from the left.', target.c + 1, {
           visual: V.grid({ rows: 3, cols: 4, cells: cells, rowLabels: ['row 1', 'row 2', 'row 3'], label: 'a grid with one star' }), b: 1.0,
-          explain: ['Find the row that holds the star.', 'Count the columns from the left: the star is in column ' + (target.c + 1) + '.', 'So the answer is <b>' + (target.c + 1) + '</b>.'],
+          explain: ['Find the row that holds the star.',
+            'Count the columns from the left: the star is in column ' + (target.c + 1) + '.',
+            'So the answer is <b>' + (target.c + 1) + '</b>.'],
           teach: 'A grid position needs two numbers: the row and the column.'
         });
       }
-    ], lvl <= 2 ? [4, 4, 4, 2, 3, 2, 0] : lvl === 3 ? [3, 3, 3, 3, 2, 3, 2] : [3, 3, 3, 3, 2, 3, 4]);
+    ], lvl <= 2 ? [4, 4, 3, 3, 2, 0] : lvl === 3 ? [3, 3, 3, 2, 3, 2] : [3, 3, 3, 2, 3, 4]);
   }, ['PK', 'K', 'G1', 'G2', 'G3']);
 
   /* ============================== sortClassify ============================= */
@@ -24587,6 +24631,125 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }
     ]);
   });
+
+  /* ---- one tenth or one hundredth more or less ---------------------------
+   * The skill is the place-value move itself: 6.4 is one tenth more than 6.3,
+   * and the hundredths column is the one that changes when the question says
+   * hundredths. Every card states the size of the move, so the learner has to
+   * hold the correct column in mind rather than simply add "a bit". */
+  UP.on(/^one[- ]tenth or one[- ]hundredth more or less/, function (rng, lvl) {
+    function hundredths() { return BC.int(rng, 105, 995); }   /* always two decimals */
+    function fmt(n) { return (n / 100).toFixed(2); }
+    function move() { return BC.pick(rng, lvl <= 2 ? [10, 1] : [10, 1, 10, 1]); }
+    function slips(n, step) {
+      var out = [], seen = {};
+      [n + step * 10, n - step, n + step * 100, n - step * 10].forEach(function (v) {
+        if (v > 0 && v !== n && !seen[v]) { seen[v] = 1; out.push(v); }
+      });
+      return out;
+    }
+    return UP.build(rng, [
+      function () {                       /* the number that is the move away */
+        var step = move(), base = hundredths();
+        var more = R.chance(rng, 0.5);
+        var ans = more ? base + step : base - step;
+        if (ans > 999 || ans < 100) return null;
+        var wrongs = slips(ans, step).map(fmt);
+        if (wrongs.length < 2) return null;
+        return choose(rng, lead(rng, [fmt(base) + ' is ' + (more ? 'one ' : 'one ') + (step === 10 ? 'tenth' : 'hundredth') + ' ' + (more ? 'more' : 'less') + ' than which number?',
+          'Which number is ' + (more ? 'one ' : 'one ') + (step === 10 ? 'tenth' : 'hundredth') + ' ' + (more ? 'more' : 'less') + ' than ' + fmt(base) + '?',
+          'Start at ' + fmt(base) + ' and move ' + (step === 10 ? 'one tenth' : 'one hundredth') + ' ' + (more ? 'up' : 'down') + '. Where are you?']),
+          fmt(ans), wrongs, {
+          visual: gridHundredths(more ? ans : base),
+          steps: [fmt(base) + ' = ' + base + ' hundredths.',
+            base + (more ? ' + ' : ' − ') + step + ' = ' + ans + ' hundredths.',
+            ans + ' hundredths is ' + fmt(ans) + '.'],
+          teach: 'One tenth moves the tenths column; one hundredth moves the hundredths column.',
+          b: 0.2
+        });
+      },
+      function () {                       /* the move from one number to the next */
+        var base = hundredths(), step = move();
+        var ans = base + step; if (ans > 999) return null;
+        var wrongs = slips(step, 1).map(function (v) { return v === step ? '' : (v % 10 === 0 ? 'one tenth' : 'one hundredth'); })
+          .filter(function (x, i, arr) { return x && x !== (step % 10 === 0 ? 'one tenth' : 'one hundredth') && arr.indexOf(x) === i; });
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'From ' + fmt(base) + ' to ' + fmt(ans) + ': how big is the move?',
+          step % 10 === 0 ? 'one tenth' : 'one hundredth', wrongs, {
+          steps: [base + ' hundredths to ' + ans + ' hundredths is a change of ' + step + '.',
+            step === 10 ? 'Ten hundredths is one tenth.' : 'One hundredth is the smallest move on the grid.',
+            'So the move is <b>' + (step % 10 === 0 ? 'one tenth' : 'one hundredth') + '</b>.'],
+          teach: 'Name a move by the column that changes: tenths or hundredths.',
+          b: 0.5
+        });
+      },
+      function () {                       /* what digit lands where */
+        var base = hundredths(), step = BC.pick(rng, [10, 1]);
+        var ans = base + step; if (ans > 999) return null;
+        var tAfter = Math.floor(ans / 10) % 10, hAfter = ans % 10;
+        var tBefore = Math.floor(base / 10) % 10, hBefore = base % 10;
+        var right = 'the ' + (step === 10 ? 'tenths' : 'hundredths') + ' column';
+        var wrongs = ['the ones column', 'the ' + (step === 10 ? 'hundredths' : 'tenths') + ' column'];
+        return choose(rng, lead(rng, ['Adding ' + (step === 10 ? '0.1' : '0.01') + ' to ' + fmt(base) + ' gives ' + fmt(ans) + '. Which column changed?',
+          'Which column is different between ' + fmt(base) + ' and ' + fmt(ans) + '?']),
+          right, wrongs, {
+          visual: gridHundredths(ans),
+          steps: [fmt(base) + ' has ' + tBefore + ' tenths and ' + hBefore + ' hundredths.',
+            fmt(ans) + ' has ' + tAfter + ' tenths and ' + hAfter + ' hundredths.',
+            'The column that changed is <b>' + right + '</b>.'],
+          teach: 'Adding one tenth changes only the tenths digit, unless it carries into the ones.',
+          b: 0.4
+        });
+      },
+      function () {                       /* judge a move */
+        var base = hundredths(), step = move();
+        var claim = base + BC.pick(rng, [step, step, step * 10, -step]);
+        if (claim > 999 || claim < 100) claim = base + step;
+        var truth = claim === base + step;
+        var stepWord = step === 10 ? 'one tenth' : 'one hundredth';
+        return I_BOOL(lead(rng, ['Is ' + fmt(claim) + ' ' + stepWord + ' more than ' + fmt(base) + '?',
+          'Someone says ' + fmt(base) + ' plus ' + stepWord + ' is ' + fmt(claim) + '. Do you agree?']), truth, {
+          visual: gridHundredths(truth ? claim : base + step),
+          explain: [fmt(base) + ' + ' + (step === 10 ? '0.1' : '0.01') + ' = ' + fmt(base + step) + '.',
+            'The claim says ' + fmt(claim) + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          teach: 'Check a decimal move by writing both numbers as hundredths.',
+          b: 0.4
+        });
+      },
+      function () {                       /* two moves in a row */
+        var base = hundredths();
+        var s1 = BC.pick(rng, [10, 1]), s2 = BC.pick(rng, [10, 1]);
+        var ans = base + s1 + s2; if (ans > 999) return null;
+        var wrongs = slips(ans, s1).map(fmt);
+        if (wrongs.length < 2) return null;
+        return choose(rng, lead(rng, ['Add ' + fmt(s1) + ' and then ' + fmt(s2) + ' to ' + fmt(base) + '. What number do you get?',
+          'Start at ' + fmt(base) + ', add ' + fmt(s1) + ', then add ' + fmt(s2) + '. Where do you end?']),
+          fmt(ans), wrongs, {
+          steps: [fmt(base) + ' + ' + fmt(s1) + ' = ' + fmt(base + s1) + '.',
+            fmt(base + s1) + ' + ' + fmt(s2) + ' = ' + fmt(ans) + '.'],
+          teach: 'Two small moves can be done in any order — the hundredths total is the same.',
+          b: 0.7
+        });
+      },
+      function () {                       /* how far to the next whole tenth */
+        var base = hundredths();
+        var up = 10 * (Math.floor(base / 10) + 1) - base;   /* hundredths to the next tenth */
+        if (up === 10) return null;
+        var wrongs = [base + 10, 100 - base, up + 10].filter(function (v) { return v > 0 && v !== up; }).map(fmt);
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'How much must be added to ' + fmt(base) + ' to reach the next tenth?',
+          fmt(up), wrongs, {
+          visual: gridHundredths(base),
+          steps: [fmt(base) + ' is ' + base + ' hundredths.',
+            'The next tenth is ' + (base + up) + ' hundredths.',
+            (base + up) + ' − ' + base + ' = ' + up + ', which is ' + fmt(up) + '.'],
+          teach: 'Rounding up to the next tenth asks for the difference, not for the next number.',
+          b: 0.8
+        });
+      }
+    ]);
+  });
 })();
 
 </script>
@@ -29573,11 +29736,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================================================ */
   /* 6 · LINES OF SYMMETRY                                            */
   /* ================================================================ */
-  UP.on(/^(identify lines of symmetry|draw lines of symmetry)/, function (rng, lvl, p, sk) {
+  UP.on(/^(identify lines of symmetry|draw lines of symmetry|count lines of symmetry)/, function (rng, lvl, p, sk) {
+    /* A circle is left out on purpose: it has as many fold lines as you can
+       draw, so no number is the right count and no list of numbers is a fair
+       set of choices. A regular octagon takes its place. */
     var SHAPES = [['square', 4], ['rectangle', 2], ['equilateral triangle', 3], ['regular hexagon', 6],
-      ['isosceles trapezoid', 1], ['rhombus', 2], ['regular pentagon', 5], ['circle', 8]];
+      ['isosceles trapezoid', 1], ['rhombus', 2], ['regular pentagon', 5], ['regular octagon', 8]];
     var LETTERS = [['A', 1], ['B', 1], ['C', 1], ['D', 1], ['E', 1], ['H', 2], ['I', 2], ['M', 1],
-      ['O', 8], ['T', 1], ['U', 1], ['V', 1], ['W', 1], ['X', 2], ['Y', 1], ['K', 0], ['L', 0],
+      ['T', 1], ['U', 1], ['V', 1], ['W', 1], ['X', 2], ['Y', 1], ['K', 0], ['L', 0],
       ['N', 0], ['P', 0], ['R', 0], ['S', 0], ['Z', 0]];
     function countCard(rng) {
       var pick = BC.pick(rng, SHAPES);
@@ -29744,6 +29910,166 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }
     ]);
   });
+
+  /* ================================================================ */
+  /* 8 · COMPARING AREA AND PERIMETER                                 */
+  /* ================================================================ */
+  /* The same rectangle measured two ways: the square units inside it, and the
+     length of the boundary walked around it. G4 asks which one is greater for
+     the SAME figure — a learner who has only ever been asked for one of them
+     guesses "area", because area sounds bigger. */
+  UP.on(/^compare area and perimeter of rectangles and squares/, function (rng, lvl) {
+    var UNITS = ['cm', 'm', 'in', 'ft'];
+    function rect() { var w = BC.int(rng, 2, 12), h = BC.int(rng, 2, 12); return { w: w, h: h, a: w * h, p: 2 * (w + h) }; }
+    function un() { return BC.pick(rng, UNITS); }
+    function pairSameArea() {
+      var n = BC.pick(rng, [12, 16, 18, 24, 36, 48, 60]), pairs = [], i;
+      for (i = 1; i <= n / 2; i++) if (n % i === 0 && i <= 12 && n / i <= 12) pairs.push([i, n / i]);
+      if (pairs.length < 2) return null;
+      var picked = R.shuffle(rng, pairs).slice(0, 2);
+      return { n: n, r1: picked[0], r2: picked[1] };
+    }
+    function pairSamePerim() {
+      var p = BC.pick(rng, [20, 24, 30, 36, 40]), half = p / 2, pairs = [], i;
+      for (i = 1; i < half; i++) if (half - i <= 12 && i <= 12) pairs.push([i, half - i]);
+      if (pairs.length < 2) return null;
+      var picked = R.shuffle(rng, pairs).slice(0, 2);
+      return { p: p, r1: picked[0], r2: picked[1] };
+    }
+    function side(r, u) { return r[0] + ' ' + u + ' by ' + r[1] + ' ' + u; }
+
+    return UP.build(rng, [
+      function () {                       /* which is greater for one figure */
+        var r = rect(), u = un();
+        if (r.a === r.p) return null;
+        var right = r.a > r.p ? 'area' : 'perimeter';
+        var wrongs = r.a > r.p ? ['perimeter', 'they are the same'] : ['area', 'they are the same'];
+        return UP.mc(rng, lead(rng, ['A rectangle is ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + '. Which is greater, its area or its perimeter?',
+          'Work out both for a ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle: which number is bigger?',
+          'Which wins for a ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle — the area inside or the perimeter around?',
+          'Measure the boundary and the surface of a ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle. Which is greater?']),
+          right, wrongs, {
+          visual: V.area(r.h, r.w, { noTotal: true, label: r.w + ' ' + u + ' by ' + r.h + ' ' + u }),
+          steps: ['Area: ' + r.w + ' × ' + r.h + ' = ' + r.a + ' square ' + u + '.',
+            'Perimeter: ' + r.w + ' + ' + r.h + ' + ' + r.w + ' + ' + r.h + ' = ' + r.p + ' ' + u + '.',
+            r.a + (r.a > r.p ? ' is more than ' : ' is less than ') + r.p + ', so the ' + right + ' is greater.'],
+          teach: 'Area counts the square units inside; perimeter walks the boundary. The two numbers are usually different.',
+          b: 0.3
+        });
+      },
+      function () {                       /* how much greater, as a number */
+        var r = rect(), u = un();
+        var big = Math.max(r.a, r.p), low = Math.min(r.a, r.p);
+        if (big === low) return null;
+        var who = r.a > r.p ? 'area' : 'perimeter', other = r.a > r.p ? 'perimeter' : 'area';
+        var wrongs = UP.slips(big - low, [big, low, big + low]).map(String);
+        if (wrongs.length < 2) return null;
+        return UP.mc(rng, lead(rng, ['A ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle is measured both ways. How much greater is its ' + who + ' than its ' + other + '?',
+          'For a rectangle ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ', find the difference between its area and its perimeter.',
+          'What is the difference between the area and the perimeter of a ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle?']),
+          String(big - low), wrongs, {
+          visual: V.area(r.h, r.w, { noTotal: true, label: null }),
+          steps: ['Area: ' + r.w + ' × ' + r.h + ' = ' + r.a + '.',
+            'Perimeter: 2 × (' + r.w + ' + ' + r.h + ') = ' + r.p + '.',
+            big + ' − ' + low + ' = ' + (big - low) + '.'],
+          teach: 'Compare area with perimeter by working both out first, then subtracting.',
+          b: 0.6
+        });
+      },
+      function () {                       /* same area, different perimeter */
+        var pr = pairSameArea(); if (!pr) return null;
+        var u = un(), p1 = 2 * (pr.r1[0] + pr.r1[1]), p2 = 2 * (pr.r2[0] + pr.r2[1]);
+        if (p1 === p2) return null;
+        var right = p1 > p2 ? 'the first one' : 'the second one';
+        return UP.mc(rng, lead(rng, ['Two rectangles each cover ' + pr.n + ' square ' + u + ': ' + side(pr.r1, u) + ' and ' + side(pr.r2, u) + '. Which has the greater perimeter?',
+          'Both these rectangles have area ' + pr.n + ': ' + side(pr.r1, u) + ' and ' + side(pr.r2, u) + '. Which one needs more fence?',
+          'Which has the larger perimeter, the ' + side(pr.r1, u) + ' rectangle or the ' + side(pr.r2, u) + ' one? Both cover ' + pr.n + ' square ' + u + '.']),
+          right, ['the first one', 'the second one', 'they are the same'], {
+          steps: ['First perimeter: 2 × (' + pr.r1[0] + ' + ' + pr.r1[1] + ') = ' + p1 + '.',
+            'Second perimeter: 2 × (' + pr.r2[0] + ' + ' + pr.r2[1] + ') = ' + p2 + '.',
+            p1 + ' compared with ' + p2 + ': ' + Math.max(p1, p2) + ' is larger.'],
+          teach: 'Rectangles with the same area can have very different perimeters — the longer and thinner one has more boundary.',
+          b: 0.6
+        });
+      },
+      function () {                       /* same perimeter, different area */
+        var pr = pairSamePerim(); if (!pr) return null;
+        var u = un(), a1 = pr.r1[0] * pr.r1[1], a2 = pr.r2[0] * pr.r2[1];
+        if (a1 === a2) return null;
+        var right = a1 > a2 ? 'the first one' : 'the second one';
+        return UP.mc(rng, lead(rng, ['Two rectangles each have ' + pr.p + ' ' + u + ' of fence: ' + side(pr.r1, u) + ' and ' + side(pr.r2, u) + '. Which covers more ground?',
+          'Both these rectangles have perimeter ' + pr.p + ' ' + u + ': ' + side(pr.r1, u) + ' and ' + side(pr.r2, u) + '. Which has the greater area?',
+          'Which covers more, the ' + side(pr.r1, u) + ' rectangle or the ' + side(pr.r2, u) + ' one? Both use ' + pr.p + ' ' + u + ' of fence.']),
+          right, ['the first one', 'the second one', 'they are the same'], {
+          steps: ['First area: ' + pr.r1[0] + ' × ' + pr.r1[1] + ' = ' + a1 + '.',
+            'Second area: ' + pr.r2[0] + ' × ' + pr.r2[1] + ' = ' + a2 + '.',
+            'Same fence, more ground inside the one closer to a square: ' + Math.max(a1, a2) + '.'],
+          teach: 'With a fixed perimeter the fatter rectangle covers more ground; the long thin one wastes its fence.',
+          b: 0.7
+        });
+      },
+      function () {                       /* missing side from the perimeter */
+        var u = un(), w = BC.int(rng, 3, 12), h = BC.int(rng, 2, 12), p = 2 * (w + h);
+        var wrongs = UP.slips(h, [p - w, p - 2 * w, w + h]).map(String);
+        if (wrongs.length < 2) return null;
+        return UP.mc(rng, lead(rng, ['A rectangular pen has ' + p + ' ' + u + ' of fence and one side ' + w + ' ' + u + '. How long is the other side?',
+          'The perimeter of a rectangle is ' + p + ' ' + u + ' and its length is ' + w + ' ' + u + '. Find the width.',
+          'Fencing ' + p + ' ' + u + ' makes a rectangle ' + w + ' ' + u + ' long. How wide is it?']),
+          String(h), wrongs, {
+          visual: V.area(h, w, { noTotal: true, label: 'perimeter ' + p + ' ' + u }),
+          steps: ['Two lengths and two widths make ' + p + ', so one length and one width make ' + (p / 2) + '.',
+            (p / 2) + ' − ' + w + ' = ' + h + '.',
+            'Check: ' + w + ' + ' + h + ' + ' + w + ' + ' + h + ' = ' + p + '.'],
+          teach: 'Half the perimeter is one length plus one width — subtract the side you know.',
+          b: 0.6
+        });
+      },
+      function () {                       /* missing side from the area */
+        var u = un(), w = BC.int(rng, 3, 12), h = BC.int(rng, 2, 12), a = w * h;
+        var wrongs = UP.slips(h, [a - w, a + w, w]).map(String);
+        if (wrongs.length < 2) return null;
+        return UP.mc(rng, lead(rng, ['A rectangle covers ' + a + ' square ' + u + ' and is ' + w + ' ' + u + ' long. How wide is it?',
+          'The area of a rectangle is ' + a + ' square ' + u + ' with length ' + w + ' ' + u + '. Find the width.',
+          'A garden of ' + a + ' square ' + u + ' is ' + w + ' ' + u + ' long. How wide must it be?']),
+          String(h), wrongs, {
+          visual: V.area(h, w, { noTotal: true, label: 'area ' + a + ' square ' + u }),
+          steps: ['Area is length × width, so width = area ÷ length.',
+            a + ' ÷ ' + w + ' = ' + h + '.',
+            'Check: ' + w + ' × ' + h + ' = ' + a + '.'],
+          teach: 'A missing side of a rectangle is found with the opposite operation: area ÷ known side.',
+          b: 0.5
+        });
+      },
+      function () {                       /* the square where the two measures agree */
+        var s = BC.pick(rng, [4, 5, 6, 3]), u = un();
+        var p = 4 * s, claim = R.chance(rng, 0.5) ? p : BC.pick(rng, [4 * s + 4, 4 * s - 4, s * s]);
+        if (claim < 0) claim = p + 4;
+        var truth = claim === p;
+        return UP.judge(lead(rng, ['A square ' + s + ' ' + u + ' on each side covers ' + (s * s) + ' square ' + u + '. Does it have ' + claim + ' ' + u + ' of fence?',
+          'One square is ' + s + ' ' + u + ' by ' + s + ' ' + u + '. Is its perimeter ' + claim + ' ' + u + '?']), truth, {
+          visual: V.area(s, s, { noTotal: true, label: s + ' ' + u + ' square' }),
+          steps: ['Perimeter: ' + s + ' × 4 = ' + p + ' ' + u + '.',
+            'The claim says ' + claim + ' ' + u + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          teach: 'Work the perimeter from the side, never from the area — the two measures share a number only by chance.',
+          b: 0.4
+        });
+      },
+      function () {                       /* stated as a comparison */
+        var r = rect(), u = un();
+        return UP.cmp(rng, {
+          prompt: 'Compare the area with the perimeter of a ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle.',
+          expr: (r.w + ' × ' + r.h) + ' ○ (' + r.w + ' + ' + r.h + ' + ' + r.w + ' + ' + r.h + ')',
+          left: r.a, right: r.p,
+          steps: [r.w + ' × ' + r.h + ' = ' + r.a + ' (the area).',
+            r.w + ' + ' + r.h + ' + ' + r.w + ' + ' + r.h + ' = ' + r.p + ' (the perimeter).',
+            'Compare ' + r.a + ' with ' + r.p + '.'],
+          teach: 'Comparing area with perimeter means computing both, then comparing the two numbers.',
+          b: 0.5
+        });
+      }
+    ]);
+  });
 })();
 
 </script>
@@ -29773,10 +30099,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   function ask(rng, prompt, val, o) {
     o = o || {};
+    /* `steps` and `explain` are the same worked lines here: a card that
+       explains itself in steps is still explaining. */
+    var ex = o.explain || (o.steps && o.steps.length ? o.steps : null);
     return I_NUM(prompt, val, {
       sub: o.sub, visual: o.visual, unit: o.unit,
       answerText: o.answerText || (val == null ? '' : String(val)),
-      explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+      explain: ex, teach: o.teach, hint: o.hint, b: o.b || 0
     });
   }
   function choose(rng, prompt, answer, wrongs, o) {
@@ -29794,12 +30123,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function judge(prompt, truth, o) {
     o = o || {};
+    var ex2 = o.explain || (o.steps && o.steps.length ? o.steps : null);
     return I_BOOL(prompt, !!truth, {
-      sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+      sub: o.sub, visual: o.visual, explain: ex2, teach: o.teach, hint: o.hint, b: o.b || 0
     });
   }
   function compare(prompt, a, b, o) {
     o = o || {};
+    o.explain = o.explain || (o.steps && o.steps.length ? o.steps : null);
     return I_CMP(prompt, a, b, {
       sub: o.sub, visual: o.visual, explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
     });
@@ -30398,6 +30729,137 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           explain: ['Step 1: ' + s.start + ' + ' + s.add + ' = ' + (s.start + s.add) + '.', 'Step 2: ' + (s.start + s.add) + ' − ' + s.sub + ' = ' + s.ans + '.', 'The claim says ' + claim + '.'],
           teach: 'Judge a proposed answer by running the story’s steps yourself.',
           b: 0.6
+        });
+      }
+    ]);
+  });
+
+  /* ---- multiply two multiples of ten: word problems ---------------------
+   * 30 × 40 is the one multiplication a learner can get right while not
+   * understanding any of it: three times four, then a pair of zeros tacked on.
+   * The cards below keep the story large enough that the answer has to be
+   * reasoned — chairs in rows, jars in crates, miles on tanks — and the
+   * distractors are the exact slips that come from forgetting a zero or
+   * adding one too many. */
+  UP.on(/^multiply two multiples of ten/, function (rng, lvl) {
+    function tens() { return BC.pick(rng, [10, 20, 30, 40, 50, 60, 70, 80, 90]); }
+    function tensPair() {
+      var a = tens(), b = tens();
+      while (b === a) b = tens();
+      return { a: a, b: b, p: a * b };
+    }
+    var SCENES = [
+      function (a, b) { return { q: 'Each row of chairs holds ' + b + ' chairs and there are ' + a + ' rows. How many chairs is that in all?', m: 'rows of chairs' }; },
+      function (a, b) { return { q: 'A crate holds ' + b + ' jars of jam. ' + a + ' crates hold how many jars?', m: 'crates of jars' }; },
+      function (a, b) { return { q: 'A ticket for the bus costs $' + b + '. What is the price for ' + a + ' tickets?', m: 'bus tickets' }; },
+      function (a, b) { return { q: 'Each shelf holds ' + b + ' books. ' + a + ' shelves hold how many books?', m: 'shelves of books' }; },
+      function (a, b) { return { q: 'A tank of gas takes the car ' + b + ' miles. How many miles can ' + a + ' tanks take it?', m: 'tanks of gas' }; },
+      function (a, b) { return { q: 'A pack has ' + b + ' pencils. ' + a + ' packs have how many pencils?', m: 'packs of pencils' }; }
+    ];
+    return UP.build(rng, [
+      function () {                       /* the product the story asks for */
+        var d = tensPair(), s = BC.pick(rng, SCENES)(d.a, d.b);
+        var w = [];
+        [d.a * d.b / 10, (d.a / 10) * (d.b / 10), d.p * 10].forEach(function (n) { if (n > 0 && n !== d.p && w.indexOf(n) < 0) w.push(n); });
+        w = w.map(function (n) { return UP.comma(n); });
+        if (w.length < 2) return null;
+        return ask(rng, s.q, d.p, {
+          answerText: UP.comma(d.p),
+          visual: V.array(d.a / 10, d.b / 10, { label: (d.a / 10) + ' groups of ' + (d.b / 10) + ' ten-' + s.m.replace(/s$/, '') + 's' }),
+          steps: ['Multiply the tens: ' + (d.a / 10) + ' × ' + (d.b / 10) + ' = ' + (d.p / 100) + '.',
+            'That many hundreds: ' + (d.p / 100) + ' × 100 = ' + UP.comma(d.p) + '.',
+            'So the story answers ' + UP.comma(d.p) + '.'],
+          teach: 'Two multiples of ten multiply as their tens, then two zeros join the answer.',
+          b: 0.2
+        });
+      },
+      function () {                       /* how many groups, given the total */
+        var d = tensPair(), s = BC.pick(rng, SCENES)(d.a, d.b);
+        var right = String(d.a);
+        var wrongs = UP.slips(d.a, [d.a + 10, d.a * 10, d.b]).map(String);
+        if (wrongs.length < 2) return null;
+        return choose(rng, lead(rng, [UP.comma(d.p) + ' ' + s.m + ' are packed into groups of ' + d.b + '. How many groups are needed?',
+          'Shelves hold ' + d.b + ' books each. ' + UP.comma(d.p) + ' books need how many shelves?',
+          'Chairs are set in rows of ' + d.b + '. ' + UP.comma(d.p) + ' chairs make how many rows?']),
+          right, wrongs, {
+          steps: ['Total ' + UP.comma(d.p) + ' divided into groups of ' + d.b + '.',
+            d.p + ' ÷ ' + d.b + ' = ' + d.a + '.',
+            'Check: ' + d.a + ' × ' + d.b + ' = ' + UP.comma(d.p) + '.'],
+          teach: 'Finding the number of groups is division — the opposite of the multiplication the story started with.',
+          b: 0.7
+        });
+      },
+      function () {                       /* compare the product with a number */
+        var d = tensPair();
+        var near = R.chance(rng, 0.5) ? d.p + BC.pick(rng, [100, 400, 900, -100, -400]) : d.p + BC.pick(rng, [10, -10, 1000]);
+        if (near < 0) near = d.p + 100;
+        return compare(lead(rng, ['Work out ' + d.a + ' × ' + d.b + ' and compare the product with ' + UP.comma(near) + '.',
+          'How many in ' + d.a + ' groups of ' + d.b + '? Compare that with ' + UP.comma(near) + '.']), d.p, near, {
+          steps: [d.a + ' × ' + d.b + ': ' + (d.a / 10) + ' × ' + (d.b / 10) + ' = ' + (d.p / 100) + ', so ' + UP.comma(d.p) + '.',
+            'Compare ' + UP.comma(d.p) + ' with ' + UP.comma(near) + '.'],
+          teach: 'Comparing two amounts means computing the product first, then comparing.',
+          b: 0.5
+        });
+      },
+      function () {                       /* two-step: product then a change */
+        var d = tensPair(), extra = BC.pick(rng, [100, 250, 400, 600, 1000]);
+        var later = R.chance(rng, 0.5);
+        var ans = later ? d.p + extra : d.p - extra;
+        if (ans < 0) ans = d.p + extra;
+        var s = BC.pick(rng, SCENES)(d.a, d.b);
+        var w = UP.slips(ans, [d.p, ans + extra, ans - extra]).map(function (n) { return UP.comma(n); });
+        if (w.length < 2) return null;
+        return ask(rng, s.q.replace(/\?$/, '') + '. Then ' + (later ? 'another ' + UP.comma(extra) + ' are added' : UP.comma(extra) + ' are taken away') + '. How many now?',
+          ans, {
+          answerText: UP.comma(ans),
+          steps: ['First the product: ' + d.a + ' × ' + d.b + ' = ' + UP.comma(d.p) + '.',
+            (later ? 'Then add ' : 'Then subtract ') + UP.comma(extra) + ': ' + UP.comma(later ? ans : ans + extra) + (later ? ' + ' : ' − ') + UP.comma(extra) + ' = ' + UP.comma(ans) + '.'],
+          teach: 'A two-step story is one operation at a time: finish the multiplication before the change.',
+          b: 0.8
+        });
+      },
+      function () {                       /* which expression matches the story */
+        var d = tensPair(), s = BC.pick(rng, SCENES)(d.a, d.b);
+        var right = d.a + ' × ' + d.b + ' = ' + UP.comma(d.p);
+        var wrongs = [d.a + ' + ' + d.b + ' = ' + UP.comma(d.a + d.b),
+          d.a + ' × ' + (d.b * 10) + ' = ' + UP.comma(d.p * 10),
+          (d.a * 10) + ' × ' + d.b + ' = ' + UP.comma(d.p * 10)];
+        wrongs = wrongs.filter(function (x, i, arr) { return x !== right && arr.indexOf(x) === i; });
+        if (wrongs.length < 2) return null;
+        return choose(rng, 'Which expression answers: ' + s.q, right, wrongs, {
+          steps: ['The story repeats ' + s.m.replace(/s$/, '') + 's ' + d.a + ' times, each holding ' + d.b + '.',
+            'Repeating equal groups is multiplication: ' + d.a + ' × ' + d.b + '.',
+            'So the answer is <b>' + right + '</b>.'],
+          teach: 'Choosing an expression means matching the story: equal groups repeated a number of times.',
+          b: 0.6
+        });
+      },
+      function () {                       /* the area of a plot with ten-metre sides */
+        var d = tensPair();
+        var w = UP.slips(d.p, [2 * (d.a + d.b), d.a * (d.b / 10), d.p * 10]).map(function (n) { return UP.comma(n); });
+        if (w.length < 2) return null;
+        return ask(rng, 'A garden plot is ' + d.a + ' m by ' + d.b + ' m. How many square metres does it cover?', d.p, {
+          answerText: UP.comma(d.p) + ' square metres', unit: 'square metres',
+          visual: V.area(d.a / 10, d.b / 10, { noTotal: true, label: 'each square is 10 m by 10 m' }),
+          steps: ['Area is length × width: ' + d.a + ' × ' + d.b + '.',
+            (d.a / 10) + ' × ' + (d.b / 10) + ' = ' + (d.p / 100) + ' of the 100 m² squares.',
+            (d.p / 100) + ' × 100 = ' + UP.comma(d.p) + ' square metres.'],
+          teach: 'A rectangle with sides in tens covers hundreds of square metres — the area grows by 100 when both sides do.',
+          b: 0.7
+        });
+      },
+      function () {                       /* judge a place-value slip */
+        var d = tensPair();
+        var slip = BC.pick(rng, [d.p, d.p * 10, d.p / 10]);
+        if (!(slip > 0)) slip = d.p;
+        var truth = slip === d.p;
+        return judge(lead(rng, [d.a + ' × ' + d.b + ' = ' + UP.comma(slip) + '. Is that right?',
+          'Someone says ' + d.a + ' × ' + d.b + ' is ' + UP.comma(slip) + '. Do you agree?']), truth, {
+          steps: [d.a + ' × ' + d.b + ': ' + (d.a / 10) + ' × ' + (d.b / 10) + ' = ' + (d.p / 100) + '.',
+            'Two zeros follow: ' + UP.comma(d.p) + '.',
+            'The claim says ' + UP.comma(slip) + ', so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          teach: 'Count the zeros at the end: two tens give two zeros, never one and never three.',
+          b: 0.4
         });
       }
     ]);
@@ -32612,7 +33074,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var GEN = GLOB.SKILL_GEN || {};
 
   /* the bands this build is pushing to full coverage, in order */
-  var BANDS = ['G4'];
+  var BANDS = ['G4', 'G5'];
 
   var swept = 0, i;
   for (i = 0; i < SK.length; i++) {
