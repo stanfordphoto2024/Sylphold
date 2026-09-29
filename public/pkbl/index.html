@@ -1308,7 +1308,7 @@ const LOOKS = {
   YOU:   { sex: "m", skin: 0xf1c49e, hair: 0x2b3038, eye: 0x2f7a63, trim: 0xe9fbf3, shorts: 0x16212c, shoe: 0xf3f7f9, soleC: 0x11161c, burn: 0.12, style: "band", num: 7 },
   MATE:  { sex: "f", skin: 0xfae3d0, hair: 0xf2df9f, eye: 0x3f79b8, trim: 0xc2ecff, shorts: 0x101a25, shoe: 0xdfe9f0, soleC: 0xc07440, burn: 0.3, style: "capTail", cap: 0xf8fbfd, num: 11 },
   ACE:   { sex: "m", skin: 0xe8bd95, hair: 0x2f2117, eye: 0x4b3524, trim: 0xffdbe0, shorts: 0x1d1519, shoe: 0xf2e4e6, soleC: 0x11161c, burn: 0.15, style: "crop", num: 3 },
-  BLAZE: { sex: "f", skin: 0xd9a578, hair: 0x8f3f2c, eye: 0x7a4a20, trim: 0xffe3b2, shorts: 0x1a1712, shoe: 0xefe6d8, soleC: 0xc07440, burn: 0.22, style: "tail", num: 21 }
+  BLAZE: { sex: "f", skin: 0xf7dcc4, hair: 0xe8cd7c, eye: 0x6d9070, trim: 0xffe3b2, shorts: 0x1a1712, shoe: 0xefe6d8, soleC: 0xc07440, burn: 0.26, style: "tail", num: 21 }
 };
 
 /* ---------------------------------------------------------- face & kit art
@@ -1514,12 +1514,14 @@ const KITS = {
 function athlete(name, squad, hex) {
   const look = LOOKS[name] || LOOKS.YOU;
   const F = FACES[name] || FACES.YOU;
-  /* Two builds off the same rig. The women carry narrower shoulders, a nipped
-     waist over slightly wider hips, slimmer limbs and a marginally smaller
-     head — enough that the four read as four people at a glance. */
+  /* Two builds off the same rig. The women are built as a model figure: hips
+     carried higher for long legs, a nipped waist over fuller hips, slim limbs
+     and a small head, so they read taller than the men at the same height.
+     solveContactAim() solves the arm against the paddle's ACTUAL transform, so
+     moving hipY and the limb girths never breaks the contact solver. */
   const B = look.sex === "f"
-    ? { sh: 0.70, chest: 0.266, bust: true,  waistT: 0.206, waistB: 0.250, hipT: 0.266, hipB: 0.316,
-        arm: 0.088, fore: 0.074, thigh: 0.136, calf: 0.099, head: 0.955, hipY: 1.96, muscle: 0.82 }
+    ? { sh: 0.688, chest: 0.258, bust: true,  waistT: 0.186, waistB: 0.228, hipT: 0.262, hipB: 0.314,
+        arm: 0.082, fore: 0.068, thigh: 0.128, calf: 0.092, head: 0.942, hipY: 2.22, muscle: 0.80 }
     : { sh: 0.82, chest: 0.285, bust: false, waistT: 0.235, waistB: 0.272, hipT: 0.275, hipB: 0.300,
         arm: 0.096, fore: 0.082, thigh: 0.146, calf: 0.106, head: 0.978, hipY: 2.02, muscle: 1.12 };
   const g = new THREE.Group();
@@ -1546,6 +1548,10 @@ function athlete(name, squad, hex) {
   const trim   = mat(K0.panel, 0.56, 0.08, { emissive: K0.panel, emissiveIntensity: 0.16, bumpMap: FAB.bumpMap, bumpScale: FAB.bumpScale });
   const mesh2  = mat(new THREE.Color(K0.panel).multiplyScalar(0.55).getHex(), 0.68, 0.06, { bumpMap: FAB.bumpMap, bumpScale: FAB.bumpScale });   // secondary panel
   const shorts = mat(K0.shorts, 0.8, 0.04, { bumpMap: FAB.bumpMap, bumpScale: FAB.bumpScale });
+  /* The dress skirt is always pure white and always short: it is deliberately
+     NOT in u.threads, so no kit ever repaints it. */
+  const skirtW = mat(0xffffff, 0.66, 0.02, { bumpMap: FAB.bumpMap, bumpScale: FAB.bumpScale });
+  const skirtF = mat(0xe8edf2, 0.74, 0.02, { bumpMap: FAB.bumpMap, bumpScale: FAB.bumpScale });
   const hairM  = mat(look.hair, 0.44, 0.10, { emissive: look.hair, emissiveIntensity: 0.04 });
   const hairL  = mat(new THREE.Color(look.hair).lerp(new THREE.Color(0xffe9c9), 0.34).getHex(), 0.32, 0.18,
                      { emissive: look.hair, emissiveIntensity: 0.06 });      // the hair highlight
@@ -1570,20 +1576,25 @@ function athlete(name, squad, hex) {
   const bandM  = trim;
   const tapeM  = mat(0xeef3f6, 0.8, 0.0);
   const hipY = B.hipY;
+  /* Legs run longer on the women (hips carried higher for the model figure).
+     LS scales the whole leg chain, so the sole still lands on the court at the
+     same depth as the men's — and solveContactAim() re-solves against the
+     paddle's real transform, so the strike zone moves with the body. */
+  const LS = look.sex === "f" ? 1.105 : 1;
   const fine = [];                                   // hidden at low quality
 
   const hips = new THREE.Group(); hips.position.y = hipY; g.add(hips);
-  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(B.hipT, B.hipB, 0.34, 16), shorts);
+  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(B.hipT, B.hipB, 0.34, 16), B.bust ? skirtW : shorts);
   pelvis.position.y = 0.02; pelvis.scale.z = 0.8; pelvis.castShadow = true; hips.add(pelvis);
-  if (B.bust) {                                   /* tennis dress skirt      */
-    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(B.hipB + 0.03, B.hipB + 0.10, 0.46, 20, 1, true), shorts);
-    skirt.position.y = -0.26; skirt.scale.z = 0.86; skirt.castShadow = true; hips.add(skirt);
-    const hem = new THREE.Mesh(new THREE.TorusGeometry(B.hipB + 0.10, 0.026, 6, 22), trim);
-    hem.rotation.x = Math.PI / 2; hem.position.y = -0.48; hem.scale.z = 0.86; hips.add(hem);
+  if (B.bust) {                                   /* pure white miniskirt   */
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(B.hipB + 0.026, B.hipB + 0.118, 0.29, 22, 1, true), skirtW);
+    skirt.position.y = -0.16; skirt.scale.z = 0.88; skirt.castShadow = true; hips.add(skirt);
+    const hem = new THREE.Mesh(new THREE.TorusGeometry(B.hipB + 0.118, 0.021, 6, 24), skirtW);
+    hem.rotation.x = Math.PI / 2; hem.position.y = -0.30; hem.scale.z = 0.88; hips.add(hem);
     for (let i = 0; i < 9; i++) {                       /* pleat folds       */
       const a = (i / 9) * 6.2832;
-      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.42, 0.03), mesh2);
-      pl.position.set(Math.sin(a) * (B.hipB + 0.09), -0.27, Math.cos(a) * (B.hipB + 0.09) * 0.86);
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.033, 0.25, 0.028), skirtF);
+      pl.position.set(Math.sin(a) * (B.hipB + 0.104), -0.17, Math.cos(a) * (B.hipB + 0.104) * 0.88);
       pl.rotation.y = a; pl.rotation.z = 0.07; hips.add(pl); fine.push(pl);
     }
   } else {
@@ -1711,7 +1722,7 @@ function athlete(name, squad, hex) {
       const lipB = hG(x, y, z, 0, -0.60, 0.70, 0.34, 0.24, 0.55);
       const sock = hGx(x, y, z, 0.52, -0.02, 0.84, 0.26, 0.24, 0.48);
       const temp = hGx(x, y, z, 0.60, 0.32, 0.46, 0.30, 0.30, 0.46);
-      const dz = 0.072 * ridge + 0.052 * chinB + 0.034 * browB + 0.036 * lipB
+      const dz = 0.072 * ridge + 0.052 * chinB + 0.034 * browB + 0.026 * lipB
                - 0.042 * sock - 0.018 * temp;
       const sgn = x < 0 ? -1 : 1;
       const dxs = sgn * (0.042 * cheekB + 0.013 * hGx(x, y, z, 0.80, -0.10, 0.10, 0.26, 0.34, 0.62));
@@ -1847,14 +1858,15 @@ function athlete(name, squad, hex) {
                                           bevelSize: 0.005, bevelSegments: 2, curveSegments: 8 });
   }
   const MW = 0.056 * F.mouth;
+  const LH = look.sex === "f" ? 0.0148 : 0.0128;      /* lip height: slim, not puffy */
   const mouth = new THREE.Group(); mouth.position.set(0, 0.108, 0.176); head.add(mouth);
   const cavity = new THREE.Mesh(new THREE.SphereGeometry(0.034, 16, 12), mouthD);
   cavity.scale.set(MW * 2.4, 0.36, 0.40); cavity.position.z = 0.010; mouth.add(cavity);
   const teeth = new THREE.Mesh(new THREE.BoxGeometry(MW * 1.7, 0.013, 0.010), teethM);
   teeth.position.set(0, 0.008, 0.024); mouth.add(teeth); fine.push(teeth);
-  const upperLip = new THREE.Mesh(lipGeo(MW, 0.021, 0, look.sex === "f"), lip);
+  const upperLip = new THREE.Mesh(lipGeo(MW, LH, 0, look.sex === "f"), lip);
   upperLip.position.z = 0.014; mouth.add(upperLip);
-  const lowerLip = new THREE.Mesh(lipLowGeo(MW * 0.96, 0.024), lip);
+  const lowerLip = new THREE.Mesh(lipLowGeo(MW * 0.96, LH * 1.18), lip);
   lowerLip.position.z = 0.014; mouth.add(lowerLip);
 
   /* ---- ears: one extruded silhouette + an inner ridge, flat on the skull  */
@@ -2079,38 +2091,38 @@ function athlete(name, squad, hex) {
     torso.add(arm);
     limbs[isR ? "R" : "L"] = { arm, fore, wrist, hand, longSleeve, bicep };
 
-    const leg = new THREE.Group(); leg.position.set(s * 0.185, -0.05, 0);
+    const leg = new THREE.Group(); leg.position.set(s * 0.185, -0.05 * LS, 0);
     const quad = new THREE.Mesh(new THREE.SphereGeometry(B.thigh * 1.06, 14, 12), skin);
-    quad.position.y = -0.18; quad.scale.set(1, 1.5, 0.94); leg.add(quad); fine.push(quad);
+    quad.position.y = -0.18 * LS; quad.scale.set(1, 1.5, 0.94); leg.add(quad); fine.push(quad);
     if (B.bust) {                            /* vastus teardrop, agile build */
       for (const s2 of [-1, 1]) {
         const vast = new THREE.Mesh(new THREE.SphereGeometry(B.thigh * 0.62, 10, 8), skin);
-        vast.position.set(s2 * 0.062, -0.3, 0.075); vast.scale.set(0.62, 1.7, 0.72); leg.add(vast); fine.push(vast);
+        vast.position.set(s2 * 0.062, -0.3 * LS, 0.075); vast.scale.set(0.62, 1.7, 0.72); leg.add(vast); fine.push(vast);
       }
     }
-    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(B.thigh, 0.50, 5, 12), skin);
-    thigh.position.y = -0.42; thigh.castShadow = true; leg.add(thigh);
-    const shortsLeg = new THREE.Mesh(new THREE.CylinderGeometry(B.thigh + 0.055, B.thigh + 0.03, 0.34, 14), shorts);
-    shortsLeg.position.y = -0.24; shortsLeg.castShadow = true; leg.add(shortsLeg);
-    const hemTrim = new THREE.Mesh(new THREE.TorusGeometry(B.thigh + 0.055, 0.017, 6, 16), trim);
-    hemTrim.rotation.x = Math.PI / 2; hemTrim.position.y = -0.40; leg.add(hemTrim);
-    const shin = new THREE.Group(); shin.position.y = -0.94; leg.add(shin);
-    const calf = new THREE.Mesh(new THREE.CapsuleGeometry(B.calf, 0.44, 5, 12), skin);
-    calf.position.y = -0.36; calf.castShadow = true; shin.add(calf);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(B.thigh, 0.50 * LS, 5, 12), skin);
+    thigh.position.y = -0.42 * LS; thigh.castShadow = true; leg.add(thigh);
+    const shortsLeg = new THREE.Mesh(new THREE.CylinderGeometry(B.thigh + 0.055, B.thigh + 0.03, 0.34, 14), B.bust ? skirtW : shorts);
+    shortsLeg.position.y = -0.24 * LS; shortsLeg.castShadow = true; leg.add(shortsLeg);
+    const hemTrim = new THREE.Mesh(new THREE.TorusGeometry(B.thigh + 0.055, 0.017, 6, 16), B.bust ? skirtF : trim);
+    hemTrim.rotation.x = Math.PI / 2; hemTrim.position.y = -0.40 * LS; leg.add(hemTrim);
+    const shin = new THREE.Group(); shin.position.y = -0.94 * LS; leg.add(shin);
+    const calf = new THREE.Mesh(new THREE.CapsuleGeometry(B.calf, 0.44 * LS, 5, 12), skin);
+    calf.position.y = -0.36 * LS; calf.castShadow = true; shin.add(calf);
     const calfM = new THREE.Mesh(new THREE.SphereGeometry(B.calf * 1.6 * B.muscle, 10, 8), skin);
-    calfM.position.set(0, -0.31, -0.052); calfM.scale.set(0.88, 1.3, 1.0); shin.add(calfM); fine.push(calfM);
+    calfM.position.set(0, -0.31 * LS, -0.052); calfM.scale.set(0.88, 1.3, 1.0); shin.add(calfM); fine.push(calfM);
     const knee = new THREE.Mesh(new THREE.SphereGeometry(B.thigh * 0.62, 12, 10), skinS);   /* patella */
     knee.position.set(0, 0.025, 0.062); knee.scale.set(0.86, 1.1, 0.55); shin.add(knee); fine.push(knee);
     const sock = new THREE.Mesh(new THREE.CylinderGeometry(B.calf + 0.009, B.calf, 0.24, 12), sockM);
-    sock.position.y = -0.62; shin.add(sock);
+    sock.position.y = -0.62 * LS; shin.add(sock);
     for (let i = 0; i < 2; i++) {
       const stripe = new THREE.Mesh(new THREE.TorusGeometry(B.calf + 0.014, 0.011, 5, 14), trim);
-      stripe.rotation.x = Math.PI / 2; stripe.position.y = -0.545 - i * 0.055; shin.add(stripe); fine.push(stripe);
+      stripe.rotation.x = Math.PI / 2; stripe.position.y = (-0.545 - i * 0.055) * LS; shin.add(stripe); fine.push(stripe);
     }
     const tape = new THREE.Mesh(new THREE.CylinderGeometry(B.calf + 0.016, B.calf + 0.014, 0.07, 12), tapeM);
-    tape.position.y = -0.30; tape.visible = isR; shin.add(tape); fine.push(tape);
+    tape.position.y = -0.30 * LS; tape.visible = isR; shin.add(tape); fine.push(tape);
     /* foot rides on an ankle pivot so the animation can point and flex it    */
-    const ankle = new THREE.Group(); ankle.position.set(0, -0.87, 0.0); shin.add(ankle);
+    const ankle = new THREE.Group(); ankle.position.set(0, -0.87 * LS, 0.0); shin.add(ankle);
     const fw = B.bust ? 0.27 : 0.30, fl = B.bust ? 0.58 : 0.64;
     const foot = new THREE.Mesh(new THREE.BoxGeometry(fw, 0.15, fl), shoe);
     foot.position.set(0, -0.075, 0.12); foot.castShadow = true; ankle.add(foot);
@@ -2374,10 +2386,10 @@ const B = {
   pred: null, firstLand: null, predDirty: true, icp: { near: null, far: null }, claims: { near: null, far: null }
 };
 const DIFF = {
-  easy:   { spd: 7.2, react: 0.48, skill: 0.44, err: 1.30, aggr: 0.26 },
-  normal: { spd: 8.3, react: 0.34, skill: 0.62, err: 0.86, aggr: 0.42 },
-  hard:   { spd: 9.2, react: 0.24, skill: 0.78, err: 0.52, aggr: 0.56 },
-  pro:    { spd: 10.0, react: 0.15, skill: 0.90, err: 0.32, aggr: 0.68 }
+  easy:   { spd: 7.2, react: 0.34, skill: 0.44, err: 1.02, aggr: 0.26 },
+  normal: { spd: 8.3, react: 0.24, skill: 0.62, err: 0.66, aggr: 0.42 },
+  hard:   { spd: 9.2, react: 0.17, skill: 0.78, err: 0.40, aggr: 0.56 },
+  pro:    { spd: 10.0, react: 0.11, skill: 0.90, err: 0.24, aggr: 0.68 }
 };
 const diff = () => DIFF[PK.settings.difficulty] || DIFF.hard;
 /* Your partner is a hired tour pro and does not care how hard the other side
@@ -2885,19 +2897,21 @@ function legalVolley(p, volley) {
    lob when both opponents have crashed the kitchen line. */
 function autoShot(p) {
   const side = teamOf(p) === "player" ? "near" : "far";
+  const opp = teamOf(p) === "opp";        /* the opposition attacks the short ball */
   const atNet = Math.abs(p.position.z) < K + 1.6;
   const y = ball.position.y;
   const opps = team[otherTeam(teamOf(p))];
   const oppAtNet = Math.min(Math.abs(opps[0].position.z), Math.abs(opps[1].position.z)) < K + 1.4;
   if (twoBounceActive() && B.sideBounce[side] < 1) return "drive";
   if (atNet) {
-    if (y > NET_H + 0.5) return "smash";
+    if (y > NET_H + (opp ? 0.30 : 0.5)) return "smash";
+    if (opp && y > NET_H - 0.05 && Math.random() < 0.45) return "smash";
     if (y > NET_H - 0.25) return "volley";
     return "dink";
   }
   if (oppAtNet && Math.abs(p.position.z) > K + 3.0 && Math.random() < 0.34) return "lob";
   if (B.sideBounce[side] >= 1 && y < 0.9 && Math.abs(p.position.z) < K + 4.5 && Math.random() < 0.42) return "dink";
-  if (y > NET_H + 1.0 && Math.random() < 0.3) return "smash";
+  if (y > NET_H + (opp ? 0.75 : 1.0) && Math.random() < (opp ? 0.52 : 0.3)) return "smash";
   return "drive";
 }
 function shotTarget(p, type, quality, charge) {
@@ -2938,11 +2952,13 @@ function shotTarget(p, type, quality, charge) {
   const mine = p === me, E = eliteOf(p);
   const err = mine
     ? (1 - quality) * 1.15 + charge * 0.75 + spread * 0.07
-    : (1 - Math.min(quality, 1)) * 6.0 * (0.42 + prof(p).err) + spread * (E ? 0.02 : 0.10);
+    : (1 - Math.min(quality, 1)) * 4.6 * (0.34 + prof(p).err) + spread * (E ? 0.02 : 0.075);
   x += rand(-err, err); z += rand(-err, err) * (kind === "dink" ? 0.4 : 0.78);
   /* The pro's margin of error is the court itself: it aims inside the lines
      instead of at a target that can drift out. */
-  const lx = E ? CW / 2 - 0.5 : CW * 0.62, lz = E ? HALF - 0.5 : HALF * 1.06;
+  /* The opposition now aims just inside the lines instead of at a target that
+     can drift wide or long — far fewer unforced outs, still some misses. */
+  const lx = E ? CW / 2 - 0.5 : CW * 0.52, lz = E ? HALF - 0.5 : HALF * 1.005;
   return V3(clamp(x, -lx, lx), BR, clamp(z, -lz, lz));
 }
 function flightFor(type, from, target, charge) {
