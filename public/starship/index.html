@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04070c">
 <title>STARSHIP — Earth → Moon / Earth → Mars | Interactive 3D Mission Simulator</title>
 <style>
   :root{
@@ -331,6 +332,10 @@
    Units: km, seconds, tonnes.  Velocities in km/s.
    ===================================================================== */
 
+/* ---------- device profile ---------- */
+const IS_TOUCH=(('ontouchstart' in window)||navigator.maxTouchPoints>0)&&!matchMedia('(hover:hover)').matches;
+const HI=!IS_TOUCH;                                   /* desktop-class texture budget */
+
 /* ---------- constants ---------- */
 const MU_E=398600.44, MU_M=4902.8, MU_MA=43052.6;      // km^3/s^2
 const R_E=6371.0, R_M=1737.4, R_MA=3389.5;             // km
@@ -377,19 +382,34 @@ function fmtMET(t){
   const sign=t<0?'−':'+';
   return d>0? `T${sign}${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
             : `T${sign}${String(Math.floor(s/3600)).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
-/* seeded value noise */
+/* seeded value noise — 32-bit integer hash (Math.imul: no double-precision loss) */
 function mkNoise(seed){
   let s=seed>>>0;
-  const rnd=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
-  const grid=[[],[]];
-  const rand2=(i,j,layer)=>{ const h=((i*374761393+j*668265263+layer*97813)>>>0); return ((h*(h*h*15731+789221)+1376312589)>>>0)/4294967296; };
+  const rnd=()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; };
+  const hash=(i,j,k,layer)=>{
+    let h=(Math.imul(i,369659393)^Math.imul(j,668265263)^Math.imul(k,1440635041)^Math.imul(layer,97813))>>>0;
+    h=Math.imul(h^(h>>>15),2246822519); h=Math.imul(h^(h>>>13),3266489917); h^=h>>>16;
+    return (h>>>0)/4294967296;
+  };
   const sm=t=>t*t*(3-2*t);
   function noise(x,y,layer){ const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
-    const a=rand2(xi,yi,layer),b=rand2(xi+1,yi,layer),c=rand2(xi,yi+1,layer),d=rand2(xi+1,yi+1,layer);
+    const a=hash(xi,yi,0,layer),b=hash(xi+1,yi,0,layer),c=hash(xi,yi+1,0,layer),d=hash(xi+1,yi+1,0,layer);
     const u=sm(xf),v=sm(yf); return a*(1-u)*(1-v)+b*u*(1-v)+c*(1-u)*v+d*u*v; }
   function fbm(x,y,oct,layer){ let v=0,a=0.5,f=1,n=0;
     for(let i=0;i<oct;i++){ v+=a*noise(x*f,y*f,layer+i*7); n+=a; f*=2; a*=0.5; } return v/n; }
-  return {rnd,noise,fbm};
+  /* seamless spherical noise — no pole pinch, no mirror-fold */
+  function noise3(x,y,z,layer){ const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),
+      xf=x-xi,yf=y-yi,zf=z-zi, u=sm(xf),v=sm(yf),w=sm(zf);
+    const c000=hash(xi,yi,zi,layer),    c100=hash(xi+1,yi,zi,layer),
+          c010=hash(xi,yi+1,zi,layer),  c110=hash(xi+1,yi+1,zi,layer),
+          c001=hash(xi,yi,zi+1,layer),  c101=hash(xi+1,yi,zi+1,layer),
+          c011=hash(xi,yi+1,zi+1,layer),c111=hash(xi+1,yi+1,zi+1,layer);
+    const x00=c000*(1-u)+c100*u, x10=c010*(1-u)+c110*u,
+          x01=c001*(1-u)+c101*u, x11=c011*(1-u)+c111*u;
+    return (x00*(1-v)+x10*v)*(1-w)+(x01*(1-v)+x11*v)*w; }
+  function fbm3(x,y,z,oct,layer){ let v=0,a=0.5,f=1,n=0;
+    for(let i=0;i<oct;i++){ v+=a*noise3(x*f,y*f,z*f,layer+i*11); n+=a; f*=2; a*=0.5; } return v/n; }
+  return {rnd,noise,fbm,noise3,fbm3};
 }
 /* radial gradient sprite texture */
 function radialTex(inner,outer,size=128,stops){
