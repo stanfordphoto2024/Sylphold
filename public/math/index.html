@@ -359,7 +359,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-29 — 47 modules inlined:
+/* MathPath 2026-09-30 — 47 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-router.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -11908,13 +11908,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'A "how many in all" story is addition: join the quantities and find one total.'
         });
       },
-      /* the unknown moves: a missing addend */
+      /* the unknown moves: a missing addend.
+         The sentence printed on the card IS the sentence being solved: exactly
+         one addend is hidden and every other addend is printed. With three
+         addends the old shape printed only the first one — 9 + 1 + 3 came out as
+         "9 + ___ = 13" — while grading the middle part alone, so the card asked
+         for 4 and marked 1 correct. */
       function () {
-        var miss = t.length > 1 ? t[1] : t[0];
-        var shown = t.length > 1 ? t[0] + ' + ___ = ' + c : '___ + ' + t[1] + ' = ' + c;
+        var idx = t.length > 1 ? 1 : 0;
+        var miss = t[idx];
+        var known = t.reduce(function (x, v, i) { return x + (i === idx ? 0 : v); }, 0);
+        var shown = t.map(function (v, i) { return i === idx ? '___' : String(v); }).join(' + ');
         return I_num('Complete the fact: ' + shown, miss, {
           visual: vis, b: 0.4,
-          explain: ['The total is ' + c + ' and one part is ' + (t.length > 1 ? t[0] : t[1]) + '.', 'Count on from ' + (t.length > 1 ? t[0] : t[1]) + ' to ' + c + ': that is ' + miss + '.', 'So the answer is <b>' + miss + '</b>.'],
+          explain: ['The total is ' + c + ' and the addends you can see add to ' + known + '.', 'Count on from ' + known + ' to ' + c + ': that is ' + miss + '.', 'So the answer is <b>' + miss + '</b>.'],
           teach: 'A missing addend is found by counting on from the known part to the total.'
         });
       },
@@ -17028,17 +17035,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* official anchor — name the picture that sits in the position asked for. */
       function () {
         if (boxed) {
-          return MC(rng, ct + ', look at the picture. Is the toy inside the box or outside the box?',
-            'inside', ['outside'], {
+          if (R.chance(rng, 0.5)) {
+            return MC(rng, ct + ', which word tells where the toy is?', 'inside', ['outside', 'under'], {
+              visual: vis, b: lo,
+              explain: ['The box is drawn all the way around the toy.', 'The word for being held inside a box is inside.', 'So the answer is <b>inside</b>.'],
+              teach: teach
+            });
+          }
+          var claim = R.chance(rng, 0.5) ? 'inside' : 'outside';
+          return I_bool('Look at the picture. Is the toy ' + claim + ' the box?', claim === 'inside', {
             visual: vis, b: lo,
-            explain: ['The box is drawn around one toy.', 'The toy is inside it.', 'So the answer is <b>inside</b>.'],
+            explain: ['The box is drawn all the way around the toy.',
+              'So the toy is inside the box, ' + (claim === 'inside' ? 'just as the sentence says' : 'not outside it') + '.',
+              'So the answer is <b>' + (claim === 'inside' ? 'Yes' : 'No') + '</b>.'],
             teach: teach
           });
         }
         var word = pick(rng, POSN), idx = idxOf(word), right = nameAt(idx);
         var wrongs = others(idx);
         if (!wrongs.length) return null;
-        return MC(rng, 'Look at the picture. Which picture is ' + word + '?', right, wrongs, {
+        return MC(rng, pick(rng, ['Look at the picture. Which picture is ' + word + '?', ct + ', which picture is ' + word + '?']), right, wrongs, {
           visual: vis, b: lo,
           explain: ['Read the picture ' + axis + '.', 'The picture ' + word + ' is a ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: teach
@@ -17055,6 +17071,49 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           explain: ['Find the ' + b + ' first, then look ' + rel + ' it.',
             'The picture shows the ' + a + ' ' + REL[0] + ' the ' + b + '.',
             'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          teach: teach
+        });
+      },
+      function () {                       /* boxed: judge an inside/outside claim */
+        if (!boxed) return null;
+        var claim = R.chance(rng, 0.5) ? 'inside' : 'outside';
+        return I_bool(ct + ', is the toy ' + claim + ' the box?', claim === 'inside', {
+          visual: vis, b: lo + 0.2,
+          explain: ['Find the toy and the box in the picture.', 'The box wraps around the toy, so the toy is inside.',
+            'So the answer is <b>' + (claim === 'inside' ? 'Yes' : 'No') + '</b>.'],
+          teach: teach
+        });
+      },
+      function () {                       /* beside: judge the beside claim */
+        if (kind !== 'beside') return null;
+        var subj = R.chance(rng, 0.5) ? 1 : 0;
+        var truth = subj === 1;
+        return I_bool('Look at the picture. Is the ' + nameAt(subj) + ' beside the empty box?', truth, {
+          visual: vis, b: lo + 0.2,
+          explain: ['Find the empty box first.', 'The picture touching it is the ' + nameAt(1) + '; the ' + nameAt(subj) + ' is ' + (truth ? 'right there' : 'one place away from the empty box') + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          teach: teach
+        });
+      },
+      function () {                       /* boxed / beside sentence */
+        if (!boxed && kind !== 'beside') return null;
+        if (boxed) {
+          return MC(rng, ct + ', which sentence says what the picture shows?',
+            'The toy is inside the box', ['The toy is outside the box', 'The box is inside the toy'], {
+            visual: vis, b: 0.4,
+            explain: ['The box is drawn all the way around the toy.', 'That is what inside means: the box holds the toy.',
+              'So the answer is <b>The toy is inside the box</b>.'],
+            teach: teach
+          });
+        }
+        var subj = nameAt(1);
+        return MC(rng, ct + ', which sentence says what the picture shows?',
+          'The ' + subj + ' is beside the empty box',
+          ['The ' + subj + ' is not beside the empty box', 'The ' + nameAt(0) + ' is beside the empty box'], {
+          visual: vis, b: 0.5,
+          explain: ['Read left to right: ' + here.join(', ') + '.',
+            'The empty box is last, so the picture touching it on its left is the ' + subj + '.',
+            'So the answer is <b>The ' + subj + ' is beside the empty box</b>.'],
           teach: teach
         });
       },
@@ -17080,7 +17139,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* count the pictures in the scene */
       function () {
         var n = flat.length;
-        return I_num('How many pictures are in the ' + group + '?', n, {
+        return I_num(pick(rng, ['How many pictures are in the ' + group + '?', 'Count the pictures. How many are there?', 'How many pictures do you see in all?']), n, {
           visual: vis, b: -0.3,
           explain: ['Count the pictures one by one ' + (axis || '') + '.',
             'The last number said is ' + n + '.',
@@ -23323,7 +23382,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ======================================================================= */
   /* ======  MULTIPLY FRACTIONS  (Z.*, AA.*, X.10 recipe multiples)  ======== */
   /* ======================================================================= */
-  UP.on(/^multiply (fractions|mixed numbers|unit fractions|a fraction|the)|^multiples of (unit )?fractions|^fractions of a number|^model .*fraction.* multiply/, function (rng, lvl, p, sk) {
+  UP.on(/^multiply (fractions|mixed numbers|unit fractions|a fraction|the)|^multiply three mixed|^multiples of (unit )?fractions|^fractions of a number|^model .*fraction.* multiply/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
     var unit = /unit fractions/.test(t);
     var mixedAsk = /mixed numbers/.test(t);
@@ -23362,7 +23421,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             b: 0.3
           });
         }
-        return ask(rng, 'Multiply ' + q.label + ' × ' + q.k + '.', r.n, r.d, {
+        return ask(rng, lead(rng, ['Multiply ' + q.label + ' × ' + q.k + '.', 'What is ' + q.label + ' × ' + q.k + '?', 'Find ' + q.label + ' × ' + q.k + '.']), r.n, r.d, {
           answerText: mixedStr(r.n, r.d),
           visual: numberLine ? V.numline(0, q.k * (q.n / q.d) + 1, [{ x: q.k * q.n / q.d, label: mixedStr(r.n, r.d) }], {})
             : models ? V.frac({ n: q.n, d: q.d }) : undefined,
@@ -23379,7 +23438,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var r = reduce(f.n * k, f.d);
         var add = [];
         for (var i = 0; i < k; i++) add.push(f.n + '/' + f.d);
-        return ask(rng, 'Rewrite as a product and solve: ' + add.join(' + '), r.n, r.d, {
+        return ask(rng, lead(rng, ['Rewrite as a product and solve: ' + add.join(' + '), 'Add ' + add.join(' + ') + ', then rewrite as a multiplication.']), r.n, r.d, {
           answerText: mixedStr(r.n, r.d),
           visual: numberLine ? V.numline(0, k * f.v + 1, [{ x: k * f.v }], {}) : undefined,
           explain: [k + ' copies of ' + f.n + '/' + f.d + ' is ' + k + ' × ' + f.n + '/' + f.d + '.', f.n + ' × ' + k + ' = ' + (f.n * k) + ' over ' + f.d + '.'],
@@ -23434,6 +23493,88 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
 
+      function () {                       /* fraction × fraction as area */
+        if (!/find area/.test(t)) return null;
+        var d1 = BC.pick(rng, [2, 3, 4, 5]), n1 = BC.int(rng, 1, d1 - 1);
+        var d2 = BC.pick(rng, [2, 3, 4, 5]), n2 = BC.int(rng, 1, d2 - 1);
+        var r = reduce(n1 * n2, d1 * d2);
+        return ask(rng, lead(rng, ['What is ' + n1 + '/' + d1 + ' × ' + n2 + '/' + d2 + '?',
+          'A garden plot is ' + n1 + '/' + d1 + ' yard long and ' + n2 + '/' + d2 + ' yard wide. What is its area in square yards?',
+          'The wall measures ' + n1 + '/' + d1 + ' m by ' + n2 + '/' + d2 + ' m. What is its area in square meters?']),
+          r.n, r.d, {
+          answerText: mixedStr(r.n, r.d),
+          visual: V.area(d1, d2, { label: 'the whole square is 1 square unit' }),
+          explain: ['Multiply straight across: ' + n1 + ' × ' + n2 + ' = ' + (n1 * n2) + ' over ' + d1 + ' × ' + d2 + ' = ' + (d1 * d2) + '.',
+            (n1 * n2) + '/' + (d1 * d2) + (r.n !== n1 * n2 || r.d !== d1 * d2 ? ' = ' + r.n + '/' + r.d : '') + ' square unit.'],
+          teach: 'Multiplying fractions means taking a part of a part: the numerators multiply, and so do the denominators.',
+          b: 0.3
+        });
+      },
+
+      function () {                       /* equal jumps on the number line */
+        if (!numberLine) return null;
+        var f = unit ? unitFrac(rng, lvl) : frac(rng, lvl);
+        var k = BC.int(rng, 2, 5);
+        var r = reduce(f.n * k, f.d);
+        var w = who(rng);
+        return ask(rng, lead(rng, [w + ' makes ' + k + ' equal jumps of ' + f.n + '/' + f.d + ' on the number line. Where does ' + w + ' land?',
+          'Each jump covers ' + f.n + '/' + f.d + ' mile and there are ' + k + ' jumps. How far in all?']),
+          r.n, r.d, {
+          answerText: mixedStr(r.n, r.d),
+          visual: V.numline(0, k * f.v + 1, [{ x: k * f.v, label: '?' }], {}),
+          explain: ['Mark ' + k + ' jumps of ' + f.n + '/' + f.d + ': ' + f.n + ' × ' + k + ' = ' + (f.n * k) + ', over ' + f.d + '.',
+            (f.n * k) + '/' + f.d + (r.n !== f.n * k || r.d !== f.d ? ' = ' + r.n + '/' + r.d : '') + ', so ' + w + ' lands at <b>' + mixedStr(r.n, r.d) + '</b>.'],
+          teach: 'Equal jumps on a number line are multiplication: the landing point is the product.',
+          b: 0.2
+        });
+      },
+
+      function () {                       /* judge a mixed-number product against a benchmark */
+        if (!mixedAsk) return null;
+        var m = mixed(rng, lvl);
+        var k = BC.int(rng, 2, 4);
+        var num = m.imp * k, den = m.d;
+        var r = reduce(num, den);
+        var bound = BC.int(rng, 2, Math.ceil(num / den));
+        if (bound * den === num) return null;
+        var truth = num > bound * den;
+        return judge(lead(rng, ['Is ' + m.w + ' ' + m.n + '/' + m.d + ' × ' + k + ' more than ' + bound + '?',
+          'True or false: ' + m.w + ' ' + m.n + '/' + m.d + ' × ' + k + ' is greater than ' + bound + '.']), truth, {
+          explain: ['Turn ' + m.w + ' ' + m.n + '/' + m.d + ' into ' + m.imp + '/' + m.d + '; times ' + k + ' gives ' + num + '/' + den + ' = ' + mixedStr(r.n, r.d) + '.',
+            mixedStr(r.n, r.d) + ' is ' + (truth ? 'more' : 'less') + ' than ' + bound + '.'],
+          teach: 'Estimate with the whole part first, then check the exact product against the benchmark.',
+          b: 0.5
+        });
+      },
+
+      function () {                       /* sort by whether the product beats 1 */
+        if (!/sorting/.test(t)) return null;
+        var f = frac(rng, lvl);
+        var k = BC.int(rng, 2, 6);
+        var over = f.n * k > f.d;
+        return choose(rng, 'Sort ' + f.n + '/' + f.d + ' × ' + k + ' by its product. Which pile is it in?',
+          over ? 'product greater than 1' : 'product 1 or less',
+          [over ? 'product 1 or less' : 'product greater than 1', 'product is zero'], {
+          steps: ['The product is ' + (f.n * k) + '/' + f.d + '.', (f.n * k) + ' compared with ' + f.d + ': the numerator is ' + (over ? 'larger' : 'not larger') + ', so the product is ' + (over ? 'more than' : 'at most') + ' 1.'],
+          teach: 'Sorting products is estimation first: compare the numerator with the denominator before computing.',
+          b: 0.4
+        });
+      },
+      function () {                       /* which product is bigger */
+        if (!/sorting/.test(t)) return null;
+        var f1 = frac(rng, lvl), k1 = BC.int(rng, 2, 5);
+        var f2 = frac(rng, lvl), k2 = BC.int(rng, 2, 5);
+        var v1 = f1.n * k1 * f2.d, v2 = f2.n * k2 * f1.d;
+        if (v1 === v2) return null;
+        var right = v1 > v2 ? 'the first product' : 'the second product';
+        return choose(rng, 'Which product is greater: ' + f1.n + '/' + f1.d + ' × ' + k1 + ' or ' + f2.n + '/' + f2.d + ' × ' + k2 + '?',
+          right, [v1 > v2 ? 'the second product' : 'the first product', 'they are equal'], {
+          steps: ['First product: ' + (f1.n * k1) + '/' + f1.d + '. Second product: ' + (f2.n * k2) + '/' + f2.d + '.',
+            'Comparing the two values, ' + right + ' is greater.'],
+          teach: 'Compare products by value, not by the size of the denominators.',
+          b: 0.5
+        });
+      },
       function () {                       /* judge: does multiplying make it bigger */
         var f = frac(rng, lvl);
         var k = BC.int(rng, 2, 5);
@@ -24847,6 +24988,98 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ======================================================================= */
   /* =================  FACTS: MULTIPLICATION  (G.1–G.4)  ================== */
   /* ======================================================================= */
+  /* money amounts printed as $4.35 */
+  function us(c) { return '$' + (c / 100).toFixed(2); }
+
+  /* ================================================================ */
+  /* ORDER-OF-OPERATIONS MISTAKES (5.OA.1)                             */
+  /* The title lands here before the number-pattern mistake handler in */
+  /* 98-gen-fam-band-o8-moneypat.js, so this skill gets its own        */
+  /* mathematics instead of pattern-mistake cards.                     */
+  /* ================================================================ */
+  UP.on(/^identify mistakes involving the order of operations/, function (rng, lvl, p, sk) {
+    return UP.build(rng, [
+      function () {                       /* judge a claimed first step */
+        var b = BC.int(rng, 1, 8), c = BC.int(rng, 1, 8);
+        var mul = BC.int(rng, 2, 6);
+        var parenFirst = R.chance(rng, 0.5);
+        var claim = parenFirst ? b + ' + ' + c : mul + ' × ' + b;
+        var truth = parenFirst;
+        return judge('Maya starts ' + mul + ' × (' + b + ' + ' + c + ') with ' + claim + '. Is that the right first step?', truth, {
+          explain: ['Parentheses come first: the right first step is ' + b + ' + ' + c + ' = ' + (b + c) + '.',
+            'Maya\'s step ' + claim + ' is ' + (truth ? 'exactly that' : 'not the grouped part first') + '.'],
+          teach: 'Whatever happens inside parentheses happens first — even when multiplying would look easier.',
+          b: 0.4
+        });
+      },
+      function () {                       /* what should be done first */
+        var b = BC.int(rng, 1, 8), c = BC.int(rng, 1, 8);
+        var mul = BC.int(rng, 2, 6);
+        return choose(rng, 'What should you do FIRST to evaluate ' + mul + ' × (' + b + ' + ' + c + ')?',
+          'add ' + b + ' and ' + c, ['multiply ' + mul + ' and ' + b, 'multiply ' + mul + ' and ' + c, 'subtract ' + b + ' from ' + mul], {
+          steps: ['Parentheses first, always: ' + b + ' + ' + c + ' = ' + (b + c) + '.', 'Only then multiply by ' + mul + '.'],
+          teach: 'The parentheses show the order: do the grouped part before the multiplication.',
+          b: 0.3
+        });
+      },
+      function () {                       /* which line holds the first mistake */
+        var a = BC.int(rng, 2, 6), b = BC.int(rng, 1, 6), c = BC.int(rng, 1, 6);
+        var badFirst = R.chance(rng, 0.5);
+        var lines, right;
+        if (badFirst) {
+          lines = 'Line 1: ' + a + ' × (' + b + ' + ' + c + ') = ' + a + ' × ' + b + ' + ' + c + '    Line 2: ' + (a * b + c);
+          right = 'the first line';
+        } else {
+          lines = 'Line 1: ' + a + ' × (' + b + ' + ' + c + ') = ' + a + ' × ' + (b + c) + '    Line 2: ' + (a + (b + c));
+          right = 'the second line';
+        }
+        return choose(rng, 'One line of this solution is the first mistake. Which line?   ' + lines,
+          right, ['the first line', 'the second line', 'there is no mistake'].filter(function (w) { return w !== right; }), {
+          steps: badFirst
+            ? ['The parentheses must be done first: ' + b + ' + ' + c + ' = ' + (b + c) + ', so Line 1 dropped them.', 'Line 2 only follows Line 1, so the first mistake is Line 1.']
+            : ['Line 1 is right: add ' + b + ' + ' + c + ' = ' + (b + c) + ' inside the parentheses.', 'Line 2 should multiply ' + a + ' × ' + (b + c) + ', not add — the mistake is Line 2.'],
+          teach: 'Find the FIRST mistake: check each line against the rule that the grouped part comes first.',
+          b: 0.6
+        });
+      },
+      function () {                       /* how far off the dropped parentheses are */
+        var a = BC.int(rng, 2, 6), b = BC.int(rng, 1, 6), c = BC.int(rng, 1, 6);
+        var right = a * (b + c), wrong = a * b + c;
+        if (right === wrong) return null;
+        var diff = right - wrong;
+        return ask(rng, 'Diego solved ' + a + ' × (' + b + ' + ' + c + ') as ' + a + ' × ' + b + ' + ' + c + '. How much greater is the correct answer than Diego\'s?', diff, {
+          explain: ['Correct: ' + b + ' + ' + c + ' = ' + (b + c) + ', then ' + a + ' × ' + (b + c) + ' = ' + right + '.',
+            'Diego: ' + a + ' × ' + b + ' = ' + (a * b) + ', then + ' + c + ' = ' + wrong + '.',
+            right + ' − ' + wrong + ' = ' + diff + '.'],
+          teach: 'Dropping the parentheses changes the answer by whole groups — the difference is worth finding.',
+          b: 0.7
+        });
+      },
+      function () {                       /* evaluate with parentheses */
+        var b = BC.int(rng, 1, 9), c = BC.int(rng, 1, 9);
+        var a = BC.int(rng, 2, 5);
+        var val = a * (b + c);
+        return ask(rng, lead(rng, ['Evaluate ' + a + ' × (' + b + ' + ' + c + ').', 'What is ' + a + ' × (' + b + ' + ' + c + ')?']), val, {
+          explain: ['Inside first: ' + b + ' + ' + c + ' = ' + (b + c) + '.', 'Then multiply: ' + a + ' × ' + (b + c) + ' = ' + val + '.'],
+          teach: 'Parentheses, then multiplication — the order is not a choice.',
+          b: 0.2
+        });
+      },
+      function () {                       /* where the parentheses go */
+        var a = BC.int(rng, 2, 6), b = BC.int(rng, 1, 8), c = BC.int(rng, 2, 9);
+        var target = (a + b) * c;
+        if (a + b * c === target) return null;
+        return choose(rng, 'Where do parentheses need to go to make ' + a + ' + ' + b + ' × ' + c + ' equal ' + target + '?',
+          '(' + a + ' + ' + b + ') × ' + c, [a + ' + (' + b + ' × ' + c + ')', 'no parentheses needed'], {
+          steps: ['As written: ' + b + ' × ' + c + ' = ' + (b * c) + ', then + ' + a + ' = ' + (a + b * c) + '.',
+            'With (' + a + ' + ' + b + ') × ' + c + ': ' + (a + b) + ' × ' + c + ' = ' + target + '.'],
+          teach: 'Parentheses move the work earlier — try each placement to hit the target.',
+          b: 0.7
+        });
+      }
+    ]);
+  });
+
   UP.on(/^multiplication facts to (10|12)/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
     var max = /to 12/.test(t) ? 12 : 10;
@@ -25572,7 +25805,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var ins = [BC.int(rng, 1, 6), BC.int(rng, 7, 9), BC.int(rng, 10, 12)];
         var outs = ins.map(function (v) { return op === 'mul' ? v * k : (op === 'div' ? v * k : (op === 'add' ? v + k : v + k)); });
         var hide = BC.int(rng, 0, 2);
-        return ask(rng, 'Complete the table.', outs[hide], {
+        return ask(rng, lead(rng, ['Complete the table.', 'What number goes in the missing cell?', 'Find the missing number in this table.']), outs[hide], {
           visual: V.table(['in', 'out'], ins.map(function (v, i) { return [String(v), i === hide ? '?' : String(outs[i])]; })),
           explain: ['The rule is ' + (op === 'mul' ? '× ' + k : op === 'div' ? '÷ ' + k : '+ ' + k) + '.', (op === 'mul' ? ins[hide] + ' × ' + k : op === 'div' ? ins[hide] + ' × ' + k : ins[hide] + ' + ' + k) + ' = ' + outs[hide] + '.'],
           teach: 'An input/output table applies the same rule to every row.',
@@ -25586,7 +25819,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var ans = (op === 'mul' ? '× ' + k : op === 'div' ? '÷ ' + k : '+ ' + k);
         var wrongs = ['× ' + (k + 1), '+ ' + (k + 1), '× ' + (k + 2)];
         if (!findRule) return null;
-        return choose(rng, 'What is the rule for this table?', ans, wrongs, {
+        return choose(rng, lead(rng, ['What is the rule for this table?', 'Which rule makes this table?', 'Compare one row: what rule does this table follow?']), ans, wrongs, {
           visual: V.table(['in', 'out'], ins.map(function (v, i) { return [String(v), String(outs[i])]; })),
           steps: ['Compare one row: ' + ins[0] + ' → ' + outs[0] + '.', 'The same rule works for every row: ' + ans + '.'],
           teach: 'Find the rule by comparing one input with its output, then check it on the others.',
@@ -25599,10 +25832,33 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var ins = [BC.int(rng, 2, 6), BC.int(rng, 7, 9), BC.int(rng, 10, 12)];
         var outs = ins.map(function (v) { return op === 'mul' ? v * k : (op === 'div' ? v * k : v + k); });
         var hide = BC.int(rng, 0, 2);
-        return ask(rng, 'Complete the table.', ins[hide], {
+        return ask(rng, lead(rng, ['Complete the table.', 'What number is missing from the input?', 'Find the missing input.']), ins[hide], {
           visual: V.table(['in', 'out'], ins.map(function (v, i) { return [i === hide ? '?' : String(v), String(outs[i])]; })),
           explain: ['The rule is ' + (op === 'mul' ? '× ' + k : op === 'div' ? '÷ ' + k : '+ ' + k) + '.', 'Undo it: ' + outs[hide] + (op === 'mul' ? ' ÷ ' + k : op === 'div' ? ' × ' + k : ' − ' + k) + ' = ' + ins[hide] + '.'],
           teach: 'A missing input is found by undoing the rule.',
+          b: 0.5
+        });
+      },
+      function () {                       /* apply the rule to a fresh input */
+        var k = BC.int(rng, 2, 9);
+        var n = BC.int(rng, 3, 12);
+        var out = op === 'mul' ? n * k : op === 'div' ? n * k : n + k;
+        return ask(rng, 'The rule is ' + (op === 'mul' ? '× ' + k : op === 'div' ? '÷ ' + k : '+ ' + k) + '. What is the out when the in is ' + n + '?', out, {
+          explain: ['Apply the rule: ' + (op === 'mul' ? n + ' × ' + k : op === 'div' ? n + ' × ' + k : n + ' + ' + k) + ' = ' + out + '.', 'Every row of the table follows the same rule.'],
+          teach: 'The rule of an input/output table works the same way on any input.',
+          b: 0.3
+        });
+      },
+      function () {                       /* which number cannot be an output */
+        if (op !== 'mul') return null;
+        var k = BC.int(rng, 2, 9);
+        var ins = [BC.int(rng, 1, 6), BC.int(rng, 7, 9), BC.int(rng, 10, 12)];
+        var outs = ins.map(function (v) { return v * k; });
+        var notOut = outs[2] + 1;
+        return choose(rng, 'Which number is NOT an output of this table?', String(notOut), outs.map(String), {
+          visual: V.table(['in', 'out'], ins.map(function (v, i) { return [String(v), String(outs[i])]; })),
+          steps: ['Every output of this table is ' + k + ' times its input, so every output is a multiple of ' + k + '.', notOut + ' is not a multiple of ' + k + '.'],
+          teach: 'An input/output rule makes every output follow the same pattern — the odd one out cannot be produced.',
           b: 0.5
         });
       },
@@ -25656,6 +25912,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (/3-digit or 4-digit/.test(t)) {
         var a5 = BC.int(rng, 100, lvl >= 4 ? 9999 : 999), b5 = BC.int(rng, 2, 9);
         return { a: a5, b: b5, kind: '1xN' };
+      }
+      if (/3-digit/.test(t)) {
+        var a9 = BC.int(rng, 100, lvl >= 4 ? 999 : 300), b9 = BC.int(rng, 2, 9);
+        return { a: a9, b: b9, kind: '1xN' };
       }
       if (/teen numbers/.test(t)) {
         var a6 = BC.int(rng, 3, 9), b6 = BC.int(rng, 11, 19);
@@ -25754,6 +26014,106 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           explain: ['One ten is 10.', UP.comma(cm.ans) + ' ÷ 10 = ' + (cm.ans / 10) + '.'],
           teach: 'Dividing by ten moves the value one place to the right.',
           b: 0.4
+        });
+      },
+      function () {                       /* equal-groups story for any multiplication */
+        if (word) return null;
+        var q = draw();
+        var cm = BC.colMul(q.a, q.b);
+        var w1 = BC.pick(rng, BC.WHO);
+        return ask(rng, lead(rng, [w1 + ' fills ' + UP.comma(q.a) + ' ' + BC.pick(rng, ['bins', 'trays', 'crates']) + ' with ' + q.b + ' ' + BC.pick(rng, ['oranges', 'tools', 'nails']) + ' each. How many in total?',
+          'A warehouse has ' + q.b + ' aisles of ' + UP.comma(q.a) + ' shelves. How many shelves are there?']), cm.ans, {
+          explain: ['Equal groups: multiply.', cm.steps.slice(-1)[0]],
+          teach: 'Counting equal groups at any size is the same multiplication.',
+          b: 0.5
+        });
+      },
+      function () {                       /* the related division fact */
+        var q = draw();
+        var cm = BC.colMul(q.a, q.b);
+        if (cm.ans > 100000) return null;
+        return ask(rng, 'Use ' + UP.comma(cm.ans) + ' ÷ ' + UP.comma(q.a) + ' = ?', q.b, {
+          explain: ['Multiplication and division are partners: ' + UP.comma(q.a) + ' × ' + q.b + ' = ' + UP.comma(cm.ans) + '.',
+            'So ' + UP.comma(cm.ans) + ' ÷ ' + UP.comma(q.a) + ' = ' + q.b + '.'],
+          teach: 'Every multiplication hides a division — the product divided by one factor gives the other.',
+          b: 0.5
+        });
+      },
+      function () {                       /* commutative partner */
+        if (!/using properties/.test(t)) return null;
+        var a = BC.int(rng, 3, 9), b = BC.int(rng, 11, 19);
+        var ab = a * b;
+        var claim = R.chance(rng, 0.5) ? b + ' × ' + a : a + ' × ' + (b + 1);
+        var truth = claim === b + ' × ' + a;
+        return judge('You know ' + a + ' × ' + b + ' = ' + ab + '. So ' + claim + ' = ' + ab + '.', truth, {
+          explain: ['Swapping the factors keeps the same product: ' + b + ' × ' + a + ' = ' + ab + '.',
+            'The claim ' + claim + ' = ' + ab + ' is ' + (truth ? 'the swap itself' : 'a different product') + '.'],
+          teach: 'Order of factors never changes a product — that is the commutative property.',
+          b: 0.4
+        });
+      },
+      function () {                       /* distributive split */
+        if (!/using properties/.test(t)) return null;
+        var a = BC.int(rng, 3, 9), b = BC.int(rng, 12, 19);
+        var bt = Math.floor(b / 10) * 10, bo = b % 10;
+        return choose(rng, 'Which uses the distributive property to find ' + a + ' × ' + b + '?',
+          a + ' × ' + bt + ' + ' + a + ' × ' + bo, [a + ' × ' + bt + ' + ' + bo, a + ' × ' + bo + ' − ' + a, a + ' × ' + (b + 1) + ' − ' + b], {
+          steps: ['Split ' + b + ' into ' + bt + ' and ' + bo + '.', 'Multiply ' + a + ' by each part and add: ' + a + ' × ' + bt + ' + ' + a + ' × ' + bo + '.'],
+          teach: 'The distributive property breaks a hard factor into two easy ones.',
+          b: 0.5
+        });
+      },
+      function () {                       /* the teen split from the grid */
+        if (!areaModel || !/teen numbers/.test(t)) return null;
+        var a = BC.int(rng, 3, 9), b = BC.int(rng, 11, 19);
+        var bt = Math.floor(b / 10) * 10, bo = b % 10;
+        var ans = a + ' × ' + bt + ' + ' + a + ' × ' + bo;
+        return choose(rng, 'The grid shows ' + a + ' × ' + b + ' as two parts. Which matches the grid?',
+          ans, [a + ' × ' + bt + ' + ' + bo, a + ' × ' + bo + ' + ' + a, a + ' + ' + bt + ' × ' + bo], {
+          visual: V.area(10, 10, { label: a + ' × ' + b }),
+          steps: ['The grid splits ' + b + ' into ' + bt + ' and ' + bo + '.', 'Each part is multiplied by ' + a + ': ' + ans + '.'],
+          teach: 'A multiplication grid splits the teen factor into a ten and ones so each cell is a small fact.',
+          b: 0.4
+        });
+      },
+      function () {                       /* power of ten with a decimal missing */
+        if (!/power of ten/.test(t)) return null;
+        var k = BC.pick(rng, [10, 100]);
+        var a = BC.int(rng, 11, 99) / 10;
+        var prod = Math.round(a * k * 100) / 100;
+        if (R.chance(rng, 0.5)) {
+          return I_NUM('? × ' + k + ' = ' + prod, a, {
+            explain: ['Undo the × ' + k + ': move the decimal point back ' + (k === 10 ? 'one place' : 'two places') + '.', prod + ' ÷ ' + k + ' = ' + a + '.'],
+            teach: 'Multiplying by 10 or 100 moves the decimal point; undo it by moving the point back.',
+            b: 0.5
+          });
+        }
+        return I_NUM(a + ' × ' + k + ' = ?', prod, {
+          explain: ['Move the decimal point of ' + a + ' ' + (k === 10 ? 'one place' : 'two places') + ' to the right.', 'The product is ' + prod + '.'],
+          teach: 'Multiplying by 10 or 100 moves the decimal point; undo it by moving the point back.',
+          b: 0.4
+        });
+      },
+      function () {                       /* three numbers, one of them a decimal */
+        if (!threeNums) return null;
+        var d = BC.pick(rng, [0.2, 0.4, 0.5, 1.2, 1.5, 2.5, 0.3]);
+        var x = BC.int(rng, 2, 6), y = BC.int(rng, 2, 6);
+        var ans = Math.round(d * x * y * 100) / 100;
+        return ask(rng, 'Multiply ' + x + ' × ' + y + ' × ' + d + '.', ans, {
+          explain: ['Multiply the whole numbers first: ' + x + ' × ' + y + ' = ' + (x * y) + '.', (x * y) + ' × ' + d + ' = ' + ans + '.'],
+          teach: 'Multiply the whole numbers first, then take the decimal share of that product.',
+          b: 0.6
+        });
+      },
+      function () {                       /* multiply by 0.1 or 0.01 */
+        if (!/0[.]1 or 0[.]01/.test(t)) return null;
+        var m = BC.pick(rng, [0.1, 0.01]);
+        var n = m === 0.1 ? BC.int(rng, 2, 9) * 10 : BC.int(rng, 2, 9) * 100;
+        var ans = m === 0.1 ? n / 10 : n / 100;
+        return ask(rng, lead(rng, ['Multiply ' + n + ' × ' + m + '.', 'Find ' + m + ' of ' + n + '.', n + ' × ' + m + ' = ?']), ans, {
+          explain: ['× ' + m + ' moves the decimal ' + (m === 0.1 ? 'one place' : 'two places') + ' to the left.', n + ' becomes ' + ans + '.'],
+          teach: 'Multiplying by 0.1 takes a tenth of the number; by 0.01, a hundredth.',
+          b: 0.3
         });
       },
       function () {                       /* area model choice */
@@ -26111,7 +26471,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             : form === 'a−b÷c' ? a + ' − ' + b + ' ÷ ' + (b % c ? c : c)
               : a + ' × ' + b + ' − ' + c;
         if (form === 'a−b÷c' && b % (b % c ? c : c) !== 0) return null;
-        return ask(rng, 'Evaluate ' + txt + '.', val, {
+        return ask(rng, lead(rng, ['Evaluate ' + txt + '.', 'What is ' + txt + '?']), val, {
           explain: form === 'a+b×c'
             ? ['Multiply first: ' + b + ' × ' + c + ' = ' + (b * c) + '.', 'Then add: ' + a + ' + ' + (b * c) + ' = ' + val + '.']
             : form === '(a+b)×c'
@@ -26127,7 +26487,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (!twoNums) return null;
         var big = BC.int(rng, 20, 70), small = BC.int(rng, 5, 19);
         var sum = big + small, diff = big - small;
-        return I_PARTS('Two numbers add to ' + sum + ' and their difference is ' + diff + '. Find the two numbers.',
+        return I_PARTS(lead(rng, ['Two numbers add to ' + sum + ' and their difference is ' + diff + '. Find the two numbers.',
+          'The sum of two numbers is ' + sum + ', and their difference is ' + diff + '. Name both numbers.']),
           ['smaller', 'larger'], [{ k: 'n', v: small }, { k: 'n', v: big }], {
           explain: ['Add the two facts: ' + sum + ' + ' + diff + ' = ' + (sum + diff) + ', twice the larger number.', 'Larger = ' + (sum + diff) + ' ÷ 2 = ' + big + '.', 'Smaller = ' + sum + ' − ' + big + ' = ' + small + '.'],
           teach: 'Sum and difference pin the numbers down: (sum + difference) ÷ 2 is the larger one.',
@@ -26156,6 +26517,178 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: [w1 + ': ' + a + ' × ' + b + ' = ' + v1, w2 + ': ' + v2, 'More belongs to ' + bigger + '.'],
           teach: 'Compare by computing the product; the story decides which side it belongs to.',
           b: 0.6
+        });
+      },
+      function () {                       /* compare two mixed expressions */
+        if (twoNums || word || cmpWP) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 9), d = BC.int(rng, 2, 9);
+        var left = a * (b + c), right = a * b + d;
+        if (left === right) return null;
+        return compare('Which is greater: ' + a + ' × (' + b + ' + ' + c + ') or ' + a + ' × ' + b + ' + ' + d + '?', left, right, {
+          explain: ['Left side: ' + b + ' + ' + c + ' = ' + (b + c) + ', then × ' + a + ' = ' + left + '.',
+            'Right side: ' + a + ' × ' + b + ' = ' + (a * b) + ', then + ' + d + ' = ' + right + '.'],
+          teach: 'Evaluate each side fully before comparing — the symbol follows from the values.',
+          b: 0.6
+        });
+      },
+      function () {                       /* judge a mixed evaluation */
+        if (twoNums || word || cmpWP) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 9);
+        var right = a + b * c;
+        var lie = R.chance(rng, 0.5) ? (a + b) * c : right + BC.pick(rng, [1, -1, b]);
+        var truth = lie === right;
+        return judge('Is ' + a + ' + ' + b + ' × ' + c + ' = ' + lie + '?', truth, {
+          explain: ['Multiply first: ' + b + ' × ' + c + ' = ' + (b * c) + '.',
+            'Then add ' + a + ': the true value is ' + right + '; the claim says ' + lie + '.'],
+          teach: 'Multiply before you add — adding first is the classic slip.',
+          b: 0.5
+        });
+      },
+      function () {                       /* mixed two-step story */
+        if (twoNums || word || cmpWP) return null;
+        var per = BC.int(rng, 3, 9), bags = BC.int(rng, 3, 8), extra = BC.int(rng, 1, 20);
+        var w1 = BC.pick(rng, BC.WHO);
+        if (bags * per <= extra) return null;
+        return ask(rng, w1 + ' has ' + bags + ' ' + BC.pick(rng, ['tins', 'jars', 'boxes']) + ' of ' + per + ' ' + BC.pick(rng, ['marbles', 'pencils', 'pins']) + ' and gives away ' + extra + '. How many are left?', bags * per - extra, {
+          explain: ['First the equal groups: ' + bags + ' × ' + per + ' = ' + (bags * per) + '.',
+            'Then take away ' + extra + ': ' + (bags * per) + ' − ' + extra + ' = ' + (bags * per - extra) + '.'],
+          teach: 'Multiplication and subtraction in one problem: build the total first, then remove.',
+          b: 0.6
+        });
+      },
+      function () {                       /* money: add two amounts */
+        if (!/money amounts/.test(t)) return null;
+        var a = BC.int(rng, 105, 899), b = BC.int(rng, 5, 99);
+        return ask(rng, lead(rng, ['Add ' + us(a) + ' and ' + us(b) + '.', 'What is ' + us(a) + ' + ' + us(b) + '?']), (a + b) / 100, {
+          unit: '$',
+          explain: ['Line up the decimal points: ' + us(a) + ' + ' + us(b) + '.', us(a) + ' + ' + us(b) + ' = ' + us(a + b) + '.'],
+          teach: 'Money adds like decimals: line up the decimal points and carry as usual.',
+          b: 0.2
+        });
+      },
+      function () {                       /* money: change from $10 */
+        if (!/money amounts/.test(t)) return null;
+        var price = BC.int(rng, 205, 899), paid = 1000;
+        var change = paid - price;
+        return ask(rng, 'A toy costs ' + us(price) + '. ' + BC.pick(rng, BC.WHO) + ' pays with a $10 bill. How much change is there?', change / 100, {
+          unit: '$',
+          explain: ['$10.00 is ' + us(paid) + '.', us(paid) + ' − ' + us(price) + ' = ' + us(change) + '.'],
+          teach: 'Change is a subtraction: the paid amount minus the price.',
+          b: 0.4
+        });
+      },
+      function () {                       /* money: equal prices */
+        if (!/money amounts/.test(t)) return null;
+        var price = BC.int(rng, 45, 350), n = BC.int(rng, 2, 6);
+        return ask(rng, BC.pick(rng, BC.WHO) + ' buys ' + n + ' smoothies at ' + us(price) + ' each. How much for all?', price * n / 100, {
+          unit: '$',
+          explain: ['Equal prices repeated: multiply.', us(price) + ' × ' + n + ' = ' + us(price * n) + '.'],
+          teach: 'Buying the same price n times is multiplication, keeping the cents lined up.',
+          b: 0.5
+        });
+      },
+      function () {                       /* money: split a bill */
+        if (!/money amounts/.test(t)) return null;
+        var n = BC.int(rng, 2, 5);
+        var tot = n * BC.int(rng, 200, 600);
+        return ask(rng, 'Share a bill of ' + us(tot) + ' equally among ' + n + ' friends. How much does each pay?', tot / n / 100, {
+          unit: '$',
+          explain: ['Divide the whole amount: ' + us(tot) + ' ÷ ' + n + '.', 'Each friend pays ' + us(tot / n) + '.'],
+          teach: 'Splitting money equally is division — divide the dollars and the cents together.',
+          b: 0.6
+        });
+      },
+      function () {                       /* two numbers from sum and product */
+        if (!twoNums || !/sum and product|and quotient/.test(t)) return null;
+        var s = BC.int(rng, 2, 9), p = BC.int(rng, 2, 12);
+        var sum = s + p, prod = s * p;
+        var lo = Math.min(s, p), hi = Math.max(s, p);
+        return I_PARTS(lead(rng, ['Two numbers add to ' + sum + ' and multiply to ' + prod + '. Find the two numbers.',
+          'The sum of two numbers is ' + sum + ' and their product is ' + prod + '. Name them.']),
+          ['smaller', 'larger'], [{ k: 'n', v: lo }, { k: 'n', v: hi }], {
+          explain: ['Try the factor pairs of ' + prod + '.', 'Only ' + lo + ' × ' + hi + ' also adds to ' + sum + '.'],
+          teach: 'Sum and product pin the pair down: test the factor pairs of the product against the sum.',
+          b: 0.8
+        });
+      },
+      function () {                       /* two numbers from product and quotient */
+        if (!twoNums || !/sum and product|and quotient/.test(t)) return null;
+        var x = BC.int(rng, 2, 8), k = BC.int(rng, 2, 4);
+        if (x === k) return null;
+        var y = x * k;
+        return I_PARTS('Two numbers multiply to ' + (x * y) + ' and the larger divided by the smaller is ' + k + '. Find the two numbers.',
+          ['smaller', 'larger'], [{ k: 'n', v: x }, { k: 'n', v: y }], {
+          explain: ['The quotient clue says the larger is ' + k + ' × the smaller.', 'Check the product: ' + x + ' × ' + y + ' = ' + (x * y) + '.'],
+          teach: 'A quotient clue turns the pair into a multiple: the larger is k times the smaller.',
+          b: 0.8
+        });
+      },
+      function () {                       /* two numbers from difference and product */
+        if (!twoNums || !/sum and product|and quotient/.test(t)) return null;
+        var x = BC.int(rng, 2, 9), d = BC.int(rng, 1, 8);
+        var y = x + d;
+        return I_PARTS('Two numbers differ by ' + d + ' and multiply to ' + (x * y) + '. Find the two numbers.',
+          ['smaller', 'larger'], [{ k: 'n', v: x }, { k: 'n', v: y }], {
+          explain: ['Start near the square root of ' + (x * y) + ' and try factor pairs.', 'Only ' + x + ' × ' + y + ' differs by ' + d + '.'],
+          teach: 'Factor pairs of the product, checked against the difference, find the pair.',
+          b: 0.9
+        });
+      },
+      function () {                       /* sum and difference as a story */
+        if (!twoNums || !/sum and difference|and quotient/.test(t)) return null;
+        var big = BC.int(rng, 25, 80), small = BC.int(rng, 5, 24);
+        var sum = big + small, diff = big - small;
+        return ask(rng, 'Together two collections hold ' + sum + ' shells. One collection has ' + diff + ' more than the other. How many are in the bigger collection?', big, {
+          explain: ['Take the difference out of the total: ' + sum + ' − ' + diff + ' = ' + (sum - diff) + ', twice the smaller.',
+            'Smaller = ' + (sum - diff) + ' ÷ 2 = ' + small + '. Bigger = ' + small + ' + ' + diff + ' = ' + big + '.'],
+          teach: 'Subtract the difference from the sum to find twice the smaller number.',
+          b: 0.9
+        });
+      },
+      function () {                       /* the larger number alone */
+        if (!twoNums || !/sum and difference/.test(t)) return null;
+        var big = BC.int(rng, 25, 80), small = BC.int(rng, 5, 24);
+        var sum = big + small, diff = big - small;
+        return ask(rng, 'Two numbers add to ' + sum + ' and differ by ' + diff + '. What is the larger number?', big, {
+          explain: ['Add the two clues: ' + sum + ' + ' + diff + ' = ' + (sum + diff) + ', which is twice the larger.', 'Larger = ' + (sum + diff) + ' ÷ 2 = ' + big + '.'],
+          teach: 'Sum plus difference, halved, is the larger number.',
+          b: 0.8
+        });
+      },
+      function () {                       /* the smaller number alone */
+        if (!twoNums || !/sum and difference/.test(t)) return null;
+        var big = BC.int(rng, 25, 80), small = BC.int(rng, 5, 24);
+        var sum = big + small, diff = big - small;
+        return ask(rng, 'Two numbers add to ' + sum + ' and differ by ' + diff + '. What is the smaller number?', small, {
+          explain: ['Subtract the difference from the sum: ' + sum + ' − ' + diff + ' = ' + (sum - diff) + ', twice the smaller.', 'Smaller = ' + (sum - diff) + ' ÷ 2 = ' + small + '.'],
+          teach: 'Sum minus difference, halved, is the smaller number.',
+          b: 0.8
+        });
+      },
+      function () {                       /* judge a claimed smaller number */
+        if (!twoNums) return null;
+        var big = BC.int(rng, 25, 80), small = BC.int(rng, 5, 24);
+        var sum = big + small, diff = big - small;
+        var claim = R.chance(rng, 0.5) ? small : small + BC.pick(rng, [1, 2, 5]);
+        var truth = claim === small;
+        return judge('Two numbers add to ' + sum + ' and their difference is ' + diff + '. Is the smaller number ' + claim + '?', truth, {
+          explain: ['(sum + difference) ÷ 2 gives the larger: (' + sum + ' + ' + diff + ') ÷ 2 = ' + big + '.',
+            'Then the smaller is ' + sum + ' − ' + big + ' = ' + small + '.'],
+          teach: 'Check a guess by rebuilding: the pair must add to the sum AND differ by the difference.',
+          b: 0.8
+        });
+      },
+      function () {                       /* four clues, quotient first */
+        if (!twoNums || !/and quotient/.test(t)) return null;
+        var x = BC.int(rng, 2, 6), k = BC.int(rng, 3, 5);
+        if (x === k) return null;
+        var y = x * k;
+        return I_PARTS('Two numbers add to ' + (x + y) + ', differ by ' + (y - x) + ', multiply to ' + (x * y) + ' and divide to ' + k + '. Find the two numbers.',
+          ['smaller', 'larger'], [{ k: 'n', v: x }, { k: 'n', v: y }], {
+          explain: ['The quotient clue means the larger is ' + k + ' × the smaller.',
+            'Check: ' + x + ' + ' + y + ' = ' + (x + y) + ' and ' + y + ' − ' + x + ' = ' + (y - x) + '.'],
+          teach: 'With four clues, use the easiest one (the quotient) and check the rest.',
+          b: 0.9
         });
       },
       function () {                       /* which operation */
@@ -27382,7 +27915,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'That is ' + h + ' hours ' + m + ' minutes.'],
           wrongs: UP.slips(total, [a.min + b.m, total + 60, total - 60]),
           teach: 'Minutes do not add cleanly into 10, so change everything to minutes first, then add.',
-          qs: ['A rehearsal lasts ' + a.h + ' h ' + a.m + ' min and a second one lasts ' + b.h + ' h ' + b.m + ' min. How many minutes in all?'],
+          qs: ['A rehearsal lasts ' + a.h + ' h ' + a.m + ' min and a second one lasts ' + b.h + ' h ' + b.m + ' min. How many minutes in all?',
+            'Mia practiced for ' + a.h + ' h ' + a.m + ' min on Saturday and ' + b.h + ' h ' + b.m + ' min on Sunday. How many minutes is that in total?'],
           mcQ: 'How many minutes is the total?',
           b: 0.2
         });
@@ -27401,9 +27935,72 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'Subtract: ' + big.min + ' − ' + small.min + ' = ' + diff + ' minutes.'],
           wrongs: UP.slips(diff, [big.min - small.m, diff + 60, big.m - small.m < 0 ? diff + 10 : big.m - small.m]),
           teach: 'Borrow 60 the way you borrow 10: take one hour, add 60 to the minutes, then subtract.',
-          qs: ['How many fewer minutes is ' + small.h + ' h ' + small.m + ' min than ' + big.h + ' h ' + big.m + ' min?'],
+          qs: ['How many fewer minutes is ' + small.h + ' h ' + small.m + ' min than ' + big.h + ' h ' + big.m + ' min?',
+            'A movie show runs ' + big.h + ' h ' + big.m + ' min. After ' + small.h + ' h ' + small.m + ' min have gone by, how many minutes are left?'],
           mcQ: 'What is the difference in minutes?',
           b: 0.5
+        });
+      },
+      function () {                       /* find the missing part of a total */
+        if (!isTime) return null;
+        var a = timePart(rng, 3), b = timePart(rng, 3);
+        var total = a.min + b.min;
+        return calc(rng, {
+          expr: total + ' − ' + a.min,
+          spec: { k: 'n', v: b.min, unit: 'minutes' },
+          steps: ['Subtract the part you know from the whole: ' + total + ' − ' + a.min + ' = ' + b.min + '.',
+            'Check by adding the parts back: ' + a.min + ' + ' + b.min + ' = ' + total + ' minutes.'],
+          wrongs: UP.slips(b.min, [total, a.min, b.min + 60]),
+          teach: 'When the whole and one part are known, subtract to find the missing part.',
+          qs: ['A lesson lasts ' + total + ' min in all. The first part lasts ' + a.min + ' min. How many minutes is the second part?'],
+          b: 0.4
+        });
+      },
+      function () {                       /* compare a compound time with minutes */
+        if (!isTime) return null;
+        var a = timePart(rng, 4), m = BC.int(rng, 30, 260);
+        if (a.min === m) return null;
+        return UP.cmp(rng, {
+          prompt: a.h + ' h ' + a.m + ' min ○ ' + m + ' min',
+          left: a.min, right: m,
+          steps: ['Change ' + a.h + ' h ' + a.m + ' min into minutes: ' + a.h + ' × 60 + ' + a.m + ' = ' + a.min + ' min.',
+            'Compare ' + a.min + ' with ' + m + ': the symbol is <b>' + (a.min > m ? '>' : '<') + '</b>.'],
+          teach: 'Convert the compound time to minutes first, then compare the two numbers.',
+          b: 0.5
+        });
+      },
+      function () {                       /* same amount, two spellings: judge */
+        if (!isTime) return null;
+        var a = timePart(rng, 5);
+        var same = R.chance(rng, 0.5);
+        var m = same ? a.min : a.min + BC.pick(rng, [-60, -30, 30, 60, 45]);
+        if (m < 1 || (m === a.min) !== same) return null;
+        return UP.judge('Is ' + a.h + ' h ' + a.m + ' min the same as ' + m + ' min?', same, {
+          steps: ['Change ' + a.h + ' h ' + a.m + ' min into minutes: ' + a.h + ' × 60 + ' + a.m + ' = ' + a.min + ' min.',
+            'Compare ' + a.min + ' min with ' + m + ' min: they are ' + (same ? 'the same' : 'different') + ', so the answer is <b>' + (same ? 'Yes' : 'No') + '</b>.'],
+          teach: 'Change the hours into minutes before judging — 1 h is 60 min, not 100.',
+          b: 0.3
+        });
+      },
+      function () {                       /* which amount of time is longest */
+        if (!isTime) return null;
+        var rows = [], seen = {}, i, t;
+        for (i = 0; i < 3; i++) {
+          t = timePart(rng, 4);
+          if (seen[t.min]) { t = { h: t.h, m: t.m === 55 ? 5 : t.m + 5, min: 0 }; t.min = t.h * 60 + t.m; }
+          if (seen[t.min]) return null;
+          seen[t.min] = 1; rows.push(t);
+        }
+        var best = rows[0];
+        rows.forEach(function (r) { if (r.min > best.min) best = r; });
+        var opts = rows.map(function (r) { return r.h + ' h ' + r.m + ' min'; });
+        var wrongs = opts.filter(function (s) { return s !== best.h + ' h ' + best.m + ' min'; });
+        return UP.mc(rng, 'Which amount of time is the longest?',
+          best.h + ' h ' + best.m + ' min', wrongs, {
+          steps: ['Change each amount into minutes: ' + rows.map(function (r) { return r.h + ' × 60 + ' + r.m + ' = ' + r.min; }).join('; ') + '.',
+            'The longest is ' + best.min + ' min, which is <b>' + best.h + ' h ' + best.m + ' min</b>.'],
+          teach: 'Convert every amount to the same unit before comparing — the biggest unit label does not mean the biggest amount.',
+          b: 0.4
         });
       },
       function () {                       /* customary / metric compound addition */
@@ -28652,6 +29249,32 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           b: 0.1
         });
       },
+      function () {                       /* the greatest or least value in the plot */
+        var d = draw(); if (!d) return null;
+        var g = Math.max.apply(null, d.vals), l = Math.min.apply(null, d.vals);
+        if (g === l) return null;
+        var askG = R.chance(rng, 0.5);
+        return I_NUM(askG ? 'What is the greatest score in the plot?' : 'What is the least score in the plot?',
+          askG ? g : l, {
+          explain: [askG ? 'The last row of the plot holds the greatest value.' : 'The first row of the plot holds the least value.',
+            'Its stem and leaf read ' + (askG ? g : l) + '.'],
+          teach: 'Stem-and-leaf rows are ordered: the ends of the first and last rows are the least and greatest values.',
+          visual: stemLeaf(d.vals, 'Class test scores'),
+          b: 0.1
+        });
+      },
+      function () {                       /* how many equal one value */
+        var d = draw(); if (!d) return null;
+        var mo = modeOf(d.vals);
+        if (mo.tied) return null;
+        return I_NUM('How many values are exactly ' + mo.value + '?', mo.best, {
+          explain: ['Find ' + mo.value + ' in the plot: its stem is ' + Math.floor(mo.value / 10) + ' and its leaf is ' + mo.value % 10 + '.',
+            'That leaf appears ' + mo.best + ' times, so ' + mo.best + ' values equal ' + mo.value + '.'],
+          teach: 'Repeated values sit side by side in one row of a stem-and-leaf plot; count the equal leaves.',
+          visual: stemLeaf(d.vals, 'Class test scores'),
+          b: 0.2
+        });
+      },
       function () {                       /* the range */
         var d = draw(); if (!d) return null;
         var rg = rangeOf(d.vals);
@@ -28755,7 +29378,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (mo.tied) return null;
         var wrongs = UP.slips(mo.value, vals.filter(function (v) { return v !== mo.value; }));
         if (wrongs.length < 2) return null;
-        return UP.mc(rng, lead(rng, ['What is the mode of the data?', 'Which value is the mode?']),
+        return UP.mc(rng, lead(rng, ['What is the mode of the data?', 'Which value is the mode?',
+          'Which score appears most often in the data?']),
           String(mo.value), wrongs.map(String), {
           visual: V.table(['Data values', 'Frequency'], freq(vals).map(function (q) { return [String(q.v), String(q.c)]; })),
           steps: ['The mode is the most repeated value.', 'It occurs ' + mo.best + ' times: ' + mo.value + '.'],
@@ -28770,13 +29394,41 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var md = medianOf(vals);
         var wrongs = UP.slips(md, vals.filter(function (v) { return v !== md; }));
         if (wrongs.length < 2) return null;
-        return UP.mc(rng, lead(rng, ['What is the median of the data?', 'Find the median of this data set.']),
+        return UP.mc(rng, lead(rng, ['What is the median of the data?', 'Find the median of this data set.',
+          'After the data are sorted, which value sits in the middle?']),
           String(md), wrongs.map(String), {
           visual: V.table(['Sorted data values', ''], [sortNum(vals).join(', ')].map(function (x) { return [x, '']; })),
           steps: ['Sort the data: ' + sortNum(vals).join(', ') + '.',
             'With ' + vals.length + ' values, the middle one is ' + md + '.'],
           teach: 'Sort the data first; the median is the value in the middle of the sorted list.',
           b: 0.4
+        });
+      },
+      function () {                       /* how often the mode appears */
+        if (!wantMode) return null;
+        var vals = dataset(); if (!vals) return null;
+        var mo = modeOf(vals);
+        if (mo.tied) return null;
+        return I_NUM('How many times does ' + mo.value + ' appear in the data?', mo.best, {
+          explain: ['Group the equal values: ' + mo.value + ' appears ' + mo.best + ' times, more than any other value.',
+            'So it appears <b>' + mo.best + '</b> times.'],
+          teach: 'The mode is the most frequent value; counting its repeats answers how often it appears.',
+          visual: V.table(['Data values', 'Frequency'], freq(vals).map(function (q) { return [String(q.v), String(q.c)]; })),
+          b: 0.3
+        });
+      },
+      function () {                       /* median minus the least value */
+        if (!wantMedian) return null;
+        var vals = dataset(); if (!vals) return null;
+        if (vals.length % 2 === 0) return null;
+        var md = medianOf(vals), l = Math.min.apply(null, vals);
+        if (md === l) return null;
+        return I_NUM('How much greater is the median than the least value?', md - l, {
+          explain: ['Sort the data: ' + sortNum(vals).join(', ') + '.',
+            'The median is ' + md + ' and the least value is ' + l + '; ' + md + ' − ' + l + ' = ' + (md - l) + '.'],
+          teach: 'Find the median first, then compare it with the least value by subtracting.',
+          visual: V.table(['Sorted data values', ''], [sortNum(vals).join(', ')].map(function (x) { return [x, '']; })),
+          b: 0.5
         });
       },
       function () {                       /* which display shares the same range */
@@ -29315,11 +29967,66 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var names = { 90: 'a right angle', 180: 'a straight angle', 270: 'three right angles', 360: 'a full turn' };
         var others = [];
         [90, 180, 270, 360].forEach(function (d) { if (d !== deg) others.push(names[d]); });
-        return UP.mc(rng, lead(rng, ['How many right angles make ' + deg + '°?',
-          deg + '° is which of these?', 'Choose the description that matches ' + deg + '°.']),
+        return UP.mc(rng, lead(rng, [deg + '° is which of these?',
+          'Choose the description that matches ' + deg + '°.',
+          'Which name goes with ' + deg + '°?']),
           names[deg], others, {
           steps: ['One right angle is 90°.', deg + ' ÷ 90 = ' + (deg / 90) + ' right angles, which is ' + names[deg] + '.'],
           teach: '90°, 180°, 270° and 360° are 1, 2, 3 and 4 right angles: keep the quarter-turn picture.',
+          b: 0.2
+        });
+      },
+      function () {                       /* how many right angles make it */
+        if (!named) return null;
+        var deg = BC.pick(rng, [90, 180, 270, 360]);
+        return calc(rng, {
+          expr: deg + ' ÷ 90',
+          spec: { k: 'n', v: deg / 90 },
+          steps: ['One right angle is 90°.', deg + ' ÷ 90 = ' + (deg / 90) + ', so ' + deg + '° is ' + (deg / 90) + ' right angles.'],
+          wrongs: UP.slips(deg / 90, [deg, deg / 2]),
+          teach: 'Every angle can be counted in right angles: 90° is one, 180° is two, 360° is four.',
+          qs: ['How many right angles make ' + deg + '°?', deg + '° is how many quarter turns?'],
+          mcQ: 'How many right angles is that?',
+          b: 0.1
+        });
+      },
+      function () {                       /* degrees in a named angle */
+        if (!named) return null;
+        var row = BC.pick(rng, [[90, 'a right angle'], [180, 'a straight angle'], [270, 'three right angles'], [360, 'a full turn']]);
+        var deg = row[0];
+        var wrongs = [90, 180, 270, 360].filter(function (d) { return d !== deg; });
+        return UP.mc(rng, lead(rng, ['How many degrees are in ' + row[1] + '?',
+          'Which measure matches ' + row[1] + '?',
+          row[1] + ' measures how many degrees?']), deg + '°', wrongs.map(function (d) { return d + '°'; }), {
+          steps: ['One right angle is 90°.', row[1] + ' is ' + deg + '° (' + (deg / 90) + ' right angles).'],
+          teach: 'The named angles are the quarter-turns of a circle: 90°, 180°, 270° and 360°.',
+          b: 0
+        });
+      },
+      function () {                       /* name the drawn quarter-turn */
+        if (!named) return null;
+        var deg = BC.pick(rng, [90, 180, 270]);
+        var names = { 90: 'a right angle', 180: 'a straight angle', 270: 'three right angles', 360: 'a full turn' };
+        var wrongs = [90, 180, 270, 360].filter(function (d) { return d !== deg; }).map(function (d) { return names[d]; });
+        var it = UP.mc(rng, lead(rng, ['Which angle is drawn here?', 'Name the angle shown.']), names[deg], wrongs, {
+          visual: V.angle(deg),
+          steps: ['Count the quarter-turns: the wedge opens ' + (deg / 90) + ' right angles.',
+            'So it measures ' + deg + '°, which is <b>' + names[deg] + '</b>.'],
+          teach: 'Read a drawn angle by counting how many 90-degree corners it opens.',
+          b: 0.1
+        });
+        return hideAngleMeasure(it);
+      },
+      function () {                       /* judge a named-angle claim */
+        if (!named) return null;
+        var row = BC.pick(rng, [[90, 'a right angle'], [180, 'a straight angle'], [270, 'three right angles'], [360, 'a full turn']]);
+        var claimDeg = R.chance(rng, 0.5) ? row[0] : BC.pick(rng, [90, 180, 270, 360].filter(function (d) { return d !== row[0]; }));
+        var truth = claimDeg === row[0];
+        return UP.judge(lead(rng, [row[1] + ' measures ' + claimDeg + '°. Is that right?',
+          'True or false: ' + row[1] + ' is ' + claimDeg + '°.']), truth, {
+          steps: ['Count right angles: ' + row[1] + ' is ' + (row[0] / 90) + ' × 90° = ' + row[0] + '°.',
+            'The claim says ' + claimDeg + '°, so it is ' + (truth ? 'true' : 'false') + '.'],
+          teach: 'Judge angle claims by counting quarter-turns, not by how the number sounds.',
           b: 0.2
         });
       },
@@ -29988,7 +30695,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'For a rectangle ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ', find the difference between its area and its perimeter.',
           'What is the difference between the area and the perimeter of a ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + ' rectangle?']),
           String(big - low), wrongs, {
-          visual: V.area(r.h, r.w, { noTotal: true, label: null }),
+          visual: V.area(r.h, r.w, { noTotal: true }),
           steps: ['Area: ' + r.w + ' × ' + r.h + ' = ' + r.a + '.',
             'Perimeter: 2 × (' + r.w + ' + ' + r.h + ') = ' + r.p + '.',
             big + ' − ' + low + ' = ' + (big - low) + '.'],
@@ -31528,7 +32235,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           ? ['fixed', 'a fixed expense', 'fixed expense', 'fixed cost']
           : ['variable', 'a variable expense', 'variable expense', 'variable cost'], {
           answerText: item.a ? 'fixed' : 'variable', b: 0.2,
-          explain: ['Does the amount repeat the same every month? ' + (item.a ? 'It does — fixed.' : 'It does not — variable.')],
+          explain: ['Ask the one question: does the amount repeat the same every month? ' + (item.a ? 'It does.' : 'It does not.'),
+            'So this expense is <b>' + (item.a ? 'fixed' : 'variable') + '</b>.'],
           teach: 'One question classifies every expense: same amount every month, or not?'
         });
       },
@@ -31660,6 +32368,41 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           b: 0.5
         });
       },
+      function () {                       /* the factor in a multiplication pattern */
+        if (!isMult && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        return choose(rng, 'What is the factor in the pattern ' + s.seq.join(', ') + ', …?',
+          'multiply by ' + s.rule, ['multiply by ' + (s.rule + 1), 'add ' + s.rule, 'multiply by ' + (s.rule + 2)], {
+          steps: ['Compare neighbours: ' + s.seq[1] + ' ÷ ' + s.seq[0] + ' = ' + s.rule + '.', 'The same factor repeats, so the rule is multiply by ' + s.rule + '.'],
+          teach: 'In a multiplication pattern the factor between neighbours never changes.',
+          b: 0.3
+        });
+      },
+      function () {                       /* stated multiplication rule */
+        if (!isMult && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        return ask(rng, 'The rule is “multiply by ' + s.rule + '”.   ' + s.seq.slice(0, 3).join(', ') + ', ___', s.seq[3], {
+          explain: ['Apply the rule: ' + s.seq[2] + ' × ' + s.rule + ' = ' + s.seq[3] + '.', 'So the next term is ' + s.seq[3] + '.'],
+          teach: 'A stated multiplication rule removes the guessing: just apply the factor.',
+          b: 0.4
+        });
+      },
+      function () {                       /* divide-down pattern */
+        if (!isMult && !isReview) return null;
+        var rule = BC.pick(rng, [2, 3]);
+        var start = BC.int(rng, 3, 10);
+        if (start % rule) return null;
+        var seq = [start * rule * rule, start * rule, start];
+        if (seq[0] > 400) return null;
+        var answer = start / rule;
+        return ask(rng, 'Complete the pattern.   ' + seq.join(', ') + ', ___', answer, {
+          explain: ['Each term is divided by ' + rule + ': ' + seq[0] + ' ÷ ' + rule + ' = ' + seq[1] + '.', seq[2] + ' ÷ ' + rule + ' = ' + answer + '.'],
+          teach: 'Patterns can shrink by the same factor as easily as they grow.',
+          b: 0.6
+        });
+      },
 
       /* ---- find the mistake (R.4) ---------------------------------------- */
       function () {
@@ -31677,6 +32420,92 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           s.seq[badAt], [bad, s.seq[badAt] + s.rule, s.seq[badAt] - s.rule], {
           steps: ['Rebuild from the start: ' + s.seq[0] + ', ' + s.seq[1] + ', ' + s.seq[2] + ', ' + s.seq[3] + '.', 'At the break the pattern needs ' + s.seq[badAt] + ', not ' + bad + '.'],
           teach: 'Rebuild the pattern from its rule — the term that cannot be rebuilt is the mistake.',
+          b: 0.6
+        });
+      },
+      function () {                       /* a mistake in a multiplication pattern */
+        if (!isMistake && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        var badAt = BC.int(rng, 1, 2);
+        var bad = s.seq[badAt] + BC.pick(rng, [1, -1, 2, s.rule]);
+        if (bad < 1 || s.seq.indexOf(bad) >= 0) bad = s.seq[badAt] + s.rule + 1;
+        if (bad < 1 || s.seq.indexOf(bad) >= 0) return null;
+        var shown = s.seq.slice();
+        shown[badAt] = bad;
+        return choose(rng, 'One number breaks the rule “multiply by ' + s.rule + '”: ' + shown.join(', ') + '. What number should replace it?',
+          s.seq[badAt], [bad, s.seq[badAt] * s.rule, s.seq[badAt] + s.rule], {
+          steps: ['Rebuild term by term: ' + s.seq[0] + ', ' + s.seq[1] + ', ' + s.seq[2] + ', ' + s.seq[3] + '.', 'At the break the pattern needs ' + s.seq[badAt] + ', not ' + bad + '.'],
+          teach: 'Rebuild the pattern with its factor — the term that cannot be rebuilt is the mistake.',
+          b: 0.7
+        });
+      },
+      function () {                       /* which position holds the wrong number */
+        if (!isMistake && !isReview) return null;
+        var s = addSeq(rng);
+        var badAt = BC.int(rng, 1, 3);
+        var bad = s.seq[badAt] + BC.pick(rng, [1, -1, 2, -2, s.rule]);
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) bad = s.seq[badAt] + s.rule + 1;
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) return null;
+        var shown = s.seq.slice();
+        shown[badAt] = bad;
+        var ORD = ['first', 'second', 'third', 'fourth'];
+        var right = 'the ' + ORD[badAt] + ' term';
+        var wrongs = ORD.map(function (o, i) { return i === badAt ? null : 'the ' + o + ' term'; }).filter(function (x) { return x; });
+        return choose(rng, 'One number is wrong in the pattern “add ' + s.rule + '”: ' + shown.join(', ') + '. In which position is the wrong number?',
+          right, wrongs, {
+          steps: ['Rebuild from the rule: ' + s.seq.join(', ') + '.', 'The term that does not match is in position ' + (badAt + 1) + ' — ' + right + '.'],
+          teach: 'Rebuild the pattern position by position; the first position that disagrees holds the wrong number.',
+          b: 0.5
+        });
+      },
+      function () {                       /* stated add rule, find the fix */
+        if (!isMistake && !isReview) return null;
+        var s = addSeq(rng);
+        var badAt = BC.int(rng, 2, 3);
+        var bad = s.seq[badAt] + BC.pick(rng, [1, -1, 2, -2]);
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) bad = s.seq[badAt] + s.rule + 1;
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) return null;
+        var shown = s.seq.slice();
+        shown[badAt] = bad;
+        return choose(rng, 'The rule is “add ' + s.rule + '”. In ' + shown.join(', ') + ' one number is wrong. What number should replace it?',
+          s.seq[badAt], [bad, s.seq[badAt] + s.rule, s.seq[badAt] - s.rule], {
+          steps: ['Apply the stated rule from the start: ' + s.seq.join(', ') + '.', 'At the break the rule gives ' + s.seq[badAt] + ', not ' + bad + '.'],
+          teach: 'With the rule stated, every position is forced — the number that cannot follow from the rule is the mistake.',
+          b: 0.5
+        });
+      },
+      function () {                       /* stated multiply rule, find the fix */
+        if (!isMistake && !isReview) return null;
+        var s = mulSeq(rng);
+        if (!s) return null;
+        var badAt = BC.int(rng, 2, 3);
+        var bad = s.seq[badAt] + BC.pick(rng, [1, -1, 2, s.rule]);
+        if (bad < 1 || s.seq.indexOf(bad) >= 0) bad = s.seq[badAt] + s.rule + 1;
+        if (bad < 1 || s.seq.indexOf(bad) >= 0) return null;
+        var shown = s.seq.slice();
+        shown[badAt] = bad;
+        return choose(rng, 'The rule is “multiply by ' + s.rule + '”. In ' + shown.join(', ') + ' one number is wrong. What number should replace it?',
+          s.seq[badAt], [bad, s.seq[badAt] * s.rule, s.seq[badAt] + s.rule], {
+          steps: ['Apply the stated rule: ' + s.seq.join(', ') + '.', 'The rule gives ' + s.seq[badAt] + ' there, not ' + bad + '.'],
+          teach: 'A stated factor fixes every term — rebuild it and compare.',
+          b: 0.6
+        });
+      },
+      function () {                       /* judge what the broken term should be */
+        if (!isMistake && !isReview) return null;
+        var s = addSeq(rng);
+        var badAt = BC.int(rng, 1, 3);
+        var bad = s.seq[badAt] + BC.pick(rng, [1, -1, 2, -2, s.rule]);
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) bad = s.seq[badAt] + s.rule + 1;
+        if (bad < 0 || s.seq.indexOf(bad) >= 0) return null;
+        var shown = s.seq.slice();
+        shown[badAt] = bad;
+        var claim = R.chance(rng, 0.5) ? s.seq[badAt] : s.seq[badAt] + BC.pick(rng, [1, s.rule]);
+        var truth = claim === s.seq[badAt];
+        return judge('In the pattern ' + shown.join(', ') + ' (rule: add ' + s.rule + '), the number in position ' + (badAt + 1) + ' should be ' + claim + '.', truth, {
+          explain: ['Rebuild with add ' + s.rule + ' from the start: ' + s.seq.join(', ') + '.', 'Position ' + (badAt + 1) + ' must be ' + s.seq[badAt] + '; the claim says ' + claim + '.'],
+          teach: 'Judge a fix by rebuilding the pattern with its rule and comparing that one position.',
           b: 0.6
         });
       },
@@ -31719,6 +32548,33 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           b: 0.5
         });
       },
+      function () {                       /* will the fifth term beat a bound */
+        if (!isTrue) return null;
+        var s = addSeq(rng);
+        var fifth = s.seq[3] + s.rule;
+        var bound = BC.pick(rng, [10, 20, 30, 40, 50]);
+        if (fifth === bound) return null;
+        var truth = fifth > bound;
+        return judge(lead(rng, ['If the pattern ' + s.seq.join(', ') + ', … continues, is its fifth term greater than ' + bound + '?',
+          'True or false: the fifth term of ' + s.seq.join(', ') + ', … is more than ' + bound + '.']), truth, {
+          explain: ['The step is ' + s.rule + ', so the fifth term is ' + s.seq[3] + ' + ' + s.rule + ' = ' + fifth + '.', fifth + ' is ' + (truth ? 'more' : 'less') + ' than ' + bound + '.'],
+          teach: 'Extend the pattern as far as the question asks, then judge the claim against the term you built.',
+          b: 0.5
+        });
+      },
+      function () {                       /* does this rule make the pattern */
+        if (!isTrue) return null;
+        var s = addSeq(rng);
+        var claimRule = R.chance(rng, 0.5) ? s.rule : s.rule + BC.pick(rng, [1, 2, -1]);
+        if (claimRule < 1) claimRule = s.rule + 2;
+        var truth = claimRule === s.rule;
+        return judge('The rule “add ' + claimRule + '” makes the pattern ' + s.seq.join(', ') + ', …', truth, {
+          explain: ['Build from the start with add ' + claimRule + ': ' + s.seq[0] + ', ' + (s.seq[0] + claimRule) + ', ' + (s.seq[0] + 2 * claimRule) + ', …',
+            'The shown pattern ' + (truth ? 'matches' : 'does not match') + ' that build, so the statement is ' + (truth ? 'true' : 'false') + '.'],
+          teach: 'Apply the claimed rule yourself and compare — a rule either builds the pattern exactly or it does not.',
+          b: 0.6
+        });
+      },
 
       /* ---- tables and expressions (R.9, R.10) ---------------------------- */
       function () {
@@ -31732,6 +32588,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: ['Compare a row: ' + ins[0] + ' → ' + outs[0] + ' is +' + rule + '.', 'Check the others: the same + ' + rule + ' works every time, so the expression is n + ' + rule + '.'],
           teach: 'A table rule is an expression: the same operation on every in.',
           b: 0.4
+        });
+      },
+      function () {                       /* multiplication table expression */
+        if (!isExpr) return null;
+        var rule = BC.int(rng, 2, 6);
+        var ins = [1, 2, 3];
+        var outs = ins.map(function (v) { return v * rule; });
+        return choose(rng, 'Which expression describes this table?', 'n × ' + rule,
+          ['n + ' + rule, 'n × ' + (rule + 1), 'n − ' + rule], {
+          visual: V.table(['in', 'out'], ins.map(function (v, i) { return [String(v), String(outs[i])]; })),
+          steps: ['Compare a row: ' + ins[1] + ' → ' + outs[1] + ' is × ' + rule + '.', 'Every row multiplies by ' + rule + ', so the expression is n × ' + rule + '.'],
+          teach: 'When the out is a multiple of the in every row, the expression is n × the factor.',
+          b: 0.5
         });
       },
       function () {                       /* complete the io table by its rule */
