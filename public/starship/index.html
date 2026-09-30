@@ -44,6 +44,7 @@
   .logline{font-size:10.5px;line-height:1.5;color:#cfe0ec;text-shadow:0 1px 2px #000;opacity:.0;animation:fadein .4s forwards;}
   .logline b{color:var(--orange);font-weight:700;margin-right:6px;}
   .logline.crit b{color:var(--red);} .logline.good b{color:var(--green);}
+  .logline.off{opacity:0;transition:opacity .9s ease;}
   @keyframes fadein{to{opacity:1;}}
 
   /* ---------- banner ---------- */
@@ -111,15 +112,6 @@
     height:0%;background:linear-gradient(0deg,#ff9e3d,#ffd27a);box-shadow:0 0 10px rgba(255,158,61,.45);}
   #warpTrack .knob{position:absolute;left:50%;transform:translate(-50%,50%);width:16px;height:16px;border-radius:50%;
     background:#ff9e3d;bottom:0;box-shadow:0 0 12px rgba(255,158,61,.6);pointer-events:none;}
-  /* ---------- bare control pills on the left edge ---------- */
-  #edgeCtl{position:fixed;left:0;top:16%;bottom:18%;width:44px;z-index:29;display:flex;flex-direction:column;
-    align-items:center;gap:8px;justify-content:center;}
-  .ec{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:#a8c2d6;background:rgba(10,16,24,.5);
-    border:1px solid var(--border);border-radius:8px;padding:10px 6px;cursor:pointer;backdrop-filter:blur(7px);
-    -webkit-tap-highlight-color:transparent;touch-action:manipulation;writing-mode:vertical-rl;
-    text-orientation:mixed;min-width:24px;text-align:center;transition:.15s;}
-  .ec.on{color:var(--orange);border-color:var(--orange);}
-  .ec:disabled{opacity:.28;}
   #topbar,#launchBtn{transition:opacity .3s ease;}
   .hide{opacity:0!important;pointer-events:none!important;}
 
@@ -183,8 +175,7 @@
     #launchBtn{height:50px;font-size:13px;letter-spacing:.16em;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);}
     #launchBtn .sm{font-size:6px;letter-spacing:.12em;}
     #countdown{font-size:30px;top:22%;}
-    #warpEdge,#edgeCtl{width:46px;gap:7px;}
-    .ec{font-size:8px;padding:8px 5px;}
+    #warpEdge{width:46px;gap:7px;}
     #banner .big{font-size:22px;} #banner .sub{font-size:10px;}
     .warnline{font-size:11px;}
     #summary .card{padding:22px 18px;max-width:calc(100% - 28px);}
@@ -206,13 +197,7 @@
   <div class="val" id="warpVal">×1</div>
   <div id="warpTrack"><div class="rail"></div><div class="fill"></div><div class="knob"></div></div>
 </div>
-<div id="edgeCtl">
-  <button class="ec" id="camBtn">CHASE CAM</button>
-  <button class="ec" id="skipBtn2">SKIP PHASE</button>
-  <button class="ec" id="warpLockBtn">AUTO WARP</button>
-  <button class="ec" id="sfxBtn">AUDIO ON</button>
-  <button class="ec" id="abortBtn">ABORT</button>
-</div>
+
 <div id="topbar">
   <div>
     <div id="missionTitle">SPACEX STARSHIP — BLOCK 3</div>
@@ -282,6 +267,7 @@
 <script>
 'use strict';
 /* every HUD lookup goes through $ — a missing node yields an inert stub, never a crash */
+const $=id=>document.getElementById(id)||DUMMY;
 const DUMMY={style:{},dataset:{},classList:{toggle(){},add(){},remove(){},contains(){return false;}},
   setAttribute(){},getAttribute(){return null;},appendChild(){},removeChild(){},focus(){},blur(){},
   click(){},querySelector(){return null;},querySelectorAll(){return [];},addEventListener(){},
@@ -970,11 +956,13 @@ scene.add(rocket);
 
 /* engine plume */
 const plumeMat=new THREE.ShaderMaterial({
-  uniforms:{uT:{value:0},uPow:{value:1},uCol:{value:new THREE.Color(0xffa23a)}},
-  vertexShader:`varying float vY; varying vec2 vUv; void main(){ vY=uv.y; vUv=uv;
-    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-  fragmentShader:`varying float vY; varying vec2 vUv; uniform float uT,uPow; uniform vec3 uCol;
-    void main(){ float a=pow(1.0-vY,2.0)*uPow;
+  uniforms:{uT:{value:0},uPow:{value:1},uCol:{value:new THREE.Color(0xffa23a)},uClip:{value:0}},
+  vertexShader:`varying float vY; varying vec2 vUv; varying vec3 vW; void main(){ vY=uv.y; vUv=uv;
+    vec4 w=modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w;}`,
+  fragmentShader:`varying float vY; varying vec2 vUv; varying vec3 vW;
+    uniform float uT,uPow,uClip; uniform vec3 uCol;
+    void main(){ if(uClip>0.5&&vW.y<0.0002) discard;      /* never punch through the pad ground */
+      float a=pow(1.0-vY,2.0)*uPow;
       float flick=0.8+0.2*sin(uT*47.0+vUv.y*30.0);
       vec3 c=mix(vec3(1.0,1.0,1.0),uCol,smoothstep(0.0,0.5,vY));
       gl_FragColor=vec4(c,a*flick*0.85); }`,
@@ -1105,7 +1093,7 @@ function rumbleGamepad(ms){
    SIMULATION STATE
    ===================================================================== */
 const SIM={
-  phase:'PRELAUNCH', met:-60, warp:1, route:'moon', auto:true,
+  phase:'PRELAUNCH', met:-10, warp:1, route:'moon', auto:true,
   pos:V2(0,R_E), vel:V2(0,0), tilt:0, roll:0,
   m:5300, propS:SH.prop, propT:ST.prop, stage:1,
   enginesOn:false, throttle:1.0,
@@ -1121,7 +1109,7 @@ const SIM={
 let booster=null;   // detached booster visual script
 
 function resetSim(){
-  Object.assign(SIM,{phase:'PRELAUNCH',met:-60,pos:V2(0,R_E),vel:V2(0,0),tilt:0,roll:0,
+  Object.assign(SIM,{phase:'PRELAUNCH',met:-10,pos:V2(0,R_E),vel:V2(0,0),tilt:0,roll:0,
     m:5300,propS:SH.prop,propT:ST.prop,stage:1,enginesOn:false,throttle:1.0,
     maxQ:0,qNow:0,machBoom:false,towerMsg:false,dvExp:0,vMax:0,distTraveled:0,
     tliDone:0,vInf2:0,p:0,burnActive:null,countdownStarted:false,beeps:{},orbitA:0});
@@ -1168,7 +1156,9 @@ function log(msg,cls){
   const d=document.createElement('div'); d.className='logline'+(cls?' '+cls:'');
   d.innerHTML=`<b>${fmtMET(SIM.met)}</b>${msg}`;
   logEl.appendChild(d);
-  while(logEl.children.length>16) logEl.removeChild(logEl.firstChild);
+  while(logEl.children.length>6) logEl.removeChild(logEl.firstChild);
+  setTimeout(()=>d.classList.add('off'),4800);
+  setTimeout(()=>d.remove(),6000);
 }
 function banner(big,sub){
   bannerEl.innerHTML=`<div class="big">${big}</div>${sub?`<div class="sub">${sub}</div>`:''}`;
@@ -1260,15 +1250,15 @@ function orbitalState(){
    ===================================================================== */
 function setPhase(p){ SIM.phase=p; onPhase(p); }
 function onPhase(p){
-  const bBtn=document.getElementById('burnBtn');
+  const bBtn=$('burnBtn');
   bBtn.disabled=true; bBtn.textContent='EXECUTE BURN';
-  document.getElementById('skipBtn').disabled=(p==='PRELAUNCH');
+  $('skipBtn').disabled=(p==='PRELAUNCH');
   switch(p){
     case 'COUNTDOWN': log('Terminal count started','good'); break;
     case 'ASCENT':
       banner('LIFTOFF','STARSHIP HAS CLEARED THE TOWER'); log('LIFTOFF — Starship clears the pad','good');
       camShake(1.6,7); thud(); rumbleGamepad(900);
-      document.getElementById('secoBtn').disabled=false;
+      $('secoBtn').disabled=false;
       break;
     case 'ORBIT':
       banner('ORBITAL INSERTION','SECO · PARKING ORBIT '+Math.round(orbitalState().peri*10)+' × '+Math.round(orbitalState().apo*10)+' KM');
@@ -1407,7 +1397,7 @@ function simStep(dt){
       /* SECO */
       const v=vlen(SIM.vel);
       if((SIM.propT<=0||(v>7.62&&alt>115)||SIM.cutoffReq)&&SIM.phase==='ASCENT'){
-        SIM.propT=0; SIM.enginesOn=false; SIM.cutoffReq=false; SIM.secoAt=SIM.met; document.getElementById('secoBtn').disabled=true;
+        SIM.propT=0; SIM.enginesOn=false; SIM.cutoffReq=false; SIM.secoAt=SIM.met; $('secoBtn').disabled=true;
         const st=orbitalState();
         if(st.peri<R_E+105){ log('Perigee low — executing raise burn','crit');
           const rp=R_E+130, ra=Math.max(vlen(SIM.pos),rp+120), aT=(rp+ra)/2;
@@ -1638,6 +1628,43 @@ function padSmoke(dt){
     }
   }
 }
+/* the exhaust column that follows the vehicle the whole way up. Real Starship keeps
+   venting a visible trail from the pad to the edge of space — it just thins, whitens
+   and spreads as the air disappears, and it lingers for minutes behind the vehicle. */
+function ascentTrail(dt){
+  if(dt<=0||!SIM.enginesOn)return;
+  const alt=vlen(SIM.pos)-R_E;
+  if(alt>132)return;
+  const thr=SIM.throttle, u=clamp(alt/120,0,1);
+  let n=Math.min(26,Math.ceil(dt*(80-34*u)*thr));
+  const r3=pos3(SIM.pos), nose=rocketUp();
+  for(let i=0;i<n;i++){
+    const soot=0.30+0.46*u+Math.random()*0.2;
+    const spd=0.010+0.022*u;
+    P_soft.emit({pos:{x:r3.x-nose.x*0.078+(Math.random()-0.5)*0.012,
+                      y:r3.y-nose.y*0.078+(Math.random()-0.5)*0.012,
+                      z:r3.z+(Math.random()-0.5)*0.012},
+      vel:{x:-nose.x*spd+(Math.random()-0.5)*0.007,y:-nose.y*spd+(Math.random()-0.5)*0.007,
+           z:(Math.random()-0.5)*0.007},
+      size:0.012+0.05*u, grow:0.02+0.34*u*u, ttl:16+120*u*u, alpha:0.6-0.34*u,
+      col:[soot+0.08,soot+0.06,soot+0.05], drag:0.995-0.02*u, fade:'ease'});
+  }
+}
+/* the vapour collar that wraps the vehicle through max-Q */
+function rogersNose(dt){
+  if(SIM.phase!=='ASCENT')return;
+  const q=SIM.qNow; if(q<20)return;
+  let n=Math.min(20,Math.ceil(dt*120*clamp((q-20)/26,0,1)));
+  const r3=pos3(SIM.pos), nose=rocketUp();
+  for(let i=0;i<n;i++){
+    const t=Math.random();
+    P_soft.emit({pos:{x:r3.x+nose.x*(0.012+0.062*t)+(Math.random()-0.5)*0.007,
+                      y:r3.y+nose.y*(0.012+0.062*t)+(Math.random()-0.5)*0.007,
+                      z:(Math.random()-0.5)*0.009},
+      vel:{x:nose.x*0.02,y:nose.y*0.02,z:(Math.random()-0.5)*0.02},
+      size:0.005,grow:0.035,ttl:1.1,alpha:0.5,col:[0.93,0.96,1.0],drag:0.93,fade:'hard'});
+  }
+}
 function startDeluge(){
   /* pad water deluge flowing — white sheets flashing to steam before engine start */
   for(let i=0;i<38;i++){
@@ -1795,7 +1822,6 @@ function camUpdate(dt){
 /* =====================================================================
    UI WIRING + HUD + MAIN LOOP
    ===================================================================== */
-const $=id=>document.getElementById(id)||DUMMY;
 const marsCanvas=(()=>{
   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
   g.drawImage(marsTex.image,300,220,256,128,0,20,256,128);
@@ -1883,8 +1909,12 @@ function setCamMode(m){
   $('cockpitFx').classList.toggle('hidden',m!=='cockpit');
   CAM_SNAP=true;
 }
-$('camBtn').onclick=()=>setCamMode(cam.mode==='chase'?'cockpit':'chase');
-$('skipBtn2').onclick=()=>skipPhase();
+/* double-tap / double-click the scene to swap between the two views */
+let lastTap=0,lastTapX=0,lastTapY=0,touchToggleAt=-1e9;
+renderer.domElement.addEventListener('dblclick',()=>{
+  if(performance.now()-touchToggleAt<500) return;                 /* touch already handled it */
+  setCamMode(cam.mode==='chase'?'cockpit':'chase');
+});
 function skipPhase(){
   const p=SIM.phase;
   if(p==='COUNTDOWN'){ SIM.met=-5; }
@@ -1919,7 +1949,12 @@ let dragging=false,mx=0,my=0,pinchRef=0;
 const pinch=new Map();
 renderer.domElement.addEventListener('pointerdown',e=>{
   dragging=true;mx=e.clientX;my=e.clientY;
-  if(e.pointerType!=='mouse'){ pinch.set(e.pointerId,{x:e.clientX,y:e.clientY}); pinchRef=0; }
+  if(e.pointerType!=='mouse'){
+    pinch.set(e.pointerId,{x:e.clientX,y:e.clientY}); pinchRef=0;
+    const t=performance.now(), quick=t-lastTap<330&&Math.hypot(e.clientX-lastTapX,e.clientY-lastTapY)<26;
+    if(quick){ touchToggleAt=t; setCamMode(cam.mode==='chase'?'cockpit':'chase'); lastTap=0; }
+    else { lastTap=t; lastTapX=e.clientX; lastTapY=e.clientY; }
+  }
 });
 addEventListener('pointermove',e=>{
   if(e.pointerType!=='mouse'&&pinch.has(e.pointerId)){
@@ -2056,6 +2091,7 @@ function sceneUpdate(rdt){
   plume2.scale.set((0.0045+0.0035*thr)*1.6,(0.02+0.045*thr)*1.25,(0.0045+0.0035*thr)*1.6);
   plume.position.set(0,stacked?0.001:-0.001,0); plume2.position.copy(plume.position);
   plumeMat.uniforms.uT.value+=rdt; plumeMat.uniforms.uPow.value=0.35+thr*0.75;
+  plumeMat.uniforms.uClip.value=(altE<6&&['PRELAUNCH','COUNTDOWN','ASCENT'].includes(SIM.phase))?1:0;
   engLight.position.set(0,-0.003,0); engLight.intensity=thr*4;
   padLight.position.set(0,0.012,0);
   padLight.intensity=(SIM.phase==='ASCENT'||SIM.phase==='COUNTDOWN')?thr*12*Math.exp(-altE/8):0;
@@ -2244,7 +2280,11 @@ function loop(){
   /* continuous pad FX */
   if(SIM.phase==='COUNTDOWN'&&delugeOn) startDeluge();
   if(SIM.phase==='ASCENT'&&SIM.met<12){ if((padFxAcc+=rdt)>0.05){ padFxAcc=0; padLiftoffFX(); } }
-  if(SIM.phase==='ASCENT'&&SIM.met<170) padSmoke(Math.min(lastSimDt,0.05));
+  if(SIM.phase==='ASCENT'){
+    padSmoke(Math.min(lastSimDt,0.05));
+    ascentTrail(Math.min(lastSimDt,0.05));
+    rogersNose(Math.min(lastSimDt,0.05));
+  }
   sceneUpdate(rdt);
   camUpdate(rdt);
   updateShipTag();
