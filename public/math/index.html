@@ -359,7 +359,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-09-30 — 47 modules inlined:
+/* MathPath 2026-10-01 — 47 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-router.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -13062,13 +13062,40 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var GROUPS = [['apples', 'pears'], ['cubes', 'balls'], ['stickers', 'stars'], ['shells', 'stones'], ['pencils', 'erasers'], ['fish', 'shells'], ['buttons', 'beads'], ['berries', 'seeds']];
   var ATTRIBUTE_WORDS = ['how long it is', 'how heavy it is', 'how much it holds', 'how wide it is', 'what colour it is', 'how tall it is'];
 
+  /* Three measurements that are always DIFFERENT from one another.
+     The old version drew m2/m3 with cap(m ± k, 1, hi) and then "fixed" a
+     collision with cap(m + 1, 1, hi) — but that clamp is what recreated the
+     tie: at the top of the range cap(hi + 1, 1, hi) === hi, so m2 could stay
+     equal to m1 (WW.3 Wide and narrow served "is the parking space wider than
+     the runway?" with two rows of 12), and m3 could land back on m1
+     (m1 = m2 + 1 → the repair returned exactly m1), so the ordering card
+     "runway 5, gap 5, door 3 — which list goes from least to most?" had two
+     right answers. Every value is now chosen from a candidate list that has
+     already had the used measurements taken out of it, so no clamp can put a
+     tie back in. */
   function attrSit(rng, p, lvl) {
     var key = ATTR[p.attribute] ? p.attribute : 'length', A = ATTR[key];
     var pair = R.sample(rng, A.obj, 3), hi = lvl <= 2 ? 5 : lvl === 3 ? 8 : 12;
-    var m1 = R.int(rng, 2, hi), m2 = cap(m1 + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, cap(hi - 2, 1, 5)), 1, hi);
-    if (m2 === m1) m2 = cap(m1 + 1, 1, hi);
-    var m3 = cap(m1 + R.int(rng, 1, 3) * (R.chance(rng, 0.5) ? 1 : -1), 1, hi);
-    if (m3 === m1 || m3 === m2) m3 = cap(m2 + 1, 1, hi);
+    var used = [];
+    function near(base, span) {
+      var out = [], v;
+      for (v = Math.max(1, base - span); v <= Math.min(hi, base + span); v++) if (used.indexOf(v) < 0) out.push(v);
+      return out;
+    }
+    function anywhere() {
+      var out = [], v;
+      for (v = 1; v <= hi; v++) if (used.indexOf(v) < 0) out.push(v);
+      return out;
+    }
+    function take(cands) {
+      var list = cands.length ? cands : anywhere();
+      if (!list.length) return null;        /* unreachable while hi >= 5 and only two are used */
+      var v = pick(rng, list); used.push(v); return v;
+    }
+    /* m1 keeps the original spread: any measurement from 2 up to the level cap. */
+    var m1 = R.int(rng, 2, hi); used.push(m1);
+    var m2 = take(near(m1, cap(hi - 2, 1, 5)));      /* close enough to be a real comparison */
+    var m3 = take(near(m1, 3));                      /* the third object for ordering */
     return { key: key, A: A, o1: pair[0], o2: pair[1], o3: pair[2], m1: m1, m2: m2, m3: m3 };
   }
   function groupSit(rng, p, lvl) {
