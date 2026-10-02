@@ -25389,8 +25389,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var ineq = /^inequalities/.test(t);
     function factPair(op) {
       var a = BC.int(rng, 2, 12), b = BC.int(rng, 2, 12), c = BC.int(rng, 2, 12), d = BC.int(rng, 2, 12);
-      var v1 = op === 'mul' ? a * b : (op === 'div' ? a * b : a + b), v2 = op === 'mul' ? c * d : (op === 'div' ? c * d : c + d);
-      return { op: op, l: [a, b], r: [c, d], v1: v1, v2: v2 };
+      var l0 = op === 'div' ? a * b : a, r0 = op === 'div' ? c * d : c;
+      var v1 = op === 'mul' ? a * b : (op === 'div' ? a : a + b), v2 = op === 'mul' ? c * d : (op === 'div' ? c : c + d);
+      return { op: op, l: [l0, b], r: [r0, d], v1: v1, v2: v2 };
     }
     function opSign(op) { return op === 'div' ? '÷' : (op === 'add' ? '+' : '×'); }
     if (chooseOp) {
@@ -26192,10 +26193,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (!/partial products/.test(t)) return null;
         var a = BC.int(rng, 12, 49), b = BC.int(rng, 2, 9);
         var tens = Math.floor(a / 10) * 10, ones = a % 10;
-        var hideOnes = R.chance(rng, 0.5);
-        var ans = hideOnes ? ones * b : tens * b;
-        return I_NUM(a + ' × ' + b + ' = (' + tens + ' × ' + b + ') + (? × ' + b + ')', ans, {
-          explain: ['Split ' + a + ' into ' + tens + ' and ' + ones + '.', 'The missing partial product is ' + (hideOnes ? ones + ' × ' + b : tens + ' × ' + b) + ' = ' + ans + '.'],
+        var ans = ones * b;
+        return I_NUM(a + ' × ' + b + ' = (' + tens + ' × ' + b + ') + ?', ans, {
+          explain: ['Split ' + a + ' into ' + tens + ' and ' + ones + '.', 'The missing partial product is ' + ones + ' × ' + b + ' = ' + ans + '.'],
           teach: 'Each partial product is one place value times the other factor.',
           b: 0.6
         });
@@ -35427,7 +35427,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     o = o || {};
     return I_NUM(prompt, val, {
       sub: o.sub, visual: o.visual, unit: o.unit, answerText: o.answerText,
-      explain: o.explain, teach: o.teach, hint: o.hint, b: o.b || 0
+      explain: o.explain, teach: o.teach, hint: o.hint, tol: o.tol, pct: o.pct, b: o.b || 0
     });
   }
   function choose(rng, prompt, answer, wrongs, o) {
@@ -35838,9 +35838,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {
         var d = draw();
+        var other = d.res + BC.pick(rng, [1, 2, 3, -1, -2]);
         return UP.cmp(rng, {
-          prompt: 'Choose >, < or =.   ' + d.a + ' ' + SYM[d.want] + ' ' + d.b + '  ○  ' + (d.res + BC.pick(rng, [1, 2, 3, -1, -2])),
-          left: d.res, right: d.res + BC.pick(rng, [1, 2, 3, -1, -2]),
+          prompt: 'Choose >, < or =.   ' + d.a + ' ' + SYM[d.want] + ' ' + d.b + '  ○  ' + other,
+          left: d.res, right: other,
           steps: ['The left side is ' + d.res + '.', 'Compare it with the number on the right.'],
           teach: 'Work the left side out with the sign, then compare.', b: 0.8
         });
@@ -36147,12 +36148,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var x = BC.int(rng, 2, hard ? 12 : 8);
       var a = BC.int(rng, 2, hard ? 40 : 20), b = BC.int(rng, 2, hard ? 12 : 8), m = BC.int(rng, 2, 9);
       var t = BC.int(rng, 0, 5);
-      if (t === 0) return { x: x, ex: x + ' + ' + a + ' × ' + b, val: x + a * b, slip: (x + a) * b, why: 'Multiply first: ' + a + ' × ' + b + ' = ' + (a * b) + '.' };
-      if (t === 1) return { x: x, ex: '(' + x + ' + ' + a + ') × ' + m, val: (x + a) * m, slip: x + a * m, why: 'Parentheses first: ' + x + ' + ' + a + ' = ' + (x + a) + '.' };
-      if (t === 2) return { x: x, ex: x + ' × ' + m + ' − ' + a, val: x * m - a, slip: x * (m - a), why: 'Multiply first: ' + x + ' × ' + m + ' = ' + (x * m) + '.' };
-      if (t === 3) { var n = m * BC.int(rng, 2, 9); return { x: x, ex: n + ' ÷ ' + m + ' + ' + x, val: n / m + x, slip: n / (m + x), why: 'Divide first: ' + n + ' ÷ ' + m + ' = ' + (n / m) + '.' }; }
-      if (t === 4) return { x: x, ex: x + ' × (' + a + ' − ' + BC.int(rng, 1, Math.max(1, a - 2)) + ')', val: 0, slip: 0, why: 'Parentheses first.' };
-      return { x: x, ex: x + ' + ' + x + ' + ' + a, val: 2 * x + a, slip: x + a, why: 'The two x terms together are ' + (2 * x) + '.' };
+      if (t === 0) return { x: x, ex: 'x + ' + a + ' × ' + b, val: x + a * b, slip: (x + a) * b, why: 'Multiply first: ' + a + ' × ' + b + ' = ' + (a * b) + '.' };
+      if (t === 1) return { x: x, ex: '(x + ' + a + ') × ' + m, val: (x + a) * m, slip: x + a * m, why: 'Parentheses first: ' + x + ' + ' + a + ' = ' + (x + a) + '.' };
+      if (t === 2) return { x: x, ex: 'x × ' + m + ' − ' + a, val: x * m - a, slip: x * (m - a), why: 'Multiply first: ' + x + ' × ' + m + ' = ' + (x * m) + '.' };
+      if (t === 3) { var n = m * BC.int(rng, 2, 9); return { x: x, ex: n + ' ÷ ' + m + ' + x', val: n / m + x, slip: n / (m + x), why: 'Divide first: ' + n + ' ÷ ' + m + ' = ' + (n / m) + '.' }; }
+      if (t === 4) { var cut = BC.int(rng, 1, Math.max(1, a - 2)); return { x: x, ex: 'x × (' + a + ' − ' + cut + ')', val: x * (a - cut), slip: x * a - cut, why: 'Parentheses first: ' + a + ' − ' + cut + ' = ' + (a - cut) + '.' }; }
+      return { x: x, ex: 'x + x + ' + a, val: 2 * x + a, slip: x + a, why: 'The two x terms together are ' + (2 * x) + '.' };
     }
     return UP.build(rng, [
       function () {
@@ -36555,9 +36556,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {
         var rr = rule(), y = rr.m * x + rr.b;
+        var other = y + BC.pick(rng, [1, 2, 3, -1, -2]);
         return UP.cmp(rng, {
-          prompt: 'Choose >, < or =.   y when x = ' + x + ' for ' + rr.text + '  ○  ' + (y + BC.pick(rng, [1, 2, 3, -1, -2])),
-          left: y, right: y + BC.pick(rng, [1, 2, 3, -1, -2]),
+          prompt: 'Choose >, < or =.   y when x = ' + x + ' for ' + rr.text + '  ○  ' + other,
+          left: y, right: other,
           steps: ['Evaluate the rule at x = ' + x + ': y = ' + y + '.', 'Compare with the number on the right.'],
           teach: 'Evaluate the equation first, then compare the values.', b: 0.8
         });
@@ -36583,13 +36585,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var packs = BC.int(rng, 3, 9), each = BC.int(rng, 2, 8), gave = BC.int(rng, 1, packs * each - 1);
     var total = packs * each - gave;
     var boxes = BC.int(rng, 2, 6), per = BC.int(rng, 3, 12), start = BC.int(rng, 5, 30);
+    var shareEach = BC.int(rng, 2, 12), sharedTotal = packs * shareEach;
 
     function story() {
       var k = BC.int(rng, 0, 3);
       if (k === 0) return { text: kid + ' bought ' + packs + ' packs of ' + each + ' ' + obj + ' and gave ' + gave + ' away.', ex: packs + ' × ' + each + ' − ' + gave, val: total };
       if (k === 1) return { text: kid + ' filled ' + boxes + ' boxes with ' + per + ' ' + obj + ' each, then added ' + start + ' more.', ex: boxes + ' × ' + per + ' + ' + start, val: boxes * per + start };
-      if (k === 2) return { text: kid + ' had ' + (start + packs * each) + ' ' + obj + ' and shared them equally among ' + packs + ' friends.', ex: (start + packs * each) + ' ÷ ' + packs, val: (start + packs * each) / packs };
-      return { text: kid + ' collected ' + packs + ' sets of ' + each + ' cards and lost ' + gave + ' on the way to ' + ctx + '.', ex: packs + ' × ' + each + ' − ' + gave, val: total };
+      if (k === 2) return { text: kid + ' had ' + sharedTotal + ' ' + obj + ' and shared them equally among ' + packs + ' friends.', ex: sharedTotal + ' ÷ ' + packs, val: shareEach };
+      return { text: kid + ' collected ' + packs + ' sets of ' + each + ' cards and lost ' + gave + ' along the way.', ex: packs + ' × ' + each + ' − ' + gave, val: total };
+    }
+    function wrongExpression(ex) {
+      if (ex.indexOf(' × ') >= 0) return ex.replace(' × ', ' ÷ ');
+      if (ex.indexOf(' ÷ ') >= 0) return ex.replace(' ÷ ', ' × ');
+      if (ex.indexOf(' + ') >= 0) return ex.replace(' + ', ' − ');
+      return ex.replace(' − ', ' + ');
     }
 
     if (/represent multi-step problems using equations/.test(t)) {
@@ -36605,8 +36614,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           var s = story();
-          return judge(rng, s.text + ' Someone wrote t = ' + s.ex.replace(' × ', ' ÷ ') + '. Do you agree?', false, {
-            steps: ['The story multiplies the groups: ' + packs + ' × ' + each + '.', 'Dividing does not match the story.'],
+          var wrong = wrongExpression(s.ex);
+          return judge(rng, s.text + ' Someone wrote t = ' + wrong + '. Do you agree?', false, {
+            steps: ['The story becomes t = ' + s.ex + '.', 'The written equation uses ' + wrong + ', so it does not match the story.'],
             teach: 'Check an equation by matching each operation to a step in the story.', b: 0.4
           });
         },
@@ -36628,9 +36638,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           var s = story();
+          var other = s.val + BC.pick(rng, [1, 2, 5, -1, -2]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   t = ' + s.ex + '  ○  ' + (s.val + BC.pick(rng, [1, 2, 5, -1, -2])),
-            left: s.val, right: s.val + BC.pick(rng, [1, 2, 5, -1, -2]),
+            prompt: 'Choose >, < or =.   t = ' + s.ex + '  ○  ' + other,
+            left: s.val, right: other,
             steps: ['Solve the equation: t = ' + s.val + '.', 'Compare with the number on the right.'],
             teach: 'Solve the equation first; the comparison follows.', b: 0.8
           });
@@ -36707,7 +36718,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var s = story();
         return choose(rng, s.text + ' Which expression shows the total?', s.ex,
           [s.ex.replace(' × ', ' + '), s.ex.replace(' − ', ' + '), s.ex.replace(' + ', ' × ')], {
-            steps: ['Equal groups: ' + packs + ' × ' + each + ' is the core step.',
+            steps: ['Write the operations in the story as ' + s.ex + '.',
               'Then the last step in the story gives ' + s.ex + '.'],
             teach: 'Turn each story step into one operation, in the same order.', b: 0
           });
@@ -36719,11 +36730,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'Evaluate the expression you wrote for the story.', b: 0.2
         });
       },
-      function () {
-        var s = story();
-        return judge(rng, s.text + ' Someone wrote the expression ' + s.ex.replace(' × ', ' ÷ ') + '. Do you agree?', false, {
-          steps: ['The story has ' + packs + ' equal groups of ' + each + ', which multiplies.',
-            'Dividing would mean sharing, which the story does not say.'],
+        function () {
+          var s = story();
+        var wrong = wrongExpression(s.ex);
+        return judge(rng, s.text + ' Someone wrote the expression ' + wrong + '. Do you agree?', false, {
+          steps: ['The story is written as ' + s.ex + '.',
+            wrong + ' does not keep the story operations.'],
           teach: 'An expression matches a story only when every operation matches a step.', b: 0.5
         });
       },
@@ -36737,9 +36749,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {
         var s = story();
+        var other = s.val + BC.pick(rng, [1, 2, 5, -1, -2]);
         return UP.cmp(rng, {
-          prompt: 'Choose >, < or =.   ' + s.ex + '  ○  ' + (s.val + BC.pick(rng, [1, 2, 5, -1, -2])),
-          left: s.val, right: s.val + BC.pick(rng, [1, 2, 5, -1, -2]),
+          prompt: 'Choose >, < or =.   ' + s.ex + '  ○  ' + other,
+          left: s.val, right: other,
           steps: ['Evaluate the expression: ' + s.val + '.', 'Now compare with the number on the right.'],
           teach: 'Evaluate first, then compare.', b: 0.8
         });
@@ -37024,9 +37037,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () {
           var a = { w: BC.int(rng, 2, 5), h: BC.int(rng, 2, 5), l: BC.int(rng, 2, 5) }, b = { w: BC.int(rng, 2, 4), h: BC.int(rng, 2, 4), l: BC.int(rng, 2, 4) };
           var va = a.w * a.h * a.l, vb = b.w * b.h * b.l;
+          var other = va + vb + BC.pick(rng, [1, 2, 3, -1, -2]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   ' + va + ' + ' + vb + ' cm³  ○  ' + (va + vb + BC.pick(rng, [1, 2, 3, -1, -2])),
-            left: va + vb, right: va + vb + BC.pick(rng, [1, 2, 3, -1, -2]),
+            prompt: 'Choose >, < or =.   ' + va + ' + ' + vb + ' cm³  ○  ' + other,
+            left: va + vb, right: other,
             steps: ['The two parts are ' + va + ' and ' + vb + ' cm³.', 'Their sum is ' + (va + vb) + ' cm³.'],
             teach: 'Add the parts, then compare the total.', b: 0.7
           });
@@ -37135,9 +37149,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           var a = BC.int(rng, 2, 6), b = BC.int(rng, 2, 6);
+          var depth = BC.int(rng, 2, 4);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   ' + a + ' × ' + b + ' × ' + BC.int(rng, 2, 4) + ' cm³  ○  ' + (a * b) + ' cm³',
-            left: a * b * 3, right: a * b,
+            prompt: 'Choose >, < or =.   ' + a + ' × ' + b + ' × ' + depth + ' cm³  ○  ' + (a * b) + ' cm³',
+            left: a * b * depth, right: a * b,
             steps: ['The left solid has a third dimension above 1.', 'A third dimension multiplies the volume.'],
             teach: 'Cubic units multiply by three dimensions; square units by two.', b: 0.5
           });
@@ -37145,7 +37160,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () {
           var s = BC.int(rng, 2, 6);
           var truth = R.chance(rng, 0.5);
-          return judge(rng, 'Is it true or false that a ' + s + ' cm cube holds ' + (s * s * s) + ' cm³?', truth, {
+          var claim = truth ? s * s * s : s * s * s + s;
+          return judge(rng, 'Is it true or false that a ' + s + ' cm cube holds ' + claim + ' cm³?', truth, {
             steps: ['Volume of a cube is side × side × side.', s + ' × ' + s + ' × ' + s + ' = ' + (s * s * s) + ' cm³.'],
             teach: 'The volume of a cube is the side length used three times.', b: 0.6
           });
@@ -37241,9 +37257,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         var d = dims();
         if (decimal) return null;
+        var other = d.v + BC.pick(rng, [1, 2, 5, -1, -2]);
         return UP.cmp(rng, {
-          prompt: 'Choose >, < or =.   ' + d.w + ' × ' + d.h + ' × ' + d.l + ' cm³  ○  ' + (d.v + BC.pick(rng, [1, 2, 5, -1, -2])),
-          left: d.v, right: d.v + BC.pick(rng, [1, 2, 5, -1, -2]),
+          prompt: 'Choose >, < or =.   ' + d.w + ' × ' + d.h + ' × ' + d.l + ' cm³  ○  ' + other,
+          left: d.v, right: other,
           steps: ['Work the volume: ' + d.v + ' cm³.', 'Compare with the number on the right.'],
           teach: 'Multiply first; the comparison follows from the two numbers.', b: 0.9
         });
@@ -37284,9 +37301,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           var a = BC.rect(rng, 8), b = BC.rect(rng, 8);
+          var other = a.area + b.area + BC.pick(rng, [1, 2, 3, -1, -2]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   ' + a.area + ' + ' + b.area + ' m²  ○  ' + (a.area + b.area + BC.pick(rng, [1, 2, 3, -1, -2])),
-            left: a.area + b.area, right: a.area + b.area + BC.pick(rng, [1, 2, 3, -1, -2]),
+            prompt: 'Choose >, < or =.   ' + a.area + ' + ' + b.area + ' m²  ○  ' + other,
+            left: a.area + b.area, right: other,
             steps: ['Parts: ' + a.area + ' and ' + b.area + ' m².', 'Sum: ' + (a.area + b.area) + ' m².'],
             teach: 'Add the parts before comparing.', b: 0.5
           });
@@ -37694,8 +37712,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () {
           var truth = R.chance(rng, 0.5);
           var n = BC.int(rng, 2, 6);
-          return judge(rng, 'Is it true or false that ' + n + '/4 of a yard is ' + (n * 9) + ' inches?', truth, {
-            steps: ['1 yard = 36 inches.', n + '/4 of 36 = ' + (36 * n / 4) + ' inches.', 'The claim says ' + (n * 9) + ' inches.'],
+          var claim = truth ? n * 9 : n * 9 + 3;
+          return judge(rng, 'Is it true or false that ' + n + '/4 of a yard is ' + claim + ' inches?', truth, {
+            steps: ['1 yard = 36 inches.', n + '/4 of 36 = ' + (36 * n / 4) + ' inches.', 'The claim says ' + claim + ' inches.'],
             teach: 'A fraction of a yard is a fraction of 36 inches.', b: 0.6
           });
         },
@@ -39772,9 +39791,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var list = set(7, 3, 12);
           var s = st(list);
           var ans = which === 'mode' ? s.mode : (which === 'mean' ? s.mean : (which === 'median' ? s.median : s.max - s.min));
+          var other = ans + BC.pick(rng, [1, -1]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   the ' + which + ' of the chart  ○  ' + nfmt(ans + BC.pick(rng, [1, -1])),
-            left: ans, right: ans + BC.pick(rng, [1, -1]),
+            prompt: 'Choose >, < or =.   the ' + which + ' of the chart  ○  ' + nfmt(other),
+            left: ans, right: other,
             steps: ['Work the ' + which + ' from the chart.', 'That value is ' + nfmt(ans) + '.'],
             teach: 'Compare the statistic only after computing it.', b: 0.8
           });
@@ -45846,9 +45866,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var third = iint(rng, lvl, 9);
         var p = a * b * third;
         var negs = [a, b, third].filter(function (v) { return v < 0; }).length;
-        return judge(rng, 'Is it true or false that ' + br(a) + ' × ' + br(b) + ' × ' + br(third) + ' = ' + p + '?', negs % 2 === 0, {
+        var truth = R.chance(rng, 0.5);
+        var stated = truth ? p : -p;
+        return judge(rng, 'Is it true or false that ' + br(a) + ' × ' + br(b) + ' × ' + br(third) + ' = ' + stated + '?', truth, {
           steps: ['Absolute values: ' + Math.abs(a) + ' × ' + Math.abs(b) + ' × ' + Math.abs(third) + ' = ' + Math.abs(p) + '.',
-            negs % 2 === 0 ? 'An even number of negatives → positive.' : 'An odd number of negatives → negative.', 'The statement claims ' + p + '.'],
+            negs % 2 === 0 ? 'An even number of negatives → positive.' : 'An odd number of negatives → negative.', 'The statement claims ' + stated + '.'],
           teach: 'Count negative factors: even gives positive, odd gives negative.', b: 0.7
         });
       }
@@ -48119,9 +48141,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var best = fr(6), other = fr(4);
         if (best.n / best.d === other.n / other.d) return null;
         var big = best.n / best.d > other.n / other.d ? best : other;
-        var truth = R.chance(rng, 0.5);
-        return judge(rng, 'Is ' + big.n + '/' + big.d + ' the greatest of ' + best.n + '/' + best.d + ' and ' + other.n + '/' + other.d + '?', truth, {
-          steps: ['Compare the two fractions by cross-multiplying.', 'The greater one is ' + big.n + '/' + big.d + '; the claim says it is ' + (truth ? 'the greatest — true' : 'not the greatest — false') + '.'],
+        var small = big === best ? other : best;
+        var claimed = R.chance(rng, 0.5) ? big : small;
+        var truth = claimed === big;
+        return judge(rng, 'Is ' + claimed.n + '/' + claimed.d + ' the greatest of ' + best.n + '/' + best.d + ' and ' + other.n + '/' + other.d + '?', truth, {
+          steps: ['Compare the two fractions by cross-multiplying.', 'The greater one is ' + big.n + '/' + big.d + '; the claim is ' + (truth ? 'true' : 'false') + '.'],
           teach: '“Greatest of two” is just the comparison in disguise.', b: 0.5
         });
       },
@@ -50942,7 +50966,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var C = E.st.climb;
         var armed = !!((C && C.pin === S.item.skill && C.retries != null && C.retries > 0));
         if (armed && !S.reteachDone) {
-          box.appendChild(h('button', { class: 'btn primary', type: 'button', on: { click: next } }, 'Try the same skill again'));
+          box.appendChild(h('button', { class: 'btn primary', type: 'button', on: { click: next } }, 'Try a similar one'));
           box.appendChild(h('button', { class: 'btn', type: 'button', on: { click: startReteach } }, 'Try an easier one'));
           box.appendChild(h('button', {
             class: 'btn ghost', type: 'button', title: 'stop the retries and move on to another skill',
