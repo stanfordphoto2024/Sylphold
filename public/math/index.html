@@ -52348,7 +52348,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         })),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('button', { class: 'btn primary', type: 'button', on: { click: function () { S.diagReport = null; S.view = 'plan'; render(); } } }, 'See my full plan'),
-          h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.diagReport = null; S.diagStartBand = null; S.item = null; render(); } } }, 'Run it again')
+          /* "Run it again" continues from the level the probe just MEASURED, never
+           * from the grade the learner happened to start on: the whole point of the
+           * diagnostic is that its answer is where the next probe opens. The grade
+           * they chose is still there for "Change the starting grade". */
+          h('button', {
+            class: 'btn ghost', type: 'button', on: {
+              click: function () {
+                var placed = (E.st.diag && (E.st.diag.level || E.st.diag.band)) || E.level().band;
+                if (E.BANDS.indexOf(placed) < 0) placed = E.level().band;
+                S.diagReport = null; S.diagStartBand = placed; startDiag(placed);
+              }
+            }
+          }, 'Run it again'),
+          h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.diagReport = null; S.diagStartBand = null; S.item = null; render(); } } }, 'Change the starting grade')
         ])
       ]));
       return;
