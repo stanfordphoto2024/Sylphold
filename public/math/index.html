@@ -7067,14 +7067,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (covered >= 2 && se <= 2.8) return 'moderate';
     return 'preliminary';
   }
-  function diagStartTheta(st) {
+  function diagStartTheta(st, startBand) {
+    /* The learner chose a grade on the probe card. That choice is their own
+       statement of where to be tested, so the probe opens there and nowhere
+       else — Grade 4 was never a neutral prior, it was a guess that overrode
+       the person holding the tablet. */
+    if (startBand && BANDS.indexOf(startBand) >= 0) return bandMid(startBand);
     var old = st.diag;
     if (old && old.done && isFinite(old.theta)) return old.theta;
     if (st.thetaSeen && isFinite(st.theta)) return st.theta;
-    /* With no age or prior history, Grade 4 is a neutral K–8 prior.  The first
-       routing answers immediately move the estimate; it is not an assumption
-       that the learner belongs in Grade 4. */
-    return bandMid(BANDS.indexOf('G4') >= 0 ? 'G4' : BANDS[Math.floor(BANDS.length / 2)]);
+    /* Nothing chosen yet: open on the level Practice is standing on, which is
+       itself the level chosen in the picker (or Pre-K for a learner who has
+       never been placed). */
+    var standing = climbHomeBand(st);
+    return bandMid(BANDS.indexOf(standing) >= 0 ? standing : BANDS[0]);
   }
   function diagPick(st, D, rng) {
     var desired = D.asked < DIAG_ROUTE ? DIAG_DOMAINS[D.asked % DIAG_DOMAINS.length] : diagLeastDomain(D);
@@ -7117,10 +7123,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     item.lvl = lvl;
     return item;
   }
-  function diagStart(st) {
-    var old = st.diag, prior = diagStartTheta(st), b = bandAtTheta(prior);
+  function diagStart(st, startBand) {
+    var old = st.diag, prior = diagStartTheta(st, startBand), b = bandAtTheta(prior);
+    var chosen = (startBand && BANDS.indexOf(startBand) >= 0) ? startBand : null;
     st.diag = {
       model: 'adaptive-v2', phase: 'routing', theta: prior, band: b, level: b,
+      startBand: chosen,
       asked: 0, correct: 0, limit: DIAG_LIMIT, route: DIAG_ROUTE, info: 0.04,
       cover: {}, domains: {}, strands: {}, bands: {}, results: [], hist: [], done: false,
       from: old && old.done ? { theta: old.theta, asked: old.asked || 0, at: now() } : null,
@@ -7315,7 +7323,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       statusOf: function (id) { return statusOf(st.sk[id]); },
       skillState: function (id) { return st.sk[id]; },
       frontierIndex: function () { return frontierIndex(st); },
-      diagStart: function () { return diagStart(st); },
+      diagStart: function (band) { return diagStart(st, band); },
       diagNext: function () { return diagNext(st); },
       diagAnswer: function (item, ok) { return diagAnswer(st, item, ok); },
       diagActive: function () { return !!(st.diag && !st.diag.done); },
@@ -52319,13 +52327,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (!S.diagReport && E.st.diag && E.st.diag.done) { try { S.diagReport = E.placement(); } catch (e) { } }
     if (S.diagReport) {
       var p = S.diagReport, askedN = (E.st.diag && E.st.diag.asked) || 0, ds = p.diagnostic || null;
+      var sb = (E.st.diag && E.st.diag.startBand) || null;
       var evidence = ds && ds.domains ? Object.keys(ds.domains).filter(function (k) { return ds.domains[k] > 0; }).length : 0;
       var precision = ds && isFinite(ds.standardError) ? '±' + (ds.standardError / 8).toFixed(1) + ' level bands' : '';
       var confidence = ds ? (ds.confidence === 'strong' ? 'strong' : ds.confidence === 'moderate' ? 'moderate' : 'preliminary') : '';
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement result' }),
         h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b>. Practice starts here:' }),
-        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'Based on ' + askedN + ' adaptive diagnostic questions' : '' }),
+        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'Based on ' + askedN + ' adaptive diagnostic questions' + (sb ? ', starting from ' + (E.BAND_LABEL[sb] || sb) : '') : '' }),
         ds ? h('div', { class: 'hintbox', style: { marginTop: '12px' }, text: 'Evidence: ' + evidence + ' mathematical areas · ' + confidence + ' confidence' + (precision ? ' · precision ' + precision : '') + '. This is a placement aid, not a norm-referenced standardized test.' }) : null,
         h('div', { class: 'skill-list', style: { marginTop: '12px' } }, (p.plan || []).slice(0, 5).map(function (row) {
           return h('div', { class: 'skill' }, [
@@ -52339,18 +52348,37 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         })),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('button', { class: 'btn primary', type: 'button', on: { click: function () { S.diagReport = null; S.view = 'plan'; render(); } } }, 'See my full plan'),
-          h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.diagReport = null; startDiag(); } } }, 'Run it again')
+          h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.diagReport = null; S.diagStartBand = null; S.item = null; render(); } } }, 'Run it again')
         ])
       ]));
       return;
     }
     if (!E.diagActive()) {
+      /* The learner decides where the probe opens. It used to open on a Grade-4
+       * assumption whatever the picker said, so a Grade-2 learner was first asked
+       * Grade-4 arithmetic and a Grade-7 learner was asked Pre-K counting. The
+       * probe still moves up and down from the answers — only its STARTING point
+       * is the learner's choice, and it is read from the level picker when this
+       * card has not been touched. */
+      var startBand = S.diagStartBand || E.level().band;
+      if (E.BANDS.indexOf(startBand) < 0) startBand = E.BANDS[0];
+      var gradePick = h('select', { class: 'lvlpick', title: 'Choose the grade the probe starts from' });
+      E.BANDS.forEach(function (b) { gradePick.appendChild(h('option', { value: b, text: E.BAND_LABEL[b] || b })); });
+      gradePick.value = startBand;
+      var gradeAt = h('span', { class: 'tiny', text: 'It opens at ' + (E.BAND_LABEL[startBand] || startBand) + ' and moves up or down from your answers.' });
+      gradePick.addEventListener('change', function () {
+        S.diagStartBand = gradePick.value || E.level().band;
+        gradeAt.textContent = 'It opens at ' + (E.BAND_LABEL[S.diagStartBand] || S.diagStartBand) + ' and moves up or down from your answers.';
+      });
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Adaptive placement diagnostic' }),
         h('div', { class: 'muted', html: 'This <b>' + (E.diagLimit() || 24) + '-question diagnostic</b> adapts each next question to your responses. The first part locates a working range; the second confirms it across number and operations, algebra and functions, geometry and measurement, and data and probability. Your result includes a precision indicator and starts Practice at the estimated level.' }),
+        h('div', { class: 'row', style: { marginTop: '14px' } }, [
+          h('b', { text: 'Start from:' }), gradePick, gradeAt
+        ]),
         h('div', { class: 'tiny', style: { marginTop: '9px' }, text: 'It is a structured placement aid, not a state-standardized or norm-referenced test.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
-          h('button', { class: 'btn primary', type: 'button', on: { click: startDiag } }, 'Start the probe'),
+          h('button', { class: 'btn primary', type: 'button', on: { click: function () { startDiag(S.diagStartBand || E.level().band); } } }, 'Start the probe'),
           h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.view = 'practice'; render(); } } }, 'Just start practicing')
         ])
       ]));
@@ -52370,10 +52398,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     ]));
     renderItem();
   }
-  function startDiag() {
+  function startDiag(band) {
     S.diagReport = null; S.queue = []; S.attempts = 0; S.answered = false; S.revealed = false; S.lastRec = null;
     var it = null;
-    try { it = E.diagStart(); } catch (e) { it = null; }
+    try { it = E.diagStart(band || E.level().band); } catch (e) { it = null; }
     S.item = it;
     S.view = 'diag';
     render();
