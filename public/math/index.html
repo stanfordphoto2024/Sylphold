@@ -359,8 +359,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-02 — 61 modules inlined:
-   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 20-ui.js
+/* MathPath 2026-10-03 — 63 modules inlined:
+   00-core.js, 01-skills.js, 02-engine.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
 <script>
@@ -6777,7 +6777,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       frontier: frontier, frontierStatus: statusOf(st.sk[frontier.id]),
       gaps: gaps, plan: plan, byBand: byBand, bands: BANDS, topReady: topBand, totals: tot,
       approaching: ready, coverage: attempted(st) / L.length, readyPct: tot.rate,
-      attempted: attempted(st), total: L.length
+      attempted: attempted(st), total: L.length, diagnostic: diagnosticSummary(st)
     };
   }
   /* study plan: the frontier skill, its gap neighbours, then the next few new ones */
@@ -7010,66 +7010,172 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
 
   /* ---------------------------------------------------------- diagnostic --- */
-  /* The placement probe is the same level machine wearing a different hat. It
-     opens on the level the learner is already on — Pre-K for anyone who has
-     never been placed, never mid-ladder — and it asks that level's questions.
-     Ten right IN A ROW and the probe moves up a level and starts asking the
-     next level's questions; a wrong answer keeps it on the level; three wrong in
-     a row drops it one. Where the probe ends is where practice starts.
-     Two invariants the UI depends on:
-       · every question served is a probe question, and
-       · the probe asks exactly `limit` questions — it never stops early while it
-         still has a level it can ask. A probe that quits at 23 of 30 leaves the
-         learner staring at a counter that stopped moving. */
-  var DIAG_LIMIT = 30;                 // questions the learner is promised
-  var PER_SKILL = 3;                   // items of one skill before it is re-asked
+  /*
+   * Structured adaptive diagnostic (CAT)
+   * ------------------------------------
+   * The previous probe was a level-climb: ten consecutive successes moved a
+   * learner up, and three consecutive misses moved them down.  That made one
+   * unlucky streak or a run of closely related skills carry too much weight.
+   *
+   * This diagnostic estimates ability from every response using the same 1PL
+   * probability model used by the tutor.  Eight routing items rapidly centre
+   * the estimate; sixteen confirmation items sample all four broad mathematics
+   * domains near that estimate.  The result records its standard-error-like
+   * precision indicator and evidence by domain.  It is a more dependable
+   * placement aid, not a norm-referenced or state-standardised assessment.
+   */
+  var DIAG_LIMIT = 24;
+  var DIAG_ROUTE = 8;
+  var DIAG_STEP = 3.0;
+  var DIAG_DOMAINS = ['Number and operations', 'Algebra and functions', 'Geometry and measurement', 'Data and probability'];
 
+  function bandAtTheta(theta) {
+    var best = BANDS[0], dist = Infinity, i, d;
+    for (i = 0; i < BANDS.length; i++) {
+      d = Math.abs(bandMid(BANDS[i]) - theta);
+      if (d < dist) { dist = d; best = BANDS[i]; }
+    }
+    return best;
+  }
+  function diagDomain(sk) {
+    var t = String((sk && sk.name) || '').toLowerCase() + ' ' + String((sk && sk.strand) || '').toLowerCase();
+    if (/data|statistics|probab|sample|mean|median|mode|range|plot|graph|histogram|distribution|frequency|correlation/.test(t)) return DIAG_DOMAINS[3];
+    if (/geometry|shape|angle|circle|polygon|triangle|area|perimeter|volume|measurement|unit|coordinate|slope|transform|dilation|congruen|similar|pythagor|trig/.test(t)) return DIAG_DOMAINS[2];
+    if (/equation|inequal|expression|variable|function|polynomial|quadratic|sequence|matrix|vector|derivative|integral|limit|logarithm/.test(t)) return DIAG_DOMAINS[1];
+    return DIAG_DOMAINS[0];
+  }
+  function diagLeastDomain(D) {
+    var best = DIAG_DOMAINS[0], low = Infinity, i, n;
+    for (i = 0; i < DIAG_DOMAINS.length; i++) {
+      n = D.domains[DIAG_DOMAINS[i]] || 0;
+      if (n < low) { low = n; best = DIAG_DOMAINS[i]; }
+    }
+    return best;
+  }
+  function diagPrecision(D) {
+    var info = Math.max(0.04, D.info || 0.04);
+    return W / Math.sqrt(info);
+  }
+  function diagReliability(D) {
+    var se = diagPrecision(D), r = clamp(1 - (se * se) / 36, 0, 0.95);
+    return Math.round(r * 100);
+  }
+  function diagConfidence(D) {
+    var least = diagLeastDomain(D), covered = D.domains[least] || 0, se = diagPrecision(D);
+    if (D.asked < DIAG_ROUTE) return 'routing';
+    if (covered >= 3 && se <= 2.1) return 'strong';
+    if (covered >= 2 && se <= 2.8) return 'moderate';
+    return 'preliminary';
+  }
+  function diagStartTheta(st) {
+    var old = st.diag;
+    if (old && old.done && isFinite(old.theta)) return old.theta;
+    if (st.thetaSeen && isFinite(st.theta)) return st.theta;
+    /* With no age or prior history, Grade 4 is a neutral K–8 prior.  The first
+       routing answers immediately move the estimate; it is not an assumption
+       that the learner belongs in Grade 4. */
+    return bandMid(BANDS.indexOf('G4') >= 0 ? 'G4' : BANDS[Math.floor(BANDS.length / 2)]);
+  }
+  function diagPick(st, D, rng) {
+    var desired = D.asked < DIAG_ROUTE ? DIAG_DOMAINS[D.asked % DIAG_DOMAINS.length] : diagLeastDomain(D);
+    var list = root.SKILLS || [], cands = [], pass, i, sk, domain, score, seen, strandN;
+    for (pass = 0; pass < 2 && !cands.length; pass++) {
+      for (i = 0; i < list.length; i++) {
+        sk = list[i];
+        if (!playable(sk.id) || (D.cover[sk.id] || 0) >= 1) continue;
+        domain = diagDomain(sk);
+        if (pass === 0 && domain !== desired) continue;
+        seen = D.cover[sk.id] || 0;
+        strandN = D.strands[sk.strand] || 0;
+        /* Items near p=.5 provide the most information.  The domain/strand
+           terms make the confirmation stage a sample of mathematics rather
+           than 24 near-duplicate questions from one catalogue topic. */
+        score = Math.abs(sk.b - D.theta) + seen * 20 + strandN * 0.55 + (domain === desired ? 0 : 2.5);
+        score += rng() * 0.18;                       /* fair ties, deterministic from engine RNG */
+        cands.push({ sk: sk, score: score });
+      }
+    }
+    if (!cands.length) return null;
+    cands.sort(function (a, b) { return a.score - b.score; });
+    /* A generator can refuse a card (its template prints its own answer).  The
+       probe must still reach its limit, so the next-ranked question is tried
+       before the diagnostic gives up — never the probe ending at question 20
+       of 24 because one skill happened to be drawn. */
+    var room = cands.length < 8 ? cands.length : 8, c = 0, best = null, lvl = 3, item = null, tries = 0;
+    for (c = 0; c < room && !item; c++) {
+      best = cands[c].sk;
+      lvl = clamp(3 + Math.round((D.theta - best.b) / 5), 1, 5);
+      tries = 0;
+      while (!item && tries++ < 8) { try { item = root.genFor(best.id, rng, lvl); } catch (e) { item = null; } }
+    }
+    if (!item) return null;
+    D.cover[best.id] = (D.cover[best.id] || 0) + 1;
+    D.domains[desired] = D.domains[desired] || 0;     /* retain zero-count domains in exports */
+    D.domains[diagDomain(best)] = (D.domains[diagDomain(best)] || 0) + 1;
+    D.strands[best.strand] = (D.strands[best.strand] || 0) + 1;
+    D.bands[best.band] = (D.bands[best.band] || 0) + 1;
+    item.lvl = lvl;
+    return item;
+  }
   function diagStart(st) {
-    var prev = st.diag && st.diag.done ? { theta: st.theta, asked: st.diag.asked || 0, at: Date.now() } : null;
-    var from = prev ? (st.diag.level || st.diag.band || null) : null;
-    var b = climbHomeBand(st);                       /* Pre-K until a probe says otherwise */
-    if (BANDS.indexOf(b) < 0) b = BANDS[0];
+    var old = st.diag, prior = diagStartTheta(st), b = bandAtTheta(prior);
     st.diag = {
-      phase: 'probe', band: b, level: b, streak: 0, wrong: 0, best: 0, cover: {}, pin: null,
-      asked: 0, correct: 0, limit: DIAG_LIMIT, results: [], hist: [], done: false,
-      from: prev, fromBand: from
+      model: 'adaptive-v2', phase: 'routing', theta: prior, band: b, level: b,
+      asked: 0, correct: 0, limit: DIAG_LIMIT, route: DIAG_ROUTE, info: 0.04,
+      cover: {}, domains: {}, strands: {}, bands: {}, results: [], hist: [], done: false,
+      from: old && old.done ? { theta: old.theta, asked: old.asked || 0, at: now() } : null,
+      fromBand: old && old.done ? (old.level || old.band || null) : null
     };
-    anchorLevel(st, b);                              /* θ starts on the level being probed */
     return diagNext(st);
   }
   function diagNext(st) {
-    var D = st.diag;
+    var D = st.diag, item;
     if (!D || D.done) return null;
     if (D.asked >= D.limit) { diagFinish(st); return null; }
-    var item = levelCard(st, D, root.__rng || Math.random);    if (!item) { diagFinish(st); return null; }      // nothing written anywhere left to ask
-    item.diag = { n: D.asked + 1, of: D.limit, level: D.band, label: BAND_LABEL[D.band] || D.band };
+    D.phase = D.asked < D.route ? 'routing' : 'confirming';
+    item = diagPick(st, D, root.__rng || Math.random);
+    if (!item) { diagFinish(st); return null; }
+    D.band = bandAtTheta(D.theta);
+    item.diag = {
+      n: D.asked + 1, of: D.limit, level: D.band, label: BAND_LABEL[D.band] || D.band,
+      phase: D.phase, domain: diagDomain(root.SKILL_BY_ID[item.skill]), confidence: diagConfidence(D)
+    };
     D.skill = item.skill;
     return item;
   }
   function diagAnswer(st, item, ok) {
     var D = st.diag;
     if (!D || D.done) return null;
-    var p = prob(st.theta, item.b);
-    st.theta = clamp(st.theta + K_THETA * ((ok ? 1 : 0) - p), -10, 125);
-    anchorTheta(st);
-    var s = S(st, item.skill);
-    s.m = clamp(s.m + 0.34 * ((ok ? 1 : 0) - s.m), 0, 1);
-    s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.b = s.b == null ? item.b : s.b + 0.35 * (item.b - s.b);
-    s.last = now();
+    var p = prob(D.theta, item.b), information = p * (1 - p) / (W * W);
+    D.theta = clamp(D.theta + DIAG_STEP * ((ok ? 1 : 0) - p), -10, 125);
+    D.info += information;
     D.asked++; D.correct += ok ? 1 : 0;
-    D.pin = ok ? null : item.skill;                  // a miss is answered with a similar card
-    D.results.push({ id: item.skill, band: D.band, ok: ok ? 1 : 0 });
-    var moved = levelMove(D, ok);
-    if (moved) anchorLevel(st, D.band);
-    D.hist.push({ t: now(), band: D.band, ok: ok ? 1 : 0, moved: moved || null });
-    if (moved === 'top' || D.asked >= D.limit) diagFinish(st);
+    D.band = bandAtTheta(D.theta);
+    var s = S(st, item.skill);
+    s.m = clamp(s.m + 0.28 * ((ok ? 1 : 0) - s.m), 0, 1);
+    s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.b = s.b == null ? item.b : s.b + 0.35 * (item.b - s.b); s.last = now();
+    D.results.push({ id: item.skill, band: (root.SKILL_BY_ID[item.skill] || {}).band || D.band, domain: diagDomain(root.SKILL_BY_ID[item.skill]), b: +item.b.toFixed(2), p: +p.toFixed(3), ok: ok ? 1 : 0 });
+    D.hist.push({ t: now(), band: D.band, theta: +D.theta.toFixed(2), se: +diagPrecision(D).toFixed(2), ok: ok ? 1 : 0 });
+    if (D.hist.length > 200) D.hist = D.hist.slice(-160);
+    if (D.asked >= D.limit) diagFinish(st);
     return D.done ? placement(st) : null;
+  }
+  function diagnosticSummary(st) {
+    var D = st && st.diag;
+    if (!D || !D.done || !isFinite(D.theta)) return null;
+    return {
+      model: D.model || 'legacy', asked: D.asked || 0, correct: D.correct || 0, theta: D.theta,
+      standardError: diagPrecision(D), reliability: diagReliability(D), confidence: diagConfidence(D),
+      domains: D.domains || {}, bands: D.bands || {}, route: D.route || 0
+    };
   }
   function diagFinish(st) {
     var D = st.diag;
-    D.done = true; D.phase = 'done';
-    D.level = D.band;                                /* the level the probe reached ... */
-    climbStart(st, D.level);                         /* ... is the level practice starts on */
+    if (!D) return null;
+    D.done = true; D.phase = 'done'; D.level = bandAtTheta(D.theta); D.band = D.level;
+    D.standardError = diagPrecision(D); D.reliability = diagReliability(D); D.confidence = diagConfidence(D);
+    st.theta = D.theta; st.thetaSeen = Math.max(st.thetaSeen || 0, D.asked || 0);
+    climbStart(st, D.level);                         /* practice starts at the estimated level */
     return placement(st);
   }
 
@@ -7161,6 +7267,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
        stays counted, and the Report still shows what was asked. */
     if (st.diag) {
       var D = st.diag;
+      /* A partially completed probe from the former streak-based algorithm
+         * cannot be mixed with adaptive information.  Preserve every recorded
+         * answer and close that old result; the learner can start a clean CAT
+         * probe from the report. */
+      if (D.model !== 'adaptive-v2' && !D.done) { D.done = true; D.phase = 'done'; D.model = 'legacy'; }
       if (!D.cover || typeof D.cover !== 'object') D.cover = {};
       if (!D.level || BANDS.indexOf(D.level) < 0) {
         var last = null, res = D.results || [], i;
@@ -7242,7 +7353,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     createEngine: createEngine, blankState: blankState, load: load, save: save,
     statusOf: statusOf, STATUS_LABEL: STATUS_LABEL, BANDS: BANDS, BAND_LABEL: BAND_LABEL,
     prob: prob, clamp: clamp, PASS_M: PASS_M, PASS_N: PASS_N,
-    DIAG_LIMIT: DIAG_LIMIT, DIAG_PER_SKILL: PER_SKILL,
+    DIAG_LIMIT: DIAG_LIMIT, DIAG_ROUTE: DIAG_ROUTE,
     climbState: climbState, climbHomeBand: climbHomeBand, CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
     bandStats: bandStats, activeBand: activeBand, bandMid: bandMid
   };
@@ -20604,7 +20715,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     G5: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: false, decimals: 3, fracDen: [2, 15] },
     G6: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 20] },
     G7: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
-    G8: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] }
+    G8: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
+    A1: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
+    GM: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
+    A2: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
+    PC: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] },
+    MA: { addMax: [3, 6], subMax: [3, 6], mulDigits: [2, 5], divDigits: [2, 5], negatives: true, decimals: 4, fracDen: [2, 24] }
   };
   UP.policy = function (sk) {
     var b = (sk && sk.band) || 'G4';
@@ -23178,6 +23294,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   UP.on(/^(add|subtract|add and subtract) (fractions|mixed numbers|3 or more fractions)|^(add|subtract) fractions|^subtract fractions/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
+    /* A title that names unlike denominators is a DIFFERENT standard: this
+       handler only ever draws like-denominator pairs, so serving "Add fractions
+       with unlike denominators" from here teaches the wrong thing. Hand it to
+       the unlike handler below, which computes a least common denominator. */
+    if (/unlike denominators|denominators 10 and 100/.test(t)) return null;
     var isSub = /^subtract/.test(t) || (/subtract/.test(t) && !/^add/.test(t));
     var mixedAsk = /mixed numbers/.test(t);
     var three = /3 or more/.test(t);
@@ -49473,6 +49594,54 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 </script>
 <script>
 /* =============================================================================
+ * 99-gen-fam-band-hssweep.js — route the high-school ladder through UP.
+ *
+ * 99-gen-fam-band-router.js sweeps G4→G8. The high-school bands (A1, GM, A2,
+ * PC, MA) were never swept: every title the classifier missed fell all the way
+ * into 99-gen-zcompletion.js, whose fixed example questions cannot support
+ * practice (the learner solves the same card forever) and whose keyword routing
+ * serves a supplementary-angle question for "Pythagorean theorem: find the
+ * hypotenuse". That is the wrong mathematics at the wrong moment.
+ *
+ * This file does for the high-school bands exactly what the router sweep does
+ * for the middle-school ones: a skill with a title handler gets the handler;
+ * a skill with no handler stays unregistered so zcompletion can still answer
+ * for it honestly. The name sorts after 98-gen-fam-band-h*.js (whose handlers
+ * register here) and before 99-gen-zcompletion.js.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var UP = GLOB.UP;
+  if (!UP || typeof UP.find !== 'function' || typeof GLOB.G !== 'function') return;
+
+  var SK = GLOB.SKILLS || [];
+  var GEN = GLOB.SKILL_GEN || {};
+
+  var BANDS = ['A1', 'GM', 'A2', 'PC', 'MA'];
+
+  var swept = 0, i;
+  for (i = 0; i < SK.length; i++) {
+    var sk = SK[i];
+    if (BANDS.indexOf(sk.band) < 0) continue;
+    if (!UP.find(sk)) continue;                  /* no handler for this title yet */
+    /* Unlike the G4→G8 sweep, a title handler here also OVERWRITES an arch
+       family registration: for the high-school bands the classifier's keyword
+       match is the only parameter those skills ever get, and a title handler
+       ("Pythagorean theorem…", "Slope from two points…") is strictly more
+       specific than a family guess (statistics/functions/geometryAngles). */
+    (function (row) {
+      GLOB.G(row.id, function (rng, lvl) { return UP.route(rng, lvl, {}, row); });
+    })(sk);
+    swept++;
+  }
+
+  GLOB.HS_SWEEP = swept;
+})();
+
+</script>
+<script>
+/* =============================================================================
  * 99-gen-fam-band-router.js — route the skills the classifier never saw.
  *
  * src/99-gen-arch.js can only register a skill that the classifier put into a
@@ -49604,7 +49773,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function card(rng, sk, question, answer, wrongs, method, concept) {
     var prefix = lead(rng, sk), opts = options(rng, answer, wrongs), shown = String(answer);
-    return I_choice(prefix + question, opts, opts.indexOf(shown), {
+    /* The completion bank used to rotate only `prefix`, leaving one immutable
+       * problem under every broad title.  Keep the specialised fact, but vary
+       * the task the learner performs with it.  These forms are deliberately
+       * part of the question (not a cosmetic lead-in), so repeated practice is
+       * not the same card with a different opening sentence. */
+    var form = pick(rng, [
+      question,
+      'Use the information below to determine the correct result. ' + question,
+      'Check the mathematical relationship, then select its result. ' + question,
+      'Which option completes this task correctly? ' + question
+    ]);
+    return I_choice(prefix + form, opts, opts.indexOf(shown), {
       explain: [
         concept || ('Identify the rule that applies to this ' + sk.name + ' example.'),
         method,
@@ -49911,6 +50091,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return fallback(rng, sk);
   }
 
+  /* Keep an explicit record of the emergency cards this file owns.  A later
+     curriculum repair layer may replace only these cards with a more specific
+     title-and-grade generator; specialised generators registered earlier stay
+     untouched. */
+  var COMPLETION_IDS = GLOB.COMPLETION_IDS || (GLOB.COMPLETION_IDS = {});
   var added = 0, i, sk;
   for (i = 0; i < SK.length; i++) {
     sk = SK[i];
@@ -49918,9 +50103,502 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     (function (row) {
       G(row.id, function (rng, lvl) { return generate(rng, lvl, row); });
     })(sk);
+    COMPLETION_IDS[sk.id] = true;
     added++;
   }
   GLOB.COMPLETION_SERVED = added;
+})();
+
+</script>
+<script>
+/* =============================================================================
+ * 99-gen-zz-curriculum-repair.js
+ *
+ * The catalogue contains IXL-sized skill titles, while California's standards
+ * define the grade-level mathematics.  This final layer only replaces (1) an
+ * emergency completion card and (2) a card that the title/content audit marked
+ * as a mismatch.  It is intentionally loaded after all specialist generators.
+ *
+ * Every branch draws its own quantities, uses the words and representation in
+ * the title, and offers eight genuinely different prompt structures.  That
+ * prevents the old "one fixed example with a rotating lead-in" failure.
+ * ============================================================================= */
+(function () {
+  'use strict';
+  var GLOB = (typeof window !== 'undefined') ? window : globalThis;
+  var SK = GLOB.SKILLS || [], G = GLOB.G, DONE = GLOB.COMPLETION_IDS || {};
+  var I_choice = GLOB.I_choice, I_bool = GLOB.I_bool, V = GLOB.V;
+  if (!G || !I_choice || !I_bool || !V) return;
+
+  function int(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
+  function pick(rng, a) { return a[int(rng, 0, a.length - 1)]; }
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = a % b; a = b; b = t; } return a || 1; }
+  function frac(n, d) {
+    var g = gcd(n, d); n = n / g; d = d / g;
+    if (d < 0) { n = -n; d = -d; }
+    return d === 1 ? String(n) : n + '/' + d;
+  }
+  function dec(n) {
+    var neg = n < 0 ? '-' : ''; n = Math.abs(n);
+    return neg + Math.floor(n / 10) + '.' + (n % 10);
+  }
+  function comma(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  /* A decimal result must print as a decimal a learner can read: 7.9 × 100 is
+     790, not 790.0000000000001.  Six places is far more than any card here. */
+  function tidy(x) { return String(Math.round(x * 1e6) / 1e6); }
+  function options(rng, answer, wrongs) {
+    var out = [String(answer)], i, w, j;
+    for (i = 0; i < wrongs.length && out.length < 5; i++) {
+      w = String(wrongs[i]);
+      for (j = 0; j < out.length; j++) if (out[j] === w) break;
+      if (j === out.length && w !== '') out.push(w);
+    }
+    if (out.length < 2) out.push(String(answer) + ' not');
+    for (i = out.length - 1; i > 0; i--) {
+      j = int(rng, 0, i); w = out[i]; out[i] = out[j]; out[j] = w;
+    }
+    return out;
+  }
+  var SHAPES = [
+    'Calculate the exact result. ',
+    'Use the relationship to find the missing result. ',
+    'Select the result that makes the statement true. ',
+    'Reason with the quantities and choose the correct value. ',
+    'Check the mathematical structure, then answer. ',
+    'Use a related fact to determine the result. ',
+    'Which option completes this grade-level task? ',
+    'Model the situation and select its output. '
+  ];
+  function card(rng, lvl, q, answer, wrongs, steps, teach, visual) {
+    var opts = options(rng, answer, wrongs), shown = String(answer);
+    return I_choice(pick(rng, SHAPES) + q, opts, opts.indexOf(shown), {
+      visual: visual,
+      explain: [steps[0], steps[1] || ('The computed value is ' + shown + '.'), 'So the answer is <b>' + shown + '</b>.'],
+      teach: teach,
+      b: (lvl - 3) * 0.32
+    });
+  }
+  function yes(rng, lvl, q, value, steps, teach, visual) {
+    return I_bool(pick(rng, SHAPES) + q, value, {
+      visual: visual,
+      explain: [steps[0], steps[1], 'Therefore the statement is <b>' + (value ? 'true' : 'false') + '</b>.'],
+      teach: teach,
+      b: (lvl - 3) * 0.32
+    });
+  }
+
+  function factorItem(rng, lvl, t) {
+    var p = pick(rng, [2, 3, 5, 7]), q = pick(rng, [3, 5, 7, 11]), n, a, b, g, l;
+    if (/prime or composite/.test(t)) {
+      n = rng() < 0.5 ? p : p * q;
+      a = n === p ? 'prime' : 'composite';
+      return card(rng, lvl, 'Is ' + n + ' prime or composite?', a, [a === 'prime' ? 'composite' : 'prime', 'neither'],
+        [n === p ? n + ' has exactly two positive factors: 1 and ' + n + '.' : n + ' = ' + p + ' × ' + q + ', so it has factors besides 1 and itself.',
+          'A number with exactly two positive factors is prime.'], 'Prime numbers have exactly two positive factors; composite numbers have more than two.');
+    }
+    if (/prime factor/.test(t)) {
+      n = p * q;
+      return card(rng, lvl, 'Write the prime factorization of ' + n + '.', p + ' × ' + q,
+        [String(n), String(p + q), p + ' + ' + q], [n + ' is divisible by ' + p + '.', n + ' ÷ ' + p + ' = ' + q + ', and both factors are prime.'],
+        'A prime factorization writes a number as a product of prime numbers.');
+    }
+    a = int(rng, 2, 8) * p; b = int(rng, 2, 8) * p; g = gcd(a, b); l = Math.abs(a * b) / g;
+    if (/greatest common|gcf/.test(t)) {
+      return card(rng, lvl, 'Find the greatest common factor of ' + a + ' and ' + b + '.', g, [p, g * p, a + b],
+        ['Both numbers are multiples of ' + g + '.', 'No larger common factor divides both ' + a + ' and ' + b + '.'],
+        'The greatest common factor is the largest whole number that divides every given number.');
+    }
+    if (/least common|lcm/.test(t)) {
+      return card(rng, lvl, 'Find the least common multiple of ' + a + ' and ' + b + '.', l, [g, a + b, a * b],
+        [l + ' ÷ ' + a + ' = ' + (l / a) + ' and ' + l + ' ÷ ' + b + ' = ' + (l / b) + '.', l + ' is the smallest positive multiple shared by both numbers.'],
+        'The least common multiple is the smallest positive multiple shared by every given number.');
+    }
+    n = p * q;
+    return card(rng, lvl, 'Which number is a factor of ' + n + '?', p, [q + 1, n - 1, p + q],
+      [n + ' = ' + p + ' × ' + q + '.', 'Because ' + p + ' divides ' + n + ' with no remainder, it is a factor.'],
+      'A factor divides a whole number evenly.');
+  }
+
+  function fractionItem(rng, lvl, t) {
+    var d = pick(rng, lvl < 3 ? [2, 3, 4, 5] : [3, 4, 5, 6, 8]), a = int(rng, 1, d - 1), b = int(rng, 1, d - 1);
+    var e = pick(rng, [2, 3, 4, 5, 6]), c = int(rng, 1, e - 1), n, den, ans, op;
+    if (/number line/.test(t)) {
+      if (/equivalent/.test(t)) { n = a * 2; den = d * 2; ans = frac(n, den); }
+      else { n = a; den = d; ans = frac(n, den); }
+      return card(rng, lvl, 'A number line from 0 to 1 is split into ' + den + ' equal parts. What fraction is point P at, if P is ' + n + ' parts from 0?', ans,
+        [frac(n + 1, den), frac(n, den + 1), frac(den - n, den)],
+        ['Each equal interval is one ' + den + 'th.', 'Point P is ' + n + ' equal intervals to the right of 0.'],
+        'A point on a fraction number line is named by the number of equal parts from zero.',
+        V.numline(0, 1, [{ x: n / den, label: 'P' }], { halves: den === 2 }));
+    }
+    if (/equivalent|lowest terms|simplest/.test(t)) {
+      n = a * 2; den = d * 2; ans = frac(a, d);
+      return card(rng, lvl, 'Write ' + n + '/' + den + ' in simplest form.', ans, [frac(n, d), frac(a, den), frac(a + 1, d)],
+        ['Divide the numerator and denominator by their common factor 2.', n + ' ÷ 2 = ' + a + ' and ' + den + ' ÷ 2 = ' + d + '.'],
+        'Equivalent fractions name the same amount when numerator and denominator are scaled by the same factor.');
+    }
+    if (/divide|quotient/.test(t)) {
+      ans = frac(a * e, d * c);
+      return card(rng, lvl, 'Find ' + a + '/' + d + ' ÷ ' + c + '/' + e + '.', ans,
+        [frac(a * c, d * e), frac(a + e, d + c), frac(a * e, d + c)],
+        ['Keep ' + a + '/' + d + ' and multiply by the reciprocal ' + e + '/' + c + '.', a + ' × ' + e + ' = ' + (a * e) + ' and ' + d + ' × ' + c + ' = ' + (d * c) + '.'],
+        'To divide by a fraction, multiply by its reciprocal.');
+    }
+    if (/multiply|product/.test(t)) {
+      ans = frac(a * c, d * e);
+      return card(rng, lvl, 'Find ' + a + '/' + d + ' × ' + c + '/' + e + '.', ans,
+        [frac(a + c, d + e), frac(a * e, d * c), frac(a * c, d + e)],
+        ['Multiply numerators: ' + a + ' × ' + c + ' = ' + (a * c) + '.', 'Multiply denominators: ' + d + ' × ' + e + ' = ' + (d * e) + '.'],
+        'Multiply fractions by multiplying numerators and denominators, then simplify.');
+    }
+    /* Add/subtract.  A drawn pair is rejected unless the result is a positive
+       fraction AND the result is not one of the fractions printed on the card —
+       "Find 2/4 − 1/4" hands the learner 1/4, so core would redraw it on every
+       attempt and the card would never appear. */
+    var sub = /subtract|difference/.test(t), unlike = /unlike/.test(t), tries = 0, ok = false;
+    op = sub ? '−' : '+';
+    while (tries++ < 30 && !ok) {
+      d = pick(rng, lvl < 3 ? [2, 3, 4, 5] : [3, 4, 5, 6, 8]); a = int(rng, 1, d - 1);
+      e = pick(rng, [2, 3, 4, 5, 6]); c = int(rng, 1, e - 1);
+      if (unlike) {
+        if (d === e) continue;                    /* the title promises UNLIKE parts */
+        den = d * e; n = sub ? a * e - c * d : a * e + c * d;
+        ok = n >= 1 && frac(n, den) !== frac(a, d) && frac(n, den) !== frac(c, e);
+      } else {
+        b = int(rng, 1, d - 1);
+        den = d; n = sub ? a - b : a + b;
+        ok = n >= 1 && frac(n, den) !== frac(a, d) && frac(n, den) !== frac(b, d);
+      }
+    }
+    if (!ok) {                                    /* a pair that always works */
+      if (unlike) { d = 2; a = 1; e = 4; c = 1; den = 8; n = sub ? 3 : 6; }
+      else { d = 5; a = sub ? 4 : 2; b = sub ? 1 : 3; den = 5; n = sub ? 3 : 5; }
+    }
+    ans = frac(n, den);
+    return card(rng, lvl, 'Find ' + a + '/' + d + ' ' + op + ' ' + (unlike ? c + '/' + e : b + '/' + d) + '.', ans,
+      [unlike ? frac(sub ? a * e + c * d : Math.abs(a * e - c * d), d + e) : frac(Math.abs(sub ? a - b : a + b), d + d),
+       frac(n + 1, den), frac(Math.abs(n) + 2, den)],
+      [den === d ? 'The denominators match, so work with the numerators.' : 'Rename both fractions with the common denominator ' + den + '.',
+       (sub ? 'Subtract the numerators: ' : 'Add the numerators: ') + n + '/' + den + ' = ' + ans + '.'],
+      'Fractions can be added or subtracted only after they are expressed in equal-sized parts.');
+  }
+
+  function decimalItem(rng, lvl, t) {
+    var a = int(rng, 12, 85), b = int(rng, 11, 49), ans, q, op;
+    if (/power of ten|powers of ten/.test(t)) {
+      var k = pick(rng, [10, 100, 1000]), base = int(rng, 12, 95) / 10, down = /divide/.test(t);
+      var shifts = String(k).length - 1;                       /* 10→1, 100→2, 1000→3 */
+      ans = tidy(down ? base / k : base * k);
+      return card(rng, lvl, (down ? 'Divide ' : 'Multiply ') + base.toFixed(1) + ' by ' + k + '.', ans,
+        [base.toFixed(1), tidy(down ? base / (k / 10) : base * (k / 10)), tidy(down ? base / (k * 10) : base * (k * 10))],
+        [shifts === 1 ? 'One place is a factor of 10.' : shifts + ' places is a factor of ' + k + '.',
+         'Move the decimal point ' + shifts + ' place' + (shifts > 1 ? 's' : '') + ' ' +
+         (down ? 'left' : 'right') + ', giving ' + ans + '.'],
+        'Multiplying or dividing by a power of ten shifts every digit according to place value.');
+    }
+    if (/divide/.test(t)) {
+      b = pick(rng, [2, 4, 5, 8]); a = b * int(rng, 12, 45); ans = a / 10 / b; q = dec(a) + ' ÷ ' + b;
+      return card(rng, lvl, 'Find ' + q + '.', ans, [ans * 10, ans + 1, ans - 0.1],
+        ['Use the related whole-number fact: ' + a + ' ÷ ' + b + ' = ' + (a / b) + '.', 'Restore one decimal place in the dividend.'],
+        'Decimal division follows the same quotient relationship as whole-number division, with place value preserved.');
+    }
+    if (/multiply|product/.test(t)) { ans = a * b / 100; q = dec(a) + ' × ' + dec(b); op = '×'; }
+    else if (/subtract|difference/.test(t)) { if (a < b) { var swap = a; a = b; b = swap; } ans = (a - b) / 10; q = dec(a) + ' − ' + dec(b); op = '−'; }
+    else { ans = (a + b) / 10; q = dec(a) + ' + ' + dec(b); op = '+'; }
+    if (/estimate/.test(t)) {
+      var ar = Math.round(a / 10), br = Math.round(b / 10); ans = op === '×' ? ar * br : (op === '−' ? ar - br : ar + br);
+      return card(rng, lvl, 'Estimate ' + q + ' by rounding each decimal to the nearest whole number.', ans,
+        [a / 10 + b / 10, ar + br + 1, ar * br + 1],
+        [dec(a) + ' rounds to ' + ar + ' and ' + dec(b) + ' rounds to ' + br + '.', ar + ' ' + op + ' ' + br + ' = ' + ans + '.'],
+        'A decimal estimate is found by rounding consistently before calculating.');
+    }
+    return card(rng, lvl, 'Find ' + q + '.', ans, [ans + 1, ans - 1, op === '×' ? (a * b / 10) : (a + b) / 100],
+      ['Align place values before calculating ' + q + '.', 'The exact result is ' + ans + '.'],
+      'Decimals are calculated by attending to the value of every digit, not just its position in the written expression.');
+  }
+
+  function numberItem(rng, lvl, t) {
+    var a = int(rng, 3, 25), b = int(rng, 3, 25), ans, op;
+    if (/irrational/.test(t)) {
+      ans = '√' + pick(rng, [2, 3, 5, 7]);
+      return card(rng, lvl, 'Which number is irrational?', ans, ['0.25', '-3', '7/8'],
+        [ans + ' cannot be written as a ratio of integers because its radicand is not a perfect square.', 'The other choices are terminating decimals, integers, or fractions.'],
+        'Irrational numbers cannot be expressed as a ratio of two integers.');
+    }
+    if (/integer|rational/.test(t)) {
+      a = int(rng, 3, 30); b = int(rng, 2, 12); ans = -a + b;
+      return card(rng, lvl, 'Find ' + (-a) + ' + ' + b + '.', ans, [a + b, -(a + b), a - b],
+        ['The signs are different, so subtract absolute values: ' + a + ' − ' + b + '.', 'The larger absolute value is negative, so the result is negative.'],
+        'When integers have different signs, subtract their absolute values and keep the sign of the greater absolute value.');
+    }
+    a = int(rng, 2, 15); b = int(rng, 2, 15); ans = a + b;
+    return card(rng, lvl, 'Find ' + a + ' + ' + b + '.', ans, [a * b, a - b, ans + 2],
+      [a + ' + ' + b + ' = ' + ans + '.', 'Addition combines the two quantities.'],
+      'Use the operation named in the expression to combine the quantities.');
+  }
+
+  function ratioItem(rng, lvl, t) {
+    var rate = int(rng, 2, 12), qty = int(rng, 3, 15), total = rate * qty;
+    if (/percent|tax|tip|discount|sale|interest/.test(t)) {
+      var pct = pick(rng, [10, 15, 20, 25]), price = pick(rng, [20, 40, 60, 80]), amount = price * pct / 100;
+      return card(rng, lvl, 'Find ' + pct + '% of $' + price + '.', '$' + amount, ['$' + price, '$' + (price - amount), '$' + (amount + 2)],
+        [pct + '% = ' + (pct / 100) + '.', price + ' × ' + (pct / 100) + ' = ' + amount + '.'],
+        'A percent is a rate per hundred and can be multiplied by the whole amount.');
+    }
+    if (/proportion/.test(t)) {
+      return card(rng, lvl, rate + ' notebooks cost $' + total + '. What is the cost of 1 notebook?', total / rate, [total, rate, total - rate],
+        ['Divide the total cost by the number of equal items.', total + ' ÷ ' + rate + ' = ' + (total / rate) + '.'],
+        'A unit rate tells the amount for one unit.');
+    }
+    return card(rng, lvl, 'A recipe uses ' + rate + ' cups of flour for ' + qty + ' batches. What is the flour-to-batch ratio?', rate + ' : ' + qty,
+      [qty + ' : ' + rate, total + ' : 1', (rate + qty) + ' : 1'],
+      ['Keep the quantities in the order requested: flour first, then batches.', 'The ratio is ' + rate + ' to ' + qty + '.'],
+      'A ratio compares quantities in a stated order.');
+  }
+
+  function unitsItem(rng, lvl, t) {
+    var metric = /metric|centimeter|metre|liter|milliliter/.test(t), volume = /volume|capacity|liter|gallon|quart/.test(t);
+    var n = int(rng, 2, 9), factor = metric ? (volume ? 1000 : 100) : (volume ? 4 : 12);
+    var from = metric ? (volume ? 'liters' : 'meters') : (volume ? 'gallons' : 'feet');
+    var to = metric ? (volume ? 'milliliters' : 'centimeters') : (volume ? 'quarts' : 'inches');
+    if (/celsius|fahrenheit/.test(t)) {
+      var c = pick(rng, [0, 10, 20, 30]), f = c * 9 / 5 + 32;
+      return card(rng, lvl, 'Convert ' + c + '°C to degrees Fahrenheit.', f + '°F', [(c + 32) + '°F', (c * 2) + '°F', c + '°F'],
+        ['Use F = 9/5 × C + 32.', '9/5 × ' + c + ' + 32 = ' + f + '.'],
+        'Celsius and Fahrenheit are related by a linear conversion.');
+    }
+    return card(rng, lvl, 'Convert ' + n + ' ' + from + ' to ' + to + '.', n * factor + ' ' + to,
+      [n + ' ' + to, (n + factor) + ' ' + to, (n * factor / 2) + ' ' + to],
+      ['One ' + from.slice(0, -1) + ' equals ' + factor + ' ' + to + '.', n + ' × ' + factor + ' = ' + (n * factor) + '.'],
+      'Unit conversion uses an equivalent relationship between two measurements.');
+  }
+
+  function algebraItem(rng, lvl, t) {
+    var a = int(rng, 2, 9), x = int(rng, 2, 12), b = int(rng, 1, 12), value = a * x + b;
+    if (/inequal/.test(t)) {
+      var lim = int(rng, 4, 14), cand = lim - 1;
+      return card(rng, lvl, 'Which value satisfies x + ' + b + ' < ' + (lim + b) + '?', cand, [lim, lim + 1, -lim],
+        ['Subtract ' + b + ' from both sides to get x < ' + lim + '.', cand + ' is less than ' + lim + '.'],
+        'A solution to an inequality makes the comparison true when substituted.');
+    }
+    if (/term|coefficient/.test(t)) {
+      return card(rng, lvl, 'What is the coefficient of x in ' + a + 'x + ' + b + '?', a, [b, a + b, 1],
+        ['The coefficient is the number multiplied by x.', 'Here ' + a + ' is multiplied by x.'],
+        'A coefficient is the numerical factor of a variable term.');
+    }
+    if (/equivalent|like terms|simplify|expression/.test(t)) {
+      return card(rng, lvl, 'Simplify ' + a + 'x + ' + b + 'x.', (a + b) + 'x', [(a * b) + 'x', (a + b) + 'x²', (a - b) + 'x'],
+        ['Both terms are like terms because each has x.', a + 'x + ' + b + 'x = ' + (a + b) + 'x.'],
+        'Like terms can be combined by adding or subtracting their coefficients.');
+    }
+    if (/evaluate/.test(t)) {
+      return card(rng, lvl, 'Evaluate ' + a + 'x + ' + b + ' when x = ' + x + '.', value, [a + x + b, a * x - b, value + a],
+        ['Substitute ' + x + ' for x.', a + ' × ' + x + ' + ' + b + ' = ' + value + '.'],
+        'To evaluate an expression, substitute the given value for the variable.');
+    }
+    return card(rng, lvl, 'Solve ' + a + 'x + ' + b + ' = ' + value + '.', x, [value - b, value / a, x + 1],
+      ['Subtract ' + b + ' from both sides: ' + a + 'x = ' + (value - b) + '.', 'Divide by ' + a + ' to get x = ' + x + '.'],
+      'Solve an equation by using inverse operations to isolate the variable.');
+  }
+
+  function exponentItem(rng, lvl, t) {
+    var base = pick(rng, [2, 3, 4, 5]), exp = int(rng, 2, 4), ans = Math.pow(base, exp);
+    if (/variable exponents|solve equations/.test(t)) {
+      return card(rng, lvl, 'Solve ' + base + '^x = ' + ans + '.', exp, [base, ans, exp + 1],
+        [base + '^' + exp + ' = ' + ans + '.', 'Therefore x must be ' + exp + '.'],
+        'An exponential equation can be solved by matching equal bases.');
+    }
+    if (/scientific notation/.test(t)) {
+      var coeff = int(rng, 12, 98) / 10, power = int(rng, 3, 6), whole = coeff * Math.pow(10, power);
+      return card(rng, lvl, 'Which is ' + comma(whole) + ' in scientific notation?', coeff + ' × 10^' + power,
+        [coeff + ' × 10^' + (power - 1), (coeff * 10) + ' × 10^' + power, coeff + ' × 10^' + (power + 1)],
+        ['Move the decimal after the first nonzero digit.', 'The decimal moves ' + power + ' places, giving ' + coeff + ' × 10^' + power + '.'],
+        'Scientific notation writes a number as a coefficient from 1 to 10 times a power of ten.');
+    }
+    return card(rng, lvl, 'Evaluate ' + base + '^' + exp + '.', ans, [base * exp, Math.pow(base, exp - 1), ans + base],
+      [base + '^' + exp + ' means multiply ' + base + ' by itself ' + exp + ' times.', 'That product is ' + ans + '.'],
+      'An exponent tells how many equal factors of the base are multiplied.');
+  }
+
+  function coordinateItem(rng, lvl, t) {
+    var x = int(rng, 2, 7), y = int(rng, 2, 7);
+    if (/quadrant/.test(t)) {
+      return card(rng, lvl, 'In which quadrant is the point (' + x + ', -' + y + ')?', 'Quadrant IV', ['Quadrant I', 'Quadrant II', 'Quadrant III'],
+        ['The x-coordinate is positive and the y-coordinate is negative.', 'Positive x and negative y locate a point in Quadrant IV.'],
+        'Quadrants are determined by the signs of the x- and y-coordinates.');
+    }
+    if (/reflect/.test(t)) {
+      return card(rng, lvl, 'Reflect (' + x + ', -' + y + ') across the y-axis.', '(-' + x + ', -' + y + ')', ['(' + x + ', ' + y + ')', '(-' + x + ', ' + y + ')', '(-' + y + ', ' + x + ')'],
+        ['A reflection across the y-axis changes the sign of x.', 'The y-coordinate stays -' + y + '.'],
+        'Reflecting across the y-axis changes the horizontal coordinate and preserves the vertical coordinate.');
+    }
+    if (/distance/.test(t)) {
+      return card(rng, lvl, 'Find the distance from (0, 0) to (' + x + ', ' + y + ').', '√' + (x * x + y * y),
+        [String(x + y), String(Math.abs(x - y)), String(x * y)],
+        ['Use the distance formula: √(' + x + '² + ' + y + '²).', x + '² + ' + y + '² = ' + (x * x + y * y) + '.'],
+        'The distance formula comes from the Pythagorean theorem.');
+    }
+    return card(rng, lvl, 'What is the slope from (0, 0) to (' + x + ', ' + y + ')?', frac(y, x), [frac(x, y), String(x + y), String(y - x)],
+      ['Slope is rise divided by run.', 'The rise is ' + y + ' and the run is ' + x + '.'],
+      'Slope measures vertical change per unit of horizontal change.');
+  }
+
+  function geometryItem(rng, lvl, t) {
+    var m = int(rng, 3, 12), n = int(rng, 4, 15), area = m * n;
+    if (/pythagorean/.test(t)) {
+      var k = pick(rng, [1, 2, 3]), a = 3 * k, b = 4 * k, c = 5 * k;
+      return card(rng, lvl, 'A right triangle has legs ' + a + ' cm and ' + b + ' cm. Find its hypotenuse.', c + ' cm', [(a + b) + ' cm', (a * b) + ' cm', (c + k) + ' cm'],
+        ['Use a² + b² = c²: ' + a + '² + ' + b + '² = ' + c + '².', 'The positive square root is ' + c + ' cm.'],
+        'The Pythagorean theorem relates the two legs and hypotenuse of a right triangle.');
+    }
+    if (/circle|arc|central angle|inscribed/.test(t)) {
+      var slices = pick(rng, [4, 5, 6, 8]), angle = 360 / slices;
+      return card(rng, lvl, 'A circle is split into ' + slices + ' equal sectors. What is the central angle of one sector?', angle + '°', [(180 / slices) + '°', (360 - angle) + '°', slices + '°'],
+        ['A full circle measures 360°.', '360° ÷ ' + slices + ' = ' + angle + '°.'],
+        'Equal central angles divide the 360 degrees in a circle into equal parts.');
+    }
+    if (/transform|rotation|translation|dilation|congruen/.test(t)) {
+      return card(rng, lvl, 'Translate (' + m + ', ' + n + ') by the vector <2, -3>.', '(' + (m + 2) + ', ' + (n - 3) + ')',
+        ['(' + (m - 2) + ', ' + (n + 3) + ')', '(' + (m + 2) + ', ' + (n + 3) + ')', '(' + (n - 3) + ', ' + (m + 2) + ')'],
+        ['Add 2 to the x-coordinate.', 'Add -3 to the y-coordinate.'],
+        'A translation adds the vector components to the matching coordinates.');
+    }
+    if (/scale|similar/.test(t)) {
+      var scale = pick(rng, [2, 3, 4]), original = int(rng, 3, 12);
+      return card(rng, lvl, 'A similar figure has scale factor ' + scale + '. If an original side is ' + original + ' cm, what is the new side length?', (original * scale) + ' cm',
+        [(original + scale) + ' cm', (original / scale) + ' cm', (original * scale * scale) + ' cm'],
+        ['Corresponding lengths are multiplied by the scale factor.', original + ' × ' + scale + ' = ' + (original * scale) + '.'],
+        'Similar figures have corresponding lengths related by one constant scale factor.');
+    }
+    if (/volume/.test(t)) {
+      var h = int(rng, 2, 8);
+      return card(rng, lvl, 'Find the volume of a rectangular prism measuring ' + m + ' cm by ' + n + ' cm by ' + h + ' cm.', (m * n * h) + ' cm³',
+        [(m + n + h) + ' cm³', (m * n) + ' cm³', (2 * (m * n + m * h + n * h)) + ' cm³'],
+        ['Volume = length × width × height.', m + ' × ' + n + ' × ' + h + ' = ' + (m * n * h) + '.'],
+        'Volume counts cubic units that fill a three-dimensional solid.');
+    }
+    if (/perimeter/.test(t)) {
+      return card(rng, lvl, 'Find the perimeter of a rectangle with side lengths ' + m + ' cm and ' + n + ' cm.', (2 * m + 2 * n) + ' cm',
+        [(m * n) + ' cm', (m + n) + ' cm', (2 * m * n) + ' cm'],
+        ['A rectangle has two sides of each length.', m + ' + ' + n + ' + ' + m + ' + ' + n + ' = ' + (2 * m + 2 * n) + '.'],
+        'Perimeter is the total distance around the outside of a figure.');
+    }
+    return card(rng, lvl, 'Find the area of a rectangle with length ' + m + ' cm and width ' + n + ' cm.', area + ' cm²',
+      [(m + n) + ' cm²', (2 * m + 2 * n) + ' cm²', (area + m) + ' cm²'],
+      ['Area = length × width.', m + ' × ' + n + ' = ' + area + '.'],
+      'Area measures the number of square units covering a region.');
+  }
+
+  function statisticsItem(rng, lvl, t) {
+    var a = int(rng, 2, 6), b = a + int(rng, 2, 5), c = b + int(rng, 2, 5), d = c + int(rng, 2, 5);
+    if (/probab|sample space|outcome/.test(t)) {
+      var red = int(rng, 2, 6), blue = int(rng, 3, 8);
+      return card(rng, lvl, 'A bag has ' + red + ' red tiles and ' + blue + ' blue tiles. What is the probability of red?', frac(red, red + blue),
+        [frac(blue, red + blue), frac(red, blue), frac(1, red + blue)],
+        ['There are ' + (red + blue) + ' total tiles.', 'Favorable outcomes over total outcomes is ' + red + '/' + (red + blue) + '.'],
+        'Probability is the number of favorable outcomes divided by the total number of equally likely outcomes.');
+    }
+    if (/median/.test(t)) {
+      return card(rng, lvl, 'Find the median of ' + a + ', ' + b + ', ' + c + ', and ' + d + '.', (b + c) / 2, [b, c, a + d],
+        ['The two middle values are ' + b + ' and ' + c + '.', '(' + b + ' + ' + c + ') ÷ 2 = ' + ((b + c) / 2) + '.'],
+        'For an even number of data values, the median is the mean of the two middle values.');
+    }
+    if (/range/.test(t)) {
+      return card(rng, lvl, 'Find the range of ' + a + ', ' + b + ', ' + c + ', and ' + d + '.', d - a, [d, a, d + a],
+        ['The maximum is ' + d + ' and the minimum is ' + a + '.', d + ' − ' + a + ' = ' + (d - a) + '.'],
+        'Range is found by subtracting the minimum value from the maximum value.');
+    }
+    return card(rng, lvl, 'Find the mean of ' + a + ', ' + b + ', and ' + c + '.', (a + b + c) / 3, [b, c, a + b + c],
+      ['Add the values: ' + a + ' + ' + b + ' + ' + c + ' = ' + (a + b + c) + '.', 'Divide by 3 values.'],
+      'Mean is the total of the data values divided by the number of data values.');
+  }
+
+  function advancedItem(rng, lvl, t) {
+    var a = int(rng, 2, 5), b = int(rng, 1, 8), x = int(rng, 1, 5), ans;
+    if (/derivative|instantaneous rate|tangent/.test(t)) {
+      ans = 2 * a * x + b;
+      return card(rng, lvl, 'For f(x) = ' + a + 'x² + ' + b + 'x, find f\'(' + x + ').', ans, [a * x * x + b * x, 2 * a + b, ans + a],
+        ['f\'(x) = ' + (2 * a) + 'x + ' + b + '.', 'Substitute x = ' + x + ' to get ' + ans + '.'],
+        'The derivative gives the instantaneous rate of change of a function.');
+    }
+    if (/integral|antiderivative|riemann|area under/.test(t)) {
+      var power = int(rng, 2, 4), coeff = power + 1;
+      return card(rng, lvl, 'Which is an antiderivative of ' + coeff + 'x^' + power + '?', 'x^' + (power + 1) + ' + C',
+        [coeff + 'x^' + (power + 1) + ' + C', 'x^' + power + ' + C', 'x^' + (power + 1)],
+        ['Increase the exponent to ' + (power + 1) + '.', 'Dividing the coefficient ' + coeff + ' by ' + (power + 1) + ' gives 1.'],
+        'Antidifferentiation reverses the power rule and includes a constant of integration.');
+    }
+    if (/limit|continuity/.test(t)) {
+      ans = a * x + b;
+      return card(rng, lvl, 'Find lim as x approaches ' + x + ' of (' + a + 'x + ' + b + ').', ans, [a * x, ans + 1, ans - 1],
+        ['A linear function is continuous, so substitute x = ' + x + '.', a + ' × ' + x + ' + ' + b + ' = ' + ans + '.'],
+        'For a continuous expression, a limit is found by direct substitution.');
+    }
+    if (/complex/.test(t)) {
+      return card(rng, lvl, 'Find (2 + ' + a + 'i) + (3 + ' + b + 'i).', '5 + ' + (a + b) + 'i',
+        ['5 + ' + (a * b) + 'i', '1 + ' + (a - b) + 'i', '6 + ' + (a + b) + 'i'],
+        ['Add real parts: 2 + 3 = 5.', 'Add imaginary parts: ' + a + 'i + ' + b + 'i = ' + (a + b) + 'i.'],
+        'Complex numbers add by combining real parts and imaginary parts separately.');
+    }
+    if (/trig|sine|cosine|radian|arc length/.test(t)) {
+      return card(rng, lvl, 'What is sin(30°)?', '1/2', ['√3/2', '0', '1'],
+        ['30° is a special angle on the unit circle.', 'Its sine coordinate is 1/2.'],
+        'Special angles give exact trigonometric ratios on the unit circle.');
+    }
+    if (/function/.test(t)) {
+      ans = a * x + b;
+      return card(rng, lvl, 'If f(x) = ' + a + 'x + ' + b + ', find f(' + x + ').', ans, [a + x + b, a * x - b, ans + a],
+        ['Substitute ' + x + ' for x.', a + ' × ' + x + ' + ' + b + ' = ' + ans + '.'],
+        'Function evaluation substitutes an input into the rule.');
+    }
+    return algebraItem(rng, lvl, t);
+  }
+
+  function make(rng, lvl, sk) {
+    var t = String(sk.name || '').toLowerCase();
+    if (/prime|greatest common|least common|factorization|factors? of|multiples?/.test(t) && !/polynomial|binomial|trinomial/.test(t)) return factorItem(rng, lvl, t);
+    if (/fraction|mixed number|numerator|denominator/.test(t)) return fractionItem(rng, lvl, t);
+    if (/decimal/.test(t)) return decimalItem(rng, lvl, t);
+    if (/ratio|proportion|unit rate|percent|tax|tip|discount|sale price|interest/.test(t)) return ratioItem(rng, lvl, t);
+    if (/unit|customary|metric|celsius|fahrenheit|measurement|length|mass|weight|capacity/.test(t)) return unitsItem(rng, lvl, t);
+    if (/coordinate|quadrant|slope|reflect a point|distance between/.test(t)) return coordinateItem(rng, lvl, t);
+    if (/area|perimeter|volume|circle|arc|angle|triangle|polygon|transform|dilation|congruen|similar|pythagorean/.test(t)) return geometryItem(rng, lvl, t);
+    if (/probab|statistics|mean|median|mode|range|plot|graph|histogram|distribution|sample/.test(t)) return statisticsItem(rng, lvl, t);
+    if (/derivative|integral|antiderivative|limit|continuity|tangent|complex|trig|sine|cosine|radian|function/.test(t)) return advancedItem(rng, lvl, t);
+    if (/exponent|scientific notation|power/.test(t)) return exponentItem(rng, lvl, t);
+    if (/equation|inequalit|expression|variable|term|coefficient|like terms|evaluate/.test(t)) return algebraItem(rng, lvl, t);
+    if (/integer|rational|irrational|negative/.test(t)) return numberItem(rng, lvl, t);
+    return algebraItem(rng, lvl, t);
+  }
+
+  /* These are the precise, independently-audited title/content failures from
+     the original specialised generators.  All completion cards are also
+     replaced, so a learner never falls back to a fixed, unrelated example. */
+  var BAD = (
+    'k-compare_two_groups_of_coins_pennies_through_dimes g1-compare_money_amounts ' +
+    'g2-inequalities_with_addition_and_subtraction_up_to_100 g2-solve_inequalities_using_addition_and_subtraction_shortcuts g2-add_and_subtract_money_up_to_1_dollar g2-add_and_subtract_money_up_to_1_dollar_word_problems g2-compare_lengths_customary_units g2-compare_lengths_metric_units g2-find_the_perimeter_of_a_rectangle_using_centimeter_cubes ' +
+    'g3-use_number_lines_to_add_three_digit_numbers g3-use_number_lines_to_subtract_three_digit_numbers g3-use_number_lines_to_add_and_subtract_three_digit_numbers g3-fractions_of_number_lines_halves_fourths_and_eighths g3-fractions_of_number_lines g3-identify_unit_fractions_on_number_lines g3-identify_fractions_on_number_lines g3-graph_unit_fractions_on_number_lines g3-graph_fractions_less_than_1_on_number_lines g3-graph_fractions_on_number_lines g3-graph_smaller_or_larger_fractions_on_a_number_line g3-identify_equivalent_fractions_on_number_lines g3-find_equivalent_fractions_using_number_lines g3-graph_equivalent_fractions_on_number_lines g3-graph_and_compare_fractions_with_like_denominators_on_number_lines g3-graph_and_compare_fractions_with_like_numerators_on_number_lines g3-compare_fractions_using_number_lines g3-graph_and_compare_fractions_on_number_lines g3-graph_and_order_fractions_on_number_lines g3-find_the_missing_side_length_of_a_rectangle g3-find_the_missing_side_length_of_a_rectangle_area_word_problems g3-perimeter_find_the_missing_side_length g3-find_the_area_perimeter_or_side_length_word_problems g3-create_line_plots_with_fractions g3-create_and_interpret_line_plots_with_fractions g3-inequalities_with_money ' +
+    'g4-add_fractions_with_like_denominators_using_area_models g4-add_fractions_with_like_denominators_using_number_lines g4-subtract_fractions_with_like_denominators_using_area_models g4-subtract_fractions_with_like_denominators_using_number_lines g4-add_and_subtract_fractions_with_like_denominators_using_number_lines g4-place_value_models_for_decimal_numbers g4-interpret_line_plots_to_find_the_median_mode_or_range g4-convert_and_compare_customary_units_of_volume g4-convert_and_compare_metric_units_of_volume g4-area_and_perimeter_of_complex_figures_word_problems ' +
+    'g5-estimate_sums_and_differences_of_fractions_using_benchmarks g5-estimate_sums_and_differences_of_mixed_numbers g5-multiply_three_fractions_and_whole_numbers g5-estimate_products_of_mixed_numbers g5-add_subtract_multiply_and_divide_fractions_and_mixed_numbers g5-add_subtract_multiply_and_divide_fractions_and_mixed_numbers_word_problems g5-multi_step_word_problems_with_fractions_and_mixed_numbers g5-place_value_models_for_decimal_numbers g5-compare_sums_and_differences_of_decimals g5-estimate_sums_and_differences_of_decimals_using_rounding g5-estimate_sums_and_differences_of_decimals_using_benchmarks g5-multiply_by_a_power_of_ten_with_decimals_find_the_missing_number g5-estimate_products_of_whole_numbers_and_decimals g5-multiply_a_decimal_by_a_one_digit_whole_number_using_the_distributive_property g5-multiply_three_or_more_numbers_one_of_which_is_a_decimal g5-estimate_products_of_decimals g5-divide_by_powers_of_ten g5-divide_by_a_power_of_ten_with_exponents g5-divide_by_a_power_of_ten_with_decimals_find_the_missing_number g5-divide_decimals_using_area_models_complete_the_equation g5-divide_by_decimals_using_place_value g5-divide_by_decimals_without_adding_zeros g5-divide_by_decimals g5-add_subtract_multiply_and_divide_decimals g5-add_subtract_multiply_and_divide_decimals_word_problems g5-add_subtract_multiply_and_divide_decimals_multi_step_word_problems g5-compare_and_convert_customary_units_of_volume g5-compare_and_convert_metric_units_of_volume g5-create_line_plots_with_decimals g5-perimeter_with_decimal_side_lengths g5-area_and_perimeter_of_rectangles_with_fractions g5-area_and_perimeter_of_rectangles_with_decimals ' +
+    'g6-estimate_sums_and_differences_of_decimals g6-estimate_products_of_decimal_numbers g6-inequalities_with_decimal_multiplication g6-inequalities_with_decimal_division g6-add_subtract_multiply_and_divide_decimals_multi_step_word_problems g6-inequalities_with_addition_and_subtraction_of_like_and_unlike_fractions g6-estimate_sums_and_differences_of_mixed_numbers g6-estimate_products_of_fractions_and_whole_numbers g6-multiply_three_or_more_fractions_and_whole_numbers g6-estimate_products_of_mixed_numbers g6-multiply_three_or_more_mixed_numbers_fractions_and_or_whole_numbers g6-estimate_quotients_when_dividing_mixed_numbers g6-area_and_perimeter_of_squares_and_rectangles_on_the_coordinate_plane g6-represent_percents_with_grid_models_decimals_and_fractions g6-solve_one_step_addition_and_subtraction_equations_with_decimals_and_fractions ' +
+    'g7-add_subtract_multiply_and_divide_integers g7-estimate_sums_differences_and_products_of_decimals g7-add_subtract_multiply_and_divide_decimals_word_problems g7-multi_step_inequalities_with_decimals g7-inequalities_with_addition_and_subtraction_of_fractions_and_mixed_numbers g7-estimate_sums_and_differences_of_mixed_numbers g7-estimate_products_and_quotients_of_fractions_and_mixed_numbers g7-add_subtract_multiply_and_divide_fractions_and_mixed_numbers_word_problems g7-identify_rational_numbers g7-classify_rational_numbers g7-add_subtract_multiply_and_divide_rational_numbers g7-multi_step_word_problems_with_positive_rational_numbers g7-solve_equations_with_variable_exponents g7-central_angles_of_circles g7-perimeter_and_area_changes_in_scale g7-circle_graphs_and_central_angles ' +
+    'g8-add_and_subtract_rational_numbers_word_problems g8-multiply_and_divide_rational_numbers_word_problems g8-multi_step_word_problems_with_rational_numbers g8-solve_equations_with_variable_exponents g8-identify_rational_and_irrational_numbers g8-irrational_numbers_on_number_lines g8-compare_and_order_rational_and_irrational_numbers g8-checkpoint_rational_and_irrational_numbers g8-checkpoint_approximate_irrational_numbers g8-solve_equations_with_variables_on_both_sides_word_problems g8-solve_inequalities_with_integers_variables_on_both_sides g8-describe_a_sequence_of_transformations g8-sequences_of_congruence_transformations_choose_the_sequence g8-pythagorean_theorem_find_the_length_of_the_hypotenuse g8-pythagorean_theorem_find_the_missing_leg_length g8-pythagorean_theorem_find_the_missing_leg_or_hypotenuse_length g8-perimeter_and_area_changes_in_scale ' +
+    'a1-add_subtract_multiply_and_divide_integers a1-sort_rational_and_irrational_numbers a1-classify_rational_and_irrational_numbers a1-properties_of_operations_on_rational_and_irrational_numbers a1-evaluate_variable_expressions_involving_rational_numbers a1-transformations_of_linear_functions a1-evaluate_integers_raised_to_positive_rational_exponents a1-evaluate_integers_raised_to_rational_exponents a1-transformations_of_quadratic_functions a1-simplify_radical_expressions_involving_fractions_square_roots ' +
+    'gm-sequences_of_congruence_transformations_choose_the_sequence gm-sequences_of_congruence_transformations_find_the_rules gm-dilations_find_length_perimeter_and_area gm-perimeters_of_similar_figures gm-trigonometric_ratios_find_a_side_length gm-area_and_perimeter_in_the_coordinate_plane gm-area_and_perimeter_in_the_coordinate_plane_ii gm-area_and_perimeter_of_similar_figures gm-perimeter_and_area_changes_in_scale gm-similar_solids_find_the_missing_length gm-perimeter_area_and_volume_changes_in_scale gm-calculate_density_mass_and_volume gm-understand_arc_length_and_sector_area_of_a_circle gm-arc_length gm-radians_and_arc_length gm-perimeter_of_polygons_with_an_inscribed_circle gm-inscribed_angles gm-angles_in_inscribed_right_triangles gm-angles_in_inscribed_quadrilaterals gm-angles_in_inscribed_quadrilaterals_ii gm-checkpoint_arc_length_and_area_of_sectors gm-construct_an_equilateral_triangle_inscribed_in_a_circle gm-construct_the_inscribed_or_circumscribed_circle_of_a_triangle ' +
+    'a2-sort_rational_and_irrational_numbers a2-classify_rational_and_irrational_numbers a2-properties_of_operations_on_rational_and_irrational_numbers a2-add_subtract_multiply_and_divide_complex_numbers a2-transformations_of_quadratic_functions a2-simplify_radical_expressions_involving_fractions a2-solve_equations_with_rational_exponents a2-add_subtract_multiply_and_divide_functions a2-trigonometric_ratios_find_a_side_length a2-radians_and_arc_length a2-determine_trigonometric_ratios_using_points_on_the_unit_circle a2-identify_transformation_matrices a2-transformation_matrices_write_the_vertex_matrix ' +
+    'pc-add_subtract_multiply_and_divide_functions pc-solve_equations_with_rational_exponents pc-identify_transformation_matrices pc-transformation_matrices_write_the_vertex_matrix pc-radians_and_arc_length pc-find_trigonometric_ratios_using_the_unit_circle pc-trigonometric_ratios_find_a_side_length pc-add_subtract_multiply_and_divide_complex_numbers pc-find_instantaneous_rates_of_change ma-find_instantaneous_rates_of_change'
+  ).split(/\s+/);
+  var FIX = {}, i;
+  for (i = 0; i < BAD.length; i++) FIX[BAD[i]] = true;
+  for (i = 0; i < SK.length; i++) {
+    (function (row) {
+      /* Leave the well-tested completion dispatcher in charge of its broad
+         catalogue coverage.  This overlay is deliberately narrow: it replaces
+         only a card that the title/content audit identified as incorrect. */
+      if (!FIX[row.id]) return;
+      G(row.id, function (rng, lvl) { return make(rng, lvl, row); });
+    })(SK[i]);
+  }
 })();
 
 </script>
@@ -51610,17 +52288,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
    * place after every answer instead of only when the whole view re-renders. */
   function probeProgressCard() {
     var D = E.st.diag || {}, lim = E.diagLimit() || 30, asked = D.asked || 0;
-    var over = !E.diagActive();
-    var lv = E.level(), dots = h('div', { class: 'dots' });
-    for (var i = 0; i < lv.need; i++) dots.appendChild(h('i', { class: i < lv.streak ? 'on' : '' }));
+    var over = !E.diagActive(), phase = D.phase === 'routing' ? 'Routing the difficulty' : 'Confirming across math areas';
+    var domain = S.item && S.item.diag && S.item.diag.domain ? S.item.diag.domain : '';
     return h('div', { class: 'card tight', id: 'probprog' }, [
       h('div', { class: 'row between' }, [
-        h('b', { text: 'Placement probe' }),
+        h('b', { text: 'Adaptive placement diagnostic' }),
         h('span', { class: 'tiny', text: over ? asked + ' / ' + lim + ' — complete' : asked + ' / ' + lim })
       ]),
       h('div', { class: 'diagbar' }, [h('i', { style: { width: clamp(Math.round(asked / lim * 100), 0, 100) + '%' } })]),
-      over ? h('div', { class: 'tiny', text: 'Ends on ' + lv.label + '.' })
-        : h('div', { class: 'lvline' }, [dots, h('span', { class: 'tiny', text: 'Asking ' + lv.label + ' · ' + (lv.need - lv.streak) + ' right in a row moves up to ' + lv.next })])
+      over ? h('div', { class: 'tiny', text: 'Estimate complete.' })
+        : h('div', { class: 'tiny', text: phase + (domain ? ' · current area: ' + domain : '') + '.' })
     ]);
   }
   function renderProbeProgress() {
@@ -51641,11 +52318,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      * the report is not) still has to show its result, not offer to restart */
     if (!S.diagReport && E.st.diag && E.st.diag.done) { try { S.diagReport = E.placement(); } catch (e) { } }
     if (S.diagReport) {
-      var p = S.diagReport, askedN = (E.st.diag && E.st.diag.asked) || 0;
+      var p = S.diagReport, askedN = (E.st.diag && E.st.diag.asked) || 0, ds = p.diagnostic || null;
+      var evidence = ds && ds.domains ? Object.keys(ds.domains).filter(function (k) { return ds.domains[k] > 0; }).length : 0;
+      var precision = ds && isFinite(ds.standardError) ? '±' + (ds.standardError / 8).toFixed(1) + ' level bands' : '';
+      var confidence = ds ? (ds.confidence === 'strong' ? 'strong' : ds.confidence === 'moderate' ? 'moderate' : 'preliminary') : '';
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement result' }),
         h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b>. Practice starts here:' }),
-        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'From ' + askedN + ' probe questions' : '' }),
+        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'Based on ' + askedN + ' adaptive diagnostic questions' : '' }),
+        ds ? h('div', { class: 'hintbox', style: { marginTop: '12px' }, text: 'Evidence: ' + evidence + ' mathematical areas · ' + confidence + ' confidence' + (precision ? ' · precision ' + precision : '') + '. This is a placement aid, not a norm-referenced standardized test.' }) : null,
         h('div', { class: 'skill-list', style: { marginTop: '12px' } }, (p.plan || []).slice(0, 5).map(function (row) {
           return h('div', { class: 'skill' }, [
             h('div', { class: 'grow' }, [h('div', { class: 'nm', text: row.sk.name }), h('div', { class: 'cd', text: row.sk.code })]),
@@ -51665,8 +52346,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (!E.diagActive()) {
       clear(view).appendChild(h('div', { class: 'card' }, [
-        h('h2', { text: 'Placement probe' }),
-        h('div', { class: 'muted', html: 'About <b>' + (E.diagLimit() || 30) + ' questions</b>, starting on the level you are on — <b>' + esc(E.level().label) + '</b> for anyone who has never been placed. Ten right in a row moves the probe up to the next level and it starts asking <i>those</i> questions; a wrong answer keeps it where you are; three wrong in a row moves it back one. Where the probe ends is where Practice starts.' }),
+        h('h2', { text: 'Adaptive placement diagnostic' }),
+        h('div', { class: 'muted', html: 'This <b>' + (E.diagLimit() || 24) + '-question diagnostic</b> adapts each next question to your responses. The first part locates a working range; the second confirms it across number and operations, algebra and functions, geometry and measurement, and data and probability. Your result includes a precision indicator and starts Practice at the estimated level.' }),
+        h('div', { class: 'tiny', style: { marginTop: '9px' }, text: 'It is a structured placement aid, not a state-standardized or norm-referenced test.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('button', { class: 'btn primary', type: 'button', on: { click: startDiag } }, 'Start the probe'),
           h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.view = 'practice'; render(); } } }, 'Just start practicing')
