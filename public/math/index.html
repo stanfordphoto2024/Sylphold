@@ -227,6 +227,12 @@ input.fld.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--a
 .lvline .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
 .lvline .dots i.on { background: var(--good); }
 .lvline .tiny { line-height: 1.25; }
+/* the probe runs: one dot per answer right in a row (ten moves up a grade), and
+   when a card is missed or put away, the misses toward the stop take over */
+.probedots { display: inline-flex; gap: 4px; align-items: center; }
+.probedots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+.probedots i.good { background: var(--good); }
+.probedots i.bad { background: var(--bad); }
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
   background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 600; padding: 10px 16px;
@@ -6555,6 +6561,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       bestEver: 0,
       log: [],
       settings: { autoNext: true, hints: true, reviewShare: 0.22 },
+      /* the card the learner just finished, and how it went: the sequencer uses
+         this to keep one skill off the screen twice in a row (see pickSkill) */
+      lastSkill: null, lastOk: null,
       lastPlan: null
     };
   }
@@ -6581,6 +6590,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function record(st, item, ok, rng, skipped) {
     var s = S(st, item.skill);
     var p = prob(st.theta, item.b);
+    /* The sequencer is allowed to put the SAME skill on the next card only after
+       a miss. A skip is not a miss — putting a card away unread says nothing
+       about what the learner knows — so it must not buy a second card on a skill
+       the learner just finished. */
+    st.lastSkill = item.skill;
+    st.lastOk = skipped ? true : !!ok;
     if (skipped) {
       st.sess.skipped = (st.sess.skipped || 0) + 1;
       st.log.push({ t: now(), id: item.skill, ok: 0, b: +item.b.toFixed(1), p: +p.toFixed(2), lvl: s.lvl, skip: 1 });
@@ -6646,8 +6661,22 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return -1;                                                        // nothing written yet
   }
 
-  function pickSkill(st, rng) {
+  /* Two cards from one skill back to back teach the same thing twice, so the
+     sequencer never repeats the skill the learner just finished. The one case
+     where a repeat is right is a miss: the missed skill comes back on purpose
+     (the retry, the reteach pair, the gap that was just missed). A skill chosen
+     by hand from the Ladder is the other exception — the learner asked for it. */
+  function pickSkill(st, rng, opts) {
+    opts = opts || {};
     var L = root.SKILLS;
+    var last = opts.skillId ? null : st.lastSkill;
+    var repeat = st.lastOk === false;              /* the last card was a miss */
+    function fresh(list) {
+      if (!last || repeat) return list;
+      var out = [], i;
+      for (i = 0; i < list.length; i++) if (list[i] !== last) out.push(list[i]);
+      return out.length ? out : list;
+    }
     /* 1) due review, when the learner is not a total beginner */
     var due = [];
     Object.keys(st.sk).forEach(function (id) {
@@ -6655,20 +6684,29 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (s.a >= 3 && s.m >= 0.55 && s.due && s.due <= now() && playable(id)) due.push(id);
     });
     if (due.length >= 2 && rng() < st.settings.reviewShare) {
-      due.sort(function (a, b) { return st.sk[a].due - st.sk[b].due; });
-      return { id: due[0], why: 'review' };
+      var dueFresh = fresh(due).slice();
+      dueFresh.sort(function (a, b) { return st.sk[a].due - st.sk[b].due; });
+      if (dueFresh.length) return { id: dueFresh[0], why: 'review' };
     }
     /* 2) a diagnosed gap gets reteached before anything new */
     var gaps = [];
     Object.keys(st.sk).forEach(function (id) { if (playable(id) && statusOf(st.sk[id]) === 'gap') gaps.push(id); });
     if (gaps.length && rng() < 0.55) {
-      gaps.sort(function (a, b) { return SK_B(a) - SK_B(b); });
-      return { id: gaps[0], why: 'gap' };
+      var g = fresh(gaps).slice();
+      g.sort(function (a, b) { return SK_B(a) - SK_B(b); });
+      if (g.length) return { id: g[0], why: 'gap' };
     }
     /* 3) frontier, with a small chance of previewing one skill ahead */
     var i = frontierIndex(st);
     if (rng() < 0.08 && i + 1 < L.length && statusOf(st.sk[L[i].id]) !== 'gap') i++;
     var p = nearestPlayable(i);
+    /* The frontier is a queue, and the card just answered is still standing at its
+       front. After a correct answer the queue moves on to the next skill; after a
+       miss it holds, which is the repeat the learner actually wants. */
+    if (p >= 0 && last && !repeat && L[p].id === last) {
+      var q = nearestPlayable(i + 1);
+      if (q >= 0 && L[q].id !== last) p = q;
+    }
     if (p < 0) return { id: L[i].id, why: 'frontier' };   // no content anywhere: the UI says so honestly
     return { id: L[p].id, why: p === i ? 'frontier' : (p > i ? 'ahead' : 'consolidate') };
   }
@@ -6677,7 +6715,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ------------------------------------------------------------- items ----- */
   function nextItem(st, rng, opts) {
     opts = opts || {};
-    var pick = opts.skillId ? { id: opts.skillId, why: opts.why || 'manual' } : pickSkill(st, rng);
+    var pick = opts.skillId ? { id: opts.skillId, why: opts.why || 'manual' } : pickSkill(st, rng, opts);
     var sk = root.SKILL_BY_ID[pick.id], s = S(st, pick.id);
     var lvl = opts.lvl != null ? opts.lvl : chooseLvl(st, sk, s, rng);
     var item = null, tries = 0;
@@ -6820,7 +6858,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var CLIMB_RETRIES = 2;
 
   function climbBlank() {
-    return { band: null, streak: 0, wrong: 0, asked: 0, correct: 0, best: 0, started: 0, cover: {}, pin: null, retries: null, skip: null, done: false, runs: 0, hist: [] };
+    return { band: null, streak: 0, wrong: 0, asked: 0, correct: 0, best: 0, started: 0, cover: {}, pin: null, retries: null, skip: null, last: null, done: false, runs: 0, hist: [] };
   }
   function climbState(st) {
     var C = st.climb; if (!C) C = st.climb = climbBlank();
@@ -6918,8 +6956,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     var cov = LV.cover[b] || (LV.cover[b] = {});
     var skip = LV.skip; if (skip) LV.skip = null;       /* just retried twice: not again yet */
+    /* The card just answered is never offered again. Practice repeats a skill only
+       after a miss, and that repeat comes from the pin above — so a learner who
+       answers correctly always moves on to a different skill next. A level whose
+       only written skill IS the one just asked cannot avoid it, so the exclusion
+       is dropped again when nothing else is left to ask. */
+    var last = LV.last;
     var live = [], j;
-    for (j = 0; j < list.length; j++) if (list[j].id !== skip) live.push(list[j]);
+    for (j = 0; j < list.length; j++) if (list[j].id !== skip && (!last || list[j].id !== last)) live.push(list[j]);
+    if (!live.length) for (j = 0; j < list.length; j++) if (list[j].id !== skip) live.push(list[j]);
     if (!live.length) live = list;
     /* Skills the learner has never answered go first; inside that, the least
        asked. A level is a survey of the level, and a skill never met is worth
@@ -6944,6 +6989,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var item = null, tries = 0;
       while (!item && tries++ < 8) { try { item = root.genFor(sk.id, rng, lvl); } catch (e) { item = null; } }
       if (!item) { cov[sk.id] = Math.max(0, (cov[sk.id] || 0) - 1); continue; }
+      LV.last = sk.id;                                  /* the card now on screen */
       if (wasRetry) {
         item.retry = 1;                                  /* the card says what it is */
         LV.retries = Math.max(0, (LV.retries == null ? CLIMB_RETRIES : LV.retries) - 1);
@@ -7017,20 +7063,22 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* ---------------------------------------------------------- diagnostic --- */
   /*
-   * Structured adaptive diagnostic (CAT)
-   * ------------------------------------
-   * The previous probe was a level-climb: ten consecutive successes moved a
-   * learner up, and three consecutive misses moved them down.  That made one
-   * unlucky streak or a run of closely related skills carry too much weight.
-   *
-   * This diagnostic estimates ability from every response using the same 1PL
-   * probability model used by the tutor.  Eight routing items rapidly centre
-   * the estimate; sixteen confirmation items sample all four broad mathematics
-   * domains near that estimate.  The result records its standard-error-like
-   * precision indicator and evidence by domain.  It is a more dependable
-   * placement aid, not a norm-referenced or state-standardised assessment.
+   * The placement probe is a grade crawl.
+   * -------------------------------------
+   * It opens at the grade the learner chose and asks that grade only: a fresh
+   * skill every card, never the same skill twice while the grade still has one
+   * the probe has not drawn. Ten right in a row means the grade is holding, and
+   * the probe steps up to the next grade's skills and starts the count again.
+   * A miss never moves anyone down — it stays in the grade and keeps asking.
+   * Three cards in a row that were missed or put away end the crawl: the
+   * evidence is in, so the questions stop instead of walking the learner down a
+   * rung they did not lose. There is no question count to reach; the crawl runs
+   * for half an hour and closes itself when the clock is up.
    */
-  var DIAG_LIMIT = 24;
+  var DIAG_MINUTES = 30;
+  var DIAG_LIMIT_MS = DIAG_MINUTES * 60 * 1000;   /* the whole time budget for one crawl */
+  var DIAG_RUN = 10;                              /* consecutive correct cards that move up a grade */
+  var DIAG_STOP = 3;                              /* consecutive misses or skips that end it */
   var DIAG_ROUTE = 8;
   var DIAG_STEP = 3.0;
   var DIAG_DOMAINS = ['Number and operations', 'Algebra and functions', 'Geometry and measurement', 'Data and probability'];
@@ -7088,55 +7136,59 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var standing = climbHomeBand(st);
     return bandMid(BANDS.indexOf(standing) >= 0 ? standing : BANDS[0]);
   }
+  /* One card from the grade the crawl is standing in. The draw is random, and it
+     is never a skill the probe has already asked while the grade still holds one
+     it has not: the crawl samples a grade, it does not search for information.
+     A grade whose written skills have all been asked wraps around to the least
+     asked — the card just answered is still the last one it may repeat. */
   function diagPick(st, D, rng) {
-    var desired = D.asked < DIAG_ROUTE ? DIAG_DOMAINS[D.asked % DIAG_DOMAINS.length] : diagLeastDomain(D);
-    var list = root.SKILLS || [], cands = [], pass, i, sk, domain, score, seen, strandN;
-    for (pass = 0; pass < 2 && !cands.length; pass++) {
-      for (i = 0; i < list.length; i++) {
-        sk = list[i];
-        if (!playable(sk.id) || (D.cover[sk.id] || 0) >= 1) continue;
-        domain = diagDomain(sk);
-        if (pass === 0 && domain !== desired) continue;
-        seen = D.cover[sk.id] || 0;
-        strandN = D.strands[sk.strand] || 0;
-        /* Items near p=.5 provide the most information.  The domain/strand
-           terms make the confirmation stage a sample of mathematics rather
-           than 24 near-duplicate questions from one catalogue topic. */
-        score = Math.abs(sk.b - D.theta) + seen * 20 + strandN * 0.55 + (domain === desired ? 0 : 2.5);
-        score += rng() * 0.18;                       /* fair ties, deterministic from engine RNG */
-        cands.push({ sk: sk, score: score });
-      }
+    var cov = D.cover || (D.cover = {}), band = D.band;
+    var list = (root.SKILLS || []).filter(function (s) { return s.band === band && playable(s.id); });
+    if (!list.length) return null;
+    var fresh = [], used = [], i;
+    for (i = 0; i < list.length; i++) (cov[list[i].id] ? used : fresh).push(list[i]);
+    function shuffled(arr) {
+      var out = arr.slice(), j, k, t;
+      for (j = 0; j < out.length; j++) { k = Math.floor(rng() * (out.length - j)) + j; t = out[j]; out[j] = out[k]; out[k] = t; }
+      return out;
     }
-    if (!cands.length) return null;
-    cands.sort(function (a, b) { return a.score - b.score; });
-    /* A generator can refuse a card (its template prints its own answer).  The
-       probe must still reach its limit, so the next-ranked question is tried
-       before the diagnostic gives up — never the probe ending at question 20
-       of 24 because one skill happened to be drawn. */
-    var room = cands.length < 8 ? cands.length : 8, c = 0, best = null, lvl = 3, item = null, tries = 0;
+    var order = shuffled(fresh);
+    if (!order.length) {
+      order = shuffled(used).sort(function (a, b) { return (cov[a.id] || 0) - (cov[b.id] || 0); });
+      if (order.length > 1 && D.skill && order[0].id === D.skill) order.push(order.shift());
+    }
+    var room = Math.min(order.length, 12), c = 0, lvl = 3, item = null, tries = 0, best = null;
     for (c = 0; c < room && !item; c++) {
-      best = cands[c].sk;
-      lvl = clamp(3 + Math.round((D.theta - best.b) / 5), 1, 5);
+      best = order[c];
+      if (!best || (D.skill && best.id === D.skill && order.length > 1)) continue;
+      lvl = 3;                                   /* the grade's own middle difficulty */
       tries = 0;
-      while (!item && tries++ < 8) { try { item = root.genFor(best.id, rng, lvl); } catch (e) { item = null; } }
+      while (!item && tries++ < 6) { try { item = root.genFor(best.id, rng, lvl); } catch (e) { item = null; } }
     }
     if (!item) return null;
-    D.cover[best.id] = (D.cover[best.id] || 0) + 1;
-    D.domains[desired] = D.domains[desired] || 0;     /* retain zero-count domains in exports */
-    D.domains[diagDomain(best)] = (D.domains[diagDomain(best)] || 0) + 1;
+    cov[best.id] = (cov[best.id] || 0) + 1;
+    var dom = diagDomain(best);
+    D.domains[dom] = (D.domains[dom] || 0) + 1;
     D.strands[best.strand] = (D.strands[best.strand] || 0) + 1;
     D.bands[best.band] = (D.bands[best.band] || 0) + 1;
     item.lvl = lvl;
     return item;
   }
   function diagStart(st, startBand) {
-    var old = st.diag, prior = diagStartTheta(st, startBand), b = bandAtTheta(prior);
-    var chosen = (startBand && BANDS.indexOf(startBand) >= 0) ? startBand : null;
+    var old = st.diag;
+    /* The learner chose the grade, so the crawl opens there — snapped to the
+       nearest grade that actually has questions written for it, because a probe
+       that has nothing to ask is not a probe. */
+    var chosen = (startBand && BANDS.indexOf(startBand) >= 0) ? startBand : climbHomeBand(st);
+    if (BANDS.indexOf(chosen) < 0) chosen = BANDS[0];
+    var grade = climbLevelWithItems(chosen) || chosen;
+    var t = now();
     st.diag = {
-      model: 'adaptive-v2', phase: 'routing', theta: prior, band: b, level: b,
-      startBand: chosen,
-      asked: 0, correct: 0, limit: DIAG_LIMIT, route: DIAG_ROUTE, info: 0.04,
-      cover: {}, domains: {}, strands: {}, bands: {}, results: [], hist: [], done: false,
+      model: 'grade-crawl', phase: 'probing',
+      theta: bandMid(grade), band: grade, level: grade, startBand: chosen, reached: grade,
+      asked: 0, correct: 0, streak: 0, miss: 0, wrong: 0,
+      minutes: DIAG_MINUTES, started: t, deadline: t + DIAG_LIMIT_MS,
+      info: 0.04, cover: {}, domains: {}, strands: {}, bands: {}, results: [], hist: [], done: false,
       from: old && old.done ? { theta: old.theta, asked: old.asked || 0, at: now() } : null,
       fromBand: old && old.done ? (old.level || old.band || null) : null
     };
@@ -7145,33 +7197,58 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function diagNext(st) {
     var D = st.diag, item;
     if (!D || D.done) return null;
-    if (D.asked >= D.limit) { diagFinish(st); return null; }
-    D.phase = D.asked < D.route ? 'routing' : 'confirming';
-    item = diagPick(st, D, root.__rng || Math.random);
+    if (now() >= D.deadline) { diagFinish(st); return null; }     /* the half hour is up */
+    D.phase = 'probing';
+    var rng = root.__rng || Math.random;
+    item = diagPick(st, D, rng);
+    if (!item) {
+      /* nothing left to ask in this grade: step to the nearest grade that has
+         questions before giving up on the crawl — a learner is never handed a
+         grade that has nothing written for it */
+      var fb = climbLevelWithItems(D.band);
+      if (fb && fb !== D.band) { D.band = fb; item = diagPick(st, D, rng); }
+    }
     if (!item) { diagFinish(st); return null; }
-    D.band = bandAtTheta(D.theta);
     item.diag = {
-      n: D.asked + 1, of: D.limit, level: D.band, label: BAND_LABEL[D.band] || D.band,
-      phase: D.phase, domain: diagDomain(root.SKILL_BY_ID[item.skill]), confidence: diagConfidence(D)
+      level: D.band, label: BAND_LABEL[D.band] || D.band,
+      streak: D.streak || 0, need: DIAG_RUN, miss: D.miss || 0, stop: DIAG_STOP,
+      msLeft: Math.max(0, D.deadline - now()), minutes: DIAG_MINUTES,
+      domain: diagDomain(root.SKILL_BY_ID[item.skill]), confidence: diagConfidence(D)
     };
     D.skill = item.skill;
     return item;
   }
-  function diagAnswer(st, item, ok) {
+  /* ok/skipped is the whole input: the crawl moves up a grade on ten right
+     answers in a row, holds the grade after a miss, and stops on three cards in
+     a row that were missed or put away. It never moves a learner down a grade. */
+  function diagAnswer(st, item, ok, skipped) {
     var D = st.diag;
     if (!D || D.done) return null;
-    var p = prob(D.theta, item.b), information = p * (1 - p) / (W * W);
-    D.theta = clamp(D.theta + DIAG_STEP * ((ok ? 1 : 0) - p), -10, 125);
-    D.info += information;
-    D.asked++; D.correct += ok ? 1 : 0;
-    D.band = bandAtTheta(D.theta);
-    var s = S(st, item.skill);
-    s.m = clamp(s.m + 0.28 * ((ok ? 1 : 0) - s.m), 0, 1);
-    s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.b = s.b == null ? item.b : s.b + 0.35 * (item.b - s.b); s.last = now();
-    D.results.push({ id: item.skill, band: (root.SKILL_BY_ID[item.skill] || {}).band || D.band, domain: diagDomain(root.SKILL_BY_ID[item.skill]), b: +item.b.toFixed(2), p: +p.toFixed(3), ok: ok ? 1 : 0 });
-    D.hist.push({ t: now(), band: D.band, theta: +D.theta.toFixed(2), se: +diagPrecision(D).toFixed(2), ok: ok ? 1 : 0 });
+    var p = prob(D.theta, item.b);
+    /* θ keeps following the answers, because the placement is read from it at the
+       end. A card put away unread is not evidence of anything, so it moves θ and
+       the skill record nothing — only the run below, which is about attention. */
+    if (!skipped) {
+      D.theta = clamp(D.theta + DIAG_STEP * ((ok ? 1 : 0) - p), -10, 125);
+      D.info += p * (1 - p) / (W * W);
+      var s = S(st, item.skill);
+      s.m = clamp(s.m + 0.28 * ((ok ? 1 : 0) - s.m), 0, 1);
+      s.a++; s.c += ok ? 1 : 0; s.s = ok ? s.s + 1 : 0; s.b = s.b == null ? item.b : s.b + 0.35 * (item.b - s.b); s.last = now();
+    }
+    D.asked++;
+    if (ok) { D.correct++; D.streak = (D.streak || 0) + 1; D.miss = 0; }
+    else { D.streak = 0; D.miss = (D.miss || 0) + 1; }        /* a skip is not a right answer */
+    D.wrong = D.miss;                                          /* the header still reads this name */
+    D.results.push({ id: item.skill, band: (root.SKILL_BY_ID[item.skill] || {}).band || D.band, domain: diagDomain(root.SKILL_BY_ID[item.skill]), b: +item.b.toFixed(2), p: +p.toFixed(3), ok: ok ? 1 : 0, skip: skipped ? 1 : 0 });
+    D.hist.push({ t: now(), band: D.band, theta: +D.theta.toFixed(2), ok: ok ? 1 : 0 });
     if (D.hist.length > 200) D.hist = D.hist.slice(-160);
-    if (D.asked >= D.limit) diagFinish(st);
+    /* Ten in a row means the grade is holding: step up one rung and start the
+       count again. Nothing steps down during the crawl. */
+    if ((D.streak || 0) >= DIAG_RUN && bandIdx(D.band) < BANDS.length - 1) {
+      var up = climbLevelWithItems(BANDS[bandIdx(D.band) + 1]);
+      if (up) { D.band = up; D.reached = up; D.streak = 0; anchorLevel(st, up); }
+    }
+    if ((D.miss || 0) >= DIAG_STOP || now() >= D.deadline) diagFinish(st);
     return D.done ? placement(st) : null;
   }
   function diagnosticSummary(st) {
@@ -7186,10 +7263,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function diagFinish(st) {
     var D = st.diag;
     if (!D) return null;
-    D.done = true; D.phase = 'done'; D.level = bandAtTheta(D.theta); D.band = D.level;
+    if (D.done) return placement(st);
+    D.done = true; D.phase = 'done';
+    /* The grade the crawl reached is the ceiling: the answers can place a learner
+       below it, never above it. Nothing is taken away as a penalty — the estimate
+       simply stops where the evidence stops. */
+    var est = bandAtTheta(D.theta);
+    if (BANDS.indexOf(est) < 0) est = D.band;
+    if (bandIdx(est) > bandIdx(D.band)) est = D.band;
+    D.level = est; D.placed = est;                  /* D.band stays the grade it ended on */
+    D.elapsed = Math.max(0, now() - (D.started || now()));
+    D.stoppedBy = (D.miss || 0) >= DIAG_STOP ? 'misses' : 'time';
     D.standardError = diagPrecision(D); D.reliability = diagReliability(D); D.confidence = diagConfidence(D);
     st.theta = D.theta; st.thetaSeen = Math.max(st.thetaSeen || 0, D.asked || 0);
-    climbStart(st, D.level);                         /* practice starts at the estimated level */
+    climbStart(st, D.level);                         /* practice starts at the placed grade */
     return placement(st);
   }
 
@@ -7228,10 +7315,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return st;
   }
   function serialize(st) {
-    return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created };
+    return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created, lastSkill: st.lastSkill || null, lastOk: st.lastOk == null ? null : !!st.lastOk };
   }
   function load() {
-    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true } };
+    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true }, lastSkill: null, lastOk: null };
     var raw = null;
     try {
       raw = localStorage.getItem(KEY); if (!raw) return base;
@@ -7281,12 +7368,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
        stays counted, and the Report still shows what was asked. */
     if (st.diag) {
       var D = st.diag;
-      /* A partially completed probe from the former streak-based algorithm
-         * cannot be mixed with adaptive information.  Preserve every recorded
-         * answer and close that old result; the learner can start a clean CAT
-         * probe from the report. */
-      if (D.model !== 'adaptive-v2' && !D.done) { D.done = true; D.phase = 'done'; D.model = 'legacy'; }
+      /* A probe written by the earlier algorithms cannot be carried into the
+         grade crawl: it has no clock and no run counters to carry. Preserve every
+         answer it collected, close it, and let the learner start a fresh crawl. */
+      if (D.model !== 'grade-crawl' && !D.done) { D.done = true; D.phase = 'done'; D.model = 'legacy'; }
       if (!D.cover || typeof D.cover !== 'object') D.cover = {};
+      if (!D.done) {
+        D.streak = D.streak || 0; D.miss = D.miss || 0; D.wrong = D.miss;
+        D.minutes = D.minutes || DIAG_MINUTES;
+        /* A crawl with no clock would never end, so it gets one from the moment
+           this build first sees it — never a probe that runs forever. */
+        if (!D.deadline) D.deadline = (D.started || now()) + (D.minutes * 60 * 1000);
+        if (!D.band || BANDS.indexOf(D.band) < 0) D.band = D.startBand || climbHomeBand(st);
+      }
       if (!D.level || BANDS.indexOf(D.level) < 0) {
         var last = null, res = D.results || [], i;
         for (i = res.length - 1; i >= 0; i--) { if (res[i] && res[i].band && BANDS.indexOf(res[i].band) >= 0) { last = res[i].band; break; } }
@@ -7331,15 +7425,23 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       frontierIndex: function () { return frontierIndex(st); },
       diagStart: function (band) { return diagStart(st, band); },
       diagNext: function () { return diagNext(st); },
-      diagAnswer: function (item, ok) { return diagAnswer(st, item, ok); },
+      diagAnswer: function (item, ok, skipped) { return diagAnswer(st, item, ok, skipped); },
       diagActive: function () { return !!(st.diag && !st.diag.done); },
+      diagFinish: function () { return diagFinish(st); },
       diagFrom: function () { return (st.diag && st.diag.from) || null; },
       climbStart: function (b) { return climbStart(st, b); },
       climbNext: function () { return climbNext(st, rng); },
       climbAnswer: function (item, ok, skipped) { return climbAnswer(st, item, ok, rng, skipped); },
       climbHome: function () { return climbHomeBand(st); },
       CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
-      diagLimit: function () { return (st.diag && st.diag.limit) || DIAG_LIMIT; },
+      /* the probe is a clock, not a question count: minutes on it, and the
+         millisecond left on this one */
+      diagLimit: function () { return (st.diag && st.diag.minutes) || DIAG_MINUTES; },
+      diagRemaining: function () {
+        var D = st.diag; if (!D || D.done || !D.deadline) return 0;
+        return Math.max(0, D.deadline - now());
+      },
+      DIAG_RUN: DIAG_RUN, DIAG_STOP: DIAG_STOP,
       prob: function (b) { return prob(st.theta, b); },
       /* The learner asked to clear their own record. This is the only path that
          lets an empty state reach the device; nothing else in the app may. */
@@ -7356,7 +7458,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         /* a file with nothing on it does not get to erase this device unless the
            learner says so — 'confirm' means "ask first", nothing was changed */
         if (!force && !allowBlank && !hasRecord(o) && hasRecord(st)) return 'confirm';
-        ['theta', 'thetaSeen', 'sk', 'sess', 'bestEver', 'log', 'diag', 'climb', 'settings', 'created'].forEach(function (k) { if (o[k] !== undefined) st[k] = o[k]; });
+        ['theta', 'thetaSeen', 'sk', 'sess', 'bestEver', 'log', 'diag', 'climb', 'settings', 'created', 'lastSkill', 'lastOk'].forEach(function (k) { if (o[k] !== undefined) st[k] = o[k]; });
         return true;
       }
     };
@@ -7367,7 +7469,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     createEngine: createEngine, blankState: blankState, load: load, save: save,
     statusOf: statusOf, STATUS_LABEL: STATUS_LABEL, BANDS: BANDS, BAND_LABEL: BAND_LABEL,
     prob: prob, clamp: clamp, PASS_M: PASS_M, PASS_N: PASS_N,
-    DIAG_LIMIT: DIAG_LIMIT, DIAG_ROUTE: DIAG_ROUTE,
+    DIAG_MINUTES: DIAG_MINUTES, DIAG_LIMIT_MS: DIAG_LIMIT_MS, DIAG_RUN: DIAG_RUN, DIAG_STOP: DIAG_STOP, DIAG_ROUTE: DIAG_ROUTE,
     climbState: climbState, climbHomeBand: climbHomeBand, CLIMB_NEED: CLIMB_NEED, CLIMB_DROP: CLIMB_DROP,
     bandStats: bandStats, activeBand: activeBand, bandMid: bandMid
   };
@@ -58939,7 +59041,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (S.item.diag) {
         more = { p: E.prob(S.item.b), status: E.statusOf(S.item.skill) };
         var done = null;
-        try { done = E.diagAnswer(S.item, ok); } catch (e) { done = null; }
+        try { done = E.diagAnswer(S.item, ok, skipped); } catch (e) { done = null; }
         if (done) S.diagReport = done;
       } else if (S.item.climb) {
         more = E.climbAnswer(S.item, ok, skipped);
@@ -59468,21 +59570,67 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
 
   /* ------------------------------------------------------ placement probe -- */
-  /* The probe header is live state, so it is built in one place and redrawn in
-   * place after every answer instead of only when the whole view re-renders. */
+  /* The probe is a grade crawl with a clock, not a fixed number of questions, so
+   * its header shows the grade being tested, how many right answers in a row are
+   * banked toward the next grade, and the time left. It never prints a question
+   * count: there is no count to reach. The header is live state, so it is built in
+   * one place and redrawn in place after every answer. */
+  function fmtLeft(ms) {
+    var s = Math.max(0, Math.ceil((ms || 0) / 1000));
+    var m = Math.floor(s / 60), r = s % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
   function probeProgressCard() {
-    var D = E.st.diag || {}, lim = E.diagLimit() || 30, asked = D.asked || 0;
-    var over = !E.diagActive(), phase = D.phase === 'routing' ? 'Routing the difficulty' : 'Confirming across math areas';
-    var domain = S.item && S.item.diag && S.item.diag.domain ? S.item.diag.domain : '';
+    var D = E.st.diag || {}, over = !E.diagActive();
+    var need = E.DIAG_RUN || 10, stop = E.DIAG_STOP || 3;
+    var streak = D.streak || 0, miss = D.miss || 0;
+    var grade = E.BAND_LABEL[D.band] || D.band || '';
+    var dots = function (n, total, cls) {
+      var out = [], i;
+      for (i = 0; i < total; i++) out.push(h('i', { class: 'dot' + (i < n ? ' ' + cls : '') }));
+      return h('span', { class: 'probedots' }, out);
+    };
+    var left = over ? 0 : E.diagRemaining();
     return h('div', { class: 'card tight', id: 'probprog' }, [
       h('div', { class: 'row between' }, [
-        h('b', { text: 'Adaptive placement diagnostic' }),
-        h('span', { class: 'tiny', text: over ? asked + ' / ' + lim + ' — complete' : asked + ' / ' + lim })
+        h('b', { text: 'Placement probe' }),
+        over ? h('span', { class: 'tiny', text: 'Probe complete.' })
+          : h('span', { class: 'pill accent', id: 'probtime', text: fmtLeft(left) + ' left' })
       ]),
-      h('div', { class: 'diagbar' }, [h('i', { style: { width: clamp(Math.round(asked / lim * 100), 0, 100) + '%' } })]),
-      over ? h('div', { class: 'tiny', text: 'Estimate complete.' })
-        : h('div', { class: 'tiny', text: phase + (domain ? ' · current area: ' + domain : '') + '.' })
+      over ? null : h('div', { class: 'row between', style: { marginTop: '8px' } }, [
+        h('div', { class: 'row', style: { gap: '8px' } }, [
+          h('span', { class: 'tiny', text: 'Asking' }),
+          h('span', { class: 'pill', text: grade })
+        ]),
+        h('span', { class: 'tiny', text: 'right in a row: ' + streak + ' of ' + need })
+      ]),
+      over ? h('div', { class: 'tiny', style: { marginTop: '8px' }, text: 'The estimate is ready.' })
+        : h('div', { class: 'row', style: { marginTop: '8px', gap: '12px' } }, [
+          dots(streak, need, 'good'),
+          miss ? dots(miss, stop, 'bad') : null
+        ]),
+      over ? null : h('div', { class: 'tiny', style: { marginTop: '6px' }, text: 'Get ' + need + ' right in a row to move to the next grade. ' + stop + ' missed or skipped in a row ends the probe — nothing moves you down. The probe closes by itself when the ' + (E.diagLimit() || 30) + ' minutes are up.' })
     ]);
+  }
+  /* The countdown is the only clock the learner has, so it ticks on its own. It
+   * clears itself when the probe ends, when the view moves away (the element is
+   * gone), and in the headless DOM where no timer exists at all. */
+  var probeTimer = null;
+  function probeClock() {
+    if (probeTimer) { clearInterval(probeTimer); probeTimer = null; }
+    if (!E.diagActive() || typeof setInterval !== 'function') return;
+    probeTimer = setInterval(function () {
+      var el = $('#probtime');
+      if (!E.diagActive() || !el) { if (probeTimer) { clearInterval(probeTimer); probeTimer = null; } return; }
+      var left = E.diagRemaining();
+      el.textContent = fmtLeft(left) + ' left';
+      if (left <= 0) {
+        if (probeTimer) { clearInterval(probeTimer); probeTimer = null; }
+        var placed = null;
+        try { placed = E.diagFinish(); } catch (e) { placed = null; }
+        if (placed) { S.diagReport = placed; showReport(); } else render();
+      }
+    }, 1000);
   }
   function renderProbeProgress() {
     var old = $('#probprog'); if (!old || !old.parentNode) return;
@@ -59507,10 +59655,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var evidence = ds && ds.domains ? Object.keys(ds.domains).filter(function (k) { return ds.domains[k] > 0; }).length : 0;
       var precision = ds && isFinite(ds.standardError) ? '±' + (ds.standardError / 8).toFixed(1) + ' level bands' : '';
       var confidence = ds ? (ds.confidence === 'strong' ? 'strong' : ds.confidence === 'moderate' ? 'moderate' : 'preliminary') : '';
+      var Dg = E.st.diag || {};
+      var reached = (E.BAND_LABEL[Dg.band] || Dg.band || '') , startedAt = (E.BAND_LABEL[Dg.startBand] || Dg.startBand || '');
+      var crawlLine = startedAt ? ('The probe opened at ' + startedAt + (reached && reached !== startedAt ? ' and reached ' + reached : reached ? ' and stayed there' : '') + '.') : '';
+      var whyLine = Dg.stoppedBy === 'misses' ? (Dg.miss ? ' It ended after ' + Dg.miss + ' questions in a row were missed or skipped.' : '')
+        : Dg.stoppedBy === 'time' ? ' It ended when the ' + (E.diagLimit() || 30) + ' minutes were up.' : '';
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement result' }),
         h('div', { class: 'muted', html: 'You are working at <b>' + esc(p.bandLabel || '') + '</b>. Practice starts here:' }),
-        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: askedN ? 'Based on ' + askedN + ' adaptive diagnostic questions' + (sb ? ', starting from ' + (E.BAND_LABEL[sb] || sb) : '') : '' }),
+        (crawlLine || whyLine) ? h('div', { class: 'tiny', style: { marginTop: '6px' }, text: (crawlLine + whyLine).trim() }) : null,
         ds ? h('div', { class: 'hintbox', style: { marginTop: '12px' }, text: 'Evidence: ' + evidence + ' mathematical areas · ' + confidence + ' confidence' + (precision ? ' · precision ' + precision : '') + '. This is a placement aid, not a norm-referenced standardized test.' }) : null,
         h('div', { class: 'skill-list', style: { marginTop: '12px' } }, (p.plan || []).slice(0, 5).map(function (row) {
           return h('div', { class: 'skill' }, [
@@ -59554,18 +59707,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var gradePick = h('select', { class: 'lvlpick', title: 'Choose the grade the probe starts from' });
       E.BANDS.forEach(function (b) { gradePick.appendChild(h('option', { value: b, text: E.BAND_LABEL[b] || b })); });
       gradePick.value = startBand;
-      var gradeAt = h('span', { class: 'tiny', text: 'It opens at ' + (E.BAND_LABEL[startBand] || startBand) + ' and moves up or down from your answers.' });
+      var gradeAt = h('span', { class: 'tiny', text: 'It opens at ' + (E.BAND_LABEL[startBand] || startBand) + ' and moves up when you answer right in a row.' });
       gradePick.addEventListener('change', function () {
         S.diagStartBand = gradePick.value || E.level().band;
-        gradeAt.textContent = 'It opens at ' + (E.BAND_LABEL[S.diagStartBand] || S.diagStartBand) + ' and moves up or down from your answers.';
+        gradeAt.textContent = 'It opens at ' + (E.BAND_LABEL[S.diagStartBand] || S.diagStartBand) + ' and moves up when you answer right in a row.';
       });
       clear(view).appendChild(h('div', { class: 'card' }, [
-        h('h2', { text: 'Adaptive placement diagnostic' }),
-        h('div', { class: 'muted', html: 'This <b>' + (E.diagLimit() || 24) + '-question diagnostic</b> adapts each next question to your responses. The first part locates a working range; the second confirms it across number and operations, algebra and functions, geometry and measurement, and data and probability. Your result includes a precision indicator and starts Practice at the estimated level.' }),
+        h('h2', { text: 'Placement probe' }),
+        h('div', { class: 'muted', html: 'The probe starts at the grade you choose and asks <b>that grade only</b>, one different skill after another. Get <b>' + (E.DIAG_RUN || 10) + ' right in a row</b> to move up to the next grade. A missed question keeps you where you are — nothing ever moves you down — and <b>' + (E.DIAG_STOP || 3) + ' missed or skipped in a row</b> ends the probe. It closes on its own when the <b>' + (E.diagLimit() || 30) + ' minutes</b> are up.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('b', { text: 'Start from:' }), gradePick, gradeAt
         ]),
-        h('div', { class: 'tiny', style: { marginTop: '9px' }, text: 'It is a structured placement aid, not a state-standardized or norm-referenced test.' }),
+        h('div', { class: 'tiny', style: { marginTop: '9px' }, text: 'It is a placement aid, not a state-standardized or norm-referenced test.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('button', { class: 'btn primary', type: 'button', on: { click: function () { startDiag(S.diagStartBand || E.level().band); } } }, 'Start the probe'),
           h('button', { class: 'btn ghost', type: 'button', on: { click: function () { S.view = 'practice'; render(); } } }, 'Just start practicing')
@@ -59586,6 +59739,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       h('div', { id: 'itemhost' })
     ]));
     renderItem();
+    probeClock();                                        /* the countdown is the only counter here */
   }
   function startDiag(band) {
     S.diagReport = null; S.queue = []; S.attempts = 0; S.answered = false; S.revealed = false; S.lastRec = null;
