@@ -21006,6 +21006,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   };
   /* round to d decimals with integer maths (0.1 + 0.2 must not become 0.30000000000000004) */
   BC.fix = function (x, d) { var p = Math.pow(10, d); return Math.round((x * p) + (x >= 0 ? 0.0000001 : -0.0000001)) / p; };
+  /* the relation symbol for a printed value: '=' when the shown value IS the
+     exact value, '≈' when it has been rounded — a card must never print a false
+     equality like "400 ÷ 7 = 57.14" when the quotient is 57.142857… */
+  BC.rel = function (exact, shown) { return Math.abs(exact - shown) < 1e-9 ? ' = ' : ' ≈ '; };
   /* decimal places needed to write x exactly (up to 6) */
   BC.dp = function (x) { for (var d = 0; d <= 6; d++) if (Math.abs(x * Math.pow(10, d) - Math.round(x * Math.pow(10, d))) < 1e-9) return d; return 6; };
   /* a + b done in integer arithmetic when both are terminating decimals */
@@ -23616,8 +23620,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           });
         }
         var lieKind = BC.int(rng, 0, 1);
+        /* "sym 1" appended is only a FALSE equation for '+': multiplying or
+           dividing by 1 changes nothing, so those ops get "× 0" / "+ 1" */
+        var lieTail = sym === '×' ? ' × 0' : ' + 1';
         var expr = lieKind === 0
-          ? a + ' ' + sym + ' ' + b + ' = ' + a + ' ' + sym + ' ' + b + ' ' + sym + ' 1'
+          ? a + ' ' + sym + ' ' + b + ' = ' + a + ' ' + sym + ' ' + b + lieTail
           : a + ' ' + sym + ' ' + b + ' = ' + (val(op, a, b) + BC.pick(rng, [1, 2, 10]));
         var ans = val(op, a, b);
         return calc(rng, {
@@ -24569,7 +24576,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
       function () {                       /* equivalent-fraction table */
         var f = frac(rng, lvl);
-        var ks = [1, BC.int(rng, 2, 3), BC.int(rng, 3, 5)];
+        var ks = [1, BC.int(rng, 2, 3), BC.int(rng, 4, 5)];   /* 1,2/3,4/5 → three distinct scales, no duplicate row */
         var rows = ks.map(function (k) { return [String(f.n * k), String(f.d * k)]; });
         var hide = BC.int(rng, 0, 2);
         var ans = f.n * ks[hide];
@@ -26205,7 +26212,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_NUM('How much greater is 0.' + t + ' than 0.0' + t + '?', BC.fix(t / 10 - t / 100, 2), {
           visual: gridHundredths(t * 10 - t),
           explain: ['0.' + t + ' = ' + t * 10 + ' hundredths.', '0.0' + t + ' = ' + t + ' hundredths.',
-            t * 10 + ' − ' + t + ' = <b>' + BC.fix(t / 10 - t / 100, 2) + '</b>.'],
+            t * 10 + ' − ' + t + ' = ' + (t * 9) + ' hundredths = <b>' + BC.fix(t / 10 - t / 100, 2) + '</b>.'],
           teach: 'The same digit in the tenths place is worth ten times its hundredths value.',
           b: 0.5
         });
@@ -34442,11 +34449,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {                       /* a − b ÷ c order */
         if (!tf) return null;
         var c = BC.int(rng, 2, 9), q = BC.int(rng, 2, 9), a = BC.int(rng, 10, 60);
-        var right = a - c * q;
-        var claim = R.chance(rng, 0.5) ? right : Math.floor((a - c) / q) * 1;
-        if (a - c * q < 0) return null;
-        return judge('Is ' + a + ' − ' + c * q + ' ÷ ' + c + ' = ' + claim + ' true?', claim === right, {
-          explain: ['Divide first: ' + c * q + ' ÷ ' + c + ' = ' + q + '.', 'Then subtract: ' + a + ' − ' + q + ' = ' + right + '.', 'The statement says ' + claim + '.'],
+        var b = c * q;                          /* the dividend printed before ÷ c */
+        if (b >= a) return null;                /* keep both ways of working positive */
+        var right = a - q;                      /* divide first, THEN subtract */
+        var slip = Math.floor((a - b) / c);     /* the left-to-right slip: (a − b) ÷ c */
+        var claim = R.chance(rng, 0.5) ? right : slip;
+        return judge('Is ' + a + ' − ' + b + ' ÷ ' + c + ' = ' + claim + ' true?', claim === right, {
+          explain: ['Divide first: ' + b + ' ÷ ' + c + ' = ' + q + '.', 'Then subtract: ' + a + ' − ' + q + ' = ' + right + '.', 'The statement says ' + claim + '.'],
           teach: 'Division comes before subtraction, even when it is written second.',
           b: 0.5
         });
@@ -36999,16 +37008,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {                       /* order three amounts */
         var a = BC.int(rng, 15, 89), b = a + BC.pick(rng, [3, 7, 11]), c = b + BC.pick(rng, [4, 9]);
-        var vals = [{ n: a }, { n: b }, { n: c }];
-        var shuffled = vals.slice();
-        for (var i = shuffled.length - 1; i > 0; i--) { var j = BC.int(rng, 0, i), t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t; }
-        var right = shuffled.map(function (v) { return dstr(D(v.n, 2)); }).join(', ');
-        var wrongs = [shuffled.map(function (v) { return dstr(D(v.n, 2)); }).reverse().join(', '),
-          [shuffled[1], shuffled[0], shuffled[2]].map(function (v) { return dstr(D(v.n, 2)); }).join(', '),
-          [shuffled[2], shuffled[1], shuffled[0]].map(function (v) { return dstr(D(v.n, 2)); }).join(', ')];
+        var txt = function (n) { return dstr(D(n, 2)); };
+        var right = [a, b, c].map(txt).join(', ');   /* a < b < c by construction */
+        var perms = [[a, b, c], [a, c, b], [b, a, c], [b, c, a], [c, a, b], [c, b, a]];
+        var notRight = perms.filter(function (p) { return p.map(txt).join(', ') !== right; });
+        var shown = BC.pick(rng, notRight);          /* the card must not already show the answer order */
+        var wrongs = notRight.filter(function (p) { return p !== shown; }).map(function (p) { return p.map(txt).join(', '); });
         wrongs = wrongs.filter(function (s, i2, arr) { return s !== right && arr.indexOf(s) === i2; });
         if (wrongs.length < 2) return null;
-        return choose(rng, 'Put ' + vals.map(function (v) { return dstr(D(v.n, 2)); }).join(', ') + ' in order from least to greatest.',
+        return choose(rng, 'Put ' + shown.map(txt).join(', ') + ' in order from least to greatest.',
           right, wrongs, {
           steps: ['Compare the whole-number parts first, then the tenths.',
             'Least to greatest: ' + right + '.'],
@@ -37097,7 +37105,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (wrongs.length < 2) return null;
         return choose(rng, 'Put ' + items.map(function (i2) { return i2.txt; }).join(', ') + ' in order from least to greatest.',
           right, wrongs, {
-          steps: ['Change each to a decimal: ' + items.map(function (i2) { return i2.txt + ' = ' + dstr(D(i2.v, 2)); }).join(', ') + '.',
+          steps: ['Change each to a decimal: ' + items.map(function (i2) { return i2.txt + BC.rel(i2.v, D(i2.v, 2)) + dstr(D(i2.v, 2)); }).join(', ') + '.',
             'Least to greatest: ' + right + '.'],
           teach: 'Different forms are easier to compare once every one of them is a decimal.',
           b: 0.6
@@ -37382,7 +37390,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* hundredths × tenths → thousandths */
-        var a = BC.pick(rng, [5, 15, 25, 35, 45, 65, 75]), b = tenthVals();
+        var a = BC.pick(rng, [15, 25, 35, 45, 65, 75]), b = tenthVals();
         var ans = D(a * b, 3);
         var wrongs = dslips(ans, [D(a * b, 2), D(a * b, 4)]);
         if (wrongs.length < 2) return null;
@@ -38444,7 +38452,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var need = Math.floor(t.y.v / known) + 1;
         if (need > 12) return null;
         return ask('What is the smallest whole number that, multiplied by ' + known + ', gives a product greater than ' + t.y.a + ' × ' + t.y.b + '?', need, {
-          explain: ['The other side is ' + t.y.v + '.', 'Divide: ' + t.y.v + ' ÷ ' + known + ' = ' + (t.y.v / known).toFixed(2) + ', so go one whole number higher: <b>' + need + '</b>.'],
+          explain: ['The other side is ' + t.y.v + '.', 'Divide: ' + t.y.v + ' ÷ ' + known + (t.y.v % known === 0 ? ' = ' : ' ≈ ') + (t.y.v / known).toFixed(2) + ', so go one whole number higher: <b>' + need + '</b>.'],
           teach: 'To beat a product, divide it by your known factor and round up.',
           b: 0.9
         });
@@ -39028,7 +39036,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var truth = cand % base === 0;
         if (!truth && cand % base !== 0) { /* keep as is */ }
         return judge(rng, 'Is ' + cand + ' a multiple of ' + base + '?', truth, {
-          steps: ['Divide: ' + cand + ' ÷ ' + base + ' = ' + (cand / base).toFixed(2) + '.',
+          steps: ['Divide: ' + cand + ' ÷ ' + base + (truth ? ' = ' : ' ≈ ') + (cand / base).toFixed(2) + '.',
             cand + ' is ' + (truth ? 'exactly' : 'not exactly') + ' ' + (cand / base).toFixed(2) + ' times ' + base + '.'],
           teach: 'Only an exact whole-number times counts as a multiple.',
           b: 0.2
@@ -39102,6 +39110,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var n = BC.int(rng, 15, 80);
         var near = Math.round(n / base) * base;
         if (near === n) return null;
+        if (Math.abs(near - n) * 2 === base) return null;   /* equidistant ⇒ two right answers */
         var low = near - base, high = near + base;
         return choose(rng, 'Which multiple of ' + base + ' is closest to ' + n + '?', String(near),
           [String(near > n ? low : high), String(near + base * 2)], {
@@ -40162,7 +40171,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (ties.length > 1) return null;
         return choose(rng, 'Which division has the greatest quotient?', best.e,
           opts.filter(function (x) { return x.e !== best.e; }).map(function (x) { return x.e; }), {
-            steps: opts.map(function (x) { return x.e + ' = ' + nfmt(x.v); }).concat(['The greatest quotient is ' + nfmt(best.v) + '.']),
+            steps: opts.map(function (x) { return x.e + BC.rel(x.v, Number(nfmt(x.v))) + nfmt(x.v); }).concat(['The greatest quotient is ' + nfmt(best.v) + '.']),
             teach: 'A bigger dividend and a smaller divisor make a bigger quotient.', b: 0
           });
       },
@@ -40183,7 +40192,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var bestN = nums.filter(function (n) { return n / d === best; })[0];
         return choose(rng, 'Which dividend divided by ' + d + ' gives the largest quotient?', String(bestN),
           nums.filter(function (n) { return n !== bestN; }).map(String), {
-            steps: ['Divisor is fixed at ' + d + '.', 'The largest dividend gives the largest quotient: ' + bestN + ' ÷ ' + d + ' = ' + nfmt(best) + '.'],
+            steps: ['Divisor is fixed at ' + d + '.', 'The largest dividend gives the largest quotient: ' + bestN + ' ÷ ' + d + BC.rel(bestN / d, Number(nfmt(best))) + nfmt(best) + '.'],
             teach: 'With the divisor fixed, a larger dividend gives a larger quotient.', b: 0.4
           });
       },
@@ -40195,7 +40204,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (ties.length > 1) return null;
         return choose(rng, 'Using each pair of numbers once, which quotient is the largest?', best.e,
           pairs.filter(function (x) { return x.e !== best.e; }).map(function (x) { return x.e; }), {
-            steps: pairs.map(function (x) { return x.e + ' = ' + nfmt(x.v); }).concat(['Largest: ' + nfmt(best.v) + '.']),
+            steps: pairs.map(function (x) { return x.e + BC.rel(x.v, Number(nfmt(x.v))) + nfmt(x.v); }).concat(['Largest: ' + nfmt(best.v) + '.']),
             teach: 'Compare quotients by writing each one as a number first.', b: 0.6
           });
       },
@@ -40205,7 +40214,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var truth = R.chance(rng, 0.5);
         var claim = (num / d1 > num / d2) === (d1 < d2);
         return judge(rng, 'Is it true or false that ' + num + ' ÷ ' + d1 + ' is greater than ' + num + ' ÷ ' + d2 + '?', num / d1 > num / d2, {
-          steps: [num + ' ÷ ' + d1 + ' = ' + nfmt(num / d1) + '.', num + ' ÷ ' + d2 + ' = ' + nfmt(num / d2) + '.'],
+          steps: [num + ' ÷ ' + d1 + BC.rel(num / d1, Number(nfmt(num / d1))) + nfmt(num / d1) + '.', num + ' ÷ ' + d2 + BC.rel(num / d2, Number(nfmt(num / d2))) + nfmt(num / d2) + '.'],
           teach: 'Sharing the same amount into fewer groups gives bigger groups.', b: 0.7
         });
       },
@@ -40355,7 +40364,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (!isFinite(d.val) || d.val !== Math.floor(d.val) || d.val < 0) return null;
         var truth = R.chance(rng, 0.5);
         var shown = truth ? d.val : Math.max(0, d.slip);
-        return judge(rng, 'Someone substituted and got ' + d.ex + ' = ' + shown + '. Is that right?', truth, {
+        return judge(rng, 'Someone substituted x = ' + d.x + ' and got ' + d.ex + ' = ' + shown + '. Is that right?', truth, {
           steps: ['Rework it: ' + d.why + ' The value is ' + d.val + '.', 'The claim says ' + shown + '.'],
           teach: 'Rework the substitution before agreeing with a stated value.', b: 0.5
           });
@@ -40494,11 +40503,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             });
         },
         function () {
-          var rr = rule(), y = rr.m * x + rr.b;
-          var rows = [['1', String(rr.m + rr.b)], [String(x), '?'], ['3', String(rr.m * 3 + rr.b)]];
-          return ask('Use the pattern in the table to find the missing y for x = ' + x + '.', y, {
+          var rr = rule(), xx = BC.int(rng, 4, 9), y = rr.m * xx + rr.b;
+          var rows = [['1', String(rr.m + rr.b)], [String(xx), '?'], ['3', String(rr.m * 3 + rr.b)]];
+          return ask('Use the pattern in the table to find the missing y for x = ' + xx + '.', y, {
             visual: V.table(['x', 'y'], rows),
-            explain: ['y grows by ' + rr.m + ' for every x.', 'From x = 3 to x = ' + x + ': ' + (rr.m * 3 + rr.b) + ' + ' + rr.m + ' × ' + (x - 3) + ' = <b>' + y + '</b>.'],
+            explain: ['y grows by ' + rr.m + ' for every x.', 'From x = 3 to x = ' + xx + ': ' + (rr.m * 3 + rr.b) + ' + ' + rr.m + ' × ' + (xx - 3) + ' = <b>' + y + '</b>.'],
             teach: 'A constant step in the table means a constant multiplier in the rule.', b: 0.5
           });
         },
@@ -40520,7 +40529,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           });
         },
         function () {
-          var rr = rule(), x2 = BC.int(rng, 2, 8);
+          var rr = rule(), x2 = BC.int(rng, 3, 8);   /* must differ from the '?' row's x = 2 */
           var rows = [[String(x2), String(rr.m * x2 + rr.b)], ['2', '?']];
           return ask('Complete the missing y in the table when x = 2 for y = ' + rr.m + 'x' + (rr.b ? ' + ' + rr.b : '') + '.', rr.m * 2 + rr.b, {
             visual: V.table(['x', 'y'], rows),
@@ -42369,9 +42378,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var total = d * 10 + n * 5;
           return ask('A pocket has twice as many nickels as dimes, and they total ' + total + '¢. How many dimes?', d, {
             visual: V.coins(0, d, n, 0),
-            explain: ['Each dime-nickel pair is 10 + 5 = 15¢.', total + ' ÷ 15 = ' + d + ' pairs.',
+            explain: ['Twice as many nickels as dimes: each dime comes with two nickels, 10 + 5 + 5 = 20¢.',
+              total + ' ÷ 20 = ' + d + ' groups.',
               'So there are <b>' + d + '</b> dimes.'],
-            teach: 'A ratio between coin types lets the total be split into equal pairs.', b: 0.4
+            teach: 'A ratio between coin types lets the total be split into equal groups.', b: 0.4
           });
         },
         function () {
@@ -42396,8 +42406,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var q = Math.floor(total / 25);
           var rest = total - q * 25;
           return ask('Make ' + total + '¢ with as many quarters as possible. How many dimes are left for the remainder?', Math.floor(rest / 10), {
-            explain: ['Quarters: ' + q + ' × 25 = ' + (q * 25) + '¢.', 'Left: ' + rest + '¢.',
-              'Dimes: ' + rest + ' ÷ 10 = <b>' + Math.floor(rest / 10) + '</b>.'],
+            explain: ['Quarters: ' + q + ' × 25 = ' + (q * 25) + '¢.', 'Left after quarters: ' + rest + '¢.',
+              'Dimes that fit: ' + Math.floor(rest / 10) + ' (since ' + (Math.floor(rest / 10) * 10) + ' ≤ ' + rest + ' < ' + (Math.floor(rest / 10) + 1) * 10 + '), so <b>' + Math.floor(rest / 10) + '</b>.'],
             teach: 'Greedy change-making takes the biggest coin that still fits.', b: 0.8
           });
         },
@@ -42477,7 +42487,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var n = BC.int(rng, 2, 9), cents = n * BC.int(rng, 15, 45);
           return ask('A pack of ' + n + ' gel pens costs ' + cash(cents / 100) + '. What is the price of one pen?', cents / n / 100, {
             unit: '$',
-            explain: ['Unit price = total ÷ number.', cash(cents / 100) + ' ÷ ' + n + ' = <b>' + cash(cents / n / 100) + '</b> each.'],
+            explain: ['Unit price = total ÷ number.', cash(cents / 100) + ' ÷ ' + n + BC.rel(cents / n / 100, Number(cash(cents / n / 100))) + '<b>' + cash(cents / n / 100) + '</b> each.'],
             teach: 'A unit price is the total divided by how many items it covers.', b: 0.3
           });
         },
@@ -42513,7 +42523,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var kid = who(rng);
           return ask(kid + ' split ' + cash(cents / 100) + ' equally among ' + n + ' people. How much each?', cents / n / 100, {
             unit: '$',
-            explain: ['Divide the money by ' + n + '.', cash(cents / 100) + ' ÷ ' + n + ' = <b>' + cash(cents / n / 100) + '</b>.'],
+            explain: ['Divide the money by ' + n + '.', cash(cents / 100) + ' ÷ ' + n + BC.rel(cents / n / 100, Number(cash(cents / n / 100))) + '<b>' + cash(cents / n / 100) + '</b>.'],
             teach: 'Sharing money equally is the same division as a unit price.', b: 0.9
           });
         }
@@ -42559,7 +42569,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var kid = who(rng);
         return ask(kid + ' shared the bill of ' + cash(total / 100) + ' equally among ' + c.k + ' friends. How much each?', total / c.k / 100, {
           unit: '$',
-          explain: ['Convert to cents: ' + total + '¢.', total + ' ÷ ' + c.k + ' = <b>' + cash(total / c.k / 100) + '</b> each.'],
+          explain: ['Convert to cents: ' + total + '¢.', total + ' ÷ ' + c.k + ' = ' + (total / c.k) + '¢ = <b>' + cash(total / c.k / 100) + '</b> each.'],
           teach: 'Sharing money equally is division with the point watched.', b: 0.5
         });
       },
@@ -42705,7 +42715,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var cents = BC.int(rng, 105, 985) * 10;
         return ask('Divide ' + cash(cents / 100) + ' equally among 10 people. How much each?', cents / 10 / 100, {
           unit: '$',
-          explain: [cash(cents / 100) + ' is ' + cents + '¢.', cents + ' ÷ 10 = <b>' + cash(cents / 10 / 100) + '</b>.'],
+          explain: [cash(cents / 100) + ' is ' + cents + '¢.', cents + ' ÷ 10 = ' + (cents / 10) + '¢ = <b>' + cash(cents / 10 / 100) + '</b>.'],
           teach: 'Dividing money by ten moves every digit one place left.', b: 0.7
         });
       },
@@ -42929,6 +42939,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           var a = BC.int(rng, 3, 12), b = BC.pick(rng, [2, 3, 4, 5, 6]);
+          if (a === b) return null;   /* a ÷ a = a/a is TRUE — the flipped claim could not be false */
           var truth = R.chance(rng, 0.5);
           var claim = truth ? (a + '/' + b) : (b + '/' + a);
           return judge(rng, a + ' ÷ ' + b + ' = ' + claim + '. Is that right?', truth, {
@@ -43521,7 +43532,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return ask('Scale ' + w + ' by ' + s + '.', sw.v, {
             visual: V.frac([{ n: sw.n, d: sw.d }]),
             explain: ['Multiply: ' + w + ' × ' + s + ' = ' + sw.n + '/' + sw.d + '.',
-              sw.n + ' ÷ ' + sw.d + ' = ' + nfmt(sw.v) + '.'],
+              sw.n + ' ÷ ' + sw.d + BC.rel(sw.v, Number(nfmt(sw.v))) + nfmt(sw.v) + '.'],
             teach: 'Scaling multiplies: the scale factor says how many times as much.', b: 0
           });
         }
@@ -43860,7 +43871,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var lie1 = R.chance(rng, 0.5) ? Lb * 2 + 1 : Lb;
           var truth1 = lie1 === Lb;
           return judge(rng, 'Is ' + lie1 + ' a common denominator of 1/' + d1b + ' and 1/' + d2b + '?', truth1, {
-            steps: [lie1 + ' ÷ ' + d1b + ' = ' + nfmt(Math.round(lie1 / d1b * 100) / 100) + ', and ' + lie1 + ' ÷ ' + d2b + ' = ' + nfmt(Math.round(lie1 / d2b * 100) / 100) + '.',
+            steps: [lie1 + ' ÷ ' + d1b + BC.rel(lie1 / d1b, Math.round(lie1 / d1b * 100) / 100) + nfmt(Math.round(lie1 / d1b * 100) / 100) + ', and ' + lie1 + ' ÷ ' + d2b + BC.rel(lie1 / d2b, Math.round(lie1 / d2b * 100) / 100) + nfmt(Math.round(lie1 / d2b * 100) / 100) + '.',
               truth1 ? 'Both divide exactly, so it is a common denominator.' : 'One of them does not divide it exactly.'],
             teach: 'A common denominator must be divisible by each denominator.', b: 0.4
           });
@@ -44176,8 +44187,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   the reciprocal of ' + r12 + '/' + d12 + '  ○  the reciprocal of ' + r22 + '/' + d12,
             left: d12 / r12, right: d12 / r22,
-            steps: ['The reciprocal of ' + r12 + '/' + d12 + ' is ' + d12 + '/' + r12 + ' = ' + nfmt(d12 / r12) + '.',
-              'The reciprocal of ' + r22 + '/' + d12 + ' is ' + d12 + '/' + r22 + ' = ' + nfmt(d12 / r22) + '.'],
+            steps: ['The reciprocal of ' + r12 + '/' + d12 + ' is ' + d12 + '/' + r12 + BC.rel(d12 / r12, Number(nfmt(d12 / r12))) + nfmt(d12 / r12) + '.',
+              'The reciprocal of ' + r22 + '/' + d12 + ' is ' + d12 + '/' + r22 + BC.rel(d12 / r22, Number(nfmt(d12 / r22))) + nfmt(d12 / r22) + '.'],
             teach: 'From the same denominator, the smaller numerator has the larger reciprocal.', b: 0.9
           });
         }
@@ -44229,7 +44240,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var d = BC.pick(rng, [3, 4, 5, 6]), n = BC.int(rng, 1, d - 1);
         return choose(rng, 'Which decimal names the same number as ' + n + '/' + d + '?', nfmt(n / d),
           [nfmt((n + 1) / d), nfmt(n / (d + 1)), nfmt((n * 2) / d)], {
-            steps: ['Divide: ' + n + ' ÷ ' + d + ' = ' + nfmt(n / d) + '.', 'Compare each option with that value.'],
+            steps: ['Divide: ' + n + ' ÷ ' + d + BC.rel(n / d, Number(nfmt(n / d))) + nfmt(n / d) + '.', 'Compare each option with that value.'],
             teach: 'A fraction is a division, so every fraction has a decimal name.', b: 0.9
           });
       }
@@ -44280,7 +44291,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var lesser = greater === nA + '/' + dA ? nB + '/' + dB : nA + '/' + dA;
         var near = nA + '/' + (dA + 1);
         return choose(rng, 'Which fraction is greater?', greater, [lesser, near, (nA + 1) + '/' + dA], {
-          steps: ['Compare each with a half: ' + nA + '/' + dA + ' = ' + nfmt(nA / dA) + ', ' + nB + '/' + dB + ' = ' + nfmt(nB / dB) + '.',
+          steps: ['Compare each with a half: ' + nA + '/' + dA + BC.rel(nA / dA, Number(nfmt(nA / dA))) + nfmt(nA / dA) + ', ' + nB + '/' + dB + BC.rel(nB / dB, Number(nfmt(nB / dB))) + nfmt(nB / dB) + '.',
             greater + ' has the larger value.'],
           teach: 'Compare fractions by value, never by how big the numerator looks.', b: 0.5
         });
@@ -44301,7 +44312,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var wrongs = ['0', '1/2', '1'].filter(function (o) { return o !== right; });
         if (Math.abs(v - 0.5) < 1e-9 || Math.abs(v - 0.25) < 1e-9 || Math.abs(v - 0.75) < 1e-9) return null;
         return choose(rng, 'Which benchmark is ' + nF + '/' + dF + ' closest to?', right, wrongs, {
-          steps: [nF + '/' + dF + ' = ' + nfmt(v) + '.',
+          steps: [nF + '/' + dF + BC.rel(v, Number(nfmt(v))) + nfmt(v) + '.',
             right === '0' ? 'It is under a quarter, so it is nearest 0.'
               : (right === '1' ? 'It is above three quarters, so it is nearest 1.' : 'It sits near the halfway mark.')],
           teach: 'Benchmarks 0, one half and one make a fraction easy to place.', b: 0.6
@@ -44340,7 +44351,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var rev = sorted.slice().reverse().map(function (x) { return x.n + '/' + x.d; }).join(', ');
           return choose(rng, 'Put ' + fr.map(function (x) { return x.n + '/' + x.d; }).join(', ') + ' in order from least to greatest.',
             right, [wrong, rev, sorted[2].n + '/' + sorted[2].d + ', ' + sorted[0].n + '/' + sorted[0].d + ', ' + sorted[1].n + '/' + sorted[1].d], {
-              steps: ['Convert to decimals: ' + fr.map(function (x) { return x.n + '/' + x.d + ' = ' + nfmt(x.v); }).join('; ') + '.',
+              steps: ['Convert to decimals: ' + fr.map(function (x) { return x.n + '/' + x.d + BC.rel(x.v, Number(nfmt(x.v))) + nfmt(x.v); }).join('; ') + '.',
                 'Least to greatest: ' + right + '.'],
               teach: 'Ordering fractions means comparing their values, not their numerators.', b: 0
             });
@@ -44413,7 +44424,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           wrongsL = wrongsL.filter(function (w, i, arr) { return w !== rightL && arr.indexOf(w) === i; });
           if (wrongsL.length < 2) return null;
           return choose(rng, 'Which list of fractions is in order from least to greatest?', rightL, wrongsL, {
-            steps: ['Change each to a decimal: ' + fr2.map(function (x) { return x.n + '/' + x.d + ' = ' + nfmt(x.v); }).join('; ') + '.',
+            steps: ['Change each to a decimal: ' + fr2.map(function (x) { return x.n + '/' + x.d + BC.rel(x.v, Number(nfmt(x.v))) + nfmt(x.v); }).join('; ') + '.',
               'Least to greatest: ' + rightL + '.'],
             teach: 'A list is ordered when each value is smaller than the one after it.', b: 0.4
           });
@@ -44426,7 +44437,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           if (best3[2].v === best3[1].v) return null;
           return choose(rng, 'Which fraction is the greatest?', best3[2].t,
             [best3[1].t, best3[0].t, best3[0].n + '/' + best3[2].d], {
-            steps: ['Compare with one half: ' + fr3.map(function (x) { return x.t + ' = ' + nfmt(x.v); }).join('; ') + '.',
+            steps: ['Compare with one half: ' + fr3.map(function (x) { return x.t + BC.rel(x.v, Number(nfmt(x.v))) + nfmt(x.v); }).join('; ') + '.',
               best3[2].t + ' has the largest value.'],
             teach: 'The greatest fraction is the one with the largest value, not the largest numerator.', b: 0.5
           });
@@ -44440,7 +44451,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var pick4 = R.chance(rng, 0.5) ? srt4[0] : BC.pick(rng, [srt4[1], srt4[2]]);
           return judge(rng, 'Is ' + pick4.t + ' the smallest of ' + fr4.map(function (x) { return x.t; }).join(', ') + '?',
             pick4.t === srt4[0].t, {
-            steps: ['As decimals: ' + fr4.map(function (x) { return x.t + ' = ' + nfmt(x.v); }).join('; ') + '.',
+            steps: ['As decimals: ' + fr4.map(function (x) { return x.t + BC.rel(x.v, Number(nfmt(x.v))) + nfmt(x.v); }).join('; ') + '.',
               'The smallest is ' + srt4[0].t + '.'],
             teach: 'Judge a superlative by comparing every value, not just two of them.', b: 0.7
           });
@@ -45424,7 +45435,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             prompt: 'Choose >, < or =.   the median of ' + list.join(', ') + '  ○  its mean',
             left: s.median, right: BC.fix(s.mean, 1),
             steps: ['Sorted: ' + s.sorted.join(', ') + '; the median is ' + s.median + '.',
-              'The mean is ' + s.sum + ' ÷ ' + s.n + ' = ' + BC.fix(s.mean, 1) + '.'],
+              'The mean is ' + s.sum + ' ÷ ' + s.n + BC.rel(s.sum / s.n, BC.fix(s.mean, 1)) + BC.fix(s.mean, 1) + '.'],
             teach: 'Median and mean answer different questions, so they often differ.', b: 0.7
           });
         }
@@ -45538,7 +45549,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return ask('The chart shows the scores ' + list.join(', ') + '. What is the ' + which + '?', ans, {
             visual: barsOf(list),
             explain: which === 'mode' ? ['The tallest bar is ' + s.mode + '.', 'It appears ' + s.modeCount + ' times: <b>' + s.mode + '</b>.'] :
-              (which === 'mean' ? ['Total ' + s.sum + ' over ' + s.n + ' scores.', s.sum + ' ÷ ' + s.n + ' = <b>' + s.mean + '</b>.'] :
+              (which === 'mean' ? ['Total ' + s.sum + ' over ' + s.n + ' scores.', s.sum + ' ÷ ' + s.n + BC.rel(s.sum / s.n, s.mean) + '<b>' + s.mean + '</b>.'] :
                 (which === 'median' ? ['Sorted, the middle score is ' + s.median + '.', 'Half the scores sit below it: <b>' + s.median + '</b>.'] :
                   ['Tallest bar ' + s.max + ', shortest ' + s.min + '.', s.max + ' − ' + s.min + ' = <b>' + (s.max - s.min) + '</b>.']))
             ,
@@ -45651,7 +45662,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var list = set(hard ? 7 : 4, 2, 14);
         var s = st(list);
         return ask('Find the mean of ' + list.join(', ') + '.', s.mean, {
-          explain: ['Add them: ' + s.sum + '.', s.sum + ' ÷ ' + s.n + ' = <b>' + s.mean + '</b>.'],
+          explain: ['Add them: ' + s.sum + '.', s.sum + ' ÷ ' + s.n + BC.rel(s.sum / s.n, s.mean) + '<b>' + s.mean + '</b>.'],
           teach: 'The mean is the total shared equally among the values.', b: 0
         });
       },
@@ -45668,7 +45679,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var list = set(4, 2, 11);
         var s = st(list);
         return judge(rng, 'The mean of ' + list.join(', ') + ' is ' + s.mean + '. Is that right?', true, {
-          steps: ['Sum: ' + s.sum + '.', s.sum + ' ÷ ' + s.n + ' = ' + s.mean + '.'],
+          steps: ['Sum: ' + s.sum + '.', s.sum + ' ÷ ' + s.n + BC.rel(s.sum / s.n, s.mean) + s.mean + '.'],
           teach: 'Check a mean by adding again and dividing again.', b: 0.5
           });
       },
@@ -45694,7 +45705,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var s = st(list);
         var kid = who(rng);
         return ask(kid + ' scored ' + list.join(', ') + ' in six shots. What is the mean score?', s.mean, {
-          explain: ['Total ' + s.sum + ' over ' + s.n + ' shots.', s.sum + ' ÷ ' + s.n + ' = <b>' + s.mean + '</b>.'],
+          explain: ['Total ' + s.sum + ' over ' + s.n + ' shots.', s.sum + ' ÷ ' + s.n + BC.rel(s.sum / s.n, s.mean) + '<b>' + s.mean + '</b>.'],
           teach: 'Real scores are averaged the same way as any list.', b: 0.9
         });
       }
@@ -48070,7 +48081,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         var items = BC.int(rng, 3, 12), cost = BC.int(rng, 2, 9) * 25 + BC.int(rng, 0, 4) * 5;
         return ask(cost + ' cents for ' + items + ' items. What is the price per item, in cents?', BC.fix(cost / items, 2), {
-          explain: ['Divide the money by the number of items.', cost + ' ÷ ' + items + ' = <b>' + nfmt(BC.fix(cost / items, 2)) + '</b> cents.'],
+          explain: ['Divide the money by the number of items.', cost + ' ÷ ' + items + BC.rel(cost / items, BC.fix(cost / items, 2)) + '<b>' + nfmt(BC.fix(cost / items, 2)) + '</b> cents.'],
           teach: 'A unit rate puts one unit of the second quantity on the bottom.', b: 0.3
         });
       },
@@ -48204,7 +48215,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return choose(rng, 'Which trip has the greater speed?',
             va > vb ? a + ' km in ' + ha + ' hours' : b + ' km in ' + hb + ' hours',
             [va > vb ? b + ' km in ' + hb + ' hours' : a + ' km in ' + ha + ' hours', 'they have the same speed'], {
-              steps: ['First rate: ' + a + ' ÷ ' + ha + ' = ' + va + ' km/h.', 'Second rate: ' + b + ' ÷ ' + hb + ' = ' + vb + ' km/h.'],
+              steps: ['First rate: ' + a + ' ÷ ' + ha + BC.rel(a / ha, va) + va + ' km/h.', 'Second rate: ' + b + ' ÷ ' + hb + BC.rel(b / hb, vb) + vb + ' km/h.'],
               teach: 'Compare speeds as unit rates, never by the longer distance.', b: 0.6
             });
         },
@@ -48238,8 +48249,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + a.cents + '¢ for ' + a.items + ' items  ○  ' + b.cents + '¢ for ' + b.items + ' items',
             left: a.unit, right: b.unit,
-            steps: ['Unit price A: ' + a.cents + ' ÷ ' + a.items + ' = ' + a.unit + '¢.',
-              'Unit price B: ' + b.cents + ' ÷ ' + b.items + ' = ' + b.unit + '¢.'],
+            steps: ['Unit price A: ' + a.cents + ' ÷ ' + a.items + BC.rel(a.cents / a.items, a.unit) + a.unit + '¢.',
+              'Unit price B: ' + b.cents + ' ÷ ' + b.items + BC.rel(b.cents / b.items, b.unit) + b.unit + '¢.'],
             teach: 'Compare rates by putting both over one unit.', b: 0
           });
         },
@@ -48248,7 +48259,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           if (a.unit === b.unit) return null;
           return ask(lead(rng, ['Which is the better deal? Work out the better unit price first: how many per hour is ' + a.n + ' items in ' + a.q + ' hours?',
             'Find the unit rate of ' + a.n + ' items in ' + a.q + ' hours.']), a.unit, {
-            explain: ['Put the second quantity to 1.', a.n + ' ÷ ' + a.q + ' = <b>' + a.unit + '</b> per hour.'],
+            explain: ['Put the second quantity to 1.', a.n + ' ÷ ' + a.q + BC.rel(a.n / a.q, a.unit) + '<b>' + a.unit + '</b> per hour.'],
             teach: 'A unit rate makes two unequal situations comparable.', b: 0.3
           });
         },
@@ -48265,14 +48276,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           if (a.unit === b.unit) return null;
           return choose(rng, 'Runner A covers ' + a.n + ' miles in ' + a.q + ' hours. Runner B covers ' + b.n + ' miles in ' + b.q + ' hours. Which is faster?',
             a.unit > b.unit ? 'Runner A' : 'Runner B', [a.unit > b.unit ? 'Runner B' : 'Runner A', 'they tie'], {
-              steps: ['A: ' + a.n + ' ÷ ' + a.q + ' = ' + a.unit + ' miles per hour.', 'B: ' + b.n + ' ÷ ' + b.q + ' = ' + b.unit + ' miles per hour.'],
+              steps: ['A: ' + a.n + ' ÷ ' + a.q + BC.rel(a.n / a.q, a.unit) + a.unit + ' miles per hour.', 'B: ' + b.n + ' ÷ ' + b.q + BC.rel(b.n / b.q, b.unit) + b.unit + ' miles per hour.'],
               teach: 'Speeds are compared as unit rates, never by total distance.', b: 0.6
             });
         },
         function () {
           var a = moneyRate();
           return ask('A pack costs ' + a.cents + '¢ for ' + a.items + ' items. What is the unit price in cents?', a.unit, {
-            explain: ['Divide money by items.', a.cents + ' ÷ ' + a.items + ' = <b>' + a.unit + '</b>¢ each.'],
+            explain: ['Divide money by items.', a.cents + ' ÷ ' + a.items + BC.rel(a.cents / a.items, a.unit) + '<b>' + a.unit + '</b>¢ each.'],
             teach: 'A unit price is a rate with one item on the bottom.', b: 0.8
           });
         },
@@ -48298,7 +48309,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'Pack ' + packs.indexOf(best),
             labels.filter(function (L) { return packs[labels.indexOf(L)] !== best; }), {
               visual: V.table({ header: ['Pack', 'Items', 'Cost'], rows: packs.map(function (q, j) { return [labels[j], String(q.items), q.cents + '¢']; }) }),
-              steps: ['Unit prices: ' + packs.map(function (q, j) { return labels[j] + ' ' + q.cents + ' ÷ ' + q.items + ' = ' + q.unit + '¢'; }).join('; '),
+              steps: ['Unit prices: ' + packs.map(function (q, j) { return labels[j] + ' ' + q.cents + ' ÷ ' + q.items + BC.rel(q.cents / q.items, q.unit) + q.unit + '¢'; }).join('; '),
                 'The smallest unit price is the best buy.'],
               teach: 'The best buy is the smallest unit price, whatever the package size.', b: 0.4
             });
@@ -48309,7 +48320,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var truth = R.chance(rng, 0.5);
           var claim = truth ? m.unit : BC.fix(m.unit + BC.pick(rng, [1, 2, -1]), 2);
           return judge(rng, m.items + ' items for ' + m.cents + '¢ costs ' + claim + '¢ each. Is that right?', truth, {
-            steps: ['Unit price = money ÷ items.', m.cents + ' ÷ ' + m.items + ' = ' + m.unit + '¢, and the statement says ' + claim + '¢.'],
+            steps: ['Unit price = money ÷ items.', m.cents + ' ÷ ' + m.items + BC.rel(m.cents / m.items, m.unit) + m.unit + '¢, and the statement says ' + claim + '¢.'],
             teach: 'Check a stated unit price by doing the division yourself.', b: 0.5
           });
         },
@@ -48320,8 +48331,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + r.n + ' per ' + r.q + '  ○  ' + (r.n * k) + ' per ' + (r.q * k),
             left: r.unit, right: BC.fix(r.n * k / (r.q * k), 2),
-            steps: ['Left rate: ' + r.n + ' ÷ ' + r.q + ' = ' + r.unit + '.',
-              'Right rate: ' + (r.n * k) + ' ÷ ' + (r.q * k) + ' = ' + BC.fix(r.n * k / (r.q * k), 2) + '.'],
+            steps: ['Left rate: ' + r.n + ' ÷ ' + r.q + BC.rel(r.n / r.q, r.unit) + r.unit + '.',
+              'Right rate: ' + (r.n * k) + ' ÷ ' + (r.q * k) + BC.rel(r.n * k / (r.q * k), BC.fix(r.n * k / (r.q * k), 2)) + BC.fix(r.n * k / (r.q * k), 2) + '.'],
             teach: 'Scaling both quantities of a rate leaves the rate unchanged.', b: 0.6
           });
         },
@@ -48334,8 +48345,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return choose(rng, kidA + ' makes ' + a.n + ' ' + BC.thing(rng) + ' in ' + a.q + ' hours and ' + kidB
             + ' makes ' + b.n + ' in ' + b.q + ' hours. Who works faster?',
             a.unit > b.unit ? kidA : kidB, [a.unit > b.unit ? kidB : kidA, 'they work at the same rate'], {
-              steps: [kidA + ': ' + a.n + ' ÷ ' + a.q + ' = ' + a.unit + ' per hour.',
-                kidB + ': ' + b.n + ' ÷ ' + b.q + ' = ' + b.unit + ' per hour.'],
+              steps: [kidA + ': ' + a.n + ' ÷ ' + a.q + BC.rel(a.n / a.q, a.unit) + a.unit + ' per hour.',
+                kidB + ': ' + b.n + ' ÷ ' + b.q + BC.rel(b.n / b.q, b.unit) + b.unit + ' per hour.'],
               teach: 'Compare the two rates per hour, not the two totals.', b: 0.7
             });
         }
@@ -48448,7 +48459,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () {
           var m = moneyRate();
           return ask(m.cents + '¢ for ' + m.items + ' items. What is the unit price?', m.unit, {
-            explain: ['Divide by the number of items.', m.cents + ' ÷ ' + m.items + ' = <b>' + m.unit + '</b>¢.'],
+            explain: ['Divide by the number of items.', m.cents + ' ÷ ' + m.items + BC.rel(m.cents / m.items, m.unit) + '<b>' + m.unit + '</b>¢.'],
             teach: 'A unit price is money divided by items.', b: 0
           });
         },
@@ -48479,7 +48490,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () {
           var a = rateCase();
           return ask('Convert ' + a.n + ' items per ' + a.q + ' hours to a unit rate.', a.unit, {
-            explain: ['Put the hours to 1 by dividing.', a.n + ' ÷ ' + a.q + ' = <b>' + a.unit + '</b> per hour.'],
+            explain: ['Put the hours to 1 by dividing.', a.n + ' ÷ ' + a.q + BC.rel(a.n / a.q, a.unit) + '<b>' + a.unit + '</b> per hour.'],
             teach: 'A unit rate always has one of the second quantity.', b: 0.8
           });
         },
@@ -48507,7 +48518,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         function () {
           var r = rateCase();
           return ask('A pump moves ' + r.n + ' litres in ' + r.q + ' hours. How many litres in one hour?', r.unit, {
-            explain: ['Litres ÷ hours.', r.n + ' ÷ ' + r.q + ' = <b>' + r.unit + '</b> litres per hour.'],
+            explain: ['Litres ÷ hours.', r.n + ' ÷ ' + r.q + BC.rel(r.n / r.q, r.unit) + '<b>' + r.unit + '</b> litres per hour.'],
             teach: 'A unit rate is what happens in exactly one of the second quantity.', b: 0.3
           });
         },
@@ -48520,7 +48531,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             + b.items + ' for ' + b.cents + '¢. Which is the better buy?',
             a.unit < b.unit ? a.items + ' for ' + a.cents + '¢' : b.items + ' for ' + b.cents + '¢',
             [a.unit < b.unit ? b.items + ' for ' + b.cents + '¢' : a.items + ' for ' + a.cents + '¢', 'both cost the same each'], {
-              steps: ['Unit prices: ' + a.cents + ' ÷ ' + a.items + ' = ' + a.unit + '¢ and ' + b.cents + ' ÷ ' + b.items + ' = ' + b.unit + '¢.'],
+              steps: ['Unit prices: ' + a.cents + ' ÷ ' + a.items + BC.rel(a.cents / a.items, a.unit) + a.unit + '¢ and ' + b.cents + ' ÷ ' + b.items + BC.rel(b.cents / b.items, b.unit) + b.unit + '¢.'],
               teach: 'The better buy is the smaller unit price.', b: 0.6
             });
         },
@@ -48532,7 +48543,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + a + ' km in ' + ha + ' hours  ○  ' + b + ' km in ' + hb + ' hours',
             left: va, right: vb,
-            steps: ['First speed: ' + a + ' ÷ ' + ha + ' = ' + va + ' km/h.', 'Second speed: ' + b + ' ÷ ' + hb + ' = ' + vb + ' km/h.'],
+            steps: ['First speed: ' + a + ' ÷ ' + ha + BC.rel(a / ha, va) + va + ' km/h.', 'Second speed: ' + b + ' ÷ ' + hb + BC.rel(b / hb, vb) + vb + ' km/h.'],
             teach: 'Compare speeds by their unit rates.', b: 0.7
           });
         }
@@ -48545,21 +48556,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var m = moneyRate();
         return ask(lead(rng, ['Find the unit price: ' + m.cents + '¢ for ' + m.items + ' items.',
           'What is the price per item if ' + m.items + ' items cost ' + m.cents + '¢?']), m.unit, {
-          explain: ['Divide the money by the number of items.', m.cents + ' ÷ ' + m.items + ' = <b>' + m.unit + '</b>¢ per item.'],
+          explain: ['Divide the money by the number of items.', m.cents + ' ÷ ' + m.items + BC.rel(m.cents / m.items, m.unit) + '<b>' + m.unit + '</b>¢ per item.'],
           teach: 'A unit rate is found by dividing so the second quantity is one.', b: 0
         });
       },
       function () {
         var r = rateCase();
         return ask('A machine makes ' + r.n + ' parts in ' + r.q + ' minutes. How many parts per minute?', r.unit, {
-          explain: ['Parts ÷ minutes.', r.n + ' ÷ ' + r.q + ' = <b>' + r.unit + '</b> parts per minute.'],
+          explain: ['Parts ÷ minutes.', r.n + ' ÷ ' + r.q + BC.rel(r.n / r.q, r.unit) + '<b>' + r.unit + '</b> parts per minute.'],
           teach: 'Any rate becomes a unit rate by dividing.', b: 0.3
         });
       },
       function () {
         var m = moneyRate();
         return judge(rng, 'The unit price of ' + m.items + ' items costing ' + m.cents + '¢ is ' + m.unit + '¢. Is that right?', true, {
-          steps: ['Divide the money by the items.', m.cents + ' ÷ ' + m.items + ' = ' + m.unit + '¢.'],
+          steps: ['Divide the money by the items.', m.cents + ' ÷ ' + m.items + BC.rel(m.cents / m.items, m.unit) + m.unit + '¢.'],
           teach: 'Check a unit rate by multiplying it back up.', b: 0.5
         });
       },
@@ -50766,7 +50777,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var prompt = 'Point P is at ' + q.s + ' on a number line. What number is ' + (q.v < 0 ? '0.5 right of' : '0.5 left of') + ' P?';
           var opts = {
             visual: nl(Math.min(-1, q.v) - 1, Math.max(1, q.v) + 1, [{ x: q.v, label: 'P' }]),
-            explain: ['Right adds and left subtracts.', q.s + (q.v < 0 ? ' + 0.5 = ' : ' − 0.5 = ') + '<b>' + nfmt(answer) + '</b>.'],
+            explain: ['Right adds and left subtracts.', q.s + (q.v < 0 ? ' + 0.5' : ' − 0.5') + BC.rel(answer, Number(nfmt(answer))) + '<b>' + nfmt(answer) + '</b>.'],
             teach: 'Rational numbers sit on the same line as integers.', b: 0
           };
           if (q.n != null) {
@@ -51025,7 +51036,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var whole = BC.pick(rng, [100, 200, 400]), p1 = BC.pick(rng, [20, 25, 60]);
           return ask('A table pairs wholes with parts at one percent. What part goes with ' + whole + '?', fix2(p1 / 100 * whole), {
             visual: V.table({ header: ['Whole', 'Part'], rows: [['100', String(p1)], [String(whole), '?']] }),
-            explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + ' = <b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
+            explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + BC.rel(p1 / 100 * whole, fix2(p1 / 100 * whole)) + '<b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
             teach: 'A percent table multiplies each whole by the same decimal.', b: 0.5
           });
         },
@@ -51335,7 +51346,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return ask('The model shows ' + p1 + ' shaded squares of 100, applied to a whole of ' + whole + '. What is the part?', fix2(p1 / 100 * whole), {
           visual: grid100(p1),
           explain: ['Each percent point is ' + nfmt(whole / 100) + ' of the whole.',
-            p1 + ' × ' + nfmt(whole / 100) + ' = <b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
+            p1 + ' × ' + nfmt(whole / 100) + BC.rel(p1 * whole / 100, fix2(p1 / 100 * whole)) + '<b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
           teach: 'A percent model scales with the whole it measures.', b: 0.9
         });
       }
@@ -51366,7 +51377,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var whole = BC.pick(rng, [100, 200, 400]), p1 = BC.pick(rng, [20, 25, 60]);
           return ask('A table pairs wholes with parts at one percent. What part goes with ' + whole + '?', fix2(p1 / 100 * whole), {
             visual: V.table({ header: ['Whole', 'Part'], rows: [['100', String(p1)], [String(whole), '?']] }),
-            explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + ' = <b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
+            explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + BC.rel(p1 / 100 * whole, fix2(p1 / 100 * whole)) + '<b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
             teach: 'A percent table multiplies each whole by the same decimal.', b: 0.5
           });
         },
@@ -51481,7 +51492,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var a = pair();
           return ask(pc(a.p) + ' as a fraction is ' + a.n + '/' + a.d + '. What percent is ' + a.n + '/' + a.d + '?', a.p, {
             explain: ['Scale ' + a.d + ' up to 100 by multiplying by ' + nfmt(100 / a.d) + '.',
-              a.n + ' × ' + nfmt(100 / a.d) + ' = <b>' + nfmt(a.p) + '</b> percent.'],
+              a.n + ' × ' + nfmt(100 / a.d) + BC.rel(a.n * 100 / a.d, a.p) + '<b>' + nfmt(a.p) + '</b> percent.'],
             teach: 'A fraction becomes a percent by scaling it over 100.', b: 0.3
           });
         },
@@ -51600,7 +51611,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var whole = BC.pick(rng, [100, 200, 400]), p1 = BC.pick(rng, [20, 25, 60]);
           return ask('A table pairs wholes with parts at one percent. What part goes with ' + whole + '?', fix2(p1 / 100 * whole), {
             visual: V.table({ header: ['Whole', 'Part'], rows: [['100', String(p1)], [String(whole), '?']] }),
-            explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + ' = <b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
+            explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + BC.rel(p1 / 100 * whole, fix2(p1 / 100 * whole)) + '<b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
             teach: 'A percent table multiplies each whole by the same decimal.', b: 0.5
           });
         },
@@ -51811,7 +51822,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var part = fix2(p1 / 100 * cents / 100);
           return ask('A ' + BC.cash(cents / 100) + ' purchase has a ' + p1 + '% tax. How much tax is that?', part, {
             unit: '$',
-            explain: ['Multiply the money by the percent as a decimal.', BC.cash(cents / 100) + ' × ' + nfmt(p1 / 100) + ' = <b>' + BC.cash(part) + '</b>.'],
+            explain: ['Multiply the money by the percent as a decimal.', BC.cash(cents / 100) + ' × ' + nfmt(p1 / 100) + BC.rel(cents / 100 * p1 / 100, part) + '<b>' + BC.cash(part) + '</b>.'],
             teach: 'A percent of money is found the same way as any percent.', b: 0
           });
         },
@@ -52208,7 +52219,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var expr = br(sa) + ' + ' + br(sb);
         return UP.facts(rng, {
           expr: expr, spec: { k: 'n', v: s },
-          steps: ['Add or subtract the absolute values as the signs tell.', 'Same signs: ' + Math.abs(sa) + ' + ' + Math.abs(sb) + ' = ' + Math.abs(s) + '; different signs: the larger absolute value decides the sign.'],
+          steps: ['Add or subtract the absolute values as the signs tell.', (sa < 0) === (sb < 0)
+            ? 'Same signs: ' + Math.abs(sa) + ' + ' + Math.abs(sb) + ' = ' + Math.abs(s) + ', and the sum keeps the shared sign.'
+            : 'Different signs: ' + Math.max(Math.abs(sa), Math.abs(sb)) + ' − ' + Math.min(Math.abs(sa), Math.abs(sb)) + ' = ' + Math.abs(s) + ', and the sign follows the larger absolute value.'],
           teach: 'Decimal sums follow exactly the same sign rules as integer sums.',
           wrongs: [BC.exactAdd(Math.abs(sa), Math.abs(sb)) * (sa < 0 ? -1 : 1), BC.exactSub(Math.abs(sa), Math.abs(sb))], b: 0.4
         });
@@ -54008,7 +54021,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var vals = [], uniq = {}, ok = true, i;
         for (i = 0; i < 4; i++) { var v = BC.fix(BC.int(rng, 10, 180) / 100, 2); if (uniq[v]) ok = false; uniq[v] = 1; vals.push(v); }
         if (!ok) return null;
-        var best = vals.slice().sort(function (x, y) { return Math.abs(x - 1) - Math.abs(y - 1); })[0];
+        var dist = function (x) { return Math.abs(100 - Math.round(x * 100)); };   /* whole cents, no float drift */
+        var ranked = vals.slice().sort(function (x, y) { return dist(x) - dist(y); });
+        if (dist(ranked[0]) === dist(ranked[1])) return null;   /* equidistant ⇒ two right answers */
+        var best = ranked[0];
         var wrongs = vals.filter(function (x) { return x !== best; });
         return choose(rng, 'Which decimal is closest to 1?', String(best), wrongs, {
           steps: ['Find how far each is from 1.', 'The smallest distance belongs to ' + best + '.'],
@@ -54862,15 +54878,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var d = BC.pick(rng, [4, 6, 8]);
         var k = BC.int(rng, 2, d - 1);
         var q = BC.pick(rng, [2, 3, 4]);
-        if (k % q) return null;
-        var pieceDen = d / q;
-        if (pieceDen < 2) return null;
+        if (k % q || k === q) return null;
+        var pieceDen = (d * q) / k;        /* k/d ÷ ▿ = q  ⟹  ▿ = k/(d·q) = 1/pieceDen */
+        if (pieceDen < 2 || pieceDen !== Math.floor(pieceDen)) return null;
         var right = '1/' + pieceDen;
         return choose(rng, k + '/' + d + ' ÷ ▿ = ' + q + '. Which piece size goes in ▿?', right,
           ['1/' + d, k + '/' + d, '1/' + (d * q)], {
           visual: V.frac([{ n: k, d: d, label: k + '/' + d }]),
-          steps: ['A quotient of ' + q + ' means ' + q + ' pieces fill ' + k + '/' + d + '.',
-            k + '/' + d + ' ÷ ' + q + ' = ' + right + ', so the piece size is ' + right + '.'],
+          steps: [q + ' equal pieces fill ' + k + '/' + d + '.',
+            k + '/' + d + ' ÷ ' + q + ' = ' + k + '/' + (d * q) + ' = ' + right + ', so the piece size is ' + right + '.'],
           teach: 'The divisor is the piece size: dividend ÷ quotient gives it back.',
           b: 0.5
         });
@@ -55064,25 +55080,32 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var hard = lvl >= 4;
 
     function divDraw(withMixed) {
-      var f2 = { n: BC.int(rng, 1, 5), d: BC.pick(rng, [2, 3, 4, 5, 6, 8]) };
-      var q = { n: BC.int(rng, 2, 6), d: BC.pick(rng, [1, 1, 2, 3]) };
-      var f1 = BC.fracMul(q.n, q.d, f2.n, f2.d);
-      if (f1.n <= 0 || f1.d <= 0) return null;
-      if (!withMixed && (f1.n >= f1.d * 4)) return null;
-      return { f1: f1, f2: f2, q: q };
+      for (var tries = 0; tries < 16; tries++) {
+        var f2 = { n: BC.int(rng, 1, 5), d: BC.pick(rng, [2, 3, 4, 5, 6, 8]) };
+        var q = { n: BC.int(rng, 2, 6), d: BC.pick(rng, [1, 1, 2, 3]) };
+        var f1 = BC.fracMul(q.n, q.d, f2.n, f2.d);
+        if (f1.n <= 0 || f1.d <= 0) continue;
+        if (!withMixed && (f1.n >= f1.d * 4)) continue;
+        return { f1: f1, f2: f2, q: q };
+      }
+      return null;
     }
 
     return UP.build(rng, [
       function () {
         if (inv) return null;
         var useMixed = (mixedStory || mixedDiv || hard) && R.chance(rng, 0.6);
-        var dr = divDraw(useMixed);
-        if (!dr) return null;
-        var f1 = dr.f1, f2 = dr.f2, q = dr.q;
-        var f1txt = f1.n >= f1.d ? mixedStr(f1.n, f1.d) : f1.n + '/' + f1.d;
-        var expr = f1txt + ' ÷ ' + f2.n + '/' + f2.d;
-        var qtxt = BC.typedFrac(q.n, q.d);
-        if (clash(expr, q.n / q.d)) return null;
+        var dr = null, f1, f2, q, f1txt, expr, qtxt, guard = 0, ok = false;
+        while (guard++ < 8) {
+          dr = divDraw(useMixed);
+          if (!dr) return null;
+          f1 = dr.f1; f2 = dr.f2; q = dr.q;
+          f1txt = f1.n >= f1.d ? mixedStr(f1.n, f1.d) : f1.n + '/' + f1.d;
+          expr = f1txt + ' ÷ ' + f2.n + '/' + f2.d;
+          qtxt = BC.typedFrac(q.n, q.d);
+          if (!clash(expr, q.n / q.d)) { ok = true; break; }   /* this draw prints its own answer: redraw */
+        }
+        if (!ok) return null;
         if (mixedStory) {
           var kid = who(rng);
           return ask(kid + ' cuts a ' + f1txt + ' meter ribbon into pieces each ' + f2.n + '/' + f2.d + ' meter long. How many pieces does ' + kid + ' get?', q.n / q.d, {
@@ -55353,7 +55376,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return UP.cmp(rng, {
           prompt: 'Choose >, < or =.   ' + n1 + '/' + d1 + ' km ○ ' + n2 + '/' + d2 + ' km',
           left: n1 / d1, right: n2 / d2,
-          steps: ['Convert both to decimals or a common denominator.', n1 + '/' + d1 + ' = ' + BC.fix(n1 / d1, 3) + ', ' + n2 + '/' + d2 + ' = ' + BC.fix(n2 / d2, 3) + '.'],
+          steps: ['Convert both to decimals or a common denominator.', n1 + '/' + d1 + BC.rel(n1 / d1, BC.fix(n1 / d1, 3)) + BC.fix(n1 / d1, 3) + ', ' + n2 + '/' + d2 + BC.rel(n2 / d2, BC.fix(n2 / d2, 3)) + BC.fix(n2 / d2, 3) + '.'],
           teach: 'Fraction distances compare by common denominators or decimals.', b: 0.2
         });
       },
@@ -55767,7 +55790,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           visual: V.table(['Day', 'Chapter'], [['Day 1', known + '/' + d], ['Day 2', '?'], ['Total', mixedStr(totalParts, d)]]),
           answerText: rest + '/' + d,
           explain: ['The total is ' + totalParts + ' pieces of size 1/' + d + '.',
-            totalParts + ' − ' + known + ' = <b>' + rest + '/' + d + '</b> for Day 2.'],
+            totalParts + ' − ' + known + ' = ' + rest + ' pieces = <b>' + rest + '/' + d + '</b> for Day 2.'],
           teach: 'A table total minus a known row gives the missing row.',
           b: 0.6
         });
