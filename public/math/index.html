@@ -6570,6 +6570,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* the card the learner just finished, and how it went: the sequencer uses
          this to keep one skill off the screen twice in a row (see pickSkill) */
       lastSkill: null, lastOk: null,
+      recent: [],                      /* fingerprints of the last RECENT_CARDS problems */
       lastPlan: null
     };
   }
@@ -6730,7 +6731,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (item) break;
     }
     if (!item) return null;
+    /* the same problem must not reach the screen twice, whichever skill served it */
+    if (isRecent(st, cardFp(item))) {
+      var alt = null, at = 0;
+      while (at++ < 4) { alt = null; try { alt = root.genFor(pick.id, rng, lvl); } catch (e) { alt = null; } if (alt && !isRecent(st, cardFp(alt))) break; }
+      if (alt) item = alt;
+    }
     item.lvl = lvl; item.why = pick.why;
+    noteCard(st, cardFp(item));
     return item;
   }
   /* target ~82% success: choose the scaffold level whose difficulty is closest
@@ -6952,6 +6960,33 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   /* the next skill of a level: the one just missed (while its two retries last),
      else the one the learner has never met, else the least-asked one */
+  /* A card the learner has already seen, served again from a different skill, is
+     the worst thing a practice deck can do: two skills are often written over the
+     same template, so the same problem reaches the screen twice and it looks like
+     the app ran out of ideas. The card is fingerprinted and kept out of the way
+     for the last RECENT_CARDS cards, whichever skill it came from. A retry after
+     a miss is exempt from the skill rule but never from this one — the learner
+     practises the same skill, on a different problem. */
+  var RECENT_CARDS = 30;
+  function cardFp(item) {
+    var t = (String((item && item.prompt) || '') + ' \u00a7 ' + String((item && item.sub) || ''))
+      .replace(/\s+/g, ' ').trim().toLowerCase();
+    return t.length > 200 ? t.slice(0, 200) : t;
+  }
+  function isRecent(st, fp) { return !!fp && !!(st.recent && st.recent.indexOf(fp) >= 0); }
+  function noteCard(st, fp) {
+    if (!fp) return;
+    if (!st.recent) st.recent = [];
+    st.recent.push(fp);
+    if (st.recent.length > RECENT_CARDS) st.recent = st.recent.slice(-RECENT_CARDS);
+  }
+  function levelInfo(LV, b, cov) {
+    return {
+      band: LV.band, label: BAND_LABEL[LV.band] || LV.band, level: bandIdx(LV.band) + 1, of: BANDS.length,
+      streak: LV.streak, need: CLIMB_NEED, wrong: LV.wrong, drop: CLIMB_DROP,
+      covered: Object.keys(cov).length, inLevel: bandSkills(b).length
+    };
+  }
   function levelPick(st, LV, b, rng) {
     var list = bandSkills(b); if (!list.length) return null;
     /* A missed skill comes back CLIMB_RETRIES times and then lets go. Before this
@@ -6986,6 +7021,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   /* cards are tried within one level's own skills */
   function levelTry(st, LV, b, rng, opts) {
+    var held = null;                                    /* a card kept back as a repeat */
     for (var pick = 0; pick < 12; pick++) {
       var sk = levelPick(st, LV, b, rng); if (!sk) return null;
       var cov = LV.cover[b] || (LV.cover[b] = {});
@@ -6995,6 +7031,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var item = null, tries = 0;
       while (!item && tries++ < 8) { try { item = root.genFor(sk.id, rng, lvl); } catch (e) { item = null; } }
       if (!item) { cov[sk.id] = Math.max(0, (cov[sk.id] || 0) - 1); continue; }
+      var fp = cardFp(item);
+      /* the same problem, from any skill: keep looking. Held back, not dropped —
+         a level whose whole deck sits inside the window must still give a card. */
+      if (!wasRetry && isRecent(st, fp)) {
+        cov[sk.id] = Math.max(0, (cov[sk.id] || 0) - 1);
+        if (!held) held = { item: item, fp: fp, sk: sk, lvl: lvl };
+        continue;
+      }
       LV.last = sk.id;                                  /* the card now on screen */
       if (wasRetry) {
         item.retry = 1;                                  /* the card says what it is */
@@ -7002,12 +7046,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (LV.retries === 0) { LV.skip = LV.pin; LV.pin = null; }   /* two is enough */
       }
       item.lvl = lvl;
-      item.levelInfo = {
-        band: LV.band, label: BAND_LABEL[LV.band] || LV.band, level: bandIdx(LV.band) + 1, of: BANDS.length,
-        streak: LV.streak, need: CLIMB_NEED, wrong: LV.wrong, drop: CLIMB_DROP,
-        covered: Object.keys(cov).length, inLevel: bandSkills(b).length
-      };
+      item.levelInfo = levelInfo(LV, b, cov);
+      noteCard(st, fp);
       return item;
+    }
+    if (held) {
+      LV.last = held.sk.id;
+      held.item.lvl = held.lvl;
+      held.item.levelInfo = levelInfo(LV, b, LV.cover[b] || {});
+      noteCard(st, held.fp);
+      return held.item;
     }
     return null;
   }
@@ -7321,10 +7369,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return st;
   }
   function serialize(st) {
-    return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created, lastSkill: st.lastSkill || null, lastOk: st.lastOk == null ? null : !!st.lastOk };
+    return { v: 1, theta: st.theta, thetaSeen: st.thetaSeen, sk: st.sk, sess: st.sess, bestEver: st.bestEver || 0, log: st.log.slice(-1200), diag: st.diag, climb: st.climb, settings: st.settings, created: st.created, lastSkill: st.lastSkill || null, lastOk: st.lastOk == null ? null : !!st.lastOk, recent: st.recent || [] };
   }
   function load() {
-    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true }, lastSkill: null, lastOk: null };
+    var base = { v: 1, theta: 0, thetaSeen: 0, sk: {}, climb: null, bestEver: 0, sess: { asked: 0, correct: 0, skipped: 0, streak: 0, best: 0, started: 0 }, log: [], diag: null, created: Date.now(), settings: { reviewShare: 0.22, autoNext: true, showVisual: true }, lastSkill: null, lastOk: null, recent: [] };
     var raw = null;
     try {
       raw = localStorage.getItem(KEY); if (!raw) return base;
@@ -7367,6 +7415,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      from, and every state older than this one was defaulted to Kindergarten —
      a learner who never answered a single item belongs on the first rung. */
   function migrate(st) {
+    if (!Array.isArray(st.recent)) st.recent = [];   /* the no-repeat window predates this build */
     /* A probe result belongs to the learner's record, so a state this build
        cannot place is repaired rather than deleted: the level it reached, else
        the band of its last answered question, else nothing. When even that is
@@ -7852,7 +7901,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ------------------------------------------------------ KaTeX render ---- */
   var cache = Object.create(null), cacheN = 0;
   function escAttr(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
   function renderTex(tex, src) {
     if (!K) return null;
@@ -7905,7 +7954,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function typesetMarkup(html) {
     var src = String(html == null ? '' : html);
     if (src.indexOf('<') < 0) return typesetPlain(src);
-    var out = '', last = 0, m, tag = /<[^>]*>/g;
+    var out = '', last = 0, m, tag = /<\/?[a-zA-Z][^>]*>/g;
     while ((m = tag.exec(src))) {
       out += typesetPlain(src.slice(last, m.index));
       out += m[0];
@@ -22316,7 +22365,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         sub: 'Give the solution as an inequality for x.',
         explain: ['A distance below ' + b + ' means x stays within ' + b + ' of ' + (-a) + '.',
           'So x lies between ' + lo + ' and ' + hi + '.',
-          'The solution is ' + lo + ' < x < ' + hi + '.'],
+          'The solution is ' + lo + ' < x < ' + hi + ', which is (' + lo + ', ' + hi + ') in interval notation.'],
         teach: 'An "less than" absolute value inequality is an and-statement between two values.'
       }, null, lvl, 0);
     }
@@ -22416,7 +22465,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }, /equations$|variation|systems? of linear equations/);
 
   /* ========================= 3. VARIATION ================================ */
-  HS.on(/direct variation|inverse variation|joint and combined variation|variation equations|constant of variation|identify direct variation and inverse variation|solve variation equations|write and solve (direct|inverse|joint)/, function (rng, lvl, sk) {
+  HS.on(/direct variation|inverse variation|joint and combined variation|variation equations|constant of variation|classify variation|identify direct variation and inverse variation|solve variation equations|write and solve (direct|inverse|joint)/, function (rng, lvl, sk) {
     var k = HS.pick(rng, [2, 3, 4, 6, 8, 12]);
     var x1 = HS.nonzero(rng, -6, 6), y1 = k * x1;
     var x2 = HS.nonzero(rng, -8, 8), y2 = k * x2;
@@ -23891,7 +23940,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = 'Solve x ' + HS.sgn(a) + ' ' + signSym(sgn) + ' ' + rhs + '.';
       var bound = b;
       if (HS.leaks(p, [bound])) return null;
-      return HS.interval(p, bound, sgn === '<' || sgn === '<=' ? -999 : bound, sgn === '<' || sgn === '<=' ? true : false, false, {
+      return HS.str(p, [HS.ineqPat('x', sgn, bound)], {
+        answerText: 'x ' + signSym(sgn) + ' ' + bound,
         sub: 'Give the solution as an inequality for x.',
         explain: ['Undo the ' + HS.sgn(a) + ' by doing the opposite to both sides.',
           rhs + ' ' + HS.sgn(-a) + ' = ' + bound + '.',
@@ -24269,7 +24319,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }, null, lvl, 0);
     }
     function findRange() {
-      var p = 'Two sides of a triangle measure ' + a + ' and ' + b + '. Which length could be the third side?';
+      var p = 'Two sides of a triangle measure ' + a + ' and ' + b + '. Which length is a valid third side?';
       var good = HS.cap(Math.round((a + b) / 2), Math.abs(a - b) + 1, a + b - 1);
       var bad = a + b;
       if (HS.leaksText(p, String(good))) return null;
