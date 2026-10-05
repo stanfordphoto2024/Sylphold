@@ -17926,7 +17926,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_bool('The pictures grow by the same rule. Does the next figure show ' + nxt + ' pictures?', true, {
           visual: figures(gCounts, 'the figures, in order'), b: 0.9,
           explain: ['Count the pictures in each figure: ' + gCounts.join(', ') + '.', 'The count goes up by ' + step + ' each figure.', gCounts[3] + ' + ' + step + ' = ' + nxt + '.', 'So the answer is <b>Yes</b>.'],
-          teach: 'A table of a growing pattern shows the same change in every row.'
+          teach: 'A growing pattern adds the same amount every time; say the change out loud.'
         });
       },
       /* lvl 4-5 stretch: further ahead in the pattern */
@@ -30766,8 +30766,37 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function unitPart(rng, kind) {
       var pr = pairFor(rng, sys || 'customary', kind);
-      return { pr: pr, n: BC.int(rng, 1, 8), r: BC.int(rng, 1, pr.rate - 1), small: 0 };
+      /* The leftover is a handful of the small unit, not most of the big one:
+         "8 km 688750 mm" is a number with a unit attached, not a quantity a
+         learner can picture, and no card should ask them to add it. */
+      var hi = Math.max(1, Math.min(pr.rate - 1, 999));
+      return { pr: pr, n: BC.int(rng, 1, 8), r: BC.int(rng, 1, hi), small: 0 };
     }
+    /* The story must agree with the quantity. A ribbon is long, a pumpkin
+       weighs, a jug holds; the old card called a mass "a ribbon … long" and
+       the learner had no way to know which quantity the numbers named. */
+    function compoundTalk(kind, bigLabel) {
+      /* a six-tonne pumpkin is not a quantity a child can picture */
+      var heavy = /ton/i.test(String(bigLabel)) ? 'truck' : 'pumpkin';
+      if (kind === 'mass') return {
+        add: function (a, b, u) { return 'A ' + heavy + ' weighs ' + a + ' and a second ' + heavy + ' weighs ' + b + '. How many ' + u + ' do the two ' + (heavy === 'truck' ? 'trucks' : 'pumpkins') + ' weigh in all?'; },
+        sub: function (a, b, u) { return 'A ' + heavy + ' weighs ' + a + ' and a second ' + heavy + ' weighs ' + b + '. How many ' + u + ' heavier is the first ' + heavy + '?'; }
+      };
+      if (kind === 'capacity') return {
+        add: function (a, b, u) { return 'A jug holds ' + a + ' of water and a second jug holds ' + b + '. How many ' + u + ' do the two jugs hold in all?'; },
+        sub: function (a, b, u) { return 'A jug holds ' + a + ' of water and a second jug holds ' + b + '. How many ' + u + ' more does the first jug hold?'; }
+      };
+      return {
+        add: function (a, b, u) { return 'A ribbon is ' + a + ' long and a second ribbon is ' + b + ' long. How many ' + u + ' of ribbon is that in all?'; },
+        sub: function (a, b, u) { return 'A ribbon is ' + a + ' long and a second ribbon is ' + b + ' long. How many ' + u + ' longer is the first ribbon?'; }
+      };
+    }
+    /* The multiple-choice form has no story to lean on, so the two amounts go
+       into the question itself. A card that asked "How many g in total?" with
+       nothing beside it was unanswerable. */
+    function unitOne(n, lbl) { return n === 1 ? String(lbl).replace(/s$/, '') : lbl; }
+    function mcAdd(a, b, u) { return 'Add ' + a + ' and ' + b + '. How many ' + u + ' is that in total?'; }
+    function mcSub(a, b, u) { return 'Subtract ' + b + ' from ' + a + '. How many ' + u + ' is the difference?'; }
     return UP.build(rng, [
       function () {                       /* add two compound times */
         if (!isTime) return null;
@@ -30873,19 +30902,22 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (isTime) return null;
         var kind = kindOfTitle(t) || BC.pick(rng, ['length', 'mass', 'capacity']);
         var a = unitPart(rng, kind), b = unitPart(rng, kind);
-        if (a.pr.small !== b.pr.small || a.pr.big !== b.pr.big) b = { pr: a.pr, n: BC.int(rng, 1, 8), r: BC.int(rng, 1, a.pr.rate - 1) };
+        if (a.pr.rate > 10000) return null;      /* km+mm and friends are not a G4 amount */
+        if (a.pr.small !== b.pr.small || a.pr.big !== b.pr.big) b = { pr: a.pr, n: BC.int(rng, 1, 8), r: BC.int(rng, 1, Math.min(a.pr.rate - 1, 999)) };
         var av = a.n * a.pr.rate + a.r, bv = b.n * a.pr.rate + b.r;
         var sum = av + bv;
+        var talk = compoundTalk(kind, unitLabel(a.pr.big)), uS = unitLabel(a.pr.small), uB = unitLabel(a.pr.big);
+        var aTxt = a.n + ' ' + unitOne(a.n, uB) + ' ' + a.r + ' ' + uS, bTxt = b.n + ' ' + unitOne(b.n, uB) + ' ' + b.r + ' ' + uS;
         return calc(rng, {
-          expr: a.n + ' ' + unitLabel(a.pr.big) + ' ' + a.r + ' ' + unitLabel(a.pr.small) + ' + ' + b.n + ' ' + unitLabel(a.pr.big) + ' ' + b.r + ' ' + unitLabel(a.pr.small),
-          spec: { k: 'n', v: sum, unit: unitLabel(a.pr.small) },
-          steps: ['First amount in ' + unitLabel(a.pr.small) + ': ' + a.n + ' × ' + a.pr.rate + ' + ' + a.r + ' = ' + av + '.',
+          expr: aTxt + ' + ' + bTxt,
+          spec: { k: 'n', v: sum, unit: uS },
+          steps: ['First amount in ' + uS + ': ' + a.n + ' × ' + a.pr.rate + ' + ' + a.r + ' = ' + av + '.',
             'Second amount: ' + b.n + ' × ' + a.pr.rate + ' + ' + b.r + ' = ' + bv + '.',
             'Add: ' + av + ' + ' + bv + ' = ' + sum + '.'],
           wrongs: UP.slips(sum, [av + b.r, sum + a.pr.rate, a.n + b.n]),
           teach: 'Convert each amount into the same unit, then add the numbers you are used to adding.',
-          qs: ['A shelf holds ' + a.n + ' ' + unitLabel(a.pr.big) + ' ' + a.r + ' ' + unitLabel(a.pr.small) + ' of rope and a second shelf holds ' + b.n + ' ' + unitLabel(a.pr.big) + ' ' + b.r + ' ' + unitLabel(a.pr.small) + '. How many ' + unitLabel(a.pr.small) + ' in all?'],
-          mcQ: 'How many ' + unitLabel(a.pr.small) + ' in total?',
+          qs: [talk.add(aTxt, bTxt, uS)],
+          mcQ: mcAdd(aTxt, bTxt, uS),
           b: 0.3
         });
       },
@@ -30893,19 +30925,22 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (isTime) return null;
         var kind = kindOfTitle(t) || BC.pick(rng, ['length', 'mass', 'capacity']);
         var a = unitPart(rng, kind);
-        var b = { n: BC.int(rng, 0, Math.max(1, a.n - 1)), r: BC.int(rng, 1, a.pr.rate - 1) };
+        if (a.pr.rate > 10000) return null;
+        var b = { n: BC.int(rng, 0, Math.max(1, a.n - 1)), r: BC.int(rng, 1, Math.min(a.pr.rate - 1, 999)) };
         var av = a.n * a.pr.rate + a.r, bv = b.n * a.pr.rate + b.r;
         if (bv >= av) return null;
         var diff = av - bv;
+        var talk = compoundTalk(kind, unitLabel(a.pr.big)), uS = unitLabel(a.pr.small), uB = unitLabel(a.pr.big);
+        var aTxt = a.n + ' ' + unitOne(a.n, uB) + ' ' + a.r + ' ' + uS, bTxt = b.n + ' ' + unitOne(b.n, uB) + ' ' + b.r + ' ' + uS;
         return calc(rng, {
-          expr: 'difference in ' + unitLabel(a.pr.small),
-          spec: { k: 'n', v: diff, unit: unitLabel(a.pr.small) },
-          steps: ['Convert both: ' + av + ' ' + unitLabel(a.pr.small) + ' and ' + bv + ' ' + unitLabel(a.pr.small) + '.',
+          expr: aTxt + ' − ' + bTxt,
+          spec: { k: 'n', v: diff, unit: uS },
+          steps: ['Convert both: ' + av + ' ' + uS + ' and ' + bv + ' ' + uS + '.',
             'Subtract: ' + av + ' − ' + bv + ' = ' + diff + '.'],
           wrongs: UP.slips(diff, [av, diff + a.pr.rate, a.r - b.r < 0 ? diff + 1 : a.r - b.r]),
           teach: 'Units must match before you subtract; convert first and the subtraction is ordinary.',
-          qs: ['A ribbon is ' + a.n + ' ' + unitLabel(a.pr.big) + ' ' + a.r + ' ' + unitLabel(a.pr.small) + ' long. A second ribbon is ' + b.n + ' ' + unitLabel(a.pr.big) + ' ' + b.r + ' ' + unitLabel(a.pr.small) + '. How many ' + unitLabel(a.pr.small) + ' longer is the first?'],
-          mcQ: 'How much longer is the first ribbon?',
+          qs: [talk.sub(aTxt, bTxt, uS)],
+          mcQ: mcSub(aTxt, bTxt, uS),
           b: 0.6
         });
       }
