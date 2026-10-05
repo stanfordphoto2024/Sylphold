@@ -59580,16 +59580,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var m = Math.floor(s / 60), r = s % 60;
     return m + ':' + (r < 10 ? '0' : '') + r;
   }
+  /* The header says only what the learner needs on screen: the grade being asked
+   * and the time left. It never prints a question count (there is no count to
+   * reach) and never spells out how the probe decides anything — the rules are
+   * the engine's business, and a learner watching a counter move guesses at it. */
   function probeProgressCard() {
     var D = E.st.diag || {}, over = !E.diagActive();
-    var need = E.DIAG_RUN || 10, stop = E.DIAG_STOP || 3;
-    var streak = D.streak || 0, miss = D.miss || 0;
     var grade = E.BAND_LABEL[D.band] || D.band || '';
-    var dots = function (n, total, cls) {
-      var out = [], i;
-      for (i = 0; i < total; i++) out.push(h('i', { class: 'dot' + (i < n ? ' ' + cls : '') }));
-      return h('span', { class: 'probedots' }, out);
-    };
     var left = over ? 0 : E.diagRemaining();
     return h('div', { class: 'card tight', id: 'probprog' }, [
       h('div', { class: 'row between' }, [
@@ -59597,19 +59594,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         over ? h('span', { class: 'tiny', text: 'Probe complete.' })
           : h('span', { class: 'pill accent', id: 'probtime', text: fmtLeft(left) + ' left' })
       ]),
-      over ? null : h('div', { class: 'row between', style: { marginTop: '8px' } }, [
-        h('div', { class: 'row', style: { gap: '8px' } }, [
+      over ? h('div', { class: 'tiny', style: { marginTop: '8px' }, text: 'The estimate is ready.' })
+        : h('div', { class: 'row', style: { marginTop: '8px', gap: '8px' } }, [
           h('span', { class: 'tiny', text: 'Asking' }),
           h('span', { class: 'pill', text: grade })
-        ]),
-        h('span', { class: 'tiny', text: 'right in a row: ' + streak + ' of ' + need })
-      ]),
-      over ? h('div', { class: 'tiny', style: { marginTop: '8px' }, text: 'The estimate is ready.' })
-        : h('div', { class: 'row', style: { marginTop: '8px', gap: '12px' } }, [
-          dots(streak, need, 'good'),
-          miss ? dots(miss, stop, 'bad') : null
-        ]),
-      over ? null : h('div', { class: 'tiny', style: { marginTop: '6px' }, text: 'Get ' + need + ' right in a row to move to the next grade. ' + stop + ' missed or skipped in a row ends the probe — nothing moves you down. The probe closes by itself when the ' + (E.diagLimit() || 30) + ' minutes are up.' })
+        ])
     ]);
   }
   /* The countdown is the only clock the learner has, so it ticks on its own. It
@@ -59695,6 +59684,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       ]));
       return;
     }
+    /* The half hour is the only limit the crawl has, and it is a wall, not a
+     * counter: a crawl that runs out of time ends where it stands even when a
+     * card is still sitting on the screen and even after a reload. */
+    if (E.diagActive() && E.diagRemaining() <= 0) {
+      var placed0 = null;
+      try { placed0 = E.diagFinish(); } catch (e) { placed0 = null; }
+      if (placed0) S.diagReport = placed0;
+      showReport();
+      return;
+    }
     if (!E.diagActive()) {
       /* The learner decides where the probe opens. It used to open on a Grade-4
        * assumption whatever the picker said, so a Grade-2 learner was first asked
@@ -59714,7 +59713,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       });
       clear(view).appendChild(h('div', { class: 'card' }, [
         h('h2', { text: 'Placement probe' }),
-        h('div', { class: 'muted', html: 'The probe starts at the grade you choose and asks <b>that grade only</b>, one different skill after another. Get <b>' + (E.DIAG_RUN || 10) + ' right in a row</b> to move up to the next grade. A missed question keeps you where you are — nothing ever moves you down — and <b>' + (E.DIAG_STOP || 3) + ' missed or skipped in a row</b> ends the probe. It closes on its own when the <b>' + (E.diagLimit() || 30) + ' minutes</b> are up.' }),
+        h('div', { class: 'muted', html: 'The probe starts at the grade you choose and asks <b>that grade only</b>, one different skill after another. Nothing moves you down as you answer. It closes on its own when the <b>' + (E.diagLimit() || 30) + ' minutes</b> are up, and Practice starts at the level it finds.' }),
         h('div', { class: 'row', style: { marginTop: '14px' } }, [
           h('b', { text: 'Start from:' }), gradePick, gradeAt
         ]),
