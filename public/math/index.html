@@ -319,6 +319,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .viz .ax { stroke: var(--ink-3); stroke-width: 1; }
 .viz .grid-l { stroke: var(--line); stroke-width: 1; }
 .viz .lbl { fill: var(--ink-2); }
+.viz .xmark { font-size: 14px; fill: currentColor; }
 .viz .pt { fill: var(--accent); }
 .viz .curve { fill: none; stroke: var(--accent); stroke-width: 2.2; }
 .viz .bar-r { fill: var(--accent); }
@@ -368,7 +369,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-04 — 64 modules inlined:
+/* MathPath 2026-10-05 — 64 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -988,6 +989,11 @@ var V = {
    * V.grid({rows:3, cols:5, cells:[['●','','●'],…]}) draws scattered objects,
    * a position grid, a tally chart or a Venn diagram in plain DOM. */
   grid: function (opts) { opts = opts || {}; return { k: 'grid', rows: opts.rows || 0, cols: opts.cols || 0, opts: opts }; },
+  /* a real line plot: a number line with a column of X marks above each value.
+   * V.lineplot(['0','1/8','1/4'], [2,0,3]) — the labels are the scale, the
+   * counts are the marks. Nothing is written as a number except the scale, so
+   * the plot can never print the answer the card is asking for. */
+  lineplot: function (labels, counts, opts) { opts = opts || {}; return { k: 'lineplot', labels: labels || [], counts: counts || [], opts: opts }; },
   solid: function (k, opts) { return { k: 'solid', shape: k, opts: opts || {} }; },
   numberbond: function (parts, whole) { return { k: 'numberbond', parts: parts, whole: whole }; }
 };
@@ -17836,6 +17842,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX), w = pick(rng, WHO);
     var grow = R.int(rng, 1, 3), step = R.int(rng, 1, 3), base = R.int(rng, 1, 4);
     var gCounts = [base, base + step, base + 2 * step, base + 3 * step];
+    /* The growing figures drawn as rows of the same picture. A Kindergarten
+       growing pattern is something you COUNT; a bar chart or a table of numerals
+       asks the learner to read a graph they have not been taught yet. */
+    function figures(counts, label) {
+      var cols = Math.max(counts[counts.length - 1] + step, 5), cells = [], r, i;
+      for (r = 0; r < counts.length; r++) { var rw = []; for (i = 0; i < cols; i++) rw.push(i < counts[r] ? '●' : ''); cells.push(rw); }
+      return V.grid({ rows: counts.length, cols: cols, cells: cells, kind: 'shapes', rowLabels: counts.map(function (_, ix) { return '' + (ix + 1); }), label: label || 'the figures, in order' });
+    }
     var teach = 'A pattern has a core that repeats; a growing pattern has a rule that adds the same amount each time.';
     function wordsOf(list) { return list.map(function (t) { return t.w; }); }
     var distract = function (right) { return wordsOf(core.concat(alpha)).filter(function (x) { return x !== right; }); };
@@ -17901,7 +17915,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         var nxt = gCounts[3] + step;
         return I_num('A pattern of pictures grows: ' + gCounts.join(', ') + '. How many pictures in the next figure?', nxt, {
-          visual: V.bars(gCounts.map(function (c, i) { return { label: 'figure ' + (i + 1), v: c }; }), { yMax: cap(nxt, 1, 20) }), b: 0.8,
+          visual: figures(gCounts, 'the figures, in order'), b: 0.8,
           explain: ['Find the rule: each figure adds ' + step + '.', gCounts[3] + ' + ' + step + ' = ' + nxt + '.', 'So the answer is <b>' + nxt + '</b>.'],
           teach: 'A growing pattern is a constant change; name the change first.'
         });
@@ -17909,9 +17923,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* growing pattern: the next row of the chart */
       function () {
         var nxt = gCounts[3] + step;
-        return I_bool('The chart shows a growing pattern. Does the next row show ' + nxt + ' pictures?', true, {
-          visual: V.table(['Figure', 'Pictures'], gCounts.map(function (c, i) { return ['' + (i + 1), '' + c]; })), b: 0.9,
-          explain: ['The counts go up by ' + step + ' each row.', gCounts[3] + ' + ' + step + ' = ' + nxt + '.', 'So the answer is <b>Yes</b>.'],
+        return I_bool('The pictures grow by the same rule. Does the next figure show ' + nxt + ' pictures?', true, {
+          visual: figures(gCounts, 'the figures, in order'), b: 0.9,
+          explain: ['Count the pictures in each figure: ' + gCounts.join(', ') + '.', 'The count goes up by ' + step + ' each figure.', gCounts[3] + ' + ' + step + ' = ' + nxt + '.', 'So the answer is <b>Yes</b>.'],
           teach: 'A table of a growing pattern shows the same change in every row.'
         });
       },
@@ -17919,7 +17933,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         var k = seq.length + R.int(rng, 2, 4), t = core[(k - 1) % core.length];
         return MC(rng, 'The pattern keeps going for ' + k + ' boxes in all. Which picture is in the last box?', t.w, distract(t.w), {
-          b: 1.1,
+          visual: row(glyphs, 'the pattern so far'), b: 1.1,
           explain: ['The core has ' + core.length + ' pictures: ' + wordsOf(core).join(', ') + '.', 'Count around the core until box ' + k + '.', 'So the answer is <b>' + t.w + '</b>.'],
           teach: 'Any position in a repeating pattern is found by dividing by the length of the core.'
         });
@@ -31397,20 +31411,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
 
   /* ------------------------------------------------------- the models ----- */
-  /* A line plot is a grid of X marks over a labelled scale. The marks carry no
-     digits, so nothing in the picture hands over a count. */
+  /* A line plot is the number line with a column of X marks above each value.
+     The marks carry no digits, so nothing in the picture hands over a count.
+     It used to be a grid of × characters, which is not a line plot at all: no
+     scale, no ticks, and marks lined up in rows a learner cannot read. */
   function linePlot(labels, counts, title) {
-    var maxC = Math.max.apply(null, counts.concat([1]));
-    var rows = maxC, cells = [], r, i;
-    for (r = 0; r < rows; r++) {
-      var row = [];
-      for (i = 0; i < labels.length; i++) {
-        var depth = rows - r;                     /* the bottom row is depth 1 */
-        row.push(counts[i] >= depth ? '×' : '');
-      }
-      cells.push(row);
-    }
-    return V.grid({ rows: rows, cols: labels.length, cells: cells, colLabels: labels, label: title });
+    return V.lineplot(labels.map(function (l) { return String(l); }), counts.slice(), { label: title });
   }
   function barChart(labels, counts, title) {
     return V.bars(labels.map(function (l, i) { return { label: l, v: counts[i] }; }), { label: title });
@@ -31453,23 +31459,36 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function howManyMore(rng, a, b, la, lb, o) {
     var diff = Math.abs(a - b);
     var hi = a > b ? la : lb, lo = a > b ? lb : la;
+    var hiC = a > b ? a : b, loC = a > b ? b : a;
+    /* On a line plot the two names are VALUES ON THE SCALE ("5/8", "1"), and the
+       numbers are the marks above them. "How many more 5/8 than 1/4?" reads as a
+       subtraction of fractions; those cards say which column they mean. */
+    var at = !!o.at, noun = o.noun || 'measurements';
+    var mks = function (n) { return n + (n === 1 ? ' mark' : ' marks'); };
+    var qAt = ['How many more ' + noun + ' are at ' + hi + ' than at ' + lo + '?',
+      'Compare the two columns: how many more at ' + hi + ' than at ' + lo + '?'];
+    var qBar = ['How many more ' + hi + ' than ' + lo + '?',
+      'What is the difference between ' + hi + ' and ' + lo + '?',
+      'Compare the two: how many more are in ' + hi + '?'];
     return UP.build(rng, [
       function () {
-        return I_NUM(lead(rng, ['How many more ' + hi + ' than ' + lo + '?',
-          'What is the difference between ' + hi + ' and ' + lo + '?',
-          'Compare the two: how many more are in ' + hi + '?']), diff, {
-          explain: [hi + ' has ' + (a > b ? a : b) + '.', lo + ' has ' + (a > b ? b : a) + '.',
-            (a > b ? a : b) + ' − ' + (a > b ? b : a) + ' = ' + diff + '.'],
+        return I_NUM(lead(rng, at ? qAt : qBar), diff, {
+          explain: at
+            ? ['The column at ' + hi + ' has ' + mks(hiC) + '.', 'The column at ' + lo + ' has ' + mks(loC) + '.',
+            hiC + ' − ' + loC + ' = ' + diff + '.']
+            : [hi + ' has ' + hiC + '.', lo + ' has ' + loC + '.', hiC + ' − ' + loC + ' = ' + diff + '.'],
           teach: o.teach || 'A graph answers a comparison question by subtracting two bars.',
           visual: o.visual, b: o.b || 0.2
         });
       },
       function () {
         var wrongs = UP.slips(diff, [total([a, b]), Math.max(a, b), diff + 10]);
-        return UP.mc(rng, lead(rng, ['How many more ' + hi + ' than ' + lo + '?',
+        return UP.mc(rng, at ? qAt[0] : lead(rng, ['How many more ' + hi + ' than ' + lo + '?',
           'Choose the difference between the two amounts.']), String(diff), wrongs.map(String), {
-          steps: [hi + ' is ' + (a > b ? a : b) + ' and ' + lo + ' is ' + (a > b ? b : a) + '.',
-            'Subtract the smaller from the larger.'],
+          steps: at
+            ? ['The column at ' + hi + ' has ' + mks(hiC) + ' and the column at ' + lo + ' has ' + mks(loC) + '.',
+              'Subtract the smaller column from the larger one.']
+            : [hi + ' is ' + hiC + ' and ' + lo + ' is ' + loC + '.', 'Subtract the smaller from the larger.'],
           teach: o.teach || 'Subtract the smaller bar from the larger one.',
           visual: o.visual, b: (o.b || 0.2) + 0.2
         });
@@ -31478,9 +31497,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var claim = R.chance(rng, 0.5) ? diff : diff + BC.pick(rng, [2, 3, 5, -2, 10]);
         if (claim < 0) claim = diff + 10;
         var truth = claim === diff;
-        return I_BOOL('Is the difference between ' + hi + ' and ' + lo + ' equal to ' + claim + '?', truth, {
-          explain: [(a > b ? a : b) + ' − ' + (a > b ? b : a) + ' = ' + diff + '.',
-            'The statement says ' + claim + '.'],
+        return I_BOOL(at
+          ? 'Is the difference between the marks at ' + hi + ' and at ' + lo + ' equal to ' + claim + '?'
+          : 'Is the difference between ' + hi + ' and ' + lo + ' equal to ' + claim + '?', truth, {
+          explain: [hiC + ' − ' + loC + ' = ' + diff + '.', 'The statement says ' + claim + '.'],
           teach: o.teach || 'Check a comparison by doing the subtraction yourself.',
           b: (o.b || 0.2) + 0.3
         });
@@ -31494,8 +31514,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {
         return I_NUM(lead(rng, [o.qTotal || 'How many in total?',
           'How many ' + (o.noun || 'answers') + ' are shown in all?',
-          'Add the amounts together. How many are there altogether?']), sum, {
-          explain: BC.last(['Add every amount: ' + counts.join(' + ') + ' = ' + sum + '.'], sum),
+          'Add every count together. How many are there altogether?']), sum, {
+          explain: BC.last(['Add every count: ' + counts.join(' + ') + ' = ' + sum + '.'], sum),
           teach: o.teach || 'A graph holds the same data as a list: the total is the sum of the parts.',
           visual: o.visual, b: o.b || 0
         });
@@ -31581,6 +31601,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (!b) return null;
         return howManyMore(rng, a.c, b.c, a.v, b.v, {
           visual: linePlot(scale, d.counts, noun),
+          at: true, noun: 'measurements',
           teach: 'On a line plot each X is one measurement; comparing two values counts the Xs.',
           b: 0
         });
@@ -31620,7 +31641,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'the plot with ' + right.join(', ') + ' marks from left to right',
           ['the plot with ' + wrongA.join(', ') + ' marks from left to right',
             'the plot with ' + wrongB.join(', ') + ' marks from left to right'], {
-          visual: linePlot(scale, right, noun),
+          /* No plot on this card: the choices ARE the plots, and drawing the
+             right one beside them answers the question before it is asked. */
           steps: ['Count how many times each value appears in the list.',
             'Each value gets that many Xs on its own column.'],
           teach: 'A line plot puts one X above the value for every time that value was measured.',
@@ -58186,7 +58208,27 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       });
       return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }, g), caption(o.label)]);
     },
-    /* a set of objects: dots, shapes, cubes, pictures — whatever the words name */
+    /* a line plot: the number line, with a column of X marks above each value.
+     * It used to be drawn as a table of × characters, which is not a line plot:
+     * no scale, no ticks, and marks lined up in rows a learner cannot read. */
+    lineplot: function (v) {
+      var labels = v.labels || [], counts = v.counts || [], o = v.opts || {};
+      var n = Math.max(labels.length, counts.length, 1);
+      var maxC = Math.max.apply(null, [].concat(counts.map(function (c) { return +c || 0; }), [1]));
+      var gap = clamp(Math.round(560 / Math.max(n - 1, 1)), 38, 68);
+      var W = clamp(76 + gap * (n - 1), 280, 660), x0 = 40, x1 = W - 40;
+      var stepX = n > 1 ? (x1 - x0) / (n - 1) : 0;
+      var ink = 16, top = 24, axis = top + maxC * ink + 12, H = axis + 30;
+      var g = [s('line', { x1: x0 - 18, y1: axis, x2: x1 + 18, y2: axis, class: 'ax' })];
+      for (var i = 0; i < n; i++) {
+        var px = x0 + stepX * i;
+        g.push(s('line', { x1: px, y1: axis - 6, x2: px, y2: axis + 6, class: 'ax' }));
+        if (labels[i] != null && String(labels[i]) !== '') g.push(s('text', { x: px, y: axis + 22, 'text-anchor': 'middle', class: 'lbl' }, String(labels[i])));
+        var c = Math.max(0, Math.min(+counts[i] || 0, 24));
+        for (var k = 0; k < c; k++) g.push(s('text', { x: px, y: axis - 10 - ink * k, 'text-anchor': 'middle', class: 'xmark' }, '×'));
+      }
+      return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }, g), caption(o.label)]);
+    },
     array: function (v) {
       var o = v.opts || {};
       /* The count IS the lesson. A model may never drop objects to fit the
