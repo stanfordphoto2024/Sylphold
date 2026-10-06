@@ -6778,14 +6778,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      them say how much of the level that is. */
   function bandStats(st) {
     var L = root.SKILLS, per = {};
-    BANDS.forEach(function (b) { per[b] = { n: 0, has: 0, att: 0, a: 0, c: 0, mast: 0, gap: 0, msum: 0 }; });
-    var tot = { a: 0, c: 0, att: 0, mast: 0 };
+    BANDS.forEach(function (b) { per[b] = { n: 0, has: 0, att: 0, a: 0, c: 0, corr: 0, mast: 0, gap: 0, msum: 0 }; });
+    var tot = { a: 0, c: 0, att: 0, corr: 0, mast: 0 };
     L.forEach(function (sk) {
       var g = per[sk.band]; if (!g) return;
       g.n++;
       if (root.SKILL_GEN && root.SKILL_GEN[sk.id]) g.has++;
       var s = st.sk[sk.id]; if (!s || !s.a) return;
       g.att++; g.a += s.a; g.c += s.c; g.msum += s.m;
+      if (s.c >= 1) { g.corr++; tot.corr++; }   // answered correctly at least once
       var stt = statusOf(s);
       if (stt === 'mastered') { g.mast++; tot.mast++; }
       if (stt === 'gap') g.gap++;
@@ -17232,9 +17233,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (focus.flat || focus.solid) {
           var nm2 = focus.solid || focus.flat;
           var isSolid = !!focus.solid;
-          return I_bool('Is the ' + nm2 + ' a ' + (isSolid ? 'three-dimensional' : 'flat') + ' shape?', isSolid, {
+          /* Say what kind the shape IS (answer Yes) or the kind it is NOT
+           * (answer No), chosen card by card. The old wording always named the
+           * shape's own kind while the key said the opposite, so "Is the
+           * triangle a flat shape?" expected No — a triangle lies flat. */
+          var saySolid = R.chance(rng, 0.5);
+          var truth = saySolid === isSolid;
+          var kindWord = saySolid ? 'three-dimensional' : 'flat';
+          var art = article(nm2);                                 /* "a cube" / "an oval" */
+          var named = art.charAt(0).toUpperCase() + art.slice(1);  /* "A cube" / "An oval" */
+          return I_bool('Is the ' + nm2 + ' a ' + kindWord + ' shape?', truth, {
             b: 0.4,
-            explain: [nm2 + (isSolid ? ' takes up space, so it is three-dimensional.' : ' lies flat on the page, so it is a flat shape.'), 'So the answer is <b>' + (isSolid ? 'Yes' : 'No') + '</b>.'],
+            explain: [named + ' is a ' + (isSolid ? 'solid shape: it takes up space, so it is three-dimensional.' : 'flat shape: it lies flat on the page.'),
+            named + ' ' + (truth ? 'is' : 'is not') + ' ' + kindWord + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
             teach: 'Flat shapes lie on the page; solid shapes take up space.'
           });
         }
@@ -68346,7 +68358,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var card = h('div', { class: 'card', id: 'card' }, [
       h('div', { class: 'skillhead' }, [
         h('span', { class: 'name', text: sk.name || '' }),
-        h('span', { class: 'code', text: (sk.code || '') + (sk.band ? ' · ' + (E.BAND_LABEL[sk.band] || sk.band) : '') }),
+        /* The card names the skill and its code only. The grade the skill sits in
+         * is the ladder's business, not the question's: a card that reads
+         * "P.2 · Pre-K" tells a learner who they are, not what to do. */
+        sk.code ? h('span', { class: 'code', text: sk.code }) : null,
         whyChip, lv
       ]),
       lvLine,
@@ -68781,18 +68796,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var g = p.byBand[b] || {};
       /* the bar is the answered ratio over the WHOLE level: of every question
          (skill) this level has, how many have been answered correctly — a skill
-         counts once two answers on it are right (mastered).
-         答对题数 ÷ 该年级总题数. */
-      var pct = g.n ? Math.round((g.mast || 0) / g.n * 100) : 0;
-      /* a level holds hundreds of questions: 2/413 rounds to 0% and the bar
+         counts from its FIRST right answer; two right answers make it mastered,
+         which is a separate badge. 答对题数 ÷ 该年级总题数. */
+      var pct = g.n ? Math.round((g.corr || 0) / g.n * 100) : 0;
+      /* a level holds hundreds of questions: 1/170 rounds to 0% and the bar
          would look dead even once the learner has started, so any real
          progress keeps a visible hairline. */
-      var wide = g.mast ? Math.max(1, pct) : pct;
+      var wide = g.corr ? Math.max(1, pct) : pct;
       var cls = g.verdict === 'ready' ? 'm' : (g.verdict === 'not yet' ? 'g' : '');
       return h('div', { class: 'barrow ' + cls }, [
         h('div', { text: E.BAND_LABEL[b] || b }),
         h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: wide + '%' } })]),
-        h('div', { class: 'val', text: g.att ? (g.mast || 0) + '/' + g.n + ' answered correctly' : 'not started' })
+        h('div', { class: 'val', text: g.att ? (g.corr || 0) + '/' + g.n + ' answered correctly' : 'not started' })
       ]);
     });
     var plan = (p.plan || []).map(function (row) {
