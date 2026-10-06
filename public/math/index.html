@@ -6497,7 +6497,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var W = 5.0;                       // 1PL slope: ~5 ladder units per logit-ish step
   var K_THETA = 4.2;                 // ability step per item
   var MASTERY_UP = 0.30, MASTERY_DOWN = 0.26;
-  var PASS_M = 0.78, PASS_N = 5;     // mastery bar: m >= .78 with >= 5 exposures
+  var PASS_M = 0.78, PASS_N = 5;     // kept for the exported API only
+  var MASTERY_CORRECT = 2;           // two answered right on a skill is mastered
   var GAP_M = 0.34, GAP_N = 4;       // diagnosed prerequisite gap
   /* The levels ARE the catalogue's levels (tools/catalog.js publishes them). The
      old hand-written list stays as the fallback for a page built without one. */
@@ -6581,7 +6582,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function statusOf(s) {
     if (!s || s.a === 0) return 'new';
-    if (s.a >= PASS_N && s.m >= PASS_M && s.s >= 2) return 'mastered';
+    if (s.c >= MASTERY_CORRECT) return 'mastered';   // 2題答對就mastered
     if (s.a >= 3 && s.m >= 0.62) return 'proficient';
     if (s.a >= GAP_N && s.m <= GAP_M) return 'gap';
     if (s.a >= 2 && s.m >= 0.45) return 'developing';
@@ -6821,7 +6822,6 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var frontier = L[fi];
     var gaps = Object.keys(st.sk).filter(function (id) { return statusOf(st.sk[id]) === 'gap'; })
       .map(function (id) { return root.SKILL_BY_ID[id]; }).sort(function (a, b) { return a.b - b.b; });
-    var plan = buildPlan(st, fi);
     /* the level the learner is standing on is the answer to "where are they";
        θ only fills in a level for a state that has never been placed */
     var band = activeBand(st), best = 1e9;
@@ -6829,6 +6829,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       band = BANDS[0];
       L.forEach(function (sk) { var d = Math.abs(sk.b - st.theta); if (d < best) { best = d; band = sk.band; } });
     }
+    var plan = buildPlan(st, band);
     return {
       theta: st.theta, band: band, bandLabel: BAND_LABEL[band], bandIndex: bandIdx(band) + 1,
       level: band, levelLabel: BAND_LABEL[band], levels: BANDS.length,
@@ -6838,19 +6839,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       attempted: attempted(st), total: L.length, diagnostic: diagnosticSummary(st)
     };
   }
-  /* study plan: the frontier skill, its gap neighbours, then the next few new ones */
-  function buildPlan(st, fi) {
-    var L = root.SKILLS, out = [];
-    var gaps = Object.keys(st.sk).filter(function (id) { return statusOf(st.sk[id]) === 'gap'; })
-      .map(function (id) { return root.SKILL_BY_ID[id]; }).sort(function (a, b) { return a.b - b.b; }).slice(0, 3);
-    gaps.forEach(function (g) { out.push({ sk: g, kind: 'reteach' }); });
-    for (var i = fi; i < L.length && out.length < 8; i++) {
-      var s = st.sk[L[i].id], stt = statusOf(s);
-      if (stt === 'mastered' || stt === 'proficient') continue;
-      if (out.some(function (o) { return o.sk.id === L[i].id; })) continue;
-      out.push({ sk: L[i], kind: stt === 'new' ? 'new' : 'practice' });
+  /* Study plan: only the skills of the level the learner is standing on that
+     they have NEVER answered. A skill answered once is being worked by the
+     engine already, and skills from other levels are not their next step.
+     Inside the level: ladder order, with the skills that have items written
+     first so the list is never a wall of "no items". */
+  function buildPlan(st, band) {
+    var L = root.SKILLS, out = [], later = [];
+    function unanswered(sk) { var s = st.sk[sk.id]; return !s || !s.a; }
+    for (var i = 0; i < L.length; i++) {
+      if (L[i].band !== band || !unanswered(L[i])) continue;
+      var row = { sk: L[i], kind: 'new' };
+      if (playable(L[i].id)) { if (out.length < 8) out.push(row); }
+      else if (later.length < 8) later.push(row);
     }
-    return out;
+    return out.length >= 8 ? out : out.concat(later.slice(0, 8 - out.length));
   }
 
   /* ------------------------------------------------------------- ONE RULE --
@@ -68776,15 +68779,20 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = E.placement(), view = $('#view');
     var bands = p.bands.map(function (b) {
       var g = p.byBand[b] || {};
-      /* of the skills in this band the learner has actually met, how many are
-         mastered — measured against every skill that exists, a band is 0% for
-         a year and the bar says nothing true */
-      var pct = Math.round((g.rate || 0) * 100);
+      /* the bar is the answered ratio over the WHOLE level: of every question
+         (skill) this level has, how many have been answered correctly — a skill
+         counts once two answers on it are right (mastered).
+         答对题数 ÷ 该年级总题数. */
+      var pct = g.n ? Math.round((g.mast || 0) / g.n * 100) : 0;
+      /* a level holds hundreds of questions: 2/413 rounds to 0% and the bar
+         would look dead even once the learner has started, so any real
+         progress keeps a visible hairline. */
+      var wide = g.mast ? Math.max(1, pct) : pct;
       var cls = g.verdict === 'ready' ? 'm' : (g.verdict === 'not yet' ? 'g' : '');
       return h('div', { class: 'barrow ' + cls }, [
         h('div', { text: E.BAND_LABEL[b] || b }),
-        h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: pct + '%' } })]),
-        h('div', { class: 'val', text: g.att ? (g.mast || 0) + '/' + g.att + ' mastered' : 'not started' })
+        h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: wide + '%' } })]),
+        h('div', { class: 'val', text: g.att ? (g.mast || 0) + '/' + g.n + ' answered correctly' : 'not started' })
       ]);
     });
     var plan = (p.plan || []).map(function (row) {
@@ -68813,8 +68821,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       ]),
       h('div', { class: 'card' }, [
         h('h2', { text: 'Your next steps' }),
-        h('div', { class: 'muted', text: 'Gaps found by the engine come first, then the frontier of the ladder.' }),
-        h('div', { class: 'skill-list', style: { marginTop: '10px' } }, plan.length ? plan : [h('div', { class: 'muted', text: 'Nothing queued — everything on the ladder is proficient.' })])
+        h('div', { class: 'muted', text: 'Skills at ' + (p.bandLabel || 'your level') + ' you have not answered yet.' }),
+        h('div', { class: 'skill-list', style: { marginTop: '10px' } }, plan.length ? plan : [h('div', { class: 'muted', text: 'Nothing left to start at ' + (p.bandLabel || 'your level') + ' — every skill here has been answered. Change the level to find more.' })])
       ]),
       p.gaps && p.gaps.length ? h('div', { class: 'card' }, [
         h('h2', { text: 'Gaps to close' }),
