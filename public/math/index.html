@@ -68918,9 +68918,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
 
   function viewReport() {
-    var p = E.placement(), st = E.st, view = $('#view'), lv = E.level();
+    var p = E.placement(), st = E.st, view = $('#view');
     var tot = p.totals || { a: 0, c: 0, att: 0, mast: 0 };
-    var per = p.byBand || {};
     var log = (st.log || []).slice(-40);
     /* the trace is drawn against the hardest item this learner has met, not
        against a fixed 0..110: a week of Pre-K counting was a flat line at the
@@ -68944,7 +68943,6 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var answered = sess.asked || 0, right = sess.correct || 0, skipped = sess.skipped || 0;
     var sessAcc = answered ? Math.round(right / answered * 100) : 0;
     var allAcc = tot.a ? Math.round(tot.c / tot.a * 100) : 0;
-    var here = per[lv.band] || {};
     var started = sess.started ? new Date(sess.started) : null;
     var since = started ? started.getHours() + ':' + ('0' + started.getMinutes()).slice(-2) : null;
     /* a closed sitting is kept, not thrown away: two hours away opens a new one,
@@ -68981,24 +68979,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         log.length ? spark : h('div', { class: 'muted', text: 'Answer something to see your trace.' })
       ]),
       h('div', { class: 'card' }, [
-        h('div', { class: 'row between' }, [
-          h('h2', { text: 'Your level' }),
-          levelPicker(lv)
-        ]),
-        h('div', { class: 'tiny', style: { marginTop: '6px' } },
-          'Practice keeps this level until you change it — right answers and wrong ones never move it.'),
-        h('div', { class: 'tiny', style: { marginTop: '6px' } },
-          here.att ? 'At ' + lv.label + ': ' + here.a + ' answers · ' + Math.round((here.acc || 0) * 100) + '% right · ' + here.att + ' of ' + here.n + ' skills tried · ' + here.mast + ' mastered'
-            : 'At ' + lv.label + ': nothing answered here yet.'),
-        h('div', { class: 'row', style: { marginTop: '12px' } }, [
-          h('button', { class: 'btn small', type: 'button', on: { click: function () { location.hash = '#ladder'; } } }, 'Open this level')
-        ])
-      ]),
-      h('div', { class: 'card' }, [
         h('h2', { text: 'Settings' }),
         h('div', { class: 'stack', style: { marginTop: '10px' } }, [
           toggle('Auto-advance after each item', 'autoNext'),
-          toggle('Show the worked steps after answering', 'showSteps'),
           toggle('Read every question aloud', 'speech')
         ]),
         h('hr', { class: 'sep' }),
