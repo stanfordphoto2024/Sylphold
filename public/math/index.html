@@ -369,7 +369,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-06 — 80 modules inlined:
+/* MathPath 2026-10-07 — 80 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -12620,7 +12620,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? TASK_W[task] : undefined;
     for (i = 0; i < fns.length; i++) {
-      var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0);
+      var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0);
       for (j = 0; j < n; j++) pool.push(i);
     }
     var last = null, order = R.shuffle(rng, pool);
@@ -12945,7 +12945,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -14047,7 +14047,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -14334,7 +14334,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var TASK_W = { order: 3, arrow: 4, word: 5, cmp: 1, story: 6, max: 7 };
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? TASK_W[task] : undefined;
-    for (i = 0; i < fns.length; i++) { var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
+    for (i = 0; i < fns.length; i++) { var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -14549,7 +14549,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -14984,7 +14984,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var TASK_W = { story: 1, back: 2, pattern: 3, adjacent: 4, judge: 5, table: 6 };
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? TASK_W[task] : undefined;
-    for (i = 0; i < fns.length; i++) { var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
+    for (i = 0; i < fns.length; i++) { var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -15244,7 +15244,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -15619,7 +15619,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var TASK_W = { judge: 5, sentence: 2, model: 6, bond: 3, make: 4, family: 6 };
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? (typeof task === 'number' ? task : TASK_W[task]) : undefined;
-    for (i = 0; i < fns.length; i++) { var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
+    for (i = 0; i < fns.length; i++) { var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -15665,11 +15665,24 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (p.op === 'mul' || p.op === 'div') {
       var other = REG[p.op === 'mul' ? 'multFacts' : 'divFacts'];
       if (other && other.fn) {
-        var m = other.fn(rng, lvl, { limit: cap(p.limit || 12, 2, 12), ask: 'missingFactor' }, sk);
+        var m = other.fn(rng, lvl, { limit: cap(p.limit || 12, 2, 12), ask: 'missingFactor', story: p.story }, sk);
         if (m) return m;
       }
     }
     var L = cap(p.limit || 10, 2, 100000), e = eq(rng, p.op || 'add', L, lvl), vis = modelOf(rng, e, p);
+    /* Same-title siblings draw disjoint regions of the same number space: the
+       skill id picks where the known operand lives, so twins stop repeating
+       each other's cards while every card still teaches the same blank. */
+    var lane = 0, ci2 = 0, sid = String((sk && sk.id) || '');
+    for (ci2 = 0; ci2 < sid.length; ci2++) lane = (lane * 31 + sid.charCodeAt(ci2)) & 0x7fffffff;
+    lane = lane % 3;
+    if (L <= 1000) {
+      var hi3 = cap(lvl <= 2 ? Math.ceil(L * 0.5) : L, 2, L);
+      var wlo = [[1, Math.ceil(hi3 / 3)], [Math.ceil(hi3 / 3) + 1, Math.ceil(2 * hi3 / 3)], [Math.ceil(2 * hi3 / 3) + 1, hi3]][lane];
+      var wa = R.int(rng, wlo[0], Math.min(wlo[1], L));
+      e.a = wa; e.b = R.int(rng, 1, Math.max(1, Math.min(L - wa, wlo[1] + 3))); e.c = e.a + e.b;
+      vis = modelOf(rng, e, p);
+    }
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5, ct = pick(rng, CTX);
     var teach = 'A missing number is found by undoing the operation with the numbers you already have.';
 
@@ -15889,7 +15902,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var TASK_W = { cents: 1, identify: 2, value: 3, judge: 4, story: 5, equiv: 6, cmp: 7 };
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? TASK_W[task] : undefined;
-    for (i = 0; i < fns.length; i++) { var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
+    for (i = 0; i < fns.length; i++) { var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -16095,7 +16108,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -16381,7 +16394,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -16823,7 +16836,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] ? w[i] : 1 : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -17057,7 +17070,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var STASK = { sort: 2, name: 0, count: 1, judge: 3, flatvsolid: 4, real: 5, compare: 6 };
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? STASK[task] : undefined;
-    for (i = 0; i < fns.length; i++) { var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
+    for (i = 0; i < fns.length; i++) { var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -17579,7 +17592,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var TASK_W = { story: 1, missing: 2, family: 4, cmp: 5, judge: 6, sentence: 7, takeaway: 7 };
   function build(rng, fns, w, task) {
     var pool = [], i, j, bias = task != null ? TASK_W[task] : undefined;
-    for (i = 0; i < fns.length; i++) { var n = (w && w[i] ? w[i] : 1) + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
+    for (i = 0; i < fns.length; i++) { var n = (w && typeof w[i] === 'number') ? (w[i] > 0 && bias === i ? w[i] + 12 : w[i]) : 1 + (bias === i ? 12 : 0); for (j = 0; j < n; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -17810,7 +17823,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -18158,7 +18171,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -18698,7 +18711,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -19295,7 +19308,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -19675,7 +19688,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -20191,7 +20204,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -20314,7 +20327,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var GLOB = (typeof window !== 'undefined') ? window : globalThis;
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -20894,7 +20907,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
   function build(rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var last = null, order = R.shuffle(rng, pool);
     for (i = 0; i < order.length; i++) { var it = fns[order[i]](); if (!it) continue;  last = last || it;  if (!leaks(it)) return it; }
     return last;
@@ -21865,7 +21878,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
    * genFor redraws the skill — the same contract the older band files use. */
   BC.build = function (rng, fns, w) {
     var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    for (i = 0; i < fns.length; i++) { var wt0 = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt0; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -64752,8 +64765,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   function build(rng, fns, w) {
-    var pool = [], i, j;
-    for (i = 0; i < fns.length; i++) for (j = 0; j < (w && w[i] ? w[i] : 1); j++) pool.push(i);
+    var pool = [], i, j, wt;
+    /* a weight of 0 must mean NEVER — `w[i] ? w[i] : 1` used to read the
+       zero as "no weight given" and served the template anyway. */
+    for (i = 0; i < fns.length; i++) { wt = (w && typeof w[i] === 'number') ? w[i] : 1; for (j = 0; j < wt; j++) pool.push(i); }
     var order = R.shuffle(rng, pool), last = null, it;
     for (i = 0; i < order.length; i++) {
       it = fns[order[i]]();
@@ -64778,6 +64793,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   /* an honest array label: rows and columns, never the total */
   function rowsWord(n, per) { return n + (n === 1 ? ' row' : ' rows') + ' of ' + per; }   /* '1 row of 3', not '1 rows of 3' */
   function arrLabel(a, b) { return rowsWord(a, b); }
+  /* "1 × 12, 2 × 6, 3 × 4" — the factor pairs of N, outermost first */
+  function factorPairs(N) {
+    var out = [], i;
+    for (i = 1; i * i <= N; i++) if (N % i === 0) out.push(i + ' × ' + (N / i));
+    return out.slice(0, 3).join(', ') + (out.length > 3 ? ', …' : '');
+  }
 
   /* the pair of factors for this draw, honouring fixed / factors / limit / lvl */
   function pair(rng, p, lvl) {
@@ -64791,27 +64812,79 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
 
   /* ================================================================ multFacts */
-  ARCH('multFacts', function (rng, lvl, p) {
-    var d = pair(rng, p, lvl), a = d.a, b = d.b, c = d.c, lim = cap(p.limit || 12, 2, 12);
+  ARCH('multFacts', function (rng, lvl, p, sk) {
+    var t = String((sk && sk.name) || '').toLowerCase();
+    /* The skill's OWN title outranks the shared parameter row: an ask the
+       title names is the ask every card must teach, so two skills with
+       different titles stop drawing the same pool. */
+    var tAsk = /true or false/.test(t) ? 'trueFalse'
+      : /sorting/.test(t) ? 'sort'
+        : /select the factors|which numbers.{0,40}factors|factors of/.test(t) ? 'selectFactors'
+          : /missing factor/.test(t) ? 'missingFactor'
+            : /area models?/.test(t) ? 'areaModel'
+              : /multiples? of ten|by a multiple of 10/.test(t) ? 'multipleOfTen'
+                : /three numbers|associative/.test(t) ? 'threeNumbers'
+                  : /arrays?|rows and columns/.test(t) ? 'grid' : null;
+    var ask = tAsk || (p.ask === 'fact' ? null : p.ask || null);
+    var zeroOne = /\b0 or 1\b|\bmultiply (by )?(zero|one|0|1)\b(?![\-\d])/.test(t);
+    var d = pair(rng, p, lvl), a = d.a, b = d.b, lim = cap(p.limit || 12, 2, 12);
+    var c = a * b;
     var fam = p.factors === '2345,10' ? [2, 3, 4, 5, 10] : p.factors === '6789' ? [6, 7, 8, 9] : null;
+    /* Same-title siblings must not serve identical cards: the skill id picks a
+       factor window, so "up to 10" twins live in disjoint number space while
+       every card still teaches the same ask. */
+    var lane = 0, ci2 = 0, sid = String((sk && sk.id) || '');
+    for (ci2 = 0; ci2 < sid.length; ci2++) lane = (lane * 31 + sid.charCodeAt(ci2)) & 0x7fffffff;
+    var lane5 = lane % 5; lane = lane % 3;
+    var win = [[2, 5], [6, 8], [9, 12]][lane], winR = [[2, 4], [5, 6], [7, 9]][lane];
+    if (zeroOne) {
+      var z0 = /\bmultiply (by )?(zero|0)\b(?![\-\d])/.test(t), z1 = /\bmultiply (by )?(one|1)\b(?![\-\d])/.test(t);
+      var wB = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]][lane5];
+      a = z0 && !z1 ? 0 : z1 && !z0 ? 1 : R.pick(rng, [0, 1]);
+      b = R.int(rng, wB[0], Math.min(wB[1], lim));
+      c = a * b;
+    }
+    var winN = [[12, 16, 20, 24], [30, 36, 40, 48], [50, 60, 72, 80, 96]][lane];
+    var winS = [[12, 18, 24], [20, 30, 36], [48, 60]][lane];
+    if (!fam && !zeroOne && !p.fixed) {
+      a = R.int(rng, Math.min(win[0], lim), Math.min(win[1], lim));
+      b = R.int(rng, 1, lim);
+      c = a * b;
+    }
+    if (!fam && !zeroOne && p.fixed) {
+      var wF = [[1, 3], [4, 6], [7, 10]][lane];
+      b = R.int(rng, wF[0], Math.min(wF[1], lim));
+      c = a * b;
+    }
     var hard = lvl >= 4 ? 0.5 : lvl === 3 ? 0.15 : -0.4;
-    var w = p.ask === 'trueFalse' ? [0, 0, 6, 6, 1, 1, 3, 1, 2, 3, 1, 1, 1]
-      : p.ask === 'sort' ? [1, 1, 1, 1, 6, 6, 1, 1, 1, 1, 1, 1, 1]
-        : p.ask === 'selectFactors' ? [1, 1, 2, 2, 6, 1, 1, 1, 1, 1, 1, 1, 1]
-          : p.ask === 'missingFactor' ? [1, 1, 6, 6, 1, 1, 2, 1, 2, 2, 1, 1, 1]
-            : p.ask === 'grid' ? [4, 3, 1, 1, 1, 1, 1, 5, 5, 1, 1, 2, 2]
-              : p.ask === 'areaModel' ? [3, 2, 1, 1, 1, 1, 1, 5, 6, 1, 1, 2, 2]
-                : p.ask === 'multiDigit' ? [4, 4, 1, 1, 1, 1, 2, 2, 2, 5, 1, 2, 2]
-                  : p.ask === 'multipleOfTen' ? [4, 3, 1, 1, 1, 1, 1, 1, 1, 6, 1, 2, 2]
-                    : p.ask === 'threeNumbers' ? [5, 4, 1, 1, 1, 1, 1, 1, 1, 1, 6, 3, 3]
-                      : p.story ? [5, 6, 2, 2, 1, 1, 2, 1, 1, 1, 2, 3, 3] : null;
+    /* Each gated pool holds only templates that teach the title's ask, with
+       at least six different shapes inside it. */
+    var w = ask === 'trueFalse' ? [0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4]
+      : ask === 'sort' ? [0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 5, 5, 0, 0, 0, 5]
+        : ask === 'selectFactors' ? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 4, 3, 3, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          : ask === 'missingFactor' ? [0, 0, 6, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5]
+            : ask === 'grid' ? [2, 1, 1, 1, 0, 0, 6, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+              : ask === 'areaModel' ? [2, 1, 1, 1, 0, 0, 0, 1, 2, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                : ask === 'multiDigit' ? [3, 2, 1, 1, 0, 0, 0, 0, 4, 3, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                  : ask === 'multipleOfTen' ? [2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    : ask === 'threeNumbers' ? [3, 2, 2, 2, 0, 0, 0, 0, 0, 0, 2, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                      : p.story ? [5, 6, 2, 2, 1, 1, 2, 1, 1, 1, 2, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] : null;
     /* Templates 8-11 leave the times tables: a teen factor, a two-digit factor,
        a multiple of ten, three factors. A skill whose own name stops at 10 or
        12 must not be served them — that is how "facts up to 10" ended up with
-       "8 × 14". */
-    if (!p.ask && !p.story && lim <= 12) w = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1];
-    else if (w && lim <= 12 && p.ask !== 'areaModel' && p.ask !== 'multiDigit' && p.ask !== 'multipleOfTen' && p.ask !== 'threeNumbers') {
+       "8 × 14". (ask 'fact' is the plain pool, same as no ask.) */
+    if (ask === null && !p.story && lim <= 12) w = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    else if (w && lim <= 12 && ask !== 'areaModel' && ask !== 'multiDigit' && ask !== 'multipleOfTen' && ask !== 'threeNumbers') {
       w = w.slice(); w[8] = 0; w[9] = 0; w[10] = 0; w[11] = 0;
+    }
+    if (zeroOne) {   /* "Multiply by 0 or 1": only zero/one cards, never arrays or teens */
+      if (!w) w = [1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      else { w = w.slice(); w[7] = 0; w[8] = 0; w[9] = 0; w[10] = 0; w[11] = 0; w[21] = (w[21] || 0) + 3; }
+    }
+    /* "Word problems … find the missing number": the story carries the unknown,
+       so the story template leads and the bare fill-ins only support it. */
+    if (ask === 'missingFactor' && p.story) {
+      w = [0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 0, 8];
     }
 
     return build(rng, [
@@ -64838,6 +64911,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       /* 2 — the missing factor (unknown in the middle). */
       function () {
+        if (a === 0 && !zeroOne) return null;   /* 0 × ___ = 0 accepts any number — only the zero/one skill may serve it */
         if (a === 0) {
           return I_num('Find the missing factor:  0 × ___ = 0', b === 0 ? 5 : b, {
             b: 0.6,
@@ -64915,7 +64989,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       /* 7 — the grid: area of a rectangle of unit squares. */
       function () {
-        var g = R.int(rng, lvl <= 2 ? 2 : 3, lvl <= 2 ? 5 : 9), h = R.int(rng, 2, 9);
+        var g = p.fixed ? p.fixed : R.int(rng, winR[0], winR[1]), h = R.int(rng, 2, 9);
+        if (g * h > 200) return null;
         return I_num('How many unit squares cover a ' + g + ' × ' + h + ' rectangle?', g * h, {
           visual: V.area(g, h, { label: g + ' rows and ' + h + ' columns' }), b: 0.1,
           teach: 'A rectangle tiled with unit squares has area equal to the number of rows times the number of columns.',
@@ -64926,7 +65001,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       /* 8 — a teen number split on a grid: 7 × 12 = 7 × 10 + 7 × 2. */
       function () {
-        var g = R.int(rng, 3, 9), t = R.int(rng, 3, 9), n = 10 + t;
+        var g = p.fixed ? p.fixed : R.int(rng, winR[0], winR[1]), t = R.int(rng, 3, 9), n = 10 + t;
         return I_num('Split the grid to multiply:  ' + g + ' × ' + n + ' = ' + g + ' × 10 + ' + g + ' × ' + t + ' =', g * n, {
           visual: V.area(g, n, { label: g + ' rows of ' + n }), b: 0.6,
           teach: 'Break the teen number into 10 and the rest, multiply each part, then add the two products.',
@@ -64937,7 +65012,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       /* 9 — one digit times two digits with the area model. */
       function () {
-        var g = R.int(rng, 2, 9), t = R.int(rng, 1, 9), n = 10 + t;
+        var g = p.fixed ? p.fixed : R.int(rng, winR[0], winR[1]), t = R.int(rng, 1, 9), n = 10 + t;
         return MC(rng, 'Which expression uses the area model for ' + g + ' × ' + n + '?',
           g + ' × 10 + ' + g + ' × ' + t,
           [g + ' × 10 + ' + t, g + ' × ' + t + ' + 10', g + ' × 10 − ' + g + ' × ' + t], {
@@ -64950,7 +65025,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       /* 10 — multiply by a multiple of ten. */
       function () {
-        var g = R.int(rng, 2, 9), k = R.int(rng, 1, 9);
+        var g = p.fixed ? p.fixed : R.int(rng, winR[0], winR[1]), k = R.int(rng, 1, 9);
+        if (g * k * 10 > 100000) return null;
         return I_num('Use place value:  ' + g + ' × ' + (k * 10) + ' =', g * k * 10, {
           b: 0.4,
           teach: 'Multiply the tens digit and add the zero: the product is that many tens.',
@@ -64961,7 +65037,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       /* 11 — three factors, associative grouping. */
       function () {
-        var x = R.int(rng, 2, 5), y = R.int(rng, 2, 5), z = R.pick(rng, [2, 5, 10]);
+        var x = R.int(rng, winR[0], winR[1]), y = R.int(rng, 2, 5), z = R.pick(rng, [2, 5, 10]);
         return I_num('Multiply three numbers:  ' + x + ' × ' + y + ' × ' + z + ' =', x * y * z, {
           b: 0.8,
           teach: 'Group the two factors that make a tidy product first — a 2, 5 or 10 usually pairs up easiest.',
@@ -64981,21 +65057,367 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
               'Dividing the product by ' + a + ' must give the other factor ' + b + '.',
               'So the fact is <b>' + c + ' ÷ ' + a + ' = ' + b + '</b>.']
           });
+      },
+      /* 13 — select the factors: which pair multiplies to N. */
+      function () {
+        if (ask !== 'selectFactors' && ask !== 'missingFactor') return null;
+        var ns = winN.filter(function (v) { return v <= lim * lim; });
+        if (!ns.length) ns = [12, 16, 20, 24].filter(function (v) { return v <= lim * lim; });
+        if (!ns.length) return null;
+        var N = R.pick(rng, ns), pairs = [], i;
+        for (i = 2; i * i <= N; i++) if (N % i === 0) pairs.push([i, N / i]);
+        if (pairs.length < 2) return null;
+        var good = R.pick(rng, pairs), wrongs = [];
+        for (i = 0; i < pairs.length && wrongs.length < 2; i++) {
+          var pr = pairs[i];
+          if (!(pr[0] === good[0] && pr[1] === good[1])) wrongs.push(pr[0] + ' and ' + pr[1]);
+        }
+        wrongs.push(good[0] + ' and ' + (good[1] + 1));
+        wrongs.push((good[0] + 1) + ' and ' + good[1]);
+        return MC(rng, 'Select the factors:  which pair multiplies to ' + N + '?', good[0] + ' and ' + good[1], wrongs, {
+          b: 0.4,
+          teach: 'A factor divides the number exactly, so a factor pair multiplies back to it with no remainder.',
+          explain: ['Multiply the pair: ' + good[0] + ' × ' + good[1] + ' = ' + N + '.',
+            'Every other pair multiplies to a different number, so it is not a factor pair.',
+            'So the pair is <b>' + good[0] + ' and ' + good[1] + '</b>.']
+        });
+      },
+      /* 14 — which number is NOT a factor. */
+      function () {
+        if (ask !== 'selectFactors') return null;
+        var ns = winS.filter(function (v) { return v <= lim * lim; });
+        if (!ns.length) return null;
+        var N = R.pick(rng, ns), facts = [], k;
+        for (var i2 = 1; i2 * i2 <= N; i2++) if (N % i2 === 0) { facts.push(i2); if (i2 * i2 !== N) facts.push(N / i2); }
+        var nots = [];
+        for (k = 2; k <= 12 && nots.length < 3; k++) if (N % k !== 0) nots.push(String(k));
+        if (!nots.length) return null;
+        return MC(rng, 'Which number is NOT a factor of ' + N + '?', R.pick(rng, nots),
+          facts.filter(function (v) { return v <= 12 && v > 1; }).map(String), {
+            b: 0.5,
+            teach: 'A factor divides the number exactly; the one that leaves a remainder is not a factor.',
+            explain: ['Divide ' + N + ' by each choice and watch for a remainder.',
+              'The flagged number leaves a remainder, so it cannot be a factor.',
+              'So the number that is not a factor is <b>that choice</b>.']
+          });
+      },
+      /* 15 — is k a factor of N? (judgement) */
+      function () {
+        if (ask !== 'selectFactors') return null;
+        var ns = winS.filter(function (v) { return v <= lim * lim; });
+        if (!ns.length) return null;
+        var N = R.pick(rng, ns), k = R.int(rng, 2, 12);
+        return I_bool('Is ' + k + ' a factor of ' + N + '?', N % k === 0, {
+          b: 0.3,
+          teach: 'Divide and check: a factor goes into the number a whole number of times.',
+          explain: ['Divide ' + N + ' by ' + k + ': ' + N + ' ÷ ' + k + (N % k === 0 ? ' = ' + (N / k) + ' exactly.' : ' leaves a remainder.'),
+            'Exact division means a factor; a remainder means it is not.',
+            'So the answer is <b>' + (N % k === 0 ? 'True' : 'False') + '</b>.']
+        });
+      },
+      /* 16 — a common factor of two numbers. */
+      function () {
+        if (ask !== 'selectFactors') return null;
+        var pool = [[12, 18], [24, 30], [36, 42]][lane], N1 = R.pick(rng, pool), N2 = R.pick(rng, pool.filter(function (v) { return v !== N1; }));
+        var common = [], wrongs = [], k;
+        for (k = 2; k <= 12; k++) if (N1 % k === 0 && N2 % k === 0) common.push(String(k));
+        if (!common.length) return null;
+        for (k = 2; k <= 12 && wrongs.length < 3; k++) if (!(N1 % k === 0 && N2 % k === 0)) wrongs.push(String(k));
+        return MC(rng, 'Which number is a factor of both ' + N1 + ' and ' + N2 + '?', R.pick(rng, common), wrongs, {
+          b: 0.6,
+          teach: 'A common factor divides both numbers exactly, so it has to pass the division test twice.',
+          explain: ['Test each choice against ' + N1 + ' and against ' + N2 + '.',
+            'Only a number that divides both with no remainder is a common factor.',
+            'So the common factor is <b>that choice</b>.']
+        });
+      },
+      /* 17 — how many factors does N have? */
+      function () {
+        if (ask !== 'selectFactors') return null;
+        var N = R.pick(rng, [[12, 16], [20, 24], [36, 48]][lane]);
+        var n = 0;
+        for (var i3 = 1; i3 <= N; i3++) if (N % i3 === 0) n++;
+        return I_num('How many whole numbers divide ' + N + ' exactly? (Count 1 and ' + N + ' too.)', n, {
+          b: 0.8,
+          teach: 'List factor pairs from the outside in; each pair contributes two factors.',
+          explain: ['Pairs for ' + N + ': ' + factorPairs(N) + '.',
+            'Count every factor in the pairs.',
+            'So ' + N + ' has <b>' + n + '</b> factors.']
+        });
+      },
+      /* 18 — multiple of f AND factor of M. */
+      function () {
+        if (ask !== 'selectFactors') return null;
+        var f = R.pick(rng, [[4], [6], [8]][lane]), M = R.pick(rng, [24, 36, 48, 60, 72, 96]);
+        var cands = [], wrongs = [], m, k2;
+        for (m = 1; m * f <= 100; m++) if (M % (m * f) === 0) cands.push(m * f);
+        if (!cands.length) return null;
+        var answer = String(R.pick(rng, cands));
+        for (k2 = 2; k2 <= 40 && wrongs.length < 3; k2++) if ((k2 % f !== 0 || M % k2 !== 0) && String(k2) !== answer) wrongs.push(String(k2));
+        return MC(rng, 'Which number is a multiple of ' + f + ' and also a factor of ' + M + '?', answer, wrongs, {
+          b: 0.9,
+          teach: 'The number has to sit in both lists at once: in the skip-counting of the factor and in the factor pairs of the total.',
+          explain: ['Multiples of ' + f + ': ' + f + ', ' + 2 * f + ', ' + 3 * f + ', …',
+            'Factors of ' + M + ' must divide ' + M + ' exactly.',
+            'The only choice on both lists is <b>' + answer + '</b>.']
+        });
+      },
+      /* 19 — does the array match the words? (judgement) */
+      function () {
+        if (ask !== 'trueFalse') return null;
+        var r = cap(a < 2 ? 3 : a, 2, 9), cc = cap(b < 2 ? 4 : b, 2, 9);
+        var lie = R.chance(rng, 0.5);
+        var claim = lie ? (r + 1) + ' rows of ' + cc : r + ' rows of ' + cc;
+        return I_bool('Does this array show ' + claim + '?', !lie, {
+          visual: rows(r, cc, null), b: 0.3,
+          teach: 'Count the rows first, then the number in one row; the words must match both counts exactly.',
+          explain: ['The array has ' + r + ' rows with ' + cc + ' in each row.',
+            'The card claims ' + claim + (lie ? ', which does not match the rows drawn.' : ', and that matches.'),
+            'So the answer is <b>' + (lie ? 'False' : 'True') + '</b>.']
+        });
+      },
+      /* 20 — is the related division fact the same fact? (judgement) */
+      function () {
+        if (ask !== 'trueFalse') return null;
+        if (a < 2 || b < 2) return null;
+        var lie = R.chance(rng, 0.5);
+        var claim = lie ? c + ' ÷ ' + b + ' = ' + (a + 1) : c + ' ÷ ' + b + ' = ' + a;
+        return I_bool('Is ' + a + ' × ' + b + ' = ' + c + ' the same fact as ' + claim + '?', !lie, {
+          b: 0.7,
+          teach: 'Dividing the product by one factor must give the other factor — check it before agreeing.',
+          explain: ['From ' + a + ' × ' + b + ' = ' + c + ', dividing ' + c + ' by ' + b + ' gives ' + a + '.',
+            'The card says ' + claim + (lie ? ', which is off by one.' : ', which agrees.'),
+            'So the answer is <b>' + (lie ? 'False' : 'True') + '</b>.']
+        });
+      },
+      /* 21 — zero and one facts (judgement). */
+      function () {
+        if (!zeroOne) return null;
+        var wX = [[2, 3], [4, 5], [6, 7], [8, 9], [10, 11]][lane5];
+        var x = R.int(rng, wX[0], Math.min(wX[1], lim)), kind = R.int(rng, 0, 3), claim, truth;
+        if (kind === 0) { claim = '0 × ' + x + ' = 0'; truth = true; }
+        else if (kind === 1) { claim = '0 × ' + x + ' = ' + x; truth = false; }
+        else if (kind === 2) { claim = x + ' × 1 = ' + x; truth = true; }
+        else { claim = x + ' × 1 = ' + (x + 1); truth = false; }
+        return I_bool('Is this fact correct?   ' + claim, truth, {
+          b: 0.2,
+          teach: 'Zero groups hold nothing and one group holds the number itself; neither answer changes the other factor.',
+          explain: [kind < 2 ? '0 × ' + x + ' means ' + x + ' groups of 0, which is 0.' : x + ' × 1 means one group of ' + x + ', which is ' + x + '.',
+            'The card claims ' + claim + (truth ? ', and that is right.' : ', and that is wrong.'),
+            'So the answer is <b>' + (truth ? 'True' : 'False') + '</b>.']
+        });
+      },
+      /* 22 — is the product greater than K? (judgement) */
+      function () {
+        if (ask !== 'trueFalse') return null;
+        var x = a < 2 ? R.int(rng, 3, 9) : a, y = b < 2 ? R.int(rng, 3, 9) : b;
+        var prod = x * y, K = prod + R.pick(rng, [-3, -2, 2, 3, 6]);
+        if (K < 0) K = prod + 6;
+        return I_bool('Is ' + x + ' × ' + y + ' greater than ' + K + '?', prod > K, {
+          b: 0.5,
+          teach: 'Work out the product, then compare it with the number on the card.',
+          explain: [x + ' × ' + y + ' = ' + prod + '.',
+            prod + (prod > K ? ' > ' : prod === K ? ' = ' : ' < ') + K + (prod === K ? ' — equal is not greater.' : '.'),
+            'So the answer is <b>' + (prod > K ? 'Yes' : 'No') + '</b>.']
+        });
+      },
+      /* 23 — is the repeated addition the same product? (judgement) */
+      function () {
+        if (ask !== 'trueFalse') return null;
+        var x = cap(a < 2 ? 3 : a, 2, 9), y = cap(b < 2 ? 3 : b, 2, 9);
+        var lie = R.chance(rng, 0.5), s = [], i4;
+        for (i4 = 0; i4 < x; i4++) s.push(y);
+        var claim = lie ? s.slice(0, x - 1).join(' + ') + ' + ' + (y + 1) : s.join(' + ');
+        return I_bool('Is ' + x + ' × ' + y + ' the same as ' + claim + '?', !lie, {
+          b: 0.6,
+          teach: 'Multiplication is the same number added once per group — one changed addend changes the total.',
+          explain: [x + ' × ' + y + ' means ' + y + ' added ' + x + ' times.',
+            'The card writes ' + claim + (lie ? ', which adds to a different total.' : ', which matches exactly.'),
+            'So the answer is <b>' + (lie ? 'False' : 'True') + '</b>.']
+        });
+      },
+      /* 24 — odd one out in the facts for f. */
+      function () {
+        if (ask !== 'sort') return null;
+        var f = fam ? R.pick(rng, fam) : R.int(rng, winR[0], winR[1]);
+        var g = f, tries = 0;
+        while ((g === f || (g * 3) % f === 0) && tries < 24) { g = R.int(rng, 2, 9); tries++; }
+        if (g === f || (g * 3) % f === 0) return null;
+        return MC(rng, 'Which fact does NOT belong to the facts for ' + f + '?', g + ' × 3',
+          [f + ' × 2', f + ' × 3', f + ' × 4'], {
+            b: 0.7,
+            teach: 'Every fact for ' + f + ' has ' + f + ' as a factor; the odd one out does not.',
+            explain: [f + ' × 2, ' + f + ' × 3 and ' + f + ' × 4 all have ' + f + ' as a factor.',
+              g + ' × 3 = ' + g * 3 + ', and ' + g * 3 + ' is not in the ' + f + ' skip-counting list.',
+              'So the odd one out is <b>' + g + ' × 3</b>.']
+          });
+      },
+      /* 25 — which fact belongs to the facts for f. */
+      function () {
+        if (ask !== 'sort') return null;
+        var f = fam ? R.pick(rng, fam) : R.int(rng, winR[0], winR[1]);
+        var good = f + ' × ' + R.int(rng, 2, 9), wrongs = [], g;
+        for (g = 2; g <= 9 && wrongs.length < 3; g++) {
+          if (g === f) continue;
+          var h = R.int(rng, 2, 9);
+          if ((g * h) % f === 0) continue;      /* product must not sneak into the f list */
+          wrongs.push(g + ' × ' + h);
+        }
+        if (wrongs.length < 2) return null;
+        return MC(rng, 'Which fact belongs to the facts for ' + f + '?', good, wrongs, {
+          b: 0.5,
+          teach: 'A fact belongs to the group of the factor it repeats — look for ' + f + ' among the two factors.',
+          explain: ['Facts for ' + f + ' have ' + f + ' as one of their factors.',
+            'The other choices multiply to numbers that are not in the ' + f + ' list.',
+            'So the fact that belongs is <b>' + good + '</b>.']
+        });
+      },
+      /* 26 — sort the product against a boundary. */
+      function () {
+        if (ask !== 'sort') return null;
+        var cut = R.pick(rng, [[20], [30], [40]][lane]);
+        var answer = c === cut ? 'equal to ' + cut : c > cut ? 'greater than ' + cut : 'less than ' + cut;
+        var wrongs = ['less than ' + cut, 'equal to ' + cut, 'greater than ' + cut].filter(function (v) { return v !== answer; });
+        return MC(rng, 'Sort the product:  is ' + a + ' × ' + b + ' less than, equal to, or greater than ' + cut + '?', answer, wrongs, {
+          b: 0.4,
+          teach: 'Estimate the product first, then compare it with the boundary before sorting.',
+          explain: [a + ' × ' + b + ' = ' + c + '.',
+            c + (c === cut ? ' = ' : c > cut ? ' > ' : ' < ') + cut + '.',
+            'So it is <b>' + answer + '</b>.']
+        });
+      },
+      /* 27 — where the product lands on the number line. */
+      function () {
+        if (ask !== 'sort') return null;
+        var cut = R.pick(rng, [[10], [25], [50]][lane]);
+        var answer = c < cut ? 'below ' + cut : c === cut ? 'at ' + cut : 'above ' + cut;
+        var wrongs = ['below ' + cut, 'at ' + cut, 'above ' + cut].filter(function (v) { return v !== answer; });
+        return MC(rng, 'Does ' + a + ' × ' + b + ' land below, at, or above ' + cut + ' on the number line?', answer, wrongs, {
+          b: 0.45,
+          teach: 'Multiplying grows a quantity; comparing the product with a mark tells you where it lands.',
+          explain: ['Multiply: ' + a + ' × ' + b + ' = ' + c + '.',
+            c + (c === cut ? ' sits exactly on ' : c > cut ? ' is past ' : ' has not reached ') + cut + '.',
+            'So it lands <b>' + answer + '</b>.']
+        });
+      },
+      /* 28 — missing factor with the unknown in front. */
+      function () {
+        if (ask !== 'missingFactor' || a === 0) return null;
+        return I_num('Find the missing factor:  ___ × ' + a + ' = ' + c, b, {
+          b: 0.5 + hard * 0.3,
+          teach: 'The unknown factor is the one that pairs with the known factor to make the product.',
+          explain: ['Ask: ' + a + ' times what equals ' + c + '?',
+            c + ' ÷ ' + a + ' = ' + b + '.',
+            'So the missing factor is <b>' + b + '</b>.']
+        });
+      },
+      /* 29 — find the factor through the related division. */
+      function () {
+        if (ask !== 'missingFactor' || a < 2 || a === b) return null;   /* a===b would print the answer in the prompt */
+        return I_num('Use the related division to find the factor:  ' + c + ' ÷ ' + a + ' =', b, {
+          b: 0.6,
+          teach: 'Division undoes multiplication: the product shared by a known factor leaves the other factor.',
+          explain: ['The product is ' + c + ' and one factor is ' + a + '.',
+            a + ' × ' + b + ' = ' + c + ', so the missing factor is ' + b + '.',
+            'So the quotient is <b>' + b + '</b>.']
+        });
+      },
+      /* 30 — missing rows in an array. */
+      function () {
+        if (ask !== 'missingFactor') return null;
+        var r = R.int(rng, winR[0], Math.min(winR[1], 8, lim)), cc = R.int(rng, 2, Math.min(9, lim)), tot = r * cc;
+        if (r === cc) return null;
+        return MC(rng, 'The array has ' + cc + ' counters in each row and ' + tot + ' counters in all. How many rows are there?', String(r),
+          [String(cc), String(r + 1), String(r - 1)], {
+            visual: rows(r, cc, null), b: 0.6,
+            teach: 'Total ÷ size of each row gives the number of rows — the row size itself is not the answer.',
+            explain: ['Each row holds ' + cc + ' and there are ' + tot + ' in all.',
+              tot + ' ÷ ' + cc + ' = ' + r + '.',
+              'So the array has <b>' + r + '</b> rows.']
+          });
+      },
+      /* 31 — which factor-group a fact belongs to. */
+      function () {
+        if (ask !== 'sort') return null;
+        var f = fam ? R.pick(rng, fam) : cap(a < 2 ? 3 : a, 2, 9);
+        var bb = b < 2 ? 3 : b, p = f * bb, others = [], g;
+        for (g = 2; g <= 12 && others.length < 3; g++) if (g !== f && p % g !== 0) others.push(g);
+        if (others.length < 2) return null;
+        return MC(rng, 'Which group does ' + f + ' × ' + bb + ' belong to?', 'facts for ' + f,
+          others.map(function (v) { return 'facts for ' + v; }), {
+            b: 0.5,
+            teach: 'A fact belongs to the group of the factor you skip count by; test each group for exact division.',
+            explain: [f + ' × ' + bb + ' = ' + p + ', and ' + p + ' ÷ ' + f + ' = ' + bb + ' exactly.',
+              'The other groups do not divide ' + p + ' exactly.',
+              'So it belongs to <b>facts for ' + f + '</b>.']
+          });
+      },
+      /* 32 — the missing number inside a story. */
+      function () {
+        if (ask !== 'missingFactor' || !p.story) return null;
+        var gw = [[2, 3], [4, 4], [5, 6]][lane];
+        var g = R.int(rng, Math.min(gw[0], lim), Math.min(gw[1], lim)), e = R.int(rng, 2, Math.min(6, lim)), tot = g * e;
+        if (tot > lim * lim) return null;
+        var o = obj(rng), k = pack(rng), w1 = who(rng);
+        if (R.chance(rng, 0.5)) {
+          return I_num(w1 + ' packs ' + tot + ' ' + o + ' equally into ' + g + ' ' + packOne(k) + '. How many ' + o + ' go in each ' + packOne(k) + '?', e, {
+            b: 0.6,
+            teach: 'Equal sharing undoes multiplication: the total split into equal groups leaves the size of one group.',
+            explain: ['Share ' + tot + ' ' + o + ' into ' + g + ' groups.',
+              tot + ' ÷ ' + g + ' = ' + e + '.',
+              'So each ' + packOne(k) + ' holds <b>' + e + '</b>.']
+          });
+        }
+        return I_num(w1 + ' lines up ' + tot + ' ' + o + ' in rows of ' + e + '. How many rows does that make?', g, {
+          b: 0.55,
+          teach: 'Repeated addition of one row size reaches the total; the number of rows is the missing factor.',
+          explain: ['Each row holds ' + e + ' and there are ' + tot + ' in all.',
+            tot + ' ÷ ' + e + ' = ' + g + '.',
+            'So that makes <b>' + g + '</b> rows.']
+        });
+      },
+      /* 33 — zero and one facts in true-or-false wording (trueFalse pool;
+          t21's "Is this fact correct?" wording stays exclusive to zeroOne). */
+      function () {
+        if (ask !== 'trueFalse') return null;
+        var x = R.int(rng, win[0], Math.min(win[1], lim));
+        var kinds = [[0, 1], [2, 3], [0, 3]][lane], kind = R.pick(rng, kinds), claim, truth;
+        if (kind === 0) { claim = '0 × ' + x + ' = 0'; truth = true; }
+        else if (kind === 1) { claim = x + ' × 0 = ' + x; truth = false; }
+        else if (kind === 2) { claim = x + ' × 1 = ' + x; truth = true; }
+        else { claim = '1 × ' + x + ' = ' + (x + 1); truth = false; }
+        return I_bool('Is it true or false that ' + claim + '?', truth, {
+          b: 0.25,
+          teach: 'Zero always wins: a zero factor makes the product zero; one keeps the other factor unchanged.',
+          explain: [kind < 2 ? '0 × ' + x + ' means ' + x + ' groups of 0, which is 0.' : x + ' × 1 means one group of ' + x + ', which is ' + x + '.',
+            'The card says ' + claim + (truth ? ', and that agrees.' : ', and it does not.'),
+            'So the answer is <b>' + (truth ? 'True' : 'False') + '</b>.']
+        });
       }
     ], w);
   }, ['G3']);
 
   /* ================================================================= divFacts */
-  ARCH('divFacts', function (rng, lvl, p) {
+  ARCH('divFacts', function (rng, lvl, p, sk) {
+    var t = String((sk && sk.name) || '').toLowerCase();
+    var tAsk = /true or false/.test(t) ? 'trueFalse' : /sorting/.test(t) ? 'sort' : null;
+    var ask = tAsk || (p.ask === 'fact' ? null : p.ask || null);
     var lim = cap(p.limit || 12, 2, 12);
     var fam = p.factors === '2345,10' ? [2, 3, 4, 5, 10] : p.factors === '6789' ? [6, 7, 8, 9] : null;
     var qHi = lvl <= 2 ? cap(lim, 2, 5) : lim;
-    var d0 = p.divisor != null ? cap(+p.divisor, 1, 12) : fam ? R.pick(rng, fam) : R.int(rng, 1, lim);
-    var q = R.int(rng, lvl <= 2 ? 1 : 0, qHi), n = d0 * q;
+    /* Lane windows: same-title siblings split the divisor and quotient space
+       so their decks stop converging on identical cards. */
+    var lane = 0, ci2 = 0, sid = String((sk && sk.id) || '');
+    for (ci2 = 0; ci2 < sid.length; ci2++) lane = (lane * 31 + sid.charCodeAt(ci2)) & 0x7fffffff;
+    var lane5 = lane % 5; lane = lane % 3;
+    var dSet = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]][lane].filter(function (v) { return v <= lim; });
+    var d0 = p.divisor != null ? cap(+p.divisor, 1, 12) : fam ? R.pick(rng, fam) : R.pick(rng, dSet);
+    var qW = [[0, Math.ceil(qHi / 3)], [Math.ceil(qHi / 3) + 1, Math.ceil(2 * qHi / 3)], [Math.ceil(2 * qHi / 3) + 1, qHi]][lane];
+    var q = R.int(rng, Math.max(0, qW[0]), Math.max(qW[0], qW[1])), n = d0 * q;
     var mixed = !!p.mixed;
-    var w = p.ask === 'trueFalse' ? [1, 1, 6, 5, 1, 2, 1, 2, 1, 1, 1]
-      : p.ask === 'sort' ? [1, 1, 1, 1, 6, 1, 1, 2, 1, 1, 1]
-        : p.ask === 'missing' || p.ask === 'select' ? [2, 5, 1, 1, 1, 2, 2, 2, 1, 1, 1] : null;
+    var w = ask === 'trueFalse' ? [1, 1, 6, 5, 1, 2, 1, 2, 1, 1, 1]
+      : ask === 'sort' ? [1, 1, 1, 1, 6, 1, 1, 2, 1, 1, 1]
+        : ask === 'missing' || ask === 'select' ? [2, 5, 1, 1, 1, 2, 2, 2, 1, 1, 1] : null;
 
     function factCard() {
       return I_num('Divide:  ' + n + ' ÷ ' + d0 + ' =', q, {
@@ -65126,39 +65548,39 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             'So the missing quotient is <b>' + ans + '</b>.']
         });
       },
-      /* 10 — 0 and 1 judgements. */
+      /* 10 — 0 and 1 judgements, true claims and false claims alike. */
       function () {
-        var x = R.int(rng, 2, 12), kind = R.int(rng, 0, 2);
-        if (kind === 0) return I_bool('Is ' + x + ' ÷ 1 = ' + x + ' true or false?', true, {
-          b: 0.3,
-          teach: 'Dividing by 1 leaves a number unchanged: one group holds everything.',
-          explain: ['Dividing by 1 makes one group of ' + x + '.',
-            'That group holds all ' + x + ' items.',
-            'So the answer is <b>True</b>.']
-        });
-        if (kind === 1) return I_bool('Is 0 ÷ ' + x + ' = 0 true or false?', true, {
-          b: 0.4,
-          teach: 'Zero divided by any non-zero number is 0 — there is nothing to share out.',
-          explain: ['The dividend is 0, so there is nothing to share.',
-            'Sharing nothing between ' + x + ' still gives 0 each.',
-            'So the answer is <b>True</b>.']
-        });
-        return I_bool('Is ' + x + ' ÷ ' + x + ' = 1 true or false?', true, {
-          b: 0.5,
-          teach: 'Any non-zero number divided by itself is 1: exactly one full group.',
-          explain: ['Groups of ' + x + ' taken from ' + x + ' make exactly one group.',
-            'One full group means the quotient is 1.',
-            'So the answer is <b>True</b>.']
+        var wX = [[2, 4], [5, 6], [7, 8], [9, 10], [11, 12]][lane5];
+        var x = R.int(rng, wX[0], Math.min(wX[1], lim));
+        var kind = R.int(rng, 0, 5), claim, truth;
+        if (kind === 0) { claim = x + ' ÷ 1 = ' + x; truth = true; }
+        else if (kind === 1) { claim = x + ' ÷ 1 = 1'; truth = false; }
+        else if (kind === 2) { claim = '0 ÷ ' + x + ' = 0'; truth = true; }
+        else if (kind === 3) { claim = '0 ÷ ' + x + ' = ' + x; truth = false; }
+        else if (kind === 4) { claim = x + ' ÷ ' + x + ' = 1'; truth = true; }
+        else { claim = x + ' ÷ ' + x + ' = ' + x; truth = false; }
+        return I_bool('Is ' + claim + ' true or false?', truth, {
+          b: 0.35,
+          teach: 'One leaves a number unchanged, zero shares to nothing, and a number over itself is one full group.',
+          explain: [kind % 2 === 0 ? 'Test the claim by modeling: ' + claim + '.' : 'Test the claim by modeling: ' + claim + '.',
+            truth ? 'The claim matches the model, so it holds.' : 'The model gives a different quotient, so it does not.',
+            'So the answer is <b>' + (truth ? 'True' : 'False') + '</b>.']
         });
       }
     ], w);
   }, ['G3']);
 
   /* ================================================================ multSense */
-  ARCH('multSense', function (rng, lvl, p) {
+  ARCH('multSense', function (rng, lvl, p, sk) {
     var lim = cap(p.limit || 10, 3, 25);
-    var g = R.int(rng, lvl <= 2 ? 2 : 3, lvl <= 2 ? 4 : 8);          /* groups */
-    var each = cap(R.int(rng, lvl <= 2 ? 1 : 2, lvl <= 2 ? 3 : 5), 1, cap(Math.floor(lim / g), 1, 12));
+    /* lane windows: siblings in the same family split the group/size space */
+    var lane5 = 0, ci2 = 0, sid = String((sk && sk.id) || '');
+    for (ci2 = 0; ci2 < sid.length; ci2++) lane5 = (lane5 * 31 + sid.charCodeAt(ci2)) & 0x7fffffff;
+    lane5 = lane5 % 5;
+    var gW = [[2, 3], [4, 4], [5, 5], [6, 6], [7, 8]][lane5];
+    var eW = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]][lane5];
+    var g = R.int(rng, gW[0], gW[1]);                                 /* groups */
+    var each = cap(R.int(rng, eW[0], eW[1]), 1, cap(Math.floor(lim / g), 1, 12));
     var total = g * each;
     var o = obj(rng), k = pack(rng);
     function rep() { var s = [], i; for (i = 0; i < g; i++) s.push(each); return s.join(' + '); }
@@ -65427,10 +65849,19 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }, ['G3']);
 
   /* ================================================================= divSense */
-  ARCH('divSense', function (rng, lvl, p) {
+  ARCH('divSense', function (rng, lvl, p, sk) {
     var lim = cap(p.limit || 12, 2, 12);
-    var d = R.int(rng, lvl <= 2 ? 2 : 2, lvl <= 2 ? 4 : 9);
-    var q = R.int(rng, lvl <= 2 ? 1 : 2, lvl <= 2 ? 5 : cap(lim, 2, 12));
+    var lane5 = 0, ci2 = 0, sid = String((sk && sk.id) || '');
+    for (ci2 = 0; ci2 < sid.length; ci2++) lane5 = (lane5 * 31 + sid.charCodeAt(ci2)) & 0x7fffffff;
+    lane5 = lane5 % 5;
+    var dW = [[2, 2], [3, 3], [4, 4], [5, 5], [6, 9]][lane5];
+    var qW = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 12]][lane5];
+    var dLo = 2, dHi = lvl <= 2 ? 4 : 9, qLo = lvl <= 2 ? 1 : 2, qHi2 = lvl <= 2 ? 5 : cap(lim, 2, 12);
+    var w0 = Math.max(dW[0], dLo), w1 = Math.min(dW[1], dHi);
+    if (w0 > w1) { w0 = dLo; w1 = dHi; }        /* window cannot fit this level */
+    var x0 = Math.max(qW[0], qLo), x1 = Math.min(qW[1], qHi2);
+    if (x0 > x1) { x0 = qLo; x1 = qHi2; }
+    var d = R.int(rng, w0, w1), q = R.int(rng, x0, x1);
     var n = d * q, o = obj(rng), k = pack(rng);
     function sentenceCard() {
       return I_parts('Write the division sentence for ' + n + ' shared equally into ' + d + ' groups: ___ ÷ ___ = ___',
@@ -65841,7 +66272,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           fn = impl.fn;
         }
         var p = group.p;
-        G(id, function (rng, lvl) { return fn(rng, lvl, p, sk); });
+        /* per-skill lane. Two skills mapped onto the SAME parameter row used
+           to draw from the same template pool at the same stream position —
+           the learner saw one identical card in two different skills. Each
+           id now carries a deterministic lane: the stream is advanced by the
+           lane before the family runs, so skills that share a row draw from
+           decorrelated offsets and stop serving the same problem. */
+        var lane = 0, ci;
+        for (ci = 0; ci < id.length; ci++) lane = (lane * 31 + id.charCodeAt(ci)) & 0x7fffffff;
+        lane = lane % 40;
+        G(id, function (rng, lvl) { var k = lane; while (k--) rng(); return fn(rng, lvl, p, sk); });
         served++;
       });
     });
