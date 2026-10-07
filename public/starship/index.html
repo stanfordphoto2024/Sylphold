@@ -1975,21 +1975,41 @@ renderer.domElement.addEventListener('wheel',e=>{
   cam.dist=clamp(cam.dist*Math.exp(e.deltaY*0.001),0.15,8);
 },{passive:true});
 
-/* flight distance written under the vehicle, in the chase view */
-const _tgA=new THREE.Vector3(), _tgB=new THREE.Vector3();
+/* flight distance written under the vehicle, in the chase view.
+   The label is projected against a SHAKE-FREE mirror of the chase rig (cam.pos → cam.tgt,
+   no roll), so the atmosphere buffet shakes the scene but the km text stays dead still.
+   The anchor is smoothed and only hides when the vehicle is truly out of frame —
+   never when the nose merely points at the camera. */
+const _tgA=new THREE.Vector3(), _tgB=new THREE.Vector3(), _tgC=new THREE.Vector3();
+const tagCam=new THREE.PerspectiveCamera(55,1,camera.near,camera.far);
+let tagX=null,tagY=null,tagShown=false,lastTagT=performance.now();
 function updateShipTag(){
   const tag=$('shipTag');
-  if(cam.mode!=='chase'){ tag.style.opacity='0'; return; }
+  const hide=()=>{ if(tagShown){ tag.style.opacity='0'; tagShown=false; } tagX=tagY=null; };
+  if(cam.mode!=='chase'){ hide(); return; }
+  /* mirror the live chase rig with the shake offset and roll removed */
+  tagCam.near=camera.near; tagCam.far=camera.far; tagCam.aspect=innerWidth/innerHeight;
+  tagCam.fov=cam.fov;
+  tagCam.position.copy(cam.pos); tagCam.up.set(0,1,0); tagCam.lookAt(cam.tgt);
+  tagCam.updateProjectionMatrix(); tagCam.updateMatrixWorld(true);
+  _tgC.copy(rocket.position).applyMatrix4(tagCam.matrixWorldInverse);
+  if(_tgC.z>-tagCam.near*4){ hide(); return; }                    /* vehicle behind the eye */
   const len=SIM.stage===1?0.1231:0.0521;
-  _tgA.copy(rocket.position);
-  _tgB.set(0,len,0).applyQuaternion(rocket.quaternion).add(rocket.position);
-  _tgA.project(camera); _tgB.project(camera);
-  if(_tgA.z>1||_tgB.z>1){ tag.style.opacity='0'; return; }
-  const hpx=Math.abs(_tgB.y-_tgA.y)*0.5*innerHeight;
-  if(hpx<2){ tag.style.opacity='0'; return; }
-  tag.style.left=((_tgA.x*0.5+0.5)*innerWidth).toFixed(1)+'px';
-  tag.style.top=((-_tgA.y*0.5+0.5)*innerHeight+hpx*0.4+10).toFixed(1)+'px';
-  tag.style.opacity='1';
+  _tgA.copy(rocket.position).project(tagCam);
+  _tgB.set(0,len,0).applyQuaternion(rocket.quaternion).add(rocket.position).project(tagCam);
+  if(Math.abs(_tgA.x)>1.1||Math.abs(_tgA.y)>1.15){ hide(); return; }  /* vehicle off-frame */
+  /* pixel height of the vehicle (center→nose); clamped so the anchor never collapses
+     when the nose aims at the camera — that used to blink the tag off behind the ship */
+  const noseOk=_tgB.z>-1&&_tgB.z<1;
+  const hpx=noseOk?Math.abs(_tgB.y-_tgA.y)*0.5*innerHeight:0;
+  const tx=(_tgA.x*0.5+0.5)*innerWidth;
+  const ty=(-_tgA.y*0.5+0.5)*innerHeight+Math.max(hpx*0.4,22)+12;
+  /* smooth the anchor: kills any residual jitter and eases camera snaps */
+  const now=performance.now(), dt=Math.min((now-lastTagT)/1000,0.06); lastTagT=now;
+  if(tagX===null){ tagX=tx; tagY=ty; }
+  else { const k=1-Math.exp(-dt*16); tagX+=(tx-tagX)*k; tagY+=(ty-tagY)*k; }
+  tag.style.left=tagX.toFixed(1)+'px';
+  tag.style.top=tagY.toFixed(1)+'px';
   $('tagMain').textContent=fmt(SIM.distTraveled,0)+' km';
   const p=SIM.phase;
   let alt=vlen(SIM.pos)-R_E;
@@ -1998,6 +2018,7 @@ function updateShipTag(){
   else if(['ENTRY','MARS_DESCENT','MARS_LANDED'].includes(p))
     alt=vlen(V2(SIM.pos.x-SIM.marsPos.x,SIM.pos.y-SIM.marsPos.y))-R_MA;
   $('tagSub').textContent='ALT '+fmt(alt,alt<50?3:1)+' km · '+fmt(vlen(SIM.vel)*1000,0)+' m/s';
+  if(!tagShown){ tag.style.opacity='1'; tagShown=true; }
 }
 
 /* =====================================================================
