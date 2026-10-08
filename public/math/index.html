@@ -37070,6 +37070,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var wantMulDiv = /multiplication and division/.test(t);
     var wantMul = /multiplication/.test(t) && !wantMulDiv;
     var wantDiv = /division/.test(t) && !wantMulDiv;
+    /* The bare "which product is greater" cards belong ONLY to the rung whose
+       title is the plain comparison. Word-problem rungs must get a story, and
+       inequality rungs must get an inequality — otherwise six different titles
+       all fall onto the identical "Which product is greater?" multiple choice. */
+    var pureCompare = /compare numbers using multiplication/.test(t) && !word && !ineq;
+    var wMulCompare = word && /compare numbers using multiplication/.test(t);
+    var wMulDivLarger = word && wantMulDiv;
+    var wAddSub = word && wantAdd;
+    var storyMulCompare = wMulCompare;
     var ops = wantAdd ? ['add', 'sub']
       : wantMulDiv ? ['mul', 'div']
         : wantMul ? ['mul']
@@ -37158,7 +37167,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* which product is bigger, asked */
-        if (!/multiplication|compare numbers/.test(t)) return null;
+        if (!pureCompare) return null;
         var a = BC.int(rng, win[0], win[1]), b = BC.int(rng, dWin[0], dWin[1]);
         var c = BC.int(rng, win[0], win[1]), d = BC.int(rng, dWin[0], dWin[1]);
         var v1 = a * b, v2 = c * d;
@@ -37177,7 +37186,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* shared-factor shortcut */
-        if (!/multiplication|compare numbers/.test(t)) return null;
+        if (!pureCompare) return null;
         var shared = BC.int(rng, 3, 9), b = BC.int(rng, 2, 9), d = BC.int(rng, 2, 9);
         if (b === d) return null;
         return judge(lead(rng, ['Without multiplying: is ' + shared + ' × ' + b + ' greater than ' + shared + ' × ' + d + '?',
@@ -37192,7 +37201,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* which product beats the target */
-        if (!/multiplication|compare numbers/.test(t)) return null;
+        if (!pureCompare) return null;
         var target = BC.int(rng, 20, 48);
         var wins = [], loses = [], guard = 0, a, b, v;
         while (wins.length < 1 && guard++ < 40) {
@@ -37217,7 +37226,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* judge two computed products */
-        if (!/multiplication|compare numbers/.test(t)) return null;
+        if (!pureCompare) return null;
         var a = BC.int(rng, win[0], win[1]), b = BC.int(rng, dWin[0], dWin[1]);
         var c = BC.int(rng, win[0], win[1]), d = BC.int(rng, dWin[0], dWin[1]);
         var v1 = a * b, v2 = c * d;
@@ -37232,7 +37241,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
       },
       function () {                       /* smallest factor that beats a target */
-        if (ineq || !/multiplication|compare numbers/.test(t)) return null;
+        if (!pureCompare) return null;                       /* least-number inequality stays a comparison tool */
         var a = BC.int(rng, 3, 9), target = BC.int(rng, 20, 72);
         var boundary = Math.floor(target / a);
         if (a * boundary > target) return null;
@@ -37246,21 +37255,46 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           b: 0.8
         });
       },
-      function () {                       /* story comparison */
-        if (!word) return null;
+      function () {                       /* multiplication-comparison story: how many more */
+        if (!storyMulCompare) return null;
         var a = BC.int(rng, 2, 12), b = BC.int(rng, 2, 12), c = BC.int(rng, 2, 12), d = BC.int(rng, 2, 12);
         var v1 = a * b, v2 = c * d;
         if (v1 === v2) return null;
         var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
-        var bigger = v1 > v2 ? w1 : w2;
-        return choose(rng, lead(rng,
-          w1 + ' has ' + a + ' bags with ' + b + ' ' + BC.pick(rng, ['marbles', 'pencils']) + ' each; ' + w2 + ' has ' + c + ' bags with ' + d + ' each. Who has more?',
-          w1 + ' packs ' + a + ' boxes of ' + b + ' pencils. ' + w2 + ' packs ' + c + ' boxes of ' + d + '. Who packed more?',
-          'Who has the greater number of items: ' + w1 + ' with ' + a + ' × ' + b + ' or ' + w2 + ' with ' + c + ' × ' + d + '?'),
-          bigger, [bigger === w1 ? w2 : w1, 'they have the same'], {
-          steps: [w1 + ': ' + a + ' × ' + b + ' = ' + v1, w2 + ': ' + c + ' × ' + d + ' = ' + v2, 'More belongs to ' + bigger + '.'],
-          teach: 'Comparing equal-group stories means comparing the products.',
+        var thing = BC.pick(rng, ['marbles', 'pencils', 'stickers', 'cans']);
+        var hi = Math.max(v1, v2), lo = Math.min(v1, v2);
+        return ask(rng, w1 + ' has ' + a + ' bags with ' + b + ' ' + thing + ' each. ' + w2 + ' has ' + c + ' bags with ' + d + ' each. How many more ' + thing + ' does the child with more have?', hi - lo, {
+          explain: [w1 + ': ' + a + ' × ' + b + ' = ' + v1 + '. ' + w2 + ': ' + c + ' × ' + d + ' = ' + v2 + '.', hi + ' − ' + lo + ' = ' + (hi - lo) + ' more.'],
+          hint: 'Work out each product first, then subtract the smaller product from the larger.',
+          teach: 'Comparing equal-group stories means comparing the two products.',
+          b: 0.5
+        });
+      },
+      function () {                       /* multiplication-comparison story: does the first child have more (Yes/No) */
+        if (!storyMulCompare) return null;
+        var a = BC.int(rng, 2, 12), b = BC.int(rng, 2, 12), c = BC.int(rng, 2, 12), d = BC.int(rng, 2, 12);
+        var v1 = a * b, v2 = c * d;
+        if (v1 === v2) return null;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var truth = v1 > v2;
+        return judge('Does ' + w1 + ' have more ' + BC.pick(rng, ['marbles', 'pencils', 'stickers']) + ' than ' + w2 + '?', truth, {
+          explain: [w1 + ' packs ' + a + ' × ' + b + ' = ' + v1 + '; ' + w2 + ' packs ' + c + ' × ' + d + ' = ' + v2 + '.',
+            (truth ? v1 + ' is more than ' + v2 : v1 + ' is not more than ' + v2) + ', so ' + w1 + (truth ? ' has more.' : ' does not have more.') + ' <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          hint: 'Multiply each child’s groups, then compare the two products.',
+          teach: 'Work out each product, then let the products decide who has more.',
           b: 0.4
+        });
+      },
+      function () {                       /* multiplication-comparison story: total in both groups */
+        if (!storyMulCompare) return null;
+        var a = BC.int(rng, 2, 9), b = BC.int(rng, 2, 9), c = BC.int(rng, 2, 9), d = BC.int(rng, 2, 9);
+        var v1 = a * b, v2 = c * d;
+        var w1 = BC.pick(rng, BC.WHO);
+        return ask(rng, w1 + ' sorted the day’s collections into ' + a + ' bins of ' + b + ' and later ' + c + ' bins of ' + d + '. How many items were collected in total?', v1 + v2, {
+          explain: ['First set: ' + a + ' × ' + b + ' = ' + v1 + '. Second set: ' + c + ' × ' + d + ' = ' + v2 + '.', v1 + ' + ' + v2 + ' = ' + (v1 + v2) + ' items in total.'],
+          hint: 'Find each equal-group product, then add the two products.',
+          teach: 'Two equal-group sets joined together is the sum of their products.',
+          b: 0.55
         });
       },
       function () {                       /* add or multiply story */
@@ -37369,6 +37403,86 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           hint: 'Write the inequality ' + have + ' ' + sg + ' ? > ' + need + ' and find the boundary first.',
           teach: 'A "more than" story is an inequality: find the boundary number, then step past it.',
           b: 0.9
+        });
+      },
+      function () {                       /* larger-number comparison story: two products, how many more */
+        if (!wMulDivLarger) return null;
+        var a = BC.int(rng, 12, 45), b = BC.int(rng, 3, 9), c = BC.int(rng, 12, 45), d = BC.int(rng, 3, 9);
+        var v1 = a * b, v2 = c * d;
+        if (v1 === v2) return null;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var hi = Math.max(v1, v2), lo = Math.min(v1, v2);
+        return ask(rng, w1 + ' stacks ' + a + ' crates with ' + b + ' cans each. ' + w2 + ' stacks ' + c + ' crates with ' + d + ' cans each. How many more cans does the leader have?', hi - lo, {
+          explain: [w1 + ': ' + a + ' × ' + b + ' = ' + v1 + ' cans.', w2 + ': ' + c + ' × ' + d + ' = ' + v2 + ' cans.', hi + ' − ' + lo + ' = ' + (hi - lo) + ' more cans.'],
+          hint: 'Compute each large product, then subtract the smaller product from the larger one.',
+          teach: 'Compare two equal-group totals by computing each product and taking the difference.',
+          b: 0.65
+        });
+      },
+      function () {                       /* larger-number sharing comparison: which quotient bigger (Yes/No) */
+        if (!wMulDivLarger) return null;
+        var d1 = BC.int(rng, 4, 9), q1 = BC.int(rng, 12, 30);
+        var d2 = BC.int(rng, 4, 9), q2 = BC.int(rng, 12, 30);
+        if (q1 === q2) return null;
+        var t1 = d1 * q1, t2 = d2 * q2;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var truth = q1 > q2;
+        return judge('Two clubs split supplies evenly: ' + w1 + ' shares ' + t1 + ' among ' + d1 + ' tables and ' + w2 + ' shares ' + t2 + ' among ' + d2 + '. Does ' + w1 + ' place more per table than ' + w2 + '?', truth, {
+          explain: [w1 + ': ' + t1 + ' ÷ ' + d1 + ' = ' + q1 + ' per table. ' + w2 + ': ' + t2 + ' ÷ ' + d2 + ' = ' + q2 + ' per table.', (truth ? q1 + ' is more than ' + q2 : q1 + ' is not more than ' + q2) + '. <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          hint: 'Work out each quotient (items per table), then compare the two quotients.',
+          teach: 'Compare shares by working out each quotient.',
+          b: 0.7
+        });
+      },
+      function () {                       /* larger-number comparison: total of both days */
+        if (!wMulDivLarger) return null;
+        var a = BC.int(rng, 11, 30), b = BC.int(rng, 3, 9), c = BC.int(rng, 11, 30), d = BC.int(rng, 3, 9);
+        var v1 = a * b, v2 = c * d;
+        return ask(rng, 'A bus runs ' + a + ' routes with ' + b + ' riders each on Monday and ' + c + ' routes with ' + d + ' riders on Tuesday. How many riders in all?', v1 + v2, {
+          explain: ['Monday: ' + a + ' × ' + b + ' = ' + v1 + '.', 'Tuesday: ' + c + ' × ' + d + ' = ' + v2 + '.', v1 + ' + ' + v2 + ' = ' + (v1 + v2) + ' riders.'],
+          hint: 'Find each day’s product, then add the two products.',
+          teach: 'Joining two equal-group totals is the sum of their products.',
+          b: 0.6
+        });
+      },
+      function () {                       /* add-then-compare story: how many more */
+        if (!wAddSub) return null;
+        var big = BC.int(rng, 30, 70), add = BC.int(rng, 5, 25), small = BC.int(rng, 10, 60);
+        var hi = big + add;
+        if (hi === small) return null;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var lo = Math.min(hi, small), top = Math.max(hi, small);
+        return ask(rng, w1 + ' has ' + big + ' shells and finds ' + add + ' more. ' + w2 + ' has ' + small + ' shells. How many more shells does the child with more have?', top - lo, {
+          explain: [w1 + ': ' + big + ' + ' + add + ' = ' + hi + '. ' + w2 + ': ' + small + '.', top + ' − ' + lo + ' = ' + (top - lo) + ' more.'],
+          hint: 'Finish the addition first, then compare the two totals by subtracting.',
+          teach: 'Finish the addition, then compare the totals by subtraction.',
+          b: 0.5
+        });
+      },
+      function () {                       /* subtract-then-compare story: which has more (Yes/No) */
+        if (!wAddSub) return null;
+        var a = BC.int(rng, 40, 90), b = BC.int(rng, 5, 30), c = BC.int(rng, 15, 60);
+        var v1 = a - b;
+        if (v1 === c) return null;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var truth = v1 > c;
+        return judge(w1 + "'s jar had " + a + ' beads and ' + b + ' were used. ' + w2 + "'s jar has " + c + ' beads. Does ' + w1 + ' now have more beads than ' + w2 + '?', truth, {
+          explain: [w1 + ': ' + a + ' − ' + b + ' = ' + v1 + '. ' + w2 + ': ' + c + '.', (truth ? v1 + ' is more than ' + c : v1 + ' is not more than ' + c) + '. <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          hint: 'Do the subtraction first, then compare what is left with ' + c + '.',
+          teach: 'Work out the subtraction, then compare what is left.',
+          b: 0.55
+        });
+      },
+      function () {                       /* add/sub comparison: added jar vs reduced jar */
+        if (!wAddSub) return null;
+        var a = BC.int(rng, 20, 55), b = BC.int(rng, 5, 30), c = BC.int(rng, 5, 30);
+        var sum = a + b, diff = a - c;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        return ask(rng, w1 + ' adds ' + b + ' buttons to a jar of ' + a + '. ' + w2 + ' takes ' + c + ' away from an identical jar of ' + a + '. How many more buttons does ' + w1 + "'s jar have than " + w2 + "'s jar?", b + c, {
+          explain: [w1 + ': ' + a + ' + ' + b + ' = ' + sum + '.', w2 + ': ' + a + ' − ' + c + ' = ' + diff + '.', sum + ' − ' + diff + ' = ' + (b + c) + ' more.'],
+          hint: 'Work out both jars, then subtract; the starting ' + a + ' cancels, leaving ' + b + ' + ' + c + '.',
+          teach: 'Comparing an added jar with a reduced jar: the difference is the sum of the two changes.',
+          b: 0.6
         });
       }
     ]);
@@ -38951,242 +39065,565 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   UP.on(/^(division patterns|divide (numbers|by|using|2-digit|larger|2-digit|the)|divide using)/, function (rng, lvl, p, sk) {
     var t = UP.t(sk);
     var patterns = /^division patterns/.test(t);
-    var endingZeros = /ending in zeros/.test(t);
-    var arraysArea = /array|area model/.test(t);
-    var remainders = /remainder|partial quotients/.test(t);
+    var endingZeros = /ending in zeros|with zeros/.test(t);
+    var arrays = /using arrays/.test(t);
+    var areaModel = /area model/.test(t);
+    var models = /using models/.test(t);
+    var table = /complete the table/.test(t);
+    var partial = /partial quotients/.test(t);
+    var remainders = /remainder/.test(t);
     var word = /word problem/.test(t);
-    var better = /better estimate/.test(t);
-    var ineq = /^inequalities with division/.test(t);
+    var comparison = /comparison word problems/.test(t);
+    var better = /better estimate|estimate and adjust/.test(t);
+    var adjust = /estimate and adjust/.test(t);
+    var sci = /scientific notation/.test(t);
+    var decimal = /0[.]1 or 0[.]01/.test(t);
+    var twoDigitDiv = /by 2-digit numbers|and 2-digit numbers/.test(t);
+    var larger = /larger numbers/.test(t);
+    var upTo10 = /quotients up to 10/.test(t);
+    /* A rung that names a representation or a job (arrays, area models, tables,
+       partial quotients, estimates, stories, remainders, decimals, 2-digit
+       divisors) must NOT fall onto the plain "Divide # by #" deck the generic
+       rungs share — that is how ten divide rungs ended up printing the same
+       "You know a × b = p. Which fact follows?" card. Each rung gets its own
+       SHAPES and its own quotient window so two rungs stop colliding. */
+    var generic = !arrays && !areaModel && !models && !table && !partial &&
+      !remainders && !better && !word && !decimal && !twoDigitDiv;
 
-    function draw() {
+    /* quotient windows: disjoint channels per rung family */
+    function qWin() {
+      if (upTo10) return [2, 10];
+      if (larger) return [21, 99];
+      if (twoDigitDiv) return [4, 20];
+      if (partial) return [12, 20];
+      if (better) return [11, 40];
+      return [11, 25];
+    }
+    function draw(withRem) {
       if (patterns) {
         var d = BC.pick(rng, [2, 3, 4, 5, 6, 7, 8, 9]);
-        var q = BC.pick(rng, [10, 20, 100, 200, 1000]);
+        var q = BC.pick(rng, [100, 200, 1000, 2000]);
         return { a: d * q, b: d };
       }
       if (endingZeros) {
         var d2 = BC.pick(rng, [2, 3, 4, 5, 6, 7, 8, 9]);
-        var q2 = BC.pick(rng, [10, 20, 30, 40, 50, 100]);
+        var q2 = BC.pick(rng, [20, 30, 40, 50, 60, 70, 80, 90]);
         return { a: d2 * q2, b: d2 };
       }
-      if (/larger numbers/.test(t)) {
-        var d3 = BC.int(rng, 2, 9);
-        var q3 = BC.int(rng, 21, 99);
-        return { a: d3 * q3 + (remainders ? BC.int(rng, 1, d3 - 1) : 0), b: d3 };
-      }
-      var d4 = BC.int(rng, 2, 9);
-      var q4 = BC.int(rng, 11, 25);
-      return { a: d4 * q4 + (remainders && R.chance(rng, 0.5) ? BC.int(rng, 1, d4 - 1) : 0), b: d4 };
+      var w = qWin();
+      var d3 = twoDigitDiv ? BC.int(rng, 11, 25) : BC.int(rng, 2, 9);
+      var q3 = BC.int(rng, w[0], w[1]);
+      var rem = withRem ? BC.int(rng, 1, d3 - 1) : 0;
+      return { a: d3 * q3 + rem, b: d3 };
+    }
+    /* the same quotient fact, dressed in the representation the TITLE names */
+    function divPrompt(a, b) {
+      if (arrays) return 'An array of ' + a + ' counters has ' + b + ' equal rows. How many counters are in each row?';
+      if (areaModel) return 'An area model of ' + a + ' unit squares is split into ' + b + ' equal rows. How many squares are in each row?';
+      if (models) return 'Use a model to divide ' + a + ' by ' + b + '. How many are in each group?';
+      if (table) return 'Complete the table.   ' + a + ' ÷ ' + b + ' = ?';
+      if (patterns) return 'Use the place-value pattern to find ' + a + ' ÷ ' + b + '.';
+      return 'Divide ' + a + ' by ' + b + '.';
+    }
+    function repVisual(a, b, ans) {
+      if (arrays) return V.array(b, ans, { label: '' });
+      if (areaModel || models) return V.area(b, ans, { label: a + ' ÷ ' + b });
+      return undefined;
     }
 
     return UP.build(rng, [
-      function () {                       /* the quotient */
-        var q = draw();
+      function () {                       /* the quotient (mode-aware text) */
+        if (word || decimal || sci) return null;
+        var q = draw(false);
         if (q.a % q.b !== 0) return null;
         var cd = BC.colDiv(q.a, q.b);
-        return ask(rng, 'Divide ' + UP.comma(q.a) + ' by ' + q.b + '.', cd.ans, {
-          visual: arraysArea ? V.array(q.b, cd.ans, { label: '' }) : undefined,
-          explain: cd.steps.concat(['So ' + UP.comma(q.a) + ' ÷ ' + q.b + ' = ' + cd.ans + '.']),
+        return ask(rng, divPrompt(q.a, q.b), cd.ans, {
+          visual: repVisual(q.a, q.b, cd.ans),
+          explain: cd.steps.concat(['So ' + q.a + ' ÷ ' + q.b + ' = ' + cd.ans + '.']),
+          hint: (arrays || areaModel || models) ? 'Look at the model: ' + q.b + ' equal rows share all ' + q.a + ' squares.' : 'Think ' + q.b + ' × ? = ' + q.a + '.',
           teach: 'Divide digit by digit from the left; each step finds one digit of the quotient.',
           b: patterns ? 0 : 0.5
         });
       },
-      function () {                       /* related fact family */
-        var d = BC.int(rng, 3, 9), q = BC.int(rng, 4, 12);
-        var tot = d * q;
-        var ans = tot + ' ÷ ' + q + ' = ' + d;
-        var wrongs = [tot + ' ÷ ' + d + ' = ' + q, d + ' × ' + q + ' = ' + tot, tot + ' + ' + d + ' = ' + (tot + d)];
-        return choose(rng, 'You know ' + d + ' × ' + q + ' = ' + tot + '. Which fact follows?', ans, wrongs, {
-          steps: ['Swap which factor is unknown.', 'Both divisions use the same three numbers.'],
-          teach: 'One multiplication fact gives two division facts.',
+      function () {                       /* choose the quotient (mode-aware) */
+        if (word || decimal || sci) return null;
+        var q = draw(false);
+        if (q.a % q.b !== 0) return null;
+        var cd = BC.colDiv(q.a, q.b);
+        return choose(rng, 'Which is ' + q.a + ' ÷ ' + q.b + '?', cd.ans, [cd.ans + 1, cd.ans + q.b, cd.ans - 1], {
+          visual: repVisual(q.a, q.b, cd.ans),
+          steps: ['Think ' + q.b + ' × ? = ' + q.a + '.', q.b + ' × ' + cd.ans + ' = ' + q.a + '.'],
+          hint: 'Multiply back: the answer times ' + q.b + ' must reach ' + q.a + '.',
+          teach: 'Check a quotient by multiplying back.',
+          b: 0.3
+        });
+      },
+      function () {                       /* missing factor from the model */
+        if (!(arrays || areaModel || models || table)) return null;
+        var q = draw(false);
+        if (q.a % q.b !== 0) return null;
+        var cd = BC.colDiv(q.a, q.b);
+        return I_NUM('? × ' + q.b + ' = ' + q.a + '   (how many in each row?)', cd.ans, {
+          visual: repVisual(q.a, q.b, cd.ans),
+          explain: ['The rows hold ' + q.a + ' in ' + q.b + ' equal groups.', q.a + ' ÷ ' + q.b + ' = ' + cd.ans + ', so each row has ' + cd.ans + '.'],
+          hint: 'Division is the missing factor: ' + q.b + ' rows × ? = ' + q.a + '.',
+          teach: 'A division is a multiplication with a missing factor.',
           b: 0.4
         });
       },
-      function () {                       /* remainder meaning */
-        if (!remainders) return null;
-        var d = BC.int(rng, 3, 8);
-        var q = BC.int(rng, 4, 14);
-        var rem = BC.int(rng, 1, d - 1);
-        var tot = d * q + rem;
-        return judge('When ' + tot + ' is divided by ' + d + ', the remainder is less than ' + d + '.', true, {
-          explain: [tot + ' ÷ ' + d + ' = ' + q + ' remainder ' + rem + '.', rem + ' is smaller than ' + d + ', as a remainder must be.'],
-          teach: 'A remainder is always smaller than the divisor; otherwise another group fits.',
-          b: 0.5
+      function () {                       /* which model shows the fact */
+        if (!(arrays || areaModel || models)) return null;
+        var q = draw(false);
+        if (q.a % q.b !== 0) return null;
+        var cd = BC.colDiv(q.a, q.b);
+        var ans = q.b + ' × ' + cd.ans + ' = ' + q.a;
+        var wrongs = [q.b + ' + ' + cd.ans + ' = ' + (q.b + cd.ans), q.a + ' ÷ ' + cd.ans + ' = ' + q.b, q.b + ' × ' + (cd.ans + 1) + ' = ' + q.b * (cd.ans + 1)];
+        return choose(rng, (arrays ? 'The array shows ' : 'The area model shows ') + q.a + ' in ' + q.b + ' equal rows. Which fact matches it?', ans, wrongs, {
+          visual: repVisual(q.a, q.b, cd.ans),
+          steps: ['Total ' + q.a + ' in ' + q.b + ' equal rows.', 'Each row holds ' + cd.ans + ', so the missing factor is ' + cd.ans + '.'],
+          hint: 'Count the rows (' + q.b + ') and the total (' + q.a + '); the model names ' + q.b + ' × ? = ' + q.a + '.',
+          teach: 'A model of division is a multiplication with a missing factor.',
+          b: 0.3
+        });
+      },
+      function () {                       /* complete the table */
+        if (!table) return null;
+        var q = draw(false);
+        if (q.a % q.b !== 0) return null;
+        var cd = BC.colDiv(q.a, q.b);
+        return I_NUM('Complete the table.   ' + q.a + ' ÷ ' + q.b + ' = ?', cd.ans, {
+          visual: V.table(['Dividend', 'Divisor', 'Quotient'], [[String(q.a), String(q.b), '?']]),
+          explain: ['Find how many times ' + q.b + ' fits into ' + q.a + '.', q.b + ' × ' + cd.ans + ' = ' + q.a + ', so the quotient is ' + cd.ans + '.'],
+          hint: 'Ask how many groups of ' + q.b + ' make ' + q.a + '.',
+          teach: 'A division table is filled by the quotient that multiplies back to the dividend.',
+          b: 0.4
         });
       },
       function () {                       /* the multiplication that helps */
-        var q = draw();
+        if (word || remainders || decimal || sci) return null;
+        var q = draw(false);
         if (q.a % q.b !== 0) return null;
         var cd = BC.colDiv(q.a, q.b);
         var ans = q.b + ' × ' + cd.ans + ' = ' + q.a;
         var wrongs = [q.b + ' + ' + cd.ans + ' = ' + (q.b + cd.ans), q.b + ' × ' + (cd.ans + 1) + ' = ' + q.b * (cd.ans + 1), q.a + ' − ' + q.b + ' = ' + (q.a - q.b)];
-        return choose(rng, 'Which multiplication helps you find ' + UP.comma(q.a) + ' ÷ ' + q.b + '?', ans, wrongs, {
+        return choose(rng, 'Which multiplication helps you find ' + q.a + ' ÷ ' + q.b + '?', ans, wrongs, {
           steps: ['Division asks for a missing factor.', 'So look for ' + q.b + ' × ? = ' + q.a + '.'],
-          teach: 'Every division problem hides a multiplication fact with the same three numbers.',
+          hint: 'Find the fact ' + q.b + ' × ? = ' + q.a + '; its answer is the quotient.',
+          teach: 'Every division hides a multiplication fact with the same three numbers.',
           b: 0.4
         });
       },
       function () {                       /* judge a quotient */
-        var q = draw();
+        if (word || remainders || decimal || sci) return null;
+        var q = draw(false);
         if (q.a % q.b !== 0) return null;
         var cd = BC.colDiv(q.a, q.b);
         var lie = R.chance(rng, 0.5) ? cd.ans : cd.ans + BC.pick(rng, [1, q.b, -1]);
         var truth = lie === cd.ans;
-        return judge('Is ' + UP.comma(q.a) + ' ÷ ' + q.b + ' = ' + lie + '?', truth, {
+        return judge('Is ' + q.a + ' ÷ ' + q.b + ' = ' + lie + '?', truth, {
           explain: [q.b + ' × ' + cd.ans + ' = ' + q.a + '.', 'The correct quotient is ' + cd.ans + ', and the statement says ' + lie + '.'],
+          hint: 'Multiply ' + q.b + ' by ' + lie + ' and see whether it lands on ' + q.a + '.',
           teach: 'Multiply back to check a quotient.',
           b: 0.5
         });
       },
       function () {                       /* estimate the quotient */
-        var q = draw();
+        if (word || remainders || decimal || sci || better) return null;
+        var q = draw(false);
         if (q.a % q.b !== 0) return null;
         var cd = BC.colDiv(q.a, q.b);
         var est = Math.round(cd.ans / 10) * 10 || cd.ans + 1;
         var ans = String(est);
         var wrongs = [String(est + 10), String(est * 10), String(est - 10)];
-        return choose(rng, 'Which is the best estimate for ' + UP.comma(q.a) + ' ÷ ' + q.b + '?', ans, wrongs, {
-          steps: ['Round ' + UP.comma(q.a) + ' to a number ' + q.b + ' divides.', 'The estimate is about ' + est + '.'],
+        return choose(rng, 'Which is the best estimate for ' + q.a + ' ÷ ' + q.b + '?', ans, wrongs, {
+          steps: ['Round ' + q.a + ' to a number ' + q.b + ' divides.', 'The estimate is about ' + est + '.'],
+          hint: 'Round the dividend to a friendly multiple of ' + q.b + ' before dividing.',
           teach: 'Choose a friendly dividend close to the real one.',
           b: 0.6
         });
       },
       function () {                       /* is the quotient more than ten */
-        var q = draw();
+        if (generic === false || word || remainders || patterns || endingZeros) return null;
+        var q = draw(false);
         if (q.a % q.b !== 0) return null;
         var cd = BC.colDiv(q.a, q.b);
-        return judge('Is ' + UP.comma(q.a) + ' ÷ ' + q.b + ' greater than 10?', cd.ans > 10, {
-          explain: [q.b + ' × 10 = ' + (q.b * 10) + '.', UP.comma(q.a) + (q.a > q.b * 10 ? ' is more than that' : ' is not more than that') + ', so the quotient' + (cd.ans > 10 ? ' is' : ' is not') + ' greater than 10.'],
+        return judge('Is ' + q.a + ' ÷ ' + q.b + ' greater than 10?', cd.ans > 10, {
+          explain: [q.b + ' × 10 = ' + (q.b * 10) + '.', q.a + (q.a > q.b * 10 ? ' is more than that' : ' is not more than that') + ', so the quotient' + (cd.ans > 10 ? ' is' : ' is not') + ' greater than 10.'],
+          hint: 'Compare ' + q.a + ' with ' + q.b + ' × 10 instead of dividing fully.',
           teach: 'Compare against the divisor times ten instead of dividing fully.',
           b: 0.4
         });
       },
+      function () {                       /* fact family — generic channels only */
+        if (!generic) return null;
+        var d, q;
+        if (patterns) { d = BC.pick(rng, [2, 3, 4, 5, 6, 7, 8, 9]); q = BC.pick(rng, [100, 1000]); }
+        else if (endingZeros) { d = BC.pick(rng, [2, 3, 4, 5, 6, 7, 8, 9]); q = BC.pick(rng, [20, 30, 40, 50, 60, 70, 80, 90]); }
+        else { var w = qWin(); d = BC.int(rng, 2, 9); q = BC.int(rng, w[0], w[1]); }
+        var tot = d * q;
+        var ans = tot + ' ÷ ' + q + ' = ' + d;
+        var wrongs = [tot + ' ÷ ' + d + ' = ' + q, d + ' × ' + q + ' = ' + tot, tot + ' + ' + d + ' = ' + (tot + d)];
+        return choose(rng, 'You know ' + d + ' × ' + q + ' = ' + tot + '. Which fact follows?', ans, wrongs, {
+          steps: ['Swap which factor is unknown.', 'Both divisions use the same three numbers.'],
+          hint: 'The division that follows uses the product ' + tot + ' as the dividend.',
+          teach: 'One multiplication fact gives two division facts.',
+          b: 0.4
+        });
+      },
+      function () {                       /* partial quotients: finish the split */
+        if (!partial) return null;
+        var d = twoDigitDiv ? BC.int(rng, 11, 15) : BC.int(rng, 2, 6);
+        var q = BC.int(rng, 12, 20);
+        var easy = 10;
+        var first = d * easy;
+        return I_NUM('Partial quotients: ' + (d * q) + ' ÷ ' + d + ' = ' + easy + ' + ?   (what is left?)', q - easy, {
+          explain: ['Take out ' + easy + ' groups first: ' + d + ' × ' + easy + ' = ' + first + '.', (d * q) + ' − ' + first + ' = ' + (d * q - first) + ' left, which is ' + (q - easy) + ' more groups.'],
+          hint: 'Remove ' + easy + ' groups of ' + d + ' first, then finish the rest.',
+          teach: 'Partial quotients let you remove easy groups first and finish later.',
+          b: 0.7
+        });
+      },
+      function () {                       /* partial quotients: choose the easy first step */
+        if (!partial) return null;
+        var d = twoDigitDiv ? BC.int(rng, 11, 15) : BC.int(rng, 2, 6);
+        var q = BC.int(rng, 15, 20);
+        var easy = BC.pick(rng, [5, 10]);
+        var first = d * easy;
+        return choose(rng, 'To divide ' + (d * q) + ' ÷ ' + d + ' with partial quotients, which easy group do you take first?', d + ' × ' + easy + ' = ' + first, [d + ' × ' + q + ' = ' + (d * q), d + ' × ' + (easy + 20) + ' = ' + (d * (easy + 20)), d + ' + ' + easy + ' = ' + (d + easy)], {
+          steps: ['Pick a group you can do in your head.', 'Then subtract it and continue.'],
+          hint: 'Choose a small, easy product of ' + d + ' that stays under ' + (d * q) + '.',
+          teach: 'Start partial quotients with an easy group, then subtract and repeat.',
+          b: 0.75
+        });
+      },
       function () {                       /* quotient and remainder */
         if (!remainders) return null;
+        var w = qWin();
         var d = BC.int(rng, 3, 9);
-        var tot = BC.int(rng, 21, 95);
-        if (tot % d === 0) return null;
-        var qq = Math.floor(tot / d), rr = tot % d;
+        var qq = BC.int(rng, w[0], w[1]);
+        var rr = BC.int(rng, 1, d - 1);
+        var tot = d * qq + rr;
         return I_PARTS('Divide ' + tot + ' by ' + d + '.', ['quotient', 'remainder'], [{ k: 'n', v: qq }, { k: 'n', v: rr }], {
-          visual: V.array(d, qq, { label: '' }),
           explain: ['Largest multiple of ' + d + ' at or below ' + tot + ' is ' + (d * qq) + '.', tot + ' − ' + (d * qq) + ' = ' + rr + ' left over.'],
+          hint: 'Find how many full groups of ' + d + ' fit, then what is left.',
           teach: 'The remainder is what is left after the largest equal groups are made.',
           b: 0.6
         });
       },
-      function () {                       /* choose the quotient */
-        var q = draw();
-        if (q.a % q.b !== 0) return null;
-        var cd = BC.colDiv(q.a, q.b);
-        return choose(rng, 'Which is ' + UP.comma(q.a) + ' ÷ ' + q.b + '?', cd.ans, [cd.ans + 1, cd.ans + q.b, cd.ans - 1], {
-          visual: arraysArea ? V.area(q.b, cd.ans, { label: q.a + ' ÷ ' + q.b }) : undefined,
-          steps: ['Think ' + q.b + ' × ? = ' + UP.comma(q.a) + '.', q.b + ' × ' + cd.ans + ' = ' + q.a + '.'],
-          teach: 'Check a quotient by multiplying back.',
-          b: 0.3
-        });
-      },
-      function () {                       /* what the remainder MEANS in a story */
+      function () {                       /* remainder meaning story */
         if (!remainders) return null;
-        var d = BC.int(rng, 3, 9), q = BC.int(rng, 4, 20), rem = BC.int(rng, 1, d - 1);
-        var tot = d * q + rem;
-        return I_NUM(lead(rng, [BC.who(rng) + ' shares ' + tot + ' stickers equally among ' + q + ' friends, ' + d + ' each. How many stickers are left over?',
+        var d = BC.int(rng, 3, 9), qq = BC.int(rng, 4, 20), rem = BC.int(rng, 1, d - 1);
+        var tot = d * qq + rem;
+        return I_NUM(lead(rng, [BC.who(rng) + ' shares ' + tot + ' stickers equally among friends in groups of ' + d + '. How many stickers are left over?',
           'The school bus takes ' + d + ' students at a time. ' + tot + ' students go. How many students are in the last, unfinished trip?',
           'Cups are packed ' + d + ' to a box. ' + tot + ' cups are packed. How many cups do not fill a box?']), rem, {
-          explain: [tot + ' ÷ ' + d + ' = ' + q + ' remainder ' + rem + '.',
-            rem + ' is what is left after ' + q + ' full groups of ' + d + '.'],
+          explain: [tot + ' ÷ ' + d + ' = ' + qq + ' remainder ' + rem + '.', rem + ' is what is left after ' + qq + ' full groups of ' + d + '.'],
+          hint: 'Divide, then the leftover is what does not fill a group.',
           teach: 'The remainder is the part that does not fill another whole group.',
           b: 0.4
         });
       },
       function () {                       /* how many MORE to fill the last group */
         if (!remainders) return null;
-        var d = BC.int(rng, 3, 9), q = BC.int(rng, 4, 18), rem = BC.int(rng, 1, d - 1);
-        var tot = d * q + rem;
+        var w = qWin();
+        var d = BC.int(rng, 3, 9), qq = BC.int(rng, w[0], w[1]), rem = BC.int(rng, 1, d - 1);
+        var tot = d * qq + rem;
         return I_NUM(lead(rng, ['How many more would make one more full group of ' + d + '?',
           'The last group of ' + d + ' is not full. How many more would fill it?',
           'Add how many to ' + tot + ' to reach the next multiple of ' + d + '?']), d - rem, {
-          explain: [tot + ' ÷ ' + d + ' leaves ' + rem + ' over.',
-            d + ' − ' + rem + ' = ' + (d - rem) + ' more would complete the group.'],
+          explain: [tot + ' ÷ ' + d + ' leaves ' + rem + ' over.', d + ' − ' + rem + ' = ' + (d - rem) + ' more would complete the group.'],
+          hint: 'A full group is ' + d + '; subtract the leftover ' + rem + ' from it.',
           teach: 'The distance to the next multiple is the divisor minus the remainder.',
           b: 0.6
         });
       },
       function () {                       /* judge the remainder itself */
         if (!remainders) return null;
-        var d = BC.int(rng, 3, 9), q = BC.int(rng, 4, 16), rem = BC.int(rng, 1, d - 1);
-        var tot = d * q + rem;
+        var w = qWin();
+        var d = BC.int(rng, 3, 9), qq = BC.int(rng, w[0], w[1]), rem = BC.int(rng, 1, d - 1);
+        var tot = d * qq + rem;
         var alt = [rem + 1, rem + 2, Math.max(1, rem - 1)].filter(function (v) { return v !== rem && v < d; });
         if (!alt.length) return null;
         var claim = R.chance(rng, 0.5) ? rem : BC.pick(rng, alt);
         var truth = claim === rem;
         return judge(lead(rng, ['Is the remainder of ' + tot + ' ÷ ' + d + ' equal to ' + claim + '?',
           'True or false: ' + tot + ' ÷ ' + d + ' leaves a remainder of ' + claim + '.']), truth, {
-          explain: [d + ' × ' + q + ' = ' + (d * q) + ', and ' + tot + ' − ' + (d * q) + ' = ' + rem + '.',
-            'The claim says ' + claim + '.'],
+          explain: [d + ' × ' + qq + ' = ' + (d * qq) + ', and ' + tot + ' − ' + (d * qq) + ' = ' + rem + '.', 'The claim says ' + claim + '.'],
+          hint: 'Multiply ' + d + ' × ' + qq + ' and subtract from ' + tot + ' to see the real remainder.',
           teach: 'Find the remainder by multiplying back to the nearest multiple below.',
           b: 0.5
         });
       },
-      function () {                       /* partial quotients step */
-        if (!/partial quotients/.test(t)) return null;
-        var d = BC.int(rng, 2, 6);
-        var q = BC.int(rng, 12, 35);
-        var easy = BC.pick(rng, [10, 20]).toString();
-        var first = d * (+easy);
-        if (first > d * q) return null;
-        return I_NUM('Partial quotients: ' + (d * q) + ' ÷ ' + d + ' = ' + easy + ' + ?   (what is left?)', q - (+easy), {
-          explain: ['Take out ' + easy + ' groups first: ' + d + ' × ' + easy + ' = ' + first + '.', (d * q) + ' − ' + first + ' = ' + (d * q - first) + ' left, which is ' + (q - (+easy)) + ' more groups.'],
-          teach: 'Partial quotients let you remove easy groups first and finish later.',
-          b: 0.7
+      function () {                       /* remainder less than divisor (judge) */
+        if (!remainders) return null;
+        var w = qWin();
+        var d = BC.int(rng, 3, 8);
+        var qq = BC.int(rng, w[0], w[1]);
+        var rem = BC.int(rng, 1, d - 1);
+        var tot = d * qq + rem;
+        return judge('When ' + tot + ' is divided by ' + d + ', the remainder is less than ' + d + '.', true, {
+          explain: [tot + ' ÷ ' + d + ' = ' + qq + ' remainder ' + rem + '.', rem + ' is smaller than ' + d + ', as a remainder must be.'],
+          hint: 'If the leftover were as big as ' + d + ', one more group would fit.',
+          teach: 'A remainder is always smaller than the divisor; otherwise another group fits.',
+          b: 0.5
         });
       },
-      function () {                       /* which array/area model */
-        if (!arraysArea) return null;
-        var d = BC.int(rng, 3, 9), q = BC.int(rng, 4, 12);
-        var ans = d + ' × ' + q + ' = ' + (d * q);
-        var wrongs = [d + ' + ' + q + ' = ' + (d + q), (d * q) + ' ÷ ' + q + ' = ' + d, d + ' × ' + (q + 1) + ' = ' + d * (q + 1)];
-        return choose(rng, 'The ' + (d * q) + ' counters form ' + d + ' equal rows. Which fact finds the rows?', ans, wrongs, {
-          visual: V.array(d, q, { label: '' }),
-          steps: ['Total ' + (d * q) + ' in ' + d + ' equal rows.', 'Each row holds ' + q + ', so the missing factor is ' + q + '.'],
-          teach: 'Division is finding the missing factor of an array.',
-          b: 0.3
-        });
-      },
-      function () {                       /* story with remainder meaning */
+      function () {                       /* story: completely filled bags */
         if (!word) return null;
-        var d = BC.int(rng, 3, 9), q = BC.int(rng, 4, 20);
-        var tot = d * q + BC.int(rng, 0, d - 1);
+        var d = twoDigitDiv ? BC.int(rng, 11, 20) : BC.int(rng, 3, 9), qq = BC.int(rng, 4, 20);
+        var tot = d * qq + (remainders ? BC.int(rng, 1, d - 1) : 0);
         var left = tot % d;
         var who1 = BC.pick(rng, BC.WHO);
-        return ask(rng, who1 + ' packs ' + tot + ' ' + BC.pick(rng, ['muffins', 'pencils', 'notebooks']) + ' into bags of ' + d + '. How many ' + BC.pick(rng, ['bags', 'boxes']) + ' are completely filled?', Math.floor(tot / d), {
+        return ask(rng, who1 + ' packs ' + tot + ' ' + BC.pick(rng, ['muffins', 'pencils', 'notebooks']) + ' into bags of ' + d + '. How many bags are completely filled?', Math.floor(tot / d), {
           explain: [tot + ' ÷ ' + d + ' = ' + Math.floor(tot / d) + ' remainder ' + left + '.', 'Only the ' + Math.floor(tot / d) + ' full groups count' + (left ? '; the leftover ' + left + ' do not fill a bag' : '') + '.'],
+          hint: 'Divide the total by ' + d + '; only whole bags count.',
           teach: 'In a story the remainder may need to be dropped or rounded up — read what is asked.',
           b: 0.6
         });
       },
+      function () {                       /* story: equal shares */
+        if (!word || remainders) return null;
+        var d = twoDigitDiv ? BC.int(rng, 11, 20) : BC.int(rng, 3, 9), qq = BC.int(rng, 4, 20);
+        var tot = d * qq;
+        return ask(rng, BC.pick(rng, BC.WHO) + ' shares ' + tot + ' ' + BC.pick(rng, ['stickers', 'pencils', 'cans']) + ' equally into ' + d + ' groups. How many go in each group?', qq, {
+          explain: [tot + ' ÷ ' + d + ' = ' + qq + '.', 'So each group holds ' + qq + '.'],
+          hint: 'Divide the total by the number of groups.',
+          teach: 'Equal sharing is division: the quotient is the size of each share.',
+          b: 0.5
+        });
+      },
+      function () {                       /* story: how many groups */
+        if (!word || remainders) return null;
+        var d = twoDigitDiv ? BC.int(rng, 11, 20) : BC.int(rng, 3, 9), qq = BC.int(rng, 4, 20);
+        var tot = d * qq;
+        return ask(rng, tot + ' ' + BC.pick(rng, ['buttons', 'marbles', 'cards']) + ' are sorted into piles of ' + d + '. How many piles are there?', qq, {
+          explain: ['Each pile holds ' + d + '.', tot + ' ÷ ' + d + ' = ' + qq + ' piles.'],
+          hint: 'Ask how many groups of ' + d + ' you can make from ' + tot + '.',
+          teach: 'Counting how many equal groups fit is division.',
+          b: 0.55
+        });
+      },
+      function () {                       /* comparison story (divide rungs) */
+        if (!comparison) return null;
+        var d = BC.int(rng, 3, 9), q1 = BC.int(rng, 6, 20), q2 = BC.int(rng, 6, 20);
+        if (q1 === q2) return null;
+        var t1 = d * q1, t2 = d * q2;
+        var w1 = BC.pick(rng, BC.WHO), w2 = BC.pick(rng, BC.WHO.filter(function (x) { return x !== w1; }));
+        var truth = q1 > q2;
+        return judge(w1 + ' shares ' + t1 + ' items among ' + d + ' friends. ' + w2 + ' shares ' + t2 + ' items among ' + d + ' friends. Does ' + w1 + ' give each friend more?', truth, {
+          explain: [w1 + ': ' + t1 + ' ÷ ' + d + ' = ' + q1 + ' each. ' + w2 + ': ' + t2 + ' ÷ ' + d + ' = ' + q2 + ' each.', (truth ? q1 + ' is more than ' + q2 : q1 + ' is not more than ' + q2) + '. <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          hint: 'Work out each share, then compare the two quotients.',
+          teach: 'Compare shares by working out each quotient.',
+          b: 0.6
+        });
+      },
+      function () {                       /* comparison story: how many more per share */
+        if (!comparison) return null;
+        var d = BC.int(rng, 3, 9), q1 = BC.int(rng, 6, 24), q2 = BC.int(rng, 3, 24);
+        if (q1 === q2) return null;
+        var t1 = d * q1, t2 = d * q2;
+        var hi = Math.max(q1, q2), lo = Math.min(q1, q2);
+        return ask(rng, BC.pick(rng, BC.WHO) + ' shares ' + t1 + ' cards among ' + d + ' friends, and a friend shares ' + t2 + ' cards among the same ' + d + '. How many more cards does the first friend give each person?', hi - lo, {
+          explain: ['First share: ' + t1 + ' ÷ ' + d + ' = ' + q1 + '.', 'Second share: ' + t2 + ' ÷ ' + d + ' = ' + q2 + '.', hi + ' − ' + lo + ' = ' + (hi - lo) + ' more each.'],
+          hint: 'Find each quotient first, then subtract them.',
+          teach: 'A per-share comparison is the difference of the two quotients.',
+          b: 0.7
+        });
+      },
       function () {                       /* better estimate */
         if (!better) return null;
-        var d = BC.int(rng, 2, 9);
-        var q = BC.int(rng, 11, 40);
-        var tot = d * q;
-        var est = Math.round(q / 10) * 10;
-        if (est === q || est <= 0) return null;
+        var d = twoDigitDiv ? BC.int(rng, 11, 20) : BC.int(rng, 2, 9);
+        var qq = BC.int(rng, 11, 40);
+        var tot = d * qq;
+        var est = Math.round(qq / 10) * 10;
+        if (est === qq || est <= 0) return null;
         var ans = est;
-        var wrongs = [est + 10, Math.floor(q / 10) * 10 + 20, q + 10];
+        var wrongs = [est + 10, Math.floor(qq / 10) * 10 + 20, qq + 10];
         return choose(rng, 'Which is the better estimate for ' + tot + ' ÷ ' + d + '?', ans, wrongs, {
           steps: ['Round ' + tot + ' to ' + (d * est) + '.', (d * est) + ' ÷ ' + d + ' = ' + est + '.'],
+          hint: 'Round the dividend to a number ' + d + ' divides easily.',
           teach: 'Estimate division by choosing a dividend the divisor divides easily.',
           b: 0.6
         });
       },
-      function () {                       /* inequality with division */
-        if (!ineq) return null;
-        var d = BC.int(rng, 3, 9);
-        var target = BC.int(rng, 20, 80);
-        return I_NUM('What is the smallest whole number that makes ? ÷ ' + d + ' > ' + target + ' true?', target * d + 1, {
-          explain: [target + ' × ' + d + ' = ' + (target * d) + '.', 'One more than ' + (target * d) + ' pushes the quotient past ' + target + '.'],
-          teach: 'Undo the division to find the boundary, then add one.',
+      function () {                       /* estimate-and-adjust (2-digit divisor) */
+        if (!adjust) return null;
+        var d = BC.int(rng, 12, 19);
+        var qq = BC.int(rng, 4, 12);
+        var tot = d * qq + BC.int(rng, 0, d - 1);
+        var guess = Math.round(tot / d / 10) * 10;
+        if (guess <= 0) guess = qq;
+        return ask(rng, 'Estimate then adjust: ' + tot + ' ÷ ' + d + '. (Try a guess near ' + guess + '.)', Math.floor(tot / d), {
+          explain: ['A friendly estimate near ' + tot + ' ÷ ' + d + ' is ' + guess + '.', d + ' × ' + Math.floor(tot / d) + ' = ' + (d * Math.floor(tot / d)) + ', at or under ' + tot + ', so the quotient is ' + Math.floor(tot / d) + '.'],
+          hint: 'Try a round guess, then adjust by multiplying ' + d + ' back.',
+          teach: 'Estimate a quotient, then adjust by multiplying the divisor back.',
+          b: 0.7
+        });
+      },
+      function () {                       /* divide by 0.1 / 0.01 */
+        if (!decimal) return null;
+        var m = BC.pick(rng, [0.1, 0.01]);
+        var n = m === 0.1 ? BC.int(rng, 2, 9) * 10 : BC.int(rng, 2, 9) * 100;
+        var ans = m === 0.1 ? n / 10 : n / 100;
+        return ask(rng, lead(rng, ['Divide ' + n + ' by ' + m + '.', n + ' ÷ ' + m + ' = ?', 'Find ' + n + ' ÷ ' + m + '.']), ans, {
+          explain: ['÷ ' + m + ' is the same as × ' + (m === 0.1 ? 10 : 100) + '.', n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + (n * (m === 0.1 ? 10 : 100)) + '.'],
+          hint: 'Dividing by 0.1 moves the decimal one way; by 0.01, two ways.',
+          teach: 'Dividing by 0.1 takes ten times the number; by 0.01, a hundred times.',
+          b: 0.3
+        });
+      },
+      function () {                       /* decimal: missing dividend */
+        if (!decimal) return null;
+        var m = BC.pick(rng, [0.1, 0.01]);
+        var ans = BC.int(rng, 2, 9) * 10;
+        var prod = m === 0.1 ? ans / 10 : ans / 100;
+        return I_NUM('? ÷ ' + m + ' = ' + ans, prod, {
+          explain: ['Undo the division: ' + ans + ' × ' + m + ' = ' + prod + '.', 'So the dividend is ' + prod + '.'],
+          hint: 'Multiply the quotient by ' + m + ' to recover the dividend.',
+          teach: 'A missing dividend is the quotient times the divisor.',
+          b: 0.5
+        });
+      },
+      function () {                       /* decimal: choose the quotient */
+        if (!decimal) return null;
+        var m = BC.pick(rng, [0.1, 0.01]);
+        var n = m === 0.1 ? BC.int(rng, 2, 9) * 10 : BC.int(rng, 2, 9) * 100;
+        var ans = m === 0.1 ? n / 10 : n / 100;
+        return choose(rng, 'Which is ' + n + ' ÷ ' + m + '?', ans, [ans * 10, ans / 10, n], {
+          steps: ['÷ ' + m + ' means × ' + (m === 0.1 ? 10 : 100) + '.', n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + ans + '.'],
+          hint: 'Dividing by a tenth makes the answer ' + (m === 0.1 ? 'ten' : 'a hundred') + ' times bigger.',
+          teach: 'Dividing by a decimal below one makes the answer bigger, not smaller.',
+          b: 0.4
+        });
+      },
+      function () {                       /* decimal: judge a quotient */
+        if (!decimal) return null;
+        var m = BC.pick(rng, [0.1, 0.01]);
+        var n = m === 0.1 ? BC.int(rng, 2, 9) * 10 : BC.int(rng, 2, 9) * 100;
+        var ans = m === 0.1 ? n / 10 : n / 100;
+        var lie = R.chance(rng, 0.5) ? ans : ans * 10;
+        var truth = lie === ans;
+        return judge('Is ' + n + ' ÷ ' + m + ' = ' + lie + '?', truth, {
+          explain: [n + ' ÷ ' + m + ' = ' + n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + ans + '.', 'The statement says ' + lie + '.'],
+          hint: 'Turn the division into ' + n + ' × ' + (m === 0.1 ? 10 : 100) + ' and compare.',
+          teach: 'Check a decimal quotient by rewriting it as a multiplication.',
+          b: 0.5
+        });
+      },
+      function () {                       /* divide two numbers in scientific notation */
+        if (!sci) return null;
+        var c2 = BC.pick(rng, [2, 3, 4, 5]);
+        var q1 = BC.int(rng, 2, Math.floor(9 / c2));
+        if (q1 < 2) q1 = 2;
+        var c1 = c2 * q1;
+        var e1 = BC.int(rng, 2, 6), e2 = BC.int(rng, 0, e1 - 1);
+        var qe = e1 - e2;
+        var ans = q1 * Math.pow(10, qe);
+        return ask(rng, '(' + c1 + ' × 10^' + e1 + ') ÷ (' + c2 + ' × 10^' + e2 + ') =', ans, {
+          explain: ['Divide the coefficients: ' + c1 + ' ÷ ' + c2 + ' = ' + q1 + '.', 'Subtract the powers: 10^' + e1 + ' ÷ 10^' + e2 + ' = 10^' + qe + '.', 'So the quotient is ' + q1 + ' × 10^' + qe + ' = ' + ans + '.'],
+          hint: 'Divide the coefficients and subtract the exponents separately.',
+          teach: 'Divide in scientific notation by dividing coefficients and subtracting exponents.',
+          b: 0.7
+        });
+      },
+      function () {                       /* sci: which quotient */
+        if (!sci) return null;
+        var c2 = BC.pick(rng, [2, 3, 4, 5]);
+        var q1 = BC.int(rng, 2, Math.floor(9 / c2));
+        if (q1 < 2) q1 = 2;
+        var c1 = c2 * q1;
+        var e1 = BC.int(rng, 3, 6), e2 = BC.int(rng, 1, e1 - 1);
+        var qe = e1 - e2;
+        var ans = q1 * Math.pow(10, qe);
+        return choose(rng, '(' + c1 + ' × 10^' + e1 + ') ÷ (' + c2 + ' × 10^' + e2 + ') = ?', ans, [q1 * Math.pow(10, qe + 1), q1 * Math.pow(10, Math.max(0, qe - 1)), c1 * Math.pow(10, qe)], {
+          steps: ['Coefficient: ' + c1 + ' ÷ ' + c2 + ' = ' + q1 + '.', 'Power: 10^' + e1 + ' ÷ 10^' + e2 + ' = 10^' + qe + '.'],
+          hint: 'Divide coefficients (' + c1 + ' ÷ ' + c2 + ') and subtract exponents (' + e1 + ' − ' + e2 + ').',
+          teach: 'Divide coefficients and subtract exponents; keep the coefficient at least 1.',
+          b: 0.7
+        });
+      },
+      function () {                       /* sci: judge a quotient */
+        if (!sci) return null;
+        var c2 = BC.pick(rng, [2, 5]);
+        var q1 = BC.int(rng, 2, 4);
+        var c1 = c2 * q1;
+        var e1 = BC.int(rng, 3, 6), e2 = BC.int(rng, 1, e1 - 1);
+        var qe = e1 - e2;
+        var ans = q1 * Math.pow(10, qe);
+        var lie = R.chance(rng, 0.5) ? ans : ans * 10;
+        var truth = lie === ans;
+        return judge('Is (' + c1 + ' × 10^' + e1 + ') ÷ (' + c2 + ' × 10^' + e2 + ') = ' + lie + '?', truth, {
+          explain: [c1 + ' ÷ ' + c2 + ' = ' + q1 + ' and 10^' + e1 + ' ÷ 10^' + e2 + ' = 10^' + qe + '.', 'So the true quotient is ' + ans + ', and the statement says ' + lie + '.'],
+          hint: 'Check the coefficient and the exponent separately against ' + lie + '.',
+          teach: 'Check a scientific-notation quotient by recomputing coefficient and exponent.',
+          b: 0.75
+        });
+      },
+      function () {                       /* sci: missing divisor */
+        if (!sci) return null;
+        var c1 = BC.int(rng, 4, 9), q1 = BC.int(rng, 2, 9);
+        if (c1 % q1) return null;
+        var c2 = c1 / q1;
+        var e1 = BC.int(rng, 3, 6), qe = BC.int(rng, 1, e1 - 1);
+        var e2 = e1 - qe;
+        return I_NUM('(' + c1 + ' × 10^' + e1 + ') ÷ (? × 10^' + e2 + ') = ' + q1 + ' × 10^' + qe, c2 * Math.pow(10, e2), {
+          explain: ['Coefficient: ' + c1 + ' ÷ ' + q1 + ' = ' + c2 + '.', 'Power: 10^' + e1 + ' ÷ 10^' + qe + ' = 10^' + e2 + '.', 'So the divisor is ' + c2 + ' × 10^' + e2 + '.'],
+          hint: 'Undo it: divide the coefficients and subtract the exponents back.',
+          teach: 'A missing divisor undoes the coefficient division and the exponent subtraction.',
           b: 0.8
+        });
+      },
+      function () {                       /* 2-digit divisor: rows in a hall */
+        if (!twoDigitDiv || word) return null;
+        var d = BC.int(rng, 11, 25), qq = BC.int(rng, 4, 20);
+        var tot = d * qq;
+        return ask(rng, 'A hall seats ' + tot + ' people in rows of ' + d + '. How many full rows are there?', qq, {
+          explain: ['Rows of ' + d + ' fill ' + tot + '.', d + ' × ' + qq + ' = ' + tot + ', so there are ' + qq + ' rows.'],
+          hint: 'Ask how many groups of ' + d + ' make ' + tot + '.',
+          teach: 'Dividing by a 2-digit number finds how many equal rows fit.',
+          b: 0.6
+        });
+      },
+      function () {                       /* better estimate: name the rounded dividend */
+        if (!better) return null;
+        var d = twoDigitDiv ? BC.int(rng, 11, 20) : BC.int(rng, 2, 9);
+        var qq = BC.int(rng, 11, 40);
+        var tot = d * qq + BC.int(rng, 0, d - 1);
+        var est = Math.max(1, Math.round(qq / 10) * 10);
+        return ask(rng, 'Round ' + tot + ' to the easy multiple ' + (d * est) + '. What is ' + (d * est) + ' ÷ ' + d + '?', est, {
+          explain: [tot + ' is close to ' + (d * est) + ', and ' + d + ' divides it exactly.', (d * est) + ' ÷ ' + d + ' = ' + est + '.'],
+          hint: 'Use the friendly dividend ' + (d * est) + ' instead of ' + tot + '.',
+          teach: 'Replace the dividend with a nearby easy multiple before dividing.',
+          b: 0.55
+        });
+      },
+      function () {                       /* sci story: rate as a quotient */
+        if (!sci) return null;
+        var c1 = BC.pick(rng, [4, 6, 8]), q1 = BC.pick(rng, [2, 4]);
+        if (c1 % q1) return null;
+        var c2 = c1 / q1;
+        var e1 = BC.int(rng, 5, 8), e2 = BC.int(rng, 2, 4);
+        var qe = e1 - e2;
+        var ans = q1 * Math.pow(10, qe);
+        return ask(rng, 'A sensor records ' + c1 + ' × 10^' + e1 + ' dots in ' + c2 + ' × 10^' + e2 + ' seconds. How many dots per second?', ans, {
+          explain: ['Coefficients: ' + c1 + ' ÷ ' + c2 + ' = ' + q1 + '.', 'Powers: 10^' + e1 + ' ÷ 10^' + e2 + ' = 10^' + qe + '.', 'Rate = ' + q1 + ' × 10^' + qe + ' = ' + ans + ' dots per second.'],
+          hint: 'Divide the coefficients and subtract the exponents.',
+          teach: 'Rates in scientific notation divide the coefficients and subtract the exponents.',
+          b: 0.75
+        });
+      },
+      function () {                       /* sci: the exponent of the quotient */
+        if (!sci) return null;
+        var c1 = BC.int(rng, 4, 9), q1 = BC.int(rng, 2, 3);
+        if (c1 % q1) return null;
+        var c2 = c1 / q1;
+        var e1 = BC.int(rng, 4, 8), e2 = BC.int(rng, 1, e1 - 1);
+        var qe = e1 - e2;
+        return ask(rng, '(' + c1 + ' × 10^' + e1 + ') ÷ (' + c2 + ' × 10^' + e2 + ') = coefficient × 10^? — what is the exponent?', qe, {
+          explain: ['Coefficients: ' + c1 + ' ÷ ' + c2 + ' = ' + q1 + '.', 'Exponents subtract: ' + e1 + ' − ' + e2 + ' = ' + qe + '.'],
+          hint: 'Dividing powers of ten subtracts the exponents.',
+          teach: 'Dividing powers of ten subtracts the exponents; the coefficient divides separately.',
+          b: 0.65
         });
       }
     ]);
