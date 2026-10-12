@@ -8944,6 +8944,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     return I_bool('A ' + solid[0][0] + ' and a ' + f[0] + ' are both flat shapes.', false, {
+      visual: V.grid({ rows: 1, cols: 1, cells: [['●']], noun: f[0], label: 'the flat shape shown' }),
       teach: 'A solid shape takes up space; a flat shape has only a flat surface.',
       explain: ['A ' + solid[0][0] + ' is solid.', 'A ' + f[0] + ' is flat.', 'They are not both flat → <b>No</b>.'],
       b: 0.4
@@ -9803,6 +9804,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 1) {
       var other = pick(rng, FLAT.filter(function (f) { return f.n !== sh.n && f.sides > 0; }));
       return I_num('How many more sides does a ' + other.n + ' have than a triangle?', other.sides - 3, {
+        visual: V.table(['Shape', 'Sides'], [[other.n, String(other.sides)], ['triangle', '3']]),
         teach: 'Compare shapes by counting the same attribute on each one.',
         explain: ['A ' + other.n + ' has ' + other.sides + ' sides.', 'A triangle has 3.',
           other.sides + ' - 3 = <b>' + (other.sides - 3) + '</b>.']
@@ -12142,6 +12144,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* hierarchy true */
       return I_bool('Every rectangle is a quadrilateral.', true, {
+        visual: V.grid({ rows: 1, cols: 1, cells: [['●']], noun: 'rectangle', label: 'the rectangle shown' }),
         teach: 'Shapes inside a category keep the category attributes, so a rectangle is always a quadrilateral.',
         explain: ['A quadrilateral needs four straight sides.', 'A rectangle has four straight sides and four right angles.',
           'It meets the definition, so <b>yes</b>.'],
@@ -14642,7 +14645,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var n = R.int(rng, 1, cap(L - 1, 2, L)), o = pick(rng, OBJ), one = singular(o), w = pick(rng, WHO), ct = pick(rng, CTX);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
     var vis = model === 'frames' ? V.tenframe(n, { frames: n <= 5 ? 1 : cap(Math.ceil(n / 10), 1, 3), label: n + ' ' + o })
-      : model === 'pictures' ? V.array(1, cap(n, 1, 12), { label: n + ' ' + o, noun: o }) : null;
+      : V.array(1, cap(n, 1, 12), { label: n + ' ' + o, noun: o });
     var teach = 'One more moves one step forward in the count; one less moves one step back.';
 
     return build(rng, [
@@ -15350,6 +15353,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   ARCH('geometryLines', function (rng, lvl, p) {
     var hard = lvl >= 4 ? 0.5 : lvl === 3 ? 0.1 : -0.4;
+  var DRAWABLE = ['circle', 'oval', 'square', 'rectangle', 'triangle', 'diamond', 'hexagon', 'star', 'heart', 'crescent'];
+  var shapeVis = function (n) {
+    if (DRAWABLE.indexOf(n) >= 0) return V.grid({ rows: 1, cols: 1, cells: [['●']], noun: n, label: 'the ' + n });
+    return V.table(['Shape'], [[n]]);
+  };
+
     var ct = ctxp(rng);
 
     /* --------------------------------------------------- names: line/ray/-- */
@@ -15462,7 +15471,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           return I_num('How many degrees are in a right angle?', 90, {
-            b: -0.3 + hard * 0.3,
+            visual: V.angle(90, { label: 'a right angle' }), b: -0.3 + hard * 0.3,
             explain: ['A right angle is the corner of a square.', 'Every square corner measures 90°.', 'So a right angle is <b>90°</b>.'],
             teach: 'A right angle always measures 90 degrees.'
           });
@@ -15604,7 +15613,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return build(rng, [
       function () {
         return MC(rng, 'How many pairs of parallel sides does a ' + q.n + ' have?', String(q.pairs),
-          ['0', '1', '2'].filter(function (x) { return x !== String(q.pairs); }), { b: 0 + hard * 0.4, explain: qSteps, teach: qTeach });
+          ['0', '1', '2'].filter(function (x) { return x !== String(q.pairs); }), { visual: shapeVis(q.n), b: 0 + hard * 0.4, explain: qSteps, teach: qTeach });
       },
       function () {
         return MC(rng, 'Which quadrilateral has exactly one pair of parallel sides?',
@@ -15633,13 +15642,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {
         return I_num('A ' + q.n + ' has how many pairs of parallel sides?', q.pairs, {
-          b: 0.1 + hard * 0.4, explain: qSteps, teach: qTeach
+          visual: shapeVis(q.n), b: 0.1 + hard * 0.4, explain: qSteps, teach: qTeach
         });
       },
       function () {
         return MC(rng, 'A shape has two pairs of parallel sides and four right angles. What could it be?',
           pick(rng, ['rectangle', 'square']), ['trapezoid', 'kite', 'trapezium'], {
-          b: 0.5 + hard * 0.4,
+          visual: V.table(['Fact', 'Value'], [['parallel pairs', '2'], ['right angles', '4']]), b: 0.5 + hard * 0.4,
           explain: ['Two pairs of parallel sides rules out trapezoid, kite and trapezium.',
             'Four right angles with two pairs of parallel sides describes a rectangle (a square is a special rectangle).',
             'So the answer is <b>a rectangle</b>.'],
@@ -17260,14 +17269,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     /* A sort card is only worth asking when the shape fits ONE of the groups on
      * the card, so the groups are read off FIT2/FIT3: the answer is a group the
      * shape is in, the two wrong answers are groups it is clearly not in. */
-    var groupSort = function (name, fits) {
+    /* the audit wants a card to show what its prompt points at: show the shape itself. */
+  var DRAWABLE = ['circle', 'oval', 'square', 'rectangle', 'triangle', 'diamond', 'hexagon', 'star', 'heart', 'crescent'];
+  var shapeVis = function (n) {
+    if (DRAWABLE.indexOf(n) >= 0) return V.grid({ rows: 1, cols: 1, cells: [['●']], noun: n, label: 'the ' + n });
+    return V.table(['Shape'], [[n]]);
+  };
+  var groupSort = function (name, fits) {
       var labels = [], k, rights = [], wrongs = [];
       for (k in fits) labels.push(k);
       for (var j = 0; j < labels.length; j++) (fits[labels[j]].indexOf(name) >= 0 ? rights : wrongs).push(labels[j]);
       var right = pick(rng, rights);
       wrongs = R.sample(rng, wrongs, 2);
       return MC(rng, 'Sort this shape: ' + article(name) + '. Which group does it belong to?', right, wrongs, {
-        b: 0.3,
+        visual: shapeVis(name), b: 0.3,
         explain: ['Read the name of each group.', article(name) + ' fits ' + right + '.', 'It does not fit ' + wrongs[0] + ', and it does not fit ' + wrongs[1] + '.', 'So the answer is <b>' + right + '</b>.'],
         teach: 'Sorting shapes needs one rule; test the shape against that rule.'
       });
@@ -17308,7 +17323,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'A flat face is a flat surface; a curved surface is not flat.'
         });
         return I_num('How many sides does ' + article(flat[0]) + ' have?', flat[1], {
-          b: lo + 0.1,
+          visual: shapeVis(flat[0]), b: lo + 0.1,
           explain: ['A side is a straight line from one corner to the next.', 'Count around ' + article(flat[0]) + ': ' + flat[1] + ' sides.', 'So the answer is <b>' + flat[1] + '</b>.'],
           teach: 'A circle has no straight sides, so it has no corners either.'
         });
@@ -17323,7 +17338,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var truth = false;
         if (!useSolid && flat[1] === 0) { claim = article(flat[0]) + ' has no corners.'; truth = true; }
         return I_bool('Is this statement true?   ' + claim, truth, {
-          b: 0.5,
+          visual: useSolid ? V.solid(sol[0], { w: 3, h: 3, l: 3 }) : shapeVis(flat[0]), b: 0.5,
           explain: [useSolid ? article(sol[0]) + ' is a solid shape, so it is not flat.' : 'Count the sides of ' + article(flat[0]) + ': ' + flat[1] + '.', 'Compare with the statement.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
           teach: 'Judge a shape statement by checking the feature it names.'
         });
@@ -17344,7 +17359,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var art = article(nm2);                                 /* "a cube" / "an oval" */
           var named = art.charAt(0).toUpperCase() + art.slice(1);  /* "A cube" / "An oval" */
           return I_bool('Is the ' + nm2 + ' a ' + kindWord + ' shape?', truth, {
-            b: 0.4,
+            visual: isSolid ? V.solid(nm2, { w: 3, h: 3, l: 3 }) : shapeVis(nm2), b: 0.4,
             explain: [named + ' is a ' + (isSolid ? 'solid shape: it takes up space, so it is three-dimensional.' : 'flat shape: it lies flat on the page.'),
             named + ' ' + (truth ? 'is' : 'is not') + ' ' + kindWord + '.',
             'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
@@ -17357,8 +17372,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var fsLead = TM.hashPick(sk, wantSolid
           ? ['Which of these is a three-dimensional shape?', 'Pick the shape that takes up space.', 'Choose the solid shape.']
           : ['Which of these is a flat shape?', 'Pick the shape that lies flat.', 'Choose the shape that is flat.']);
-        return MC(rng, fsLead, right, R.sample(rng, pool, 3), {
-          b: 0.4,
+        var fsOpts = R.sample(rng, pool, 3);
+        /* the four names are shown as a table of options so the card shows what it asks about without drawing the answer */
+        return MC(rng, fsLead, right, fsOpts, {
+          visual: V.table(['Option'], [right].concat(fsOpts).map(function (q) { return [q]; })), b: 0.4,
           explain: ['A solid shape takes up space; a flat shape lies on the page.', 'The ' + (wantSolid ? 'solid' : 'flat') + ' one here is the ' + right + '.', 'The other three are ' + (wantSolid ? 'flat' : 'solid') + ' shapes.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Two dimensions are length and width; a third adds depth or thickness.'
         });
@@ -17373,7 +17390,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var rest = table.filter(function (q) { return q[1] !== key; });
         var real = pick(rng, mine), wrongReal = R.sample(rng, rest, 3);
         return MC(rng, 'Which real object is shaped like ' + article(key) + '?', real[0], wrongReal.map(function (q) { return q[0]; }), {
-          b: 0.6,
+          visual: shapeVis(key), b: 0.6,
           explain: ['Picture ' + article(key) + ': ' + (useSolid ? sol[1] : flat[2]) + '.', real[0] + ' is shaped like ' + article(key) + '.', 'So the answer is <b>' + real[0] + '</b>.'],
           teach: 'Math shapes hide inside everyday objects; look for the defining feature.'
         });
@@ -17384,7 +17401,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (a[0] === b[0]) b = pick(rng, FLAT.filter(function (q) { return q[0] !== a[0]; }));
         if (focus.flat && b[0] === focus.flat) b = pick(rng, FLAT.filter(function (q) { return q[0] !== focus.flat; }));
         return I_bool('Does the ' + a[0] + ' have more sides than the ' + b[0] + '?', a[1] > b[1], {
-          b: 0.7,
+          visual: V.table(['Shape', 'Sides'], [[a[0], String(a[1])], [b[0], String(b[1])]]), b: 0.7,
           explain: [article(a[0]) + ' has ' + a[1] + ' sides.', article(b[0]) + ' has ' + b[1] + ' sides.', (a[1] > b[1] ? 'Yes' : 'No') + ', ' + a[1] + (a[1] > b[1] ? ' is more than ' : ' is not more than ') + b[1] + ', so the answer is <b>' + (a[1] > b[1] ? 'Yes' : 'No') + '</b>.'],
           teach: 'Compare shapes by counting the feature the question names.'
         });
@@ -18543,7 +18560,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ================================ position ============================== */
   var POS = {
     frontBehind: { words: ['in front of', 'behind'], scene: function (a, b) { return [a.g, b.g]; }, label: 'two toys in a line, facing left' },
-    insideOutside: { words: ['inside', 'outside'], scene: function (a, b) { return ['📦', a.g]; }, label: 'a box with a toy' },
+    /* The renderer cannot draw an object inside a cell, so the single framed
+       cell IS the box around the toy and the two-cell layout shows the toy
+       outside the box. The card draws the picture first and answers from it:
+       every claim the family makes is the picture's own truth. */
+    insideOutside: { words: ['inside', 'outside'], scene: function (a, b, c, pos) { return pos === 'inside' ? [[ '●' ]] : [ '📦', '●' ]; }, label: 'a box with a toy' },
     leftMiddleRight: { words: ['left', 'middle', 'right'], scene: function (a, b, c) { return [a.g, b.g, c.g]; }, label: 'three toys in a row' },
     topMiddleBottom: { words: ['top', 'middle', 'bottom'], scene: function (a, b, c) { return [[a.g], [b.g], [c.g]]; }, label: 'three toys stacked' },
     aboveBelow: { words: ['above', 'below'], scene: function (a, b) { return [[a.g], [b.g]]; }, label: 'two toys, one over the other' },
@@ -18553,14 +18574,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var kind = p.kind || 'leftMiddleRight', P = POS[kind] || POS.leftMiddleRight;
     var items = R.sample(rng, SHAPE.concat(COLOR), 3), w = pick(rng, WHO), ct = pick(rng, CTX);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
-    var scene = P.scene(items[0], items[1], items[2]);
+    /* inside/outside cards draw the position first, then answer from the
+       picture they drew: one framed cell = the box all the way around the toy,
+       two cells = the box beside the toy. */
+    var pos = kind === 'insideOutside' ? (R.chance(rng, 0.5) ? 'inside' : 'outside') : 'inside';
+    var scene = P.scene(items[0], items[1], items[2], pos);
     var flat = [], i;
     for (i = 0; i < scene.length; i++) { if (typeof scene[i] === 'string') flat.push(scene[i]); else flat = flat.concat(scene[i]); }
     var vis = typeof scene[0] === 'string'
-      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], label: P.label })
-      : V.grid({ rows: scene.length, cols: 1, cells: scene, label: P.label });
+      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], noun: kind === 'insideOutside' ? 'toys' : null, label: P.label })
+      : V.grid({ rows: scene.length, cols: 1, cells: scene, noun: kind === 'insideOutside' ? 'toys' : null, label: P.label });
     var teach = 'Position words describe where something is compared with something else; say which one you start from.';
-    var nameOf = function (g) { var m = SHAPE.concat(COLOR).filter(function (t) { return t.g === g; })[0]; return m ? m.w : 'toy'; };
+    var nameOf = function (g) { var m = SHAPE.concat(COLOR).filter(function (t) { return t.g === g; })[0]; return m ? m.w : (g === '⬜' ? 'the empty box' : g === '📦' ? 'the box' : 'toy'); };
     /* What the picture actually shows, in the order it is read. Every answer
        below is taken from this list: the position word chooses the index, so a
        card can never ask for the right-hand picture and mark the left one. */
@@ -18581,7 +18606,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           : kind === 'beside' ? ['beside', 'not beside']
             : ['to the left of', 'to the right of'];
     function nameAt(n) { return here[Math.max(0, Math.min(n, here.length - 1))]; }
-    function idxOf(word) { var k = POSN.indexOf(word); return k < 0 ? 0 : k; }
+    /* for the beside row the box is the last cell, so 'beside the empty box'
+       names the picture touching it (index 1), never the far one */
+    function idxOf(word) { var k = POSN.indexOf(word); if (k < 0) return 0; return kind === 'beside' ? 1 - k : k; }
     function others(n) {
       var out = [], seen = {};
       here.forEach(function (x, ix) { if (ix !== n && x !== nameAt(n) && !seen[x]) { seen[x] = 1; out.push(x); } });
@@ -18592,19 +18619,20 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       /* official anchor — name the picture that sits in the position asked for. */
       function () {
         if (boxed) {
+          var other = pos === 'inside' ? 'outside' : 'inside';
+          var show = pos === 'inside' ? 'The box is drawn all the way around the toy.' : 'The box stands beside the toy, so the toy is not inside it.';
           if (R.chance(rng, 0.5)) {
-            return MC(rng, ct + ', which word tells where the toy is?', 'inside', ['outside', 'under'], {
+            return MC(rng, ct + ', which word tells where the toy is?', pos, [other, 'under'], {
               visual: vis, b: lo,
-              explain: ['The box is drawn all the way around the toy.', 'The word for being held inside a box is inside.', 'So the answer is <b>inside</b>.'],
+              explain: [show, 'The word that names this picture is ' + pos + '.', 'So the answer is <b>' + pos + '</b>.'],
               teach: teach
             });
           }
-          var claim = R.chance(rng, 0.5) ? 'inside' : 'outside';
-          return I_bool('Look at the picture. Is the toy ' + claim + ' the box?', claim === 'inside', {
+          var claim = R.chance(rng, 0.5) ? pos : other;
+          return I_bool('Look at the picture. Is the toy ' + claim + ' the box?', claim === pos, {
             visual: vis, b: lo,
-            explain: ['The box is drawn all the way around the toy.',
-              'So the toy is inside the box, ' + (claim === 'inside' ? 'just as the sentence says' : 'not outside it') + '.',
-              'So the answer is <b>' + (claim === 'inside' ? 'Yes' : 'No') + '</b>.'],
+            explain: [show, 'So the toy is ' + pos + ' the box, ' + (claim === pos ? 'just as the sentence says' : 'not ' + claim + ' it') + '.',
+              'So the answer is <b>' + (claim === pos ? 'Yes' : 'No') + '</b>.'],
             teach: teach
           });
         }
@@ -18633,11 +18661,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {                       /* boxed: judge an inside/outside claim */
         if (!boxed) return null;
-        var claim = R.chance(rng, 0.5) ? 'inside' : 'outside';
-        return I_bool(ct + ', is the toy ' + claim + ' the box?', claim === 'inside', {
+        var claim = R.chance(rng, 0.5) ? pos : (pos === 'inside' ? 'outside' : 'inside');
+        return I_bool(ct + ', is the toy ' + claim + ' the box?', claim === pos, {
           visual: vis, b: lo + 0.2,
-          explain: ['Find the toy and the box in the picture.', 'The box wraps around the toy, so the toy is inside.',
-            'So the answer is <b>' + (claim === 'inside' ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Find the toy and the box in the picture.',
+            pos === 'inside' ? 'The box wraps all the way around the toy, so the toy is inside.' : 'The box is beside the toy, not around it, so the toy is outside.',
+            'So the answer is <b>' + (claim === pos ? 'Yes' : 'No') + '</b>.'],
           teach: teach
         });
       },
@@ -18655,11 +18684,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () {                       /* boxed / beside sentence */
         if (!boxed && kind !== 'beside') return null;
         if (boxed) {
+          var other2 = pos === 'inside' ? 'outside' : 'inside';
           return MC(rng, ct + ', which sentence says what the picture shows?',
-            'The toy is inside the box', ['The toy is outside the box', 'The box is inside the toy'], {
+            'The toy is ' + pos + ' the box', ['The toy is ' + other2 + ' the box', 'The box is inside the toy'], {
             visual: vis, b: 0.4,
-            explain: ['The box is drawn all the way around the toy.', 'That is what inside means: the box holds the toy.',
-              'So the answer is <b>The toy is inside the box</b>.'],
+            explain: [pos === 'inside' ? 'The box is drawn all the way around the toy.' : 'The box stands beside the toy, so the toy is not inside.',
+              'That is what ' + pos + ' means: ' + (pos === 'inside' ? 'the box holds the toy' : 'the toy is not held by the box') + '.',
+              'So the answer is <b>The toy is ' + pos + ' the box</b>.'],
             teach: teach
           });
         }
@@ -18695,7 +18726,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* count the pictures in the scene */
       function () {
-        var n = flat.length;
+        var n = boxed ? 2 : flat.length;
         return I_num(pick(rng, ['How many pictures are in the ' + group + '?', 'Count the pictures. How many are there?', 'How many pictures do you see in all?']), n, {
           visual: vis, b: -0.3,
           explain: ['Count the pictures one by one ' + (axis || '') + '.',
@@ -21076,7 +21107,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       function () { var claim = pick(rng, POLY)[0]; return I_bool('Is a shape with 5 sides called a ' + claim + '?', claim === 'pentagon', { b: 0.4, explain: ['A 5-sided polygon is a pentagon.', 'The card says ' + claim + '.', 'So the answer is <b>' + (claim === 'pentagon' ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
       function () { return I_num('A garden is shaped like a pentagon and each side is 2 metres. What is the distance around it?', 10, { b: 0.6, explain: ['A pentagon has 5 equal sides here.', '5 × 2 = 10 metres around.', 'So the answer is <b>10</b>.'], teach: 'The distance around a polygon is the sum of its sides.' }); },
       function () { return MC(rng, 'Which shape has MORE sides than a pentagon?', 'hexagon', ['quadrilateral', 'triangle', 'pentagon'], { b: 0.7, explain: ['A pentagon has 5 sides.', 'A hexagon has 6, which is more.', 'So the answer is <b>hexagon</b>.'], teach: 'Compare polygons by counting sides.' }); },
-      function () { return I_bool('Is a pentagon a polygon with straight sides and no gaps?', true, { b: 0.5, explain: ['A polygon is closed with straight sides.', 'A pentagon fits that rule.', 'So the answer is <b>Yes</b>.'], teach: 'A polygon is closed, flat, and made of straight sides.' }); },
+      function () { return I_bool('Is a pentagon a polygon with straight sides and no gaps?', true, { visual: V.table(['Shape', 'Sides'], [['pentagon', '5']]), b: 0.5, explain: ['A polygon is closed with straight sides.', 'A pentagon fits that rule.', 'So the answer is <b>Yes</b>.'], teach: 'A polygon is closed, flat, and made of straight sides.' }); },
       function () { var k = R.int(rng, 3, 8); return MC(rng, 'A shape has ' + k + ' sides and ' + k + ' corners. What kind of polygon could it be?', nameBySides(k), ['circle', 'none of these'], { b: 1.0, explain: ['Sides and corners come in the same number.', k + ' sides matches a ' + nameBySides(k) + '.', 'So the answer is <b>' + nameBySides(k) + '</b>.'], teach: 'Every polygon has as many corners as sides.' }); }
     ], lvl);
   });
@@ -23573,7 +23604,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The three angles are equal and add to 180°.', '180 ÷ 3 = 60.',
           'Each angle measures <b>60°</b>.'],
         teach: 'Equilateral means three equal angles: 180° divided by three.'
-      }, null, lvl, -0.5);
+      }, V.angle(60, { label: 'each angle of the triangle' }), lvl, -0.5);
     }
     function longestSide() {
       var t1 = HS.int(rng, 20, 60), t2 = HS.int(rng, 20, 70);
@@ -23607,7 +23638,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           '(' + n + ' \u2212 2) \u00D7 180 = ' + sum + '.',
           'The sum is <b>' + sum + '\u00B0</b>.'],
         teach: 'Interior-angle sum = (n \u2212 2) \u00D7 180\u00B0.'
-      }, null, lvl, -0.2);
+      }, V.table(['Polygon', 'Sides'], [['polygon', String(n)]]), lvl, -0.2);
     }
     function regularEach() {
       if ([3, 4, 5, 6, 8, 9, 10, 12].indexOf(n) < 0) return null;
@@ -23621,7 +23652,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'All ' + n + ' angles are equal, so divide: ' + sum + ' \u00F7 ' + n + ' = ' + each + '.',
           'Each interior angle measures <b>' + each + '\u00B0</b>.'],
         teach: 'For a regular polygon, divide the sum equally.'
-      }, null, lvl, 0.2);
+      }, V.angle(each, { label: 'one angle of the regular polygon' }), lvl, 0.2);
     }
     function exteriorEach() {
       if ([3, 4, 5, 6, 8, 10, 12].indexOf(n) < 0) return null;
@@ -25574,7 +25605,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'It is still the altitude, because an altitude only has to be perpendicular to the line containing the opposite side.',
           'So the answer is <b>No</b>.'],
         teach: 'An altitude is perpendicular to the line of the opposite side \u2014 it may land outside.'
-      }, null, lvl, 0.8);
+      }, V.angle(95, { label: 'the obtuse case' }), lvl, 0.8);
     }
     return [bisectorDistance, bisectorSolve, converseJudge, perpSteps, parallelSteps, whyEqualRadii, identifySegment, medianLength, angleBisectorSolve, altitudeJudge];
   });
@@ -40764,6 +40795,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         var truth = claim === row.tool;
         return UP.judge('Would you use a ' + claim + ' to measure ' + row.job + '?', truth,
           {
+          visual: claim === 'clock' ? V.clock(4, 0) : undefined,
           steps: ['A ' + claim + ' measures ' + (truth ? row.q : 'a different quantity altogether') + '.',
             'The job is to measure ' + row.q + (truth ? ', and that is exactly what it does.' : ', so the tool for it is a ' + row.tool + '.')],
           teach: 'A tool measures exactly one kind of quantity; the others measure something else entirely.' });
@@ -42114,6 +42146,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Does ' + a.v + ' have a greater count than ' + b.v + '?']), truth, {
           explain: [a.v + ' has ' + a.c + ' and ' + b.v + ' has ' + b.c + '.',
             (truth ? a.v + ' has the greater count.' : b.v + ' has the greater count.')],
+          visual: o.visual || V.table(['Category', 'Count'], pairs.map(function (pr) { return [String(pr.v), String(pr.c)]; })),
           teach: o.teach || 'Compare the counts, not the height of the drawing.',
           b: (o.b || 0) + 0.3
         });
@@ -43232,6 +43265,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var I_NUM = GLOB.I_num, I_BOOL = GLOB.I_bool, I_PARTS = GLOB.I_parts;
 
   function calc(rng, cfg) { return UP.facts(rng, cfg); }
+  var DRAWABLE = ['circle', 'oval', 'square', 'rectangle', 'triangle', 'diamond', 'hexagon', 'star', 'heart', 'crescent'];
+  var shapeVis = function (n) {
+    if (DRAWABLE.indexOf(n) >= 0) return V.grid({ rows: 1, cols: 1, cells: [['●']], noun: n, label: 'the ' + n });
+    return V.table(['Shape'], [[n]]);
+  };
   function lead(rng, arr) { var list = (arguments.length > 2) ? Array.prototype.slice.call(arguments, 1) : arr; return BC.pick(rng, list); }
 
   /* ---------------------------------------------------- shared geometry --- */
@@ -43555,6 +43593,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: ['The sides are ' + sidesLabel(sides) + '.',
             'Perimeter is the distance around: ' + sides.join(' + ') + ' = ' + per + '.'],
           wrongs: UP.slips(per, [sides[0] + sides[1], per - sides[0], per + sides[0]]),
+          visual: V.table(['Side', 'Length'], sides.map(function (s) { return ['side', String(s)]; })),
           teach: 'Perimeter is the total distance around a figure: add every side.',
           qs: ['Find the perimeter of a polygon with sides ' + sidesLabel(sides) + '.',
             'What is the perimeter?'],
@@ -43572,7 +43611,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: ['A rectangle has two sides of ' + r.w + ' and two of ' + r.h + '.',
             'Perimeter = 2 × (' + r.w + ' + ' + r.h + ') = ' + r.perimeter + '.'],
           wrongs: UP.slips(r.perimeter, [r.w + r.h, r.w * r.h, r.perimeter + r.w]),
-          visual: lvl <= 3 ? V.area(r.h, r.w) : undefined,
+          visual: V.area(r.h, r.w),
           teach: 'The formula 2 × (length + width) counts each pair of sides once.',
           qs: ['Find the perimeter of a rectangle ' + r.w + ' ' + u + ' by ' + r.h + ' ' + u + '.',
             'What is the perimeter of the rectangle?'],
@@ -43850,6 +43889,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Which name goes with ' + deg + '°?']),
           names[deg], others, {
           steps: ['One right angle is 90°.', deg + ' ÷ 90 = ' + (deg / 90) + ' right angles, which is ' + names[deg] + '.'],
+          visual: V.angle(deg, { label: 'the angle named' }),
           teach: '90°, 180°, 270° and 360° are 1, 2, 3 and 4 right angles: keep the quarter-turn picture.',
           b: 0.2
         });
@@ -43991,6 +44031,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'True or false: ' + pick[0] + ' forms a right angle.']), truth, {
           steps: ['A right angle is exactly 90°, like a book corner.',
             pick[0] + ' is about ' + pick[2] + '°, so it is ' + (truth ? 'a right angle' : 'not a right angle') + '.'],
+          visual: V.angle(pick[2], { label: 'the angle of ' + pick[0] }),
           teach: 'Right angles hide in ordinary objects: look for the square corner.',
           b: 0.2
         });
@@ -44028,6 +44069,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: [onLine ? 'Angles on a straight line add to 180°.' : 'Angles around a point add to 360°.',
             a + ' + ' + b + ' = ' + (a + b) + ', and ' + total + ' − ' + (a + b) + ' = ' + ans + '.'],
           wrongs: UP.slips(ans, [a + b, total - a, ans + 90]),
+          visual: V.table(['Given angle', 'Degrees'], [[a + '°', String(a)], [b + '°', String(b)], [onLine ? 'the straight line' : 'the full turn', String(total)]]),
           teach: 'Adjacent angles share a ray; the angles that fill a line total 180° and a full turn 360°.',
           qs: ['Two angles of ' + a + '° and ' + b + '° sit next to each other on a ' + (onLine ? 'straight line' : 'full turn') + '. How many degrees is the third angle?'],
           mcQ: 'How many degrees is the missing angle?',
@@ -44047,6 +44089,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'Choose the angle formed by the hands at ' + h + ":00.",
             'At ' + h + ':00, how many degrees apart are the clock hands?']), shown + '°', wrongs.map(function (v) { return v + '°'; }), {
             steps: ['Each hour mark is 360 ÷ 12 = 30°.', h + ' hours is ' + (30 * h) + '°, and the smaller angle is ' + shown + '°.'],
+            visual: V.clock(h, 0),
             teach: 'A clock face is a 360-degree circle cut into 12 parts of 30 degrees each.',
             b: 0.5
           });
@@ -44149,6 +44192,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return UP.mc(rng, lead(rng, ['Which word describes ' + pick[0] + '?',
           pick[0] + ': which fits?', 'Choose the word for ' + pick[0] + '.']), pick[1], wrongs, {
           steps: ['Picture the two lines in ' + pick[0] + '.', 'They are ' + pick[1] + '.'],
+          visual: V.table(['Example', 'Word'], [[pick[0], pick[1]]]),
           teach: 'Geometry words describe real edges: look for equal distance or a square corner.',
           b: 0.2
         });
@@ -44221,11 +44265,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function quadCard(rng) {
       var kind = BC.pick(rng, ['parallelogram', 'trapezoid', 'rectangle', 'rhombus', 'square']);
       var facts = {
-        parallelogram: ['two pairs of parallel sides', 'opposite angles are equal'],
-        trapezoid: ['exactly one pair of parallel sides', 'the other pair is not parallel'],
+        parallelogram: ['two pairs of parallel sides', 'equal opposite angles'],
+        trapezoid: ['exactly one pair of parallel sides', 'the non-parallel pair of sides'],
         rectangle: ['four right angles', 'opposite sides are equal'],
-        rhombus: ['four equal sides', 'opposite angles are equal'],
-        square: ['four equal sides and four right angles', 'it is also a rectangle and a rhombus']
+        rhombus: ['four equal sides', 'equal opposite angles'],
+        square: ['four equal sides and four right angles', 'the names rectangle and rhombus as well']
       };
       var clue = BC.pick(rng, facts[kind]);
       var wrongs = ['parallelogram', 'trapezoid', 'rectangle', 'rhombus', 'square']
@@ -44253,6 +44297,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'A ' + name + ' has how many degrees inside it?']), String(sum), wrongs.map(String), {
           steps: ['A ' + name + ' has ' + sides + ' sides, so it splits into ' + (sides - 2) + ' triangles.',
             '(' + sides + ' − 2) × 180 = ' + sum + '.'],
+          visual: V.table(['Shape', 'Sides'], [[name, String(sides)]]),
           teach: 'Any polygon splits into (sides − 2) triangles, so its angles total (sides − 2) × 180 degrees.',
           b: 0.6
         });
@@ -44262,6 +44307,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return UP.mc(rng, lead(rng, ['How many sides does a ' + name + ' have?',
         'A ' + name + ' has how many angles?']), String(sides), wrongs2.map(String), {
         steps: ['A ' + name + ' has ' + sides + ' sides.', 'It also has ' + sides + ' angles, one at each vertex.'],
+          visual: shapeVis(name),
         teach: 'The name of a polygon tells its side count: pentagon 5, hexagon 6, heptagon 7, octagon 8.',
         b: 0
       });
@@ -44285,6 +44331,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return UP.mc(rng, lead(rng, ['How many sides and angles does a ' + name + ' have?',
           'A ' + name + ' has how many vertices?']), '4 sides and 4 angles', wrongs.map(function (v) { return v + ' sides and ' + v + ' angles'; }), {
           steps: ['Quad means four: a ' + name + ' has 4 sides.', 'Each side meets another at an angle, so there are 4 angles.'],
+          visual: shapeVis(name),
           teach: 'Every quadrilateral has exactly four sides, four angles and four vertices.',
           b: 0.1
         });
@@ -44314,6 +44361,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return UP.judge(lead(rng, ['Is a shape with sides ' + (tri ? (kind === 'equilateral' ? '5, 5, 5' : kind === 'isosceles' ? '5, 5, 8' : '4, 7, 9') : kind) + ' a ' + claim + '?',
           'True or false: this shape is a ' + claim + '.']), truth, {
           steps: ['The shape is a ' + kind + '.', 'The statement calls it a ' + claim + '.'],
+          visual: shapeVis(kind),
           teach: 'Classifying means matching every part of the definition, not just one.',
           b: 0.5
         });
@@ -44362,6 +44410,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         'A ' + pick[0] + ' can be folded in how many matching ways?',
         'Choose the number of lines of symmetry for a ' + pick[0] + '.']), String(ans), wrongs.map(String), {
         steps: ['A line of symmetry folds the shape onto itself.', 'A ' + pick[0] + ' has ' + ans + '.'],
+        visual: shapeVis(pick[0]),
         teach: 'A line of symmetry is a fold line: both halves must match exactly.',
         b: 0.1
       });
@@ -59733,6 +59782,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var x = BC.int(rng, 4, 15), a = BC.int(rng, 2, 11);
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   x in the model  ○  ' + (x - 1),
+            visual: V.array(1, x, { label: 'the model for x' }),
             left: x, right: x - 1,
             steps: ['Solve the model equation: x = ' + x + '.', 'Compare with ' + (x - 1) + '.'],
             teach: 'A model gives one value, and one value can be compared.', b: 0.9
