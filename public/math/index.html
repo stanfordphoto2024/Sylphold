@@ -37535,9 +37535,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           line = ['To leave ' + rhs + ' left over after taking ' + b + ' away, the top number would be ' + rhs + ' + ' + b + ' = ' + (rhs + b) + '.',
             'One more than that leaves more than ' + rhs + ': ' + ans + ' − ' + b + ' = ' + (ans - b) + ' > ' + rhs + '.'];
         }
-        return I_NUM(lead(rng, ['What is the smallest whole number that makes this true?   ' + a + ' ' + sg + ' ? > ' + rhs,
-          'Find the least number that goes in the blank: ' + a + ' ' + sg + ' □ > ' + rhs + '.'.replace('□', '?'),
-          'Which is the smallest whole number making ' + a + ' ' + sg + ' ? greater than ' + rhs + '?']), ans, {
+        /* div and sub complete their explain lines as `? ÷ b` / `? − b`, so
+           the blank must print FIRST for those lanes; mul and add keep it last. */
+        var skel = (op === 'div' || op === 'sub') ? '? ' + sg + ' ' + b : a + ' ' + sg + ' ?';
+        return I_NUM(lead(rng, ['What is the smallest whole number that makes this true?   ' + skel + ' > ' + rhs,
+          'Find the least number that goes in the blank: ' + skel.replace('?', '□') + ' > ' + rhs + '.',
+          'Which is the smallest whole number making ' + skel + ' greater than ' + rhs + '?']), ans, {
           explain: line.concat(['So the least whole number is <b>' + ans + '</b>.']),
           hint: 'Find the boundary first — the number that lands exactly on ' + rhs + ' — then add one more.',
           teach: 'Solve an inequality by finding the boundary, then step past it.',
