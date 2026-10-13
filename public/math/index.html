@@ -80067,6 +80067,98 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       teach: 'A written rule and an equation are the same kind of object, so compare them fairly.' });
   });
 
+  /* g8-compare_linear_functions_graphs_and_equations — the standard itself says
+     "graphs, tables and equations", so the shapes below come from the representations
+     it names, and every card needs TWO computations before the comparison, which is the
+     multi-concept shape this band is supposed to carry. All numbers are drawn, all
+     answers computed; the distractors are the slips each card's own solution names:
+     comparing the starting points instead of the rates, a sign slip, and the table's
+     step being applied one time too many. No picture crutch, no hint, 4 options. */
+  G('g8-compare_linear_functions_graphs_and_equations', function (rng, lvl) {
+    var t = (lvl - 3) * 0.3;
+    var who = pick2(rng, WHO);
+    var shape = R.pick(rng, ['slopeOfTwo', 'valueAt', 'twoPoints', 'tableVsEquation', 'differenceAt', 'steeper']);
+
+    if (shape === 'slopeOfTwo') {   /* two equations, rate of change, then compare */
+      var m1 = R.int(rng, 2, 9), m2 = R.pick(rng, [1, 3, 5, 7]);
+      var b1 = R.int(rng, 1, 6), b2 = R.int(rng, 1, 6);
+      var big = m1 > m2 ? m1 : m2, small = m1 > m2 ? m2 : m1;
+      return MC(rng, 'Function A is y = ' + m1 + 'x + ' + b1 + '. Function B is y = ' + m2 + 'x + ' + b2 + '. Which function has the greater rate of change, and what is that rate?', String(big),
+        [String(small), String(big + 1), String(m1 + b1)], { b: t,
+          explain: ['A grows ' + m1 + ' for every 1 of x, so its rate is ' + m1 + '.',
+            'B grows ' + m2 + ' for every 1 of x, so its rate is ' + m2 + '.',
+            'The greater rate is <b>' + big + '</b>.'],
+          teach: 'The rate of change is the coefficient of x, not the starting point.' });
+    }
+
+    if (shape === 'valueAt') {   /* two equations, evaluate both, then compare */
+      var m3 = R.int(rng, 2, 6), m4 = R.int(rng, 1, 5), xv = R.int(rng, 3, 8), bv = R.int(rng, 1, 5);
+      var v3 = m3 * xv + bv, v4 = m4 * xv + bv;
+      if (v3 === v4) m4 = m4 + 3, v4 = m4 * xv + bv;
+      var wv = [String(Math.min(v3, v4)), String(v3 + v4), String(m3 * xv)];
+      var av = Math.max(v3, v4);
+      return MC(rng, 'Which gives the greater value at x = ' + xv + ': y = ' + m3 + 'x + ' + bv + ' or y = ' + m4 + 'x + ' + bv + '? Give that value.', String(av), wv, { b: t + 0.2,
+        explain: ['First: ' + m3 + ' × ' + xv + ' + ' + bv + ' = ' + v3 + '.',
+          'Second: ' + m4 + ' × ' + xv + ' + ' + bv + ' = ' + v4 + '.',
+          'Comparing them, the greater value is <b>' + av + '</b>.'],
+        teach: 'Evaluate both rules at the same x before deciding which is greater.' });
+    }
+
+    if (shape === 'twoPoints') {   /* each rate computed from rise over run */
+      var run1 = R.pick(rng, [2, 4, 5]), rise1 = run1 * R.int(rng, 2, 6);
+      var run2 = R.pick(rng, [2, 3, 5]), rise2 = run2 * R.int(rng, 1, 5);
+      var r1 = r2(rise1 / run1), r2x = r2(rise2 / run2);
+      if (r1 === r2x) rise2 = run2 * (R.int(rng, 2, 6)), r2x = r2(rise2 / run2);
+      var pr = Math.max(r1, r2x);
+      return MC(rng, 'A line through (0, 0) and (' + run1 + ', ' + rise1 + ') and one through (0, 0) and (' + run2 + ', ' + rise2 + '). Which rate of change is greater?', String(pr),
+        [String(Math.min(r1, r2x)), String(rise1 + rise2), String(r2(rise1 / run2))], { b: t + 0.3,
+          explain: ['First line: ' + rise1 + ' ÷ ' + run1 + ' = ' + r1 + ' per 1 of x.',
+            'Second line: ' + rise2 + ' ÷ ' + run2 + ' = ' + r2x + ' per 1 of x.',
+            'The greater of the two is <b>' + pr + '</b>.'],
+          teach: 'Rate of change is rise divided by run, computed for each line.' });
+    }
+
+    if (shape === 'tableVsEquation') {   /* a table's rule against an equation */
+      var step = R.int(rng, 2, 5), start = R.int(rng, 1, 4), rows = R.int(rng, 3, 6);
+      var mE = R.int(rng, 1, 6), bE = R.int(rng, 1, 5);
+      var vT = start + step * rows, vE = mE * rows + bE;
+      if (vT === vE) rows = rows + 1, vT = start + step * rows, vE = mE * rows + bE;
+      var wT = [String(Math.min(vT, vE)), String(start + step * (rows + 1)), String(mE * rows)];
+      var aT = Math.max(vT, vE);
+      return MC(rng, 'A table starts at ' + start + ' and adds ' + step + ' each row. At row ' + rows + ' it is compared with y = ' + mE + 'x + ' + bE + '. Which is greater there?', String(aT), wT, { b: t + 0.4,
+        explain: ['The table at row ' + rows + ': ' + start + ' + ' + step + ' × ' + rows + ' = ' + vT + '.',
+          'The equation at x = ' + rows + ': ' + mE + ' × ' + rows + ' + ' + bE + ' = ' + vE + '.',
+          'At that row the greater is <b>' + aT + '</b>.'],
+        teach: 'Count the table by its own step, then compare at the same row.' });
+    }
+
+    if (shape === 'differenceAt') {   /* evaluate both, then the gap */
+      var m5 = R.int(rng, 3, 9), m6 = R.int(rng, 1, 4), xd = R.int(rng, 3, 7), bd = R.int(rng, 1, 6);
+      var vd = m5 * xd + bd, ve = m6 * xd + bd;
+      if (m5 === m6) m6 = R.pick(rng, [1, 2, 4, 5]), ve = m6 * xd + bd;
+      var dif = Math.abs(vd - ve);
+      return MC(rng, 'At x = ' + xd + ', how much greater is y = ' + m5 + 'x + ' + bd + ' than y = ' + m6 + 'x + ' + bd + '?', String(dif),
+        [String(vd), String(ve), String(vd + ve)], { b: t + 0.5,
+          explain: ['First value: ' + m5 + ' × ' + xd + ' + ' + bd + ' = ' + vd + '.',
+            'Second value: ' + m6 + ' × ' + xd + ' + ' + bd + ' = ' + ve + '.',
+            'The difference is ' + Math.max(vd, ve) + ' − ' + Math.min(vd, ve) + ' = <b>' + dif + '</b>.'],
+          teach: 'Evaluate both rules at the same x, then take the difference.' });
+    }
+
+    /* a description against an equation — the written form of the same comparison */
+    var st = R.int(rng, 1, 4), inc = R.int(rng, 2, 6), x7 = R.int(rng, 3, 8);
+    var m7 = R.pick(rng, [1, 2, 4, 5]), b7 = R.int(rng, 1, 6);
+    var v7 = st + inc * x7, v8 = m7 * x7 + b7;
+    if (v7 === v8) x7 = x7 + 2, v7 = st + inc * x7, v8 = m7 * x7 + b7;
+    var w7 = [String(Math.min(v7, v8)), String(st + inc * (x7 - 1)), String(m7 * x7)];
+    var a7 = Math.max(v7, v8);
+    return MC(rng, who + ' starts with ' + st + ' dollars and earns ' + inc + ' dollars for every day worked. Compare that with y = ' + m7 + 'x + ' + b7 + ' at x = ' + x7 + '. Which is greater?', String(a7), w7, { b: t + 0.6,
+      explain: ['The story at day ' + x7 + ': ' + st + ' + ' + inc + ' × ' + x7 + ' = ' + v7 + '.',
+        'The equation at x = ' + x7 + ': ' + m7 + ' × ' + x7 + ' + ' + b7 + ' = ' + v8 + '.',
+        'The greater of the two is <b>' + a7 + '</b>.'],
+      teach: 'A written rule and an equation are the same kind of object, so compare them fairly.' });
+  });
+
   /* g8-compare_percents_of_numbers — this standard asks you to work out EACH percent of
      its own base and only THEN compare, which is two operations and the real exam's
      shape. Six shapes that genuinely ask different things; every number is drawn; the
