@@ -369,7 +369,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-12 — 94 modules inlined:
+/* MathPath 2026-10-13 — 94 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -8919,6 +8919,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var sides = R.pick(rng, [3, 4, 6]);
       var name = sides === 3 ? 'triangle' : sides === 4 ? 'square' : 'hexagon';
       return I_num('How many sides does a ' + name + ' have?', sides, {
+        visual: V.grid({ rows: 1, cols: 1, cells: [['\u25CF']], noun: name, label: 'the ' + name + ' shown' }),
         teach: 'Counting sides and corners is how shapes are sorted into families.',
         explain: ['A ' + name + ' has ' + sides + ' sides.', 'Trace around to count them: ' + sides + '.',
           'Answer: <b>' + sides + '</b>'],
@@ -12154,7 +12155,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 3) {                        /* hierarchy false or true */
       var claim3 = pick(rng, [['square', 'rhombus'], ['rectangle', 'triangle'], ['trapezoid', 'hexagon']]);
       var isTrue3 = claim3[0] === 'square' && claim3[1] === 'rhombus';
+      var SIDES3 = { triangle: 3, quadrilateral: 4, rectangle: 4, square: 4, rhombus: 4, trapezoid: 4, parallelogram: 4, pentagon: 5, hexagon: 6 };
       return I_bool('Every ' + claim3[0] + ' is a ' + claim3[1] + '.', isTrue3, {
+        visual: V.table(['Shape', 'Sides'], [[claim3[1], String(SIDES3[claim3[1]])], [claim3[0], String(SIDES3[claim3[0]])]]),
         teach: 'Check the definition of the bigger group before you agree that a shape belongs to it.',
         explain: ['A ' + claim3[1] + ' is defined by its own attributes.',
           isTrue3 ? 'A square has four equal sides, which is exactly what a rhombus needs.'
@@ -23603,8 +23606,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return HS.numExact(p, 60, {
         explain: ['The three angles are equal and add to 180°.', '180 ÷ 3 = 60.',
           'Each angle measures <b>60°</b>.'],
-        teach: 'Equilateral means three equal angles: 180° divided by three.'
-      }, V.angle(60, { label: 'each angle of the triangle' }), lvl, -0.5);
+        teach: 'Equilateral means three equal angles: 180° divided by three.',
+        visual: V.angle(60, { label: 'each angle of the triangle' })
+      }, null, lvl, -0.5);
     }
     function longestSide() {
       var t1 = HS.int(rng, 20, 60), t2 = HS.int(rng, 20, 70);
@@ -23637,8 +23641,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['A polygon splits into n \u2212 2 triangles from one vertex.',
           '(' + n + ' \u2212 2) \u00D7 180 = ' + sum + '.',
           'The sum is <b>' + sum + '\u00B0</b>.'],
-        teach: 'Interior-angle sum = (n \u2212 2) \u00D7 180\u00B0.'
-      }, V.table(['Polygon', 'Sides'], [['polygon', String(n)]]), lvl, -0.2);
+        teach: 'Interior-angle sum = (n \u2212 2) \u00D7 180\u00B0.',
+        visual: V.table(['Polygon', 'Sides'], [['polygon', String(n)]])
+      }, null, lvl, -0.2);
     }
     function regularEach() {
       if ([3, 4, 5, 6, 8, 9, 10, 12].indexOf(n) < 0) return null;
@@ -23651,8 +23656,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The interior angles total (n \u2212 2) \u00D7 180 = ' + sum + '\u00B0.',
           'All ' + n + ' angles are equal, so divide: ' + sum + ' \u00F7 ' + n + ' = ' + each + '.',
           'Each interior angle measures <b>' + each + '\u00B0</b>.'],
-        teach: 'For a regular polygon, divide the sum equally.'
-      }, V.angle(each, { label: 'one angle of the regular polygon' }), lvl, 0.2);
+        teach: 'For a regular polygon, divide the sum equally.',
+        visual: V.angle(each, { label: 'one angle of the regular polygon' })
+      }, null, lvl, 0.2);
     }
     function exteriorEach() {
       if ([3, 4, 5, 6, 8, 10, 12].indexOf(n) < 0) return null;
@@ -24826,13 +24832,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var s = sol(rng, lvl), k = coef(rng, lvl), a = HS.int(rng, 2, 14);
 
     function bothSides() {
-      var m = coef(rng, lvl, 2), rhs = m * s + HS.int(rng, 1, 20) - 10;
-      var left = k * s + a;
-      var p = 'Solve ' + k + 'x + ' + a + ' = ' + m + 'x + ' + (rhs - m * s) + '.';
-      if (HS.leaks(p, [s]) || k === m) return null;
+      var m = coef(rng, lvl, 2);
+      if (k <= m || s <= 0) return null;                     /* keep every printed number positive */
+      var c = a + (k - m) * s;                              /* the right-side constant that makes x = s true */
+      var p = 'Solve ' + k + 'x + ' + a + ' = ' + m + 'x + ' + c + '.';
+      if (HS.leaks(p, [s]) || c === s) return null;
       return HS.num(p, s, {
         explain: ['Move the x-terms together: ' + k + 'x - ' + m + 'x = ' + (k - m) + 'x.',
-          'Move the constants: ' + (rhs - m * s) + ' - ' + a + ' = ' + (k - m) * s + '.',
+          'Move the constants: ' + c + ' - ' + a + ' = ' + (k - m) * s + '.',
           (k - m) + 'x = ' + (k - m) * s + ', so x = <b>' + s + '</b>.'],
         teach: 'Collect the unknowns on one side and the numbers on the other, then divide.'
       }, null, lvl, 0.1);
@@ -25363,7 +25370,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [m])) return null;
       return HS.numExact(p, m, {
         explain: ['A ' + k2 + ' pair is congruent, so B takes the same measure as A.',
-          'Substitute x = ' + x + ': ' + k + '\u00B7' + x + ' + ' + c + ' = ' + m + '.',
+          'Substitute x = ' + x + ': ' + k + ' \u00D7 ' + x + ' = ' + (k * x) + ', then ' + (k * x) + ' + ' + c + ' = ' + m + '.',
           'Angle B measures <b>' + m + '\u00B0</b>.'],
         teach: 'Evaluate the expression \u2014 no equation to solve here.'
       }, null, lvl, 0.3);
@@ -25604,8 +25611,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['In an obtuse triangle the perpendicular from the opposite vertex lands on the extension of the side, outside the triangle.',
           'It is still the altitude, because an altitude only has to be perpendicular to the line containing the opposite side.',
           'So the answer is <b>No</b>.'],
-        teach: 'An altitude is perpendicular to the line of the opposite side \u2014 it may land outside.'
-      }, V.angle(95, { label: 'the obtuse case' }), lvl, 0.8);
+        teach: 'An altitude is perpendicular to the line of the opposite side \u2014 it may land outside.',
+        visual: V.angle(95, { label: 'the obtuse case' })
+      }, null, lvl, 0.8);
     }
     return [bisectorDistance, bisectorSolve, converseJudge, perpSteps, parallelSteps, whyEqualRadii, identifySegment, medianLength, angleBisectorSolve, altitudeJudge];
   });
@@ -25654,11 +25662,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }, null, lvl, 0.2);
     }
     function missingBase() {
-      var p = 'A triangle has area ' + A + ' square units and a height of ' + h + '. Find the base it was measured from.';
-      if (HS.leaks(p, [b])) return null;
+      var tA = BC.fix(A / 2, 2);
+      var p = 'A triangle has area ' + tA + ' square units and a height of ' + h + '. Find the base it was measured from.';
+      if (HS.leaks(p, [b]) || HS.leaks(p, [tA])) return null;
       return HS.numExact(p, b, {
+        visual: V.coord({ pts: [], xmin: 0, xmax: b, ymin: 0, ymax: h, grid: true,
+          shaded: [{ points: [[0, 0], [b, 0], [Math.round(b / 2), h]] }] }),
         explain: ['Area = base \u00D7 height \u00F7 2, so base = 2 \u00D7 area \u00F7 height.',
-          '2 \u00D7 ' + A + ' \u00F7 ' + h + ' = ' + b + '.',
+          '2 \u00D7 ' + tA + ' \u00F7 ' + h + ' = ' + b + '.',
           'The base is <b>' + b + '</b>.'],
         teach: 'Undo the triangle formula by doubling the area first.'
       }, null, lvl, 0.4);
@@ -25706,6 +25717,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function areaCompare() {
       var p = 'A triangle and a parallelogram have the same base and the same height. Is the triangle\u2019s area half of the parallelogram\u2019s?';
       return HS.judge(p, true, {
+        visual: V.table(['Figure', 'Area'], [['triangle', 'half of parallelogram'], ['parallelogram', 'whole']]),
         explain: ['Parallelogram area = b \u00D7 h, and triangle area = b \u00D7 h \u00F7 2.',
           'With the same base and the same height the triangle is exactly half.',
           'So the answer is <b>Yes</b>.'],
@@ -43421,6 +43433,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             'Small rectangle: ' + small.w + ' × ' + small.h + ' = ' + small.area + '.',
             'Between them: ' + big.area + ' − ' + small.area + ' = ' + diff + '.'],
           wrongs: UP.slips(diff, [big.area, small.area, diff + big.w]),
+          visual: V.grid({rows:1,cols:big.w,cells:[Array(big.w).fill('●')],label:'the larger rectangle'}),
           teach: 'The area between two figures is the difference of their areas.',
           qs: ['A ' + small.w + ' ' + u + ' by ' + small.h + ' ' + u + ' rectangle sits inside a ' + big.w + ' ' + u + ' by ' + big.h + ' ' + u + ' rectangle. What is the area between them?'],
           mcQ: 'What is the area between the rectangles?',
@@ -43917,6 +43930,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Which measure matches ' + row[1] + '?',
           row[1] + ' measures how many degrees?']), deg + '°', wrongs.map(function (d) { return d + '°'; }), {
           steps: ['One right angle is 90°.', row[1] + ' is ' + deg + '° (' + (deg / 90) + ' right angles).'],
+          visual: V.angle(deg, { label: row[1] }),
           teach: 'The named angles are the quarter-turns of a circle: 90°, 180°, 270° and 360°.',
           b: 0
         });
@@ -44123,6 +44137,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return UP.mc(rng, lead(rng, ['What is ' + kind + '?', 'Which description fits a ' + kind + '?',
           'Choose the correct meaning of ' + kind + '.']), right, wrongs, {
           steps: ['A ' + kind + ' is ' + right + '.', 'The other descriptions name different figures.'],
+          visual: kind === 'angle' ? V.angle(120, { label: 'an angle' }) : undefined,
           teach: 'Points mark, segments end twice, rays end once, lines never end, and angles are two rays from one point.',
           b: 0
         });
@@ -44209,7 +44224,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           steps: ['A ' + shape + ' has opposite sides that ' + (ans === 1 ? 'meet only in one pair' : 'never meet in two pairs') + '.',
             'So it has ' + ans + ' pair(s) of parallel sides.'],
           teach: 'Trapezoids have one pair of parallel sides; parallelograms, rectangles and rhombuses have two.',
-          b: 0.4
+          visual: shapeVis(shape), b: 0.4
         });
       }
     ]);
@@ -50891,7 +50906,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var t = BC.int(rng, 0, 5);
       if (t === 0) return { x: x, ex: 'x + ' + a + ' × ' + b, val: x + a * b, slip: (x + a) * b, why: 'Multiply first: ' + a + ' × ' + b + ' = ' + (a * b) + '.' };
       if (t === 1) return { x: x, ex: '(x + ' + a + ') × ' + m, val: (x + a) * m, slip: x + a * m, why: 'Parentheses first: ' + x + ' + ' + a + ' = ' + (x + a) + '.' };
-      if (t === 2) return { x: x, ex: 'x × ' + m + ' − ' + a, val: x * m - a, slip: x * (m - a), why: 'Multiply first: ' + x + ' × ' + m + ' = ' + (x * m) + '.' };
+      if (t === 2) return { x: x, t: t, m: m, a: a, ex: 'x × ' + m + ' − ' + a, val: x * m - a, slip: x * (m - a), why: 'Multiply first: ' + x + ' × ' + m + ' = ' + (x * m) + '.' };
       if (t === 3) { var n = m * BC.int(rng, 2, 9); return { x: x, ex: n + ' ÷ ' + m + ' + x', val: n / m + x, slip: n / (m + x), why: 'Divide first: ' + n + ' ÷ ' + m + ' = ' + (n / m) + '.' }; }
       if (t === 4) { var cut = BC.int(rng, 1, Math.max(1, a - 2)); return { x: x, ex: 'x × (' + a + ' − ' + cut + ')', val: x * (a - cut), slip: x * a - cut, why: 'Parentheses first: ' + a + ' − ' + cut + ' = ' + (a - cut) + '.' }; }
       return { x: x, ex: 'x + x + ' + a, val: 2 * x + a, slip: x + a, why: 'The two x terms together are ' + (2 * x) + '.' };
@@ -50919,7 +50934,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (!isFinite(d.val) || d.val !== Math.floor(d.val) || d.val < 0) return null;
         var truth = R.chance(rng, 0.5);
         var shown = truth ? d.val : Math.max(0, d.slip);
-        return judge(rng, 'Someone substituted x = ' + d.x + ' and got ' + d.ex + ' = ' + shown + '. Is that right?', truth, {
+        var exStr = (d.t === 2) ? (d.x + ' \u00D7 ' + d.m + ' = ' + (d.x * d.m) + ', then ' + (d.x * d.m) + ' \u2212 ' + d.a) : d.ex;
+        return judge(rng, 'Someone substituted x = ' + d.x + ' and got ' + exStr + ' = ' + shown + '. Is that right?', truth, {
           steps: ['Rework it: ' + d.why + ' The value is ' + d.val + '.', 'The claim says ' + shown + '.'],
           teach: 'Rework the substitution before agreeing with a stated value.', b: 0.5
           });
@@ -55295,6 +55311,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var BC = GLOB.BC, UP = GLOB.UP, R = GLOB.R, V = GLOB.V;
   var I_NUM = GLOB.I_num, I_FRAC = GLOB.I_frac, I_CMP = GLOB.I_cmp, I_POINT = GLOB.I_point;
 
+  var DRAWABLE = ['circle','oval','square','rectangle','triangle','diamond','hexagon','star','heart','crescent','rhombus','quadrilateral'];
+  var shapeVis = function (n) {
+    if (DRAWABLE.indexOf(n) >= 0) return V.grid({ rows: 1, cols: 1, cells: [['●']], noun: n, label: 'the ' + n });
+    return V.table(['Shape'], [[n]]);
+  };
   function ask(prompt, val, o) {
     o = o || {};
     return I_NUM(prompt, val, {
@@ -56392,14 +56413,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             steps: [q.a + ' → ' + q.b + ': ' + (isA(q.a, q.b) ? 'every ' + q.a + ' satisfies the definition of a ' + q.b + '.'
               : 'a ' + q.b + ' needs a property the ' + q.a + ' does not always have.'),
               'Test it: does the ' + q.a + ' meet each requirement?'],
-            teach: 'A shape belongs to a family when it satisfies that family definition.', b: 0
+            teach: 'A shape belongs to a family when it satisfies that family definition.',
+            visual: shapeVis(q.a), b: 0
           });
         },
         function () {                       /* count the parallel pairs */
           var s = BC.pick(rng, ['parallelogram', 'rectangle', 'rhombus', 'square']);
           return ask('How many pairs of parallel sides does a ' + s + ' have?', 2, {
             explain: ['A ' + s + ' has opposite sides parallel in both directions.', 'That is <b>2</b> pairs of parallel sides.'],
-            teach: 'Two pairs of parallel sides is what makes a shape a parallelogram.', b: 0.2
+            teach: 'Two pairs of parallel sides is what makes a shape a parallelogram.',
+            visual: shapeVis(s), b: 0.2
           });
         },
         function () {                       /* read the description, name the shape */
@@ -56444,6 +56467,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var q = pickTwo(); if (!q) return null;
           var truth = isA(q.a, q.b);
           return judge(rng, 'Every ' + q.a + ' is a ' + q.b + '. Do you agree?', truth, {
+            visual: shapeVis(q.a),
             steps: ['Look for one ' + q.a + ' that breaks the ' + q.b + ' definition.',
               truth ? 'None exists: the definition of ' + q.a + ' already satisfies ' + q.b + '.'
                 : 'One counter-example is enough to say no.'],
@@ -56461,7 +56485,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var s = BC.pick(rng, ['rectangle', 'square']);
           return ask('How many right angles does a ' + s + ' have?', 4, {
             explain: ['A ' + s + ' has four angles, and each one is a right angle.', 'That is <b>4</b> right angles.'],
-            teach: 'Four right angles is part of the definition of a rectangle.', b: 0.4
+            teach: 'Four right angles is part of the definition of a rectangle.',
+            visual: shapeVis(s), b: 0.4
           });
         },
         function () {                       /* which family is the most specific */
@@ -56591,7 +56616,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var n = BC.pick(rng, [3, 4, 5, 6]);
           return ask('How many equal sides does a regular ' + polyName(n) + ' have?', n, {
             explain: ['A ' + polyName(n) + ' has ' + n + ' sides.', 'Regular means every one of them is the same: <b>' + n + '</b>.'],
-            teach: 'The name of the polygon gives the number of sides.', b: 0.9
+            teach: 'The name of the polygon gives the number of sides.',
+            visual: shapeVis(polyName(n)), b: 0.9
           });
         }
       ]);
@@ -56611,7 +56637,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var n = BC.pick(rng, [3, 4, 5, 6, 8, 10]);
           return ask('How many vertices does a ' + polyName(n) + ' have?', n, {
             explain: ['A polygon has one vertex at each corner.', 'So a ' + polyName(n) + ' has <b>' + n + '</b> vertices.'],
-            teach: 'Vertices and sides come in equal numbers for any polygon.', b: 0.3
+            teach: 'Vertices and sides come in equal numbers for any polygon.',
+            visual: shapeVis(polyName(n)), b: 0.3
           });
         },
         function () {
@@ -56654,7 +56681,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           return ask('What is the sum of the interior angles of a ' + polyName(n) + '?', sum, {
             explain: ['Split the polygon into triangles from one vertex: ' + (n - 2) + ' triangles.',
               (n - 2) + ' × 180 = <b>' + sum + '</b>°.'],
-            teach: 'Any polygon splits into (sides − 2) triangles, each 180°.', b: 0
+            teach: 'Any polygon splits into (sides − 2) triangles, each 180°.',
+            visual: shapeVis(polyName(n)), b: 0
           });
         },
         function () {
@@ -56666,6 +56694,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         },
         function () {
           return ask('What is the sum of the exterior angles of any convex polygon?', 360, {
+            visual: V.angle(72, { label: 'one exterior angle of a regular polygon' }),
             explain: ['Walking once around any polygon turns a full circle.', 'That is <b>360</b>° every time.'],
             teach: 'Exterior angles of a convex polygon always total 360°.', b: 0.5
           });
@@ -69823,7 +69852,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         b: t,
         hint: 'Substitute ' + sgnD(y0) + ' for y, then add.',
         explain: ['Replace y: ' + sgnD(x0) + ' + ' + sgnD(y0) + '.',
-          sgnD(x0) + ' + ' + sgnD(y0) + ' = ' + sgnD(x0 + y0) + '.',
+          (x0 < 0 ? r2(Math.abs(y0)) + ' \u2212 ' + r2(-x0) + ' = ' + sgnD(x0 + y0) + '.'
+            : y0 < 0 ? r2(x0) + ' \u2212 ' + r2(-y0) + ' = ' + sgnD(x0 + y0) + '.'
+            : sgnD(x0) + ' + ' + sgnD(y0) + ' = ' + sgnD(x0 + y0) + '.'),
           'So the value is <b>' + sgnD(x0 + y0) + '</b>.'],
         teach: 'Substitution turns a rational expression into one arithmetic line.' });
     }
@@ -80655,6 +80686,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 5) {   /* judgement on tripling */
       var r6 = R.int(rng, 2, 5);
       return I_bool('Tripling the radius and height of a cylinder triples its volume.', false, {
+        visual: V.table(['Change', 'Effect on Volume'], [['radius \u00D7 3', '\u00D7 9'], ['height \u00D7 3', '\u00D7 3']]),
         b: t + 0.7,
         hint: 'Both lengths triple: the factor is ' + 3 * 3 + ' times 3.',
         explain: ['Volume is proportional to radius squared times height.',
@@ -82167,7 +82199,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           b: t + 0.25, unit: 'cm',
           hint: 'The chord of a 120\u00B0 arc is 2r sin(60\u00B0): 2 \u00D7 ' + rad + ' \u00D7 ' + r2(Math.sin(Math.PI / 3)) + '.',
           explain: ['Each side cuts a 120\u00B0 arc.',
-            'A chord is 2r sin(half the arc): 2 \u00D7 ' + rad + ' \u00D7 sin 60\u00B0 \u2248 2 \u00D7 ' + rad + ' \u00D7 ' + r2(Math.sin(Math.PI / 3)) + ' = ' + side + ' cm.',
+            'A chord is 2r sin(half the arc): 2 \u00D7 ' + rad + ' \u00D7 sin 60\u00B0 \u2248 ' + side + ' cm.',
             'Equivalently the side is ' + rad + '\u221A3 cm.',
             'So the side is about <b>' + side + '</b> cm.'],
           teach: 'A 120 degree chord is radius times root three.' });
@@ -82187,6 +82219,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {   /* why equilateral */
       return MC(rng, 'Three points divide a circle into three equal arcs. Why is the triangle joining them equilateral?',
         'equal arcs cut equal chords', ['the triangle always contains the centre', 'the three angles are all right angles', 'the chords are all diameters'], {
+          visual: V.circle({ slices: [{ v: 120, label: 'arc 1' }, { v: 120, label: 'arc 2' }, { v: 120, label: 'arc 3' }], opts: { noTotal: true } }),
           b: t + 0.55,
           hint: 'Compare the arcs first: each is 120\u00B0.',
           explain: ['Each pair of vertices cuts off an arc of 360/3 = 120\u00B0.',
@@ -82208,6 +82241,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 6) {   /* constructing a hexagon versus the triangle */
       return I_bool('Joining every other point of the six marks made with a compass width equal to the radius gives an equilateral triangle inscribed in the circle.', true, {
+        visual: V.circle({ slices: [{ v: 60, label: 'each compass step' }, { v: 60 }, { v: 60 }, { v: 60 }, { v: 60 }, { v: 60 }], opts: { noTotal: true } }),
         b: t + 0.8,
         hint: 'The six marks are the hexagon; the triangle uses three of them.',
         explain: ['A radius-long chord cuts a 60\u00B0 arc, so six marks go around the circle.',
@@ -82310,6 +82344,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 6) {   /* obtuse case */
       return MC(rng, 'Where is the circumcenter of an obtuse triangle?',
         'outside the triangle', ['on the hypotenuse', 'always at the incenter', 'on the longest angle bisector'], {
+          visual: V.coord({ pts: [{ x: 0, y: 0, label: 'A' }, { x: 8, y: 0, label: 'B' }, { x: 3, y: 2, label: 'C' }], grid: true }),
           b: t + 0.8,
           hint: 'Compare with the right-triangle case, where it is the midpoint of the hypotenuse.',
           explain: ['For a right triangle the circumcenter is the midpoint of the hypotenuse.',
