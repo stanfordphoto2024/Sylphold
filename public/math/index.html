@@ -24712,14 +24712,24 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* "x + 5 = 12" with the drawn solution inside, ASCII minus for typing */
   function lhs(k) { return k < 0 ? '- ' + Math.abs(k) : '+ ' + k; }
 
+  /* the standard's own name decides the form. A "solve linear equations" standard is
+     the y = mx + b family — its cards name the equation in that form; the card computes
+     the same thing either way, just said the way the standard says it. */
+  function pLine(LG, expr, rhs) {
+    return LG
+      ? 'The line y = ' + expr + ' has y = ' + rhs + '. What is x?'
+      : 'Solve ' + expr + ' = ' + rhs + '.';
+  }
+
   /* =============================== 1. ONE STEP ============================ */
   HS.on(/solve one[- ]step|one[- ]step (linear )?equations?|one step equations? with.*(fractions|decimals)|write and solve one[- ]step/, function (rng, lvl, sk) {
     var s = sol(rng, lvl), a = HS.int(rng, 2, 12), k = coef(rng, lvl), b;
     var fracOk = lvl >= 3 && /fraction|decimal/.test(UP.t(sk));
+    var LG = /linear equation/i.test(UP.t(sk));
 
     function addEq() {
       b = s + a;
-      var p = 'Solve x ' + lhs(-a) + ' = ' + b + '.';
+      var p = pLine(LG, 'x ' + lhs(-a), b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Undo the ' + (a > 0 ? 'addition' : 'subtraction') + ': ' + (a > 0 ? 'subtract ' + a : 'add ' + Math.abs(a)) + ' from both sides.',
@@ -24730,7 +24740,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function subEq() {
       b = s - a;
-      var p = 'What value of x makes x - ' + a + ' = ' + b + ' true?';
+      var p = LG ? pLine(LG, 'x - ' + a, b)
+                 : 'What value of x makes x - ' + a + ' = ' + b + ' true?';
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['x - ' + a + ' = ' + b + ' means x is ' + a + ' more than ' + b + '.',
@@ -24741,7 +24752,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function mulEq() {
       b = k * s;
-      var p = 'Solve ' + k + 'x = ' + b + '.';
+      var p = pLine(LG, k + 'x', b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['The unknown is multiplied by ' + k + ', so divide both sides by ' + k + '.',
@@ -24752,7 +24763,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function divEq() {
       b = s;
-      var p = 'Solve x ÷ ' + k + ' = ' + b + '.';
+      var p = pLine(LG, 'x ÷ ' + k, b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, k * b, {
         explain: ['x is divided by ' + k + ', so multiply both sides by ' + k + '.',
@@ -24763,7 +24774,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function negCoef() {
       b = -k * s;
-      var p = 'Solve -' + k + 'x = ' + b + '.';
+      var p = pLine(LG, '-' + k + 'x', b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Divide both sides by -' + k + ' to undo the multiplication.',
@@ -24776,7 +24787,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (!fracOk) return null;
       var d = HS.pick(rng, [3, 4, 5, 6, 8]), n = HS.int(rng, 1, d - 1), val = HS.int(rng, 2, 9);
       var rhs = BC.fix(n / d * val, 6);
-      var p = 'Solve (' + n + '/' + d + ')x = ' + rhs + '.';
+      var p = pLine(LG, '(' + n + '/' + d + ')x', rhs);
       if (HS.leaks(p, [val])) return null;
       return HS.num(p, val, {
         explain: ['Multiply both sides by the reciprocal ' + d + '/' + n + '.',
@@ -24788,7 +24799,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function checkBool() {
       b = k * s;
       var claim = HS.chance(rng, 0.5) ? s : s + HS.pick(rng, [1, 2, -1, 3]);
-      var p = 'Is x = ' + claim + ' the solution of ' + k + 'x = ' + b + '?';
+      var p = LG ? 'The line y = ' + k + 'x is said to have y = ' + b + ' when x = ' + claim + '. Do you agree?'
+                 : 'Is x = ' + claim + ' the solution of ' + k + 'x = ' + b + '?';
       return HS.judge(p, claim === s, {
         explain: ['Substitute ' + claim + ' for x: ' + k + ' × ' + claim + ' = ' + k * claim + '.',
           'The equation needs ' + b + ', and ' + k * claim + (k * claim === b ? ' is ' + b : ' is not ' + b) + '.',
@@ -24802,7 +24814,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         sub: 'Write the equation first: m + ' + a + ' = ' + tot + '.',
-        explain: ['Let m be the friend’s marbles, so ' + who + ' has m + ' + a + '.',
+        explain: [LG ? 'The line y = m + ' + a + ' has y = ' + tot + ' at m = ' + s + '.'
+                      : 'Let m be the friend’s marbles, so ' + who + ' has m + ' + a + '.',
           'm + ' + a + ' = ' + tot + ', so subtract ' + a + ' from both sides.',
           'm = ' + tot + ' - ' + a + ' = <b>' + s + '</b>.'],
         teach: 'Turn the comparison into an equation, then undo the operation.'
@@ -24814,7 +24827,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         visual: V.bar([{ v: b, label: 'total ' + b }, { v: s, label: 'each part' }]),
-        explain: ['The total is split into ' + k + ' identical parts.',
+        explain: [LG ? 'The line y = ' + k + 'x has y = ' + b + ' at x = ' + s + '.'
+                      : 'The total is split into ' + k + ' identical parts.',
           'Each part = ' + b + ' ÷ ' + k + ' = ' + s + '.',
           'So each part holds <b>' + s + '</b>.'],
         teach: 'Equal parts of a total are found by dividing the total by the number of parts.'
@@ -24827,7 +24841,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [ans])) return null;
       return HS.num(p, ans, {
         sub: 'Write the equation: n + ' + add + ' = ' + tot + '.',
-        explain: ['"' + add + ' more than a number" is n + ' + add + '.',
+        explain: [LG ? 'The line y = n + ' + add + ' has y = ' + tot + ' at n = ' + ans + '.'
+                      : '"' + add + ' more than a number" is n + ' + add + '.',
           'n + ' + add + ' = ' + tot + ', so n = ' + tot + ' - ' + add + '.',
           'n = <b>' + ans + '</b>.'],
         teach: 'Translate the phrase into an equation, then isolate the unknown.'
@@ -24835,7 +24850,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function choice() {
       b = k * s;
-      var p = 'Which value of x solves ' + k + 'x = ' + b + '?';
+      var p = LG ? 'On the line y = ' + k + 'x, y = ' + b + '. What is x?'
+                 : 'Which value of x solves ' + k + 'x = ' + b + '?';
       if (HS.leaksText(p, s)) return null;
       return HS.mc(rng, p, s, [-s, s + k, s - 1, BC.fix(BC.fix(b / (k + 1), 4))], {
         explain: ['Divide both sides by ' + k + ': x = ' + b + ' ÷ ' + k + '.',
@@ -24850,10 +24866,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* =============================== 2. TWO STEP ============================ */
   HS.on(/two[- ]step (linear )?equations?|solve two[- ]step/, function (rng, lvl, sk) {
     var s = sol(rng, lvl), k = coef(rng, lvl), a = HS.int(rng, 2, 14);
+    var LG = /linear equation/i.test(UP.t(sk));
 
     function axb() {
       var b = k * s + a;
-      var p = 'Solve ' + k + 'x + ' + a + ' = ' + b + '.';
+      var p = pLine(LG, k + 'x + ' + a, b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Undo the addition first: ' + b + ' - ' + a + ' = ' + (b - a) + ', so ' + k + 'x = ' + (b - a) + '.',
@@ -24864,7 +24881,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function axminus() {
       var b = k * s - a;
-      var p = 'Solve ' + k + 'x - ' + a + ' = ' + b + '.';
+      var p = pLine(LG, k + 'x - ' + a, b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Add ' + a + ' to both sides: ' + k + 'x = ' + (b + a) + '.',
@@ -24875,7 +24892,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function divided() {
       var d = coef(rng, lvl, 3), rhs = s;
-      var p = 'Solve (x + ' + a + ') ÷ ' + d + ' = ' + rhs + '.';
+      var p = pLine(LG, '(x + ' + a + ') ÷ ' + d, rhs);
       var ans = rhs * d - a;
       if (HS.leaks(p, [ans])) return null;
       return HS.num(p, ans, {
@@ -24887,7 +24904,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function negCoef() {
       var b = -k * s + a;
-      var p = 'Solve -' + k + 'x + ' + a + ' = ' + b + '.';
+      var p = pLine(LG, '-' + k + 'x + ' + a, b);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Subtract ' + a + ' from both sides: -' + k + 'x = ' + (b - a) + '.',
@@ -24902,7 +24919,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         sub: 'Equation: ' + per + 'c + ' + flat + ' = ' + tot + '.',
-        explain: ['Subtract the ' + flat + '-dollar fee: ' + tot + ' - ' + flat + ' = ' + per * s + '.',
+        explain: [LG ? 'The cost line y = ' + per + 'c + ' + flat + ' has y = ' + tot + ' at c = ' + s + '.'
+                      : 'Subtract the ' + flat + '-dollar fee: ' + tot + ' - ' + flat + ' = ' + per * s + '.',
           'Divide by ' + per + ' dollars per class: ' + (per * s) + ' ÷ ' + per + ' = ' + s + '.',
           'So the answer is <b>' + s + '</b> classes.'],
         teach: 'Remove the fixed amount, then divide by the rate.'
@@ -24911,7 +24929,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function checkBool() {
       var b = k * s + a;
       var claim = HS.chance(rng, 0.5) ? s : s + HS.pick(rng, [1, 2, -2, 4]);
-      var p = 'Does x = ' + claim + ' satisfy ' + k + 'x + ' + a + ' = ' + b + '?';
+      var p = LG ? 'The line y = ' + k + 'x + ' + a + ' is said to have y = ' + b + ' when x = ' + claim + '. Do you agree?'
+                 : 'Does x = ' + claim + ' satisfy ' + k + 'x + ' + a + ' = ' + b + '?';
       return HS.judge(p, claim === s, {
         explain: ['Replace x by ' + claim + ': ' + k + ' × ' + claim + ' + ' + a + ' = ' + (k * claim + a) + '.',
           'The equation needs ' + b + (k * claim + a === b ? ', which it does.' : ', and it does not.'),
@@ -24921,7 +24940,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function choice() {
       var b = k * s + a;
-      var p = 'What is the solution of ' + k + 'x + ' + a + ' = ' + b + '?';
+      var p = LG ? 'On the line y = ' + k + 'x + ' + a + ', y = ' + b + '. What is x?'
+                 : 'What is the solution of ' + k + 'x + ' + a + ' = ' + b + '?';
       if (HS.leaksText(p, s)) return null;
       return HS.mc(rng, p, s, [-s, BC.fix((b - a) / (k + 1), 4), s + a, s - k], {
         explain: ['Subtract ' + a + ': ' + k + 'x = ' + (b - a) + '.',
@@ -24950,7 +24970,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function reverse() {
       /* the unknown in the coefficient position: 5x + 6 = 21 for x, then ask what a·? = */
       var b = k * s + a;
-      var p = 'Solve ' + k + 'x + ' + a + ' = ' + b + ', then tell me the value of ' + k + 'x.';
+      var p = LG ? 'On the line y = ' + k + 'x + ' + a + ', y = ' + b + '. What is the value of ' + k + 'x?'
+                 : 'Solve ' + k + 'x + ' + a + ' = ' + b + ', then tell me the value of ' + k + 'x.';
       if (HS.leaks(p, [k * s])) return null;
       return HS.num(p, k * s, {
         explain: ['Subtract ' + a + ' from both sides: ' + k + 'x = ' + (b - a) + '.',
@@ -24965,12 +24986,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ====================== 3. MULTI-STEP / BOTH SIDES ===================== */
   HS.on(/multi[- ]step|variables on both sides|both sides|like terms|distributive property.*(equation|solve)|solve equations? (with|using|involving).*(parentheses|like terms|distributive)|equations with variables on both sides|solve linear equations?: mixed|linear equations?: solve|checkpoint.*(equations|linear equations)|solve equations?: mixed review|solve linear equations?:? word problems|solve linear equations? with variables on one side|^solve linear equations$|^solve equations$|solving linear equations|solve two.step equations: mixed review|solve multi.step equations: mixed review|solve equations with rational coefficients|solve equations? with (fractions|decimals)/, function (rng, lvl, sk) {
     var s = sol(rng, lvl), k = coef(rng, lvl), a = HS.int(rng, 2, 14);
+    var LG = /linear equation/i.test(UP.t(sk));
 
     function bothSides() {
       var m = coef(rng, lvl, 2);
       if (k <= m || s <= 0) return null;                     /* keep every printed number positive */
       var c = a + (k - m) * s;                              /* the right-side constant that makes x = s true */
-      var p = 'Solve ' + k + 'x + ' + a + ' = ' + m + 'x + ' + c + '.';
+      var p = pLine(LG, k + 'x + ' + a, m + 'x + ' + c);
       if (HS.leaks(p, [s]) || c === s) return null;
       return HS.num(p, s, {
         explain: ['Move the x-terms together: ' + k + 'x - ' + m + 'x = ' + (k - m) + 'x.',
@@ -24981,7 +25003,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function distributive() {
       var d = coef(rng, lvl, 2), c = HS.int(rng, 2, 12), rhs = d * (k * s + c);
-      var p = 'Solve ' + d + '(' + k + 'x + ' + c + ') = ' + rhs + '.';
+      var p = pLine(LG, d + '(' + k + 'x + ' + c + ')', rhs);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Distribute the ' + d + ': ' + d * k + 'x + ' + d * c + ' = ' + rhs + '.',
@@ -24992,7 +25014,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function likeTerms() {
       var q = coef(rng, lvl, 2), rhs = (k + q) * s + a;
-      var p = 'Solve ' + k + 'x + ' + q + 'x - ' + a + ' = ' + rhs + '.';
+      var p = pLine(LG, k + 'x + ' + q + 'x - ' + a, rhs);
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         explain: ['Combine like terms: ' + k + 'x + ' + q + 'x = ' + (k + q) + 'x.',
@@ -25004,7 +25026,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function bothSidesNeg() {
       var m = coef(rng, lvl, 2), con = HS.int(rng, 1, 18);
       var e = -k * s + con - m * s;   /* so the equation -kx + con = mx + e holds at x = s */
-      var p = 'Solve -' + k + 'x + ' + con + ' = ' + m + 'x + ' + e + '.';
+      var p = pLine(LG, '-' + k + 'x + ' + con, m + 'x + ' + e);
       if (HS.leaks(p, [s]) || k === -m) return null;
       return HS.num(p, s, {
         explain: ['Add ' + k + 'x to both sides: ' + con + ' = ' + (m + k) + 'x + ' + e + '.',
@@ -25017,7 +25039,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (lvl < 4) return null;
       var d = HS.pick(rng, [2, 3, 4, 6]), val = s * 0 + HS.int(rng, 2, 24);
       var rhs = BC.fix(val / d + val / 2, 6);
-      var p = 'Solve x/' + d + ' + x/2 = ' + rhs + '.';
+      var p = pLine(LG, 'x/' + d + ' + x/2', rhs);
       if (HS.leaks(p, [val]) || !isFinite(rhs) || rhs === 0) return null;
       return HS.num(p, val, {
         explain: ['Multiply every term by ' + (d * 2) + ' to clear the denominators: 2x + ' + d + 'x = ' + BC.fix(rhs * d * 2, 6) + '.',
@@ -25043,7 +25065,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var filtered = [];
       for (i = 0; i < optsArr.length; i++) if (optsArr[i] !== ans) filtered.push(optsArr[i]);
       return HS.mc(rng, p, ans, filtered, {
-        explain: ['Move the x-terms and the constants to opposite sides.',
+        explain: [LG ? 'On the graphs, the two lines meet exactly once.'
+                      : 'Move the x-terms and the constants to opposite sides.',
           'If the x-terms cancel and a false statement is left, there is no solution; if a true statement is left, every x works.',
           'Here the equation has <b>' + ans + '</b>.'],
         teach: 'The number of solutions depends on whether the variable terms cancel.'
@@ -25052,7 +25075,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function checkBool() {
       var m = coef(rng, lvl, 2), rhs = m * s + HS.int(rng, 1, 15);
       var claim = HS.chance(rng, 0.5) ? s : s + HS.pick(rng, [1, -1, 2]);
-      var p = 'Is x = ' + claim + ' the solution of ' + k + 'x + ' + a + ' = ' + m + 'x + ' + rhs + '?';
+      var p = LG ? 'The line y = ' + k + 'x + ' + a + ' is said to have y = ' + m + 'x + ' + rhs + ' when x = ' + claim + '. Do you agree?'
+                 : 'Is x = ' + claim + ' the solution of ' + k + 'x + ' + a + ' = ' + m + 'x + ' + rhs + '?';
       if (k === m) return null;
       return HS.judge(p, claim === s, {
         explain: ['Left side with x = ' + claim + ': ' + k + ' × ' + claim + ' + ' + a + ' = ' + (k * claim + a) + '.',
@@ -25068,7 +25092,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [s])) return null;
       return HS.num(p, s, {
         sub: 'Equation: ' + per + 'h + ' + base + ' = ' + tot + '.',
-        explain: ['Set the two offers equal: ' + per + 'h + ' + base + ' = ' + tot + '.',
+        explain: [LG ? 'The two cost lines meet at h = ' + s + ' hours.'
+                      : 'Set the two offers equal: ' + per + 'h + ' + base + ' = ' + tot + '.',
           'Subtract ' + base + ': ' + per + 'h = ' + (tot - base) + '.',
           'Divide by ' + per + ': h = <b>' + s + '</b>.'],
         teach: 'Two offers cost the same where the equation built from them is true.'
@@ -25077,7 +25102,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function choice() {
       var m = coef(rng, lvl, 2), rhs = m * s + HS.int(rng, 1, 15);
       if (k === m) return null;
-      var p = 'Solve ' + k + 'x + ' + a + ' = ' + m + 'x + ' + rhs + '. What is x?';
+      var p = pLine(LG, k + 'x + ' + a, m + 'x + ' + rhs);
       if (HS.leaksText(p, s)) return null;
       return HS.mc(rng, p, s, [-s, BC.fix((rhs - a) / (k - m + 1), 4), s + 1, s - 2], {
         explain: ['Subtract ' + m + 'x from both sides: ' + (k - m) + 'x + ' + a + ' = ' + rhs + '.',
@@ -25088,7 +25113,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function consecutive() {
       var n = HS.int(rng, 2, 20), tot = n + (n + 1) + (n + 2);
-      var p = 'Three consecutive integers have sum ' + tot + '. What is the smallest?';
+      var p = LG ? 'The line y = n + (n + 1) + (n + 2) has y = ' + tot + '. What is the smallest n?'
+                 : 'Three consecutive integers have sum ' + tot + '. What is the smallest?';
       if (HS.leaks(p, [n])) return null;
       return HS.num(p, n, {
         explain: ['Let the smallest be n, so the three are n, n + 1 and n + 2.',
@@ -26705,14 +26731,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var run = x2 - x1;
     var num = y2 - y1, den = x2 - x1;
     var red = reduce(num, den);
+    /* the standard's own title decides the wording. A constant-rate line's average
+       rate over any interval IS its slope — naming the average when the standard
+       says average is saying the same number, honestly. */
+    var AV = /average rate of change/i.test(String((sk && sk.name) || ''));
 
     function fromPoints() {
-      var p = 'Find the slope of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '.';
+      var p = AV
+        ? 'Find the average rate of change from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '.'
+        : 'Find the slope of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '.';
       if (HS.leaks(p, [red.n, red.d])) return null;
       return HS.numExact(p, BC.fix(red.n / red.d, 6), {
         explain: ['Slope is rise over run: (y₂ - y₁) ÷ (x₂ - x₁).',
           '(' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')) = ' + num + ' ÷ ' + den + '.',
-          'The slope is <b>' + slopeStr(num, den) + '</b>.'],
+          AV ? 'The average rate of change over the interval is <b>' + slopeStr(num, den) + '</b>.'
+             : 'The slope is <b>' + slopeStr(num, den) + '</b>.'],
         teach: 'Slope is the change in y divided by the matching change in x.'
       }, null, lvl, 0);
     }
@@ -26720,26 +26753,30 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var rows = [], i, xs = [], step = HS.pick(rng, [1, 2]);
       for (i = 0; i < 4; i++) xs.push(x1 + i * step);
       for (i = 0; i < 4; i++) rows.push([String(xs[i]), String(y1 + L.m * i)]);
-      var p = 'What is the slope of the line shown by this table of values?';
+      var p = AV ? 'What is the average rate of change shown by this table of values?'
+                 : 'What is the slope of the line shown by this table of values?';
       if (HS.leaks(p, [red.n, red.d])) return null;
       return HS.numExact(p, BC.fix(L.m / L.run, 6), {
         visual: V.table(['x', 'y'], rows),
         explain: ['Pick any two rows. Moving from one to the next changes x by ' + step + ' and y by ' + L.m + '.',
           'Slope = ' + L.m + ' ÷ ' + step + ' = ' + slopeStr(L.m, step) + '.',
-          'The slope is <b>' + slopeStr(L.m, step) + '</b>.'],
+          AV ? 'The average rate of change over each interval is <b>' + slopeStr(L.m, step) + '</b>.'
+             : 'The slope is <b>' + slopeStr(L.m, step) + '</b>.'],
         teach: 'A constant rate in a table is the slope of the line behind it.'
       }, null, lvl, 0.1);
     }
     function fromGraph() {
       var m = L.m, b = HS.int(rng, -4, 4);
-      var p = 'Read the slope of the line drawn on the coordinate plane.';
+      var p = AV ? 'Read the average rate of change of the line drawn on the coordinate plane.'
+                 : 'Read the slope of the line drawn on the coordinate plane.';
       if (HS.leaks(p, [reduce(m, 1).n])) return null;
       return HS.numExact(p, m, {
         visual: V.coord({ lines: [{ m: m, b: b, label: 'the line' }], pts: [{ x: 0, y: b, label: '(0, ' + b + ')' }], grid: true }),
         sub: 'The line crosses the y-axis at (0, ' + b + ').',
         explain: ['Start at (0, ' + b + ') and follow the line one run to the right.',
           'It rises ' + m + ' for every 1 to the right.',
-          'The slope is <b>' + m + '</b>.'],
+          AV ? 'The average rate of change is <b>' + m + '</b>.'
+             : 'The slope is <b>' + m + '</b>.'],
         teach: 'On a graph the slope is the rise you trace for one unit of run.'
       }, null, lvl, -0.1);
     }
@@ -26749,7 +26786,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = 'The point (' + want + ', ?) lies on ' + si(L.m, L.run, L.b) + '. What is the missing y-coordinate?';
       if (HS.leaks(p, [yWant])) return null;
       return HS.numExact(p, yWant, {
-        explain: ['Substitute x = ' + want + ' into the equation.',
+        explain: [AV ? 'From the equation the average rate of change is ' + slopeStr(L.m, L.run) + ', for every interval.'
+                      : 'Substitute x = ' + want + ' into the equation.',
           'y = ' + slopeStr(L.m, L.run) + ' × ' + want + (L.b ? ' ' + HS.sgn(L.b) : '') + ' = ' + yWant + '.',
           'The missing coordinate is <b>' + yWant + '</b>.'],
         teach: 'A point is on a line exactly when its coordinates satisfy the equation.'
@@ -26762,7 +26800,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = 'The point (?, ' + want + ') lies on ' + si(L.m, L.run, L.b) + '. What is the missing x-coordinate?';
       if (HS.leaks(p, [xWant])) return null;
       return HS.numExact(p, xWant, {
-        explain: ['Put y = ' + want + ' into the equation and undo the operations.',
+        explain: [AV ? 'From the equation the average rate of change is ' + slopeStr(L.m, L.run) + ', for every interval.'
+                      : 'Put y = ' + want + ' into the equation and undo the operations.',
           want + (L.b ? ' - (' + L.b + ')' : '') + ' = ' + (want - L.b) + ', then divide by ' + slopeStr(L.m, L.run) + '.',
           'x = <b>' + xWant + '</b>.'],
         teach: 'Solve the equation for x to recover a missing coordinate.'
@@ -26772,43 +26811,51 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var claim = BC.fix(red.n / red.d, 6) + HS.pick(rng, [1, -1, 2, 0.5]);
       var p = 'Someone says the slope through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + ' is ' + BC.fix(claim, 4) + '. Do you agree?';
       return HS.judge(p, false, {
-        explain: ['Work the slope yourself: (' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')).',
+        explain: [AV ? 'Work the average rate of change yourself: (' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')).'
+                      : 'Work the slope yourself: (' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')).',
           'That is ' + num + ' ÷ ' + den + ' = ' + slopeStr(num, den) + ', not ' + BC.fix(claim, 4) + '.',
           'So the claim is <b>incorrect</b>.'],
         teach: 'Always recompute rise over run before agreeing with a stated slope.'
       }, null, lvl, 0.2);
     }
     function choice() {
-      var p = 'What is the slope of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '?';
+      var p = AV
+        ? 'What is the average rate of change from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '?'
+        : 'What is the slope of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '?';
       if (HS.leaksText(p, slopeStr(num, den))) return null;
       return HS.mc(rng, p, slopeStr(num, den), [slopeStr(den, num), slopeStr(-num, den), slopeStr(num, den + 2)], {
         explain: ['Rise is ' + num + ' and run is ' + den + '.',
           'Divide them: ' + slopeStr(num, den) + '.',
-          'The slope is <b>' + slopeStr(num, den) + '</b>.'],
+          AV ? 'The average rate of change over the interval is <b>' + slopeStr(num, den) + '</b>.'
+             : 'The slope is <b>' + slopeStr(num, den) + '</b>.'],
         teach: 'Dividing run by rise instead of rise by run is the classic slip.'
       }, null, lvl, 0);
     }
     function compareSlope() {
       var b2 = HS.int(rng, -6, 6), num2 = b2, den2 = HS.pick(rng, [1, 2, 3]);
-      var p = 'Choose >, < or =.   slope through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '  ○  ' + slopeStr(num2, den2);
+      var p = AV
+        ? 'Choose >, < or =.   average rate from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '  ○  ' + slopeStr(num2, den2)
+        : 'Choose >, < or =.   slope through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '  ○  ' + slopeStr(num2, den2);
       var v1 = num / den, v2 = num2 / den2;
       if (HS.leaks(p, [v1])) return null;
       return HS.cmp(p, v1, v2, {
         explain: ['Work out the slope on the left: ' + num + ' ÷ ' + den + ' = ' + slopeStr(num, den) + '.',
           'Compare it with ' + slopeStr(num2, den2) + ' on the right.',
           'So the correct symbol is <b>' + (v1 === v2 ? '=' : v1 > v2 ? '>' : '<') + '</b>.'],
-        teach: 'Compare slopes by writing each as a single number first.'
+        teach: AV ? 'Compare the rates by writing each as a single number first.'
+                  : 'Compare slopes by writing each as a single number first.'
       }, null, lvl, 0.2);
     }
     function storyRate() {
       var per = HS.pick(rng, [3, 4, 5, 6, 9]), flat = HS.int(rng, 0, 20), who = HS.who(rng);
-      var p = who + ' earns ' + per + ' dollars for every hour of babysitting and ' + flat + ' dollars for supplies. What is the rate of change of earnings with time?';
+      var p = who + ' earns ' + per + ' dollars for every hour of babysitting and ' + flat + ' dollars for supplies. What is the ' + (AV ? 'average ' : '') + 'rate of change of earnings with time?';
       if (HS.leaks(p, [per])) return null;
       return HS.numExact(p, per, {
         sub: 'Earnings = ' + per + 'h + ' + flat + '.',
         explain: ['The amount earned changes only when the hours change.',
           'Each extra hour adds ' + per + ' dollars.',
-          'The rate of change is <b>' + per + '</b> dollars per hour.'],
+          AV ? 'The average rate of change is <b>' + per + '</b> dollars per hour.'
+             : 'The rate of change is <b>' + per + '</b> dollars per hour.'],
         teach: 'The rate of change is the amount the output gains per unit of input.'
       }, null, lvl, -0.2);
     }
@@ -26816,13 +26863,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var days = HS.int(rng, 2, 5), per = HS.pick(rng, [-9, -6, -5, -4, -3]);
       var start = HS.int(rng, 20, 60), rows = [], i;
       for (i = 0; i < 4; i++) rows.push(['day ' + (i * days), String(start + per * i)]);
-      var p = 'A tank loses water at a constant rate. What is the rate of change shown by the table?';
+      var p = AV ? 'A tank loses water at a constant rate. What is the average rate of change shown by the table?'
+                 : 'A tank loses water at a constant rate. What is the rate of change shown by the table?';
       if (HS.leaks(p, [per])) return null;
       return HS.numExact(p, BC.fix(per / days, 4), {
         visual: V.table(['Time', 'Litres'], rows),
         explain: ['From one row to the next the time gains ' + days + ' days and the volume changes by ' + per + '.',
           'Rate = ' + per + ' ÷ ' + days + ' = ' + BC.fix(per / days, 4) + '.',
-          'The rate of change is <b>' + BC.fix(per / days, 4) + '</b> litres per day.'],
+          AV ? 'The average rate of change is <b>' + BC.fix(per / days, 4) + '</b> litres per day.'
+             : 'The rate of change is <b>' + BC.fix(per / days, 4) + '</b> litres per day.'],
         teach: 'A rate of change is signed: a decrease has a negative rate.'
       }, null, lvl, 0.3);
     }
