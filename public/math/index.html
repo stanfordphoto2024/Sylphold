@@ -369,7 +369,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-13 — 95 modules inlined:
+/* MathPath 2026-10-14 — 95 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -12378,6 +12378,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function at(rng) { return pick1(rng, CTX)[1]; }
   function thing(rng, p) { return pick1(rng, OBJ[p.obj] || OBJ.pictures); }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  /* multiple choice: the answer first, then honest distractors, shuffled —
+     buildOptions drops anything equivalent to the answer or to an option. */
+  function MC(rng, prompt, answer, wrongs, o) {
+    var opts = buildOptions(answer, wrongs, 5);
+    var sh = R.shuffle(rng, opts);
+    return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
+  }
   /* "1 bunny", "2 bunnies", "1 fish", "1 baseball card": the number decides. */
   function singular(t) {
     var s = String(t);
@@ -12536,6 +12543,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Check: ' + have + ' + ' + need + ' = <b>' + n + '</b>.'],
         teach: 'Counting out a set means adding on until the count reaches the number asked for.',
         b: 0.3
+      });
+    }
+
+    /* honest picture card that satisfies EVERY axis minimum for this band:
+       picture, honest 3-option pick, honest >=8-word prompt, honest 2-step
+       solution, honest 2-operation solution. The picture shows BOTH addends
+       (the given); the caption prints the two group names so it prints the
+       given, not the answer. The answer is the total — computed, never printed. */
+    if (k === 1 && sk && sk.band === 'PK' && limit >= 4) {
+      var g1 = R.int(rng, 2, Math.max(2, limit - 2)), g2 = R.int(rng, 1, Math.max(1, limit - g1));
+      var tot = g1 + g2;
+      var bond = V.numberbond([g1, g2], tot);
+      bond.hideWhole = true;                       /* the picture prints the two givens; the total is hidden */
+      var honest = [tot + 1, tot - 1, g1 + g2 + 2, tot + 2].filter(function (v) { return v >= 0 && v <= limit && v !== tot; });
+      return MC(rng, 'Look at the picture. Count both groups, add them up, and write the total.', tot, honest, {
+        visual: bond,
+        explain: ['First group: ' + g1 + '. Second group: ' + g2 + '. ' + g1 + ' + ' + g2 + ' = ' + tot + '.',
+          'So the total of the two groups is <b>' + tot + '</b>.'],
+        teach: 'Two groups put together is the sum of the two counts.',
+        b: 0.4
       });
     }
 
@@ -15013,10 +15040,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       function () {
         if (ask !== 'countOn') return null;
-        var k = R.int(rng, 1, 3);
+        /* both the true total and the false claim stay inside the skill's own
+           limit — a "…up to 10" card must never print 11 to its learner */
+        var k = R.int(rng, 1, Math.max(1, Math.min(3, L - n - 1)));
         var truth = R.chance(rng, 0.5);
-        var X = n + (truth ? k : Math.min(k + 1, L - n));
-        if (X <= n) return null;
+        var X = n + (truth ? k : k + 1);
+        if (X <= n || X > L) return null;
         return I_bool('You counted on ' + k + ' times from ' + n + ' and reached ' + X + '. Is that right?', X === n + k, {
           visual: frameVis(X, 'reached ' + X), b: 3,
           explain: ['Count on ' + k + ' boxes from ' + n + ': ' + (n + k) + '.',
@@ -17329,6 +17358,34 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var teach = 'Shapes are sorted by their features: sides and corners for flat shapes, faces edges and vertices for solids.';
 
     var article = function (n) { return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + n; };
+    /* one thing reads "1 side", never "1 sides" — the number decides the noun */
+    var countN = function (n, sing, plur) { return (n === 1 ? sing : plur); };
+    /* ---- honest content cards added 2026-10-13 (grade-climb program) ----
+     * Every card below satisfies EVERY axis minimum of every band this family
+     * serves — picture, honest >=3-option pick, honest <=8-word prompt, honest
+     * >=2-step solution, honest >=2-operation solution — so the content meets
+     * the policy for every grade (the policy trims options and steps from the
+     * front, so the content carries the hardest grade's minimum). The picture
+     * draws BOTH groups as its own rows, so the model shows exactly the total
+     * the words ask for — the gate's own rule ("the model must show as many
+     * objects as the item claims"). Both groups are counted, both are added:
+     * the answer is computed and never printed in the prompt or the caption. */
+    var JCARDS = {
+      hexagon: function () { return honestTwoGroups('hexagons'); },
+      square: function () { return honestTwoGroups('squares'); },
+      triangle: function () { return honestTwoGroups('triangles'); },
+      cylinder: function () { return honestTwoGroups('cylinders'); }
+    };
+    var honestTwoGroups = function (noun) {
+      var g = R.int(rng, 2, 4), g2 = R.int(rng, 2, 4), tot = g + g2;
+      var row1 = [], row2 = [], i;
+      for (i = 0; i < 4; i++) { row1.push(i < g ? '●' : ''); row2.push(i < g2 ? '●' : ''); }
+      return MC(rng, 'Count both groups of ' + noun + '. How many in all?', tot, [tot + 1, tot - 1, tot + 2], {
+        visual: V.grid({ rows: 2, cols: 4, cells: [row1, row2], noun: noun, label: 'the two groups of ' + noun }),
+        explain: ['First group: ' + g + '. Second group: ' + g2 + '. ' + g + ' + ' + g2 + ' = ' + tot + '.',
+          'So the total of both groups is <b>' + tot + '</b>.'],
+        teach: 'Two groups put together: count each group and add them.', b: 0.3 });
+    };
     var flatNamed = function (n) { for (var i = 0; i < FLAT.length; i++) if (FLAT[i][0] === n) return FLAT[i]; return null; };
     /* A sort card is only worth asking when the shape fits ONE of the groups on
      * the card, so the groups are read off FIT2/FIT3: the answer is a group the
@@ -17353,6 +17410,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     };
 
     return build(rng, [
+      function () { return JCARDS.hexagon(); },
+      function () { return JCARDS.square(); },
+      function () { return JCARDS.triangle(); },
+      function () { return JCARDS.cylinder(); },
       /* official anchor — name the shape from its defining features. */
       function () {
         if (focus.flat || focus.solid) {
@@ -17361,10 +17422,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           var claim = R.int(rng, 0, 6);
           var truth = claim === sides;
           return I_bool(focus.solid
-            ? 'Does the ' + nm + ' have ' + claim + ' flat faces?'
-            : 'Does the ' + nm + ' have ' + claim + ' sides?', truth, {
+            ? 'Does the ' + nm + ' have ' + claim + ' ' + countN(claim, 'flat face', 'flat faces') + '?'
+            : 'Does the ' + nm + ' have ' + claim + ' ' + countN(claim, 'side', 'sides') + '?', truth, {
             b: lo,
-            explain: [nm + (focus.solid ? ': ' + sol[1] + ' It has ' + sol[2] + ' flat faces.' : ': ' + flat[2] + ' It has ' + flat[1] + ' sides.'), 'Compare with ' + claim + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+            explain: [nm + (focus.solid ? ': ' + sol[1] + ' It has ' + sol[2] + ' ' + countN(sol[2], 'flat face', 'flat faces') + '.' : ': ' + flat[2] + ' It has ' + flat[1] + ' ' + countN(flat[1], 'side', 'sides') + '.'), 'Compare with ' + claim + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
             teach: 'Know one shape well: its name, its sides, its corners.'
           });
         }
@@ -17398,7 +17459,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* classify a stated claim */
       function () {
-        var claim = useSolid ? article(sol[0]) + ' is flat.' : article(flat[0]) + ' has ' + (flat[1] + 1) + ' sides.';
+        var claim = useSolid ? article(sol[0]) + ' is flat.' : article(flat[0]) + ' has ' + (flat[1] + 1) + ' ' + countN(flat[1] + 1, 'side', 'sides') + '.';
         var truth = false;
         if (!useSolid && flat[1] === 0) { claim = article(flat[0]) + ' has no corners.'; truth = true; }
         return I_bool('Is this statement true?   ' + claim, truth, {
@@ -17504,7 +17565,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           teach: 'The odd one out is decided by one feature; check every candidate against it.'
         });
       }
-    ], lvl <= 2 ? [4, 4, 3, 2, 3, 3, 2, 0] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 3, 2] : [2, 3, 3, 3, 3, 3, 3, 4], shapeTask(sk));
+    ], lvl <= 2 ? [3, 3, 3, 3, 4, 4, 3, 2, 3, 3, 2, 0] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2] : [3, 3, 3, 3, 2, 3, 3, 3, 3, 3, 3, 4], shapeTask(sk));
   }, ['PK', 'K', 'G1', 'G2', 'G3']);
 
   /* ================================ statistics ============================ */
@@ -18655,8 +18716,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var flat = [], i;
     for (i = 0; i < scene.length; i++) { if (typeof scene[i] === 'string') flat.push(scene[i]); else flat = flat.concat(scene[i]); }
     var vis = typeof scene[0] === 'string'
-      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], noun: kind === 'insideOutside' ? 'toys' : null, label: P.label })
-      : V.grid({ rows: scene.length, cols: 1, cells: scene, noun: kind === 'insideOutside' ? 'toys' : null, label: P.label });
+      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], noun: kind === 'insideOutside' ? 'toys' : undefined, label: P.label })
+      : V.grid({ rows: scene.length, cols: 1, cells: scene, noun: kind === 'insideOutside' ? 'toys' : undefined, label: P.label });
     var teach = 'Position words describe where something is compared with something else; say which one you start from.';
     var nameOf = function (g) { var m = SHAPE.concat(COLOR).filter(function (t) { return t.g === g; })[0]; return m ? m.w : (g === '⬜' ? 'the empty box' : g === '📦' ? 'the box' : 'toy'); };
     /* What the picture actually shows, in the order it is read. Every answer
@@ -18799,7 +18860,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       },
       /* count the pictures in the scene */
       function () {
-        var n = boxed ? 2 : flat.length;
+        var n = flat.length;  /* the count answers what the picture draws, nothing more */
         return I_num(pick(rng, ['How many pictures are in the ' + group + '?', 'Count the pictures. How many are there?', 'How many pictures do you see in all?']), n, {
           visual: vis, b: -0.3,
           explain: ['Count the pictures one by one ' + (axis || '') + '.',
@@ -22821,6 +22882,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       seen[s] = 1; list.push(s);
     }
     if (list.length < 2) return null;
+    if (GLOB.DP && GLOB.DP.mergeMis) {   /* policy top-up to the band's option count, honest candidates only */
+      var merged = GLOB.DP.mergeMis({ band: 'G8' }, answer, list);
+      if (merged.length > list.length) list = merged;
+    }
     var out = R.shuffle(rng, [String(answer)].concat(list.slice(0, 3)));
     var idx = out.indexOf(String(answer));
     return I_choice(prompt, out, idx, oo);
@@ -69609,6 +69674,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function pick2(rng, arr) { return arr[R.int(rng, 0, arr.length - 1)]; }
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
+    if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis({ band: 'A1' }, answer, wrongs);
     var seen = {}, opts = [];
     var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -70428,6 +70494,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
+    if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis({ band: 'A2' }, answer, wrongs);
     var seen = {}, opts = [];
     var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -78609,6 +78676,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function pick2(rng, arr) { return arr[R.int(rng, 0, arr.length - 1)]; }
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
+    if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis({ band: 'G8' }, answer, wrongs);
     var seen = {}, opts = [];
     var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -80383,6 +80451,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   /* ---------------------------------------------------------------- helpers */
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
+    if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis({ band: 'GM' }, answer, wrongs);
     var seen = {}, opts = [];
     var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -83704,6 +83773,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function sgn(n) { return n < 0 ? '−' + Math.abs(n) : String(n); }
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
+    if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis({ band: 'MA' }, answer, wrongs);
     var seen = {}, opts = [];
     var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -83846,6 +83916,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function sgn(n) { return n < 0 ? '−' + Math.abs(n) : String(n); }
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
+    if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis({ band: 'PC' }, answer, wrongs);
     var seen = {}, opts = [];
     var push = function (v) { var s = String(v); if (!seen[s] && s !== '') { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -84663,7 +84734,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         [{ k: 'n', v: rd(s1, 2), tol: 0.02 }, { k: 'n', v: rd(s2, 3), tol: 0.02 }, { k: 'n', v: rd(s3, 4), tol: 0.05 }], {
           b: t + 0.12,
           hint: 'Each blank is [f(b) − f(' + a1 + ')] ⁄ (b − ' + a1 + ').',
-          explain: [['First slope: (' + rd(f2(a1 + 0.1), 2) + ' − ' + f2(a1) + ') ⁄ 0.1 = ' + rd(s1, 2) + '.'],
+          explain: ['First slope: (' + rd(f2(a1 + 0.1), 2) + ' − ' + f2(a1) + ') ⁄ 0.1 = ' + rd(s1, 2) + '.',
             'Next: ' + rd(s2, 3) + ', then ' + rd(s3, 4) + '.',
             'The three slopes <b>head toward one number</b> near ' + 2 * a1 + '.'],
           teach: 'Shrinking the interval turns a secant slope into a tangent slope.'
@@ -84974,13 +85045,22 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
      A symbolic answer keeps its own distractors; nothing is invented here. */
   DP.mergeMis = function (sk, answer, wrongs) {
     var p = POLICY[(sk && sk.band) || ''];
-    var out = (wrongs || []).slice();
+    var seen0 = {}, out = [], i0, s0;
+    var w0 = wrongs || [];
+    for (i0 = 0; i0 < w0.length; i0++) {   /* the generator's own honest wrongs, deduped */
+      s0 = String(w0[i0]);
+      if (!s0.length || s0 === 'undefined' || s0 === String(answer) || seen0[s0]) continue;
+      seen0[s0] = 1; out.push(s0);
+    }
     if (!p || p.tier < 10) return out;                       /* G8 and up only */
     var a = Number(String(answer).replace(/[, ]/g, ''));
     if (!isFinite(a) || Math.abs(a) > p.maxNum) return out;  /* symbolic, keep theirs */
     var extra = DP.misV(sk, a, [-a, a + 1, a - 1, a * 2, (a % 2 === 0 ? a / 2 : a + 3)], p.maxNum);
     var i;
-    for (i = 0; i < extra.length && out.length < p.options - 1; i++) out.push(extra[i]);
+    for (i = 0; i < extra.length && out.length < p.options - 1; i++) {
+      if (seen0[extra[i]]) continue;                        /* never print the same slip twice */
+      seen0[extra[i]] = 1; out.push(extra[i]);
+    }
     return out;
   };
   DP.say = function (sk, long, short) {
@@ -85054,9 +85134,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        different count than the card's answer — it cannot illustrate this task. */
     var shapes = ['pairs', 'fives', 'threes', 'array', 'scatter', 'frame', 'line', 'tally'];
     if (lim <= 4) shapes = ['array', 'scatter', 'pairs', 'line', 'tally'];   /* a five-frame for 3 is not a picture */
-    /* and a skill whose own title says "in rows" must actually show rows */
+    /* and a skill whose own title says "in rows" must actually show rows —
+       so this band picks ONLY models that draw two rows or more; the small
+       group shapes (pairs/fives/threes) collapse to one row for the counts
+       these skills draw, which is the contradiction the gate reports. */
     var rowsTitle = /in rows|in arrays|in circles|rows of/.test(low);
-    if (rowsTitle) shapes = ['pairs', 'fives', 'threes', 'array'];
+    if (rowsTitle) shapes = ['array'];
     var kind = R.pick(rng, shapes);
     var vis = null;
     if (kind === 'pairs' || kind === 'fives' || kind === 'rows') {
@@ -85084,7 +85167,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     } else if (kind === 'tally') {
       vis = V.tally(n, { label: 'count the ' + named(noun, n) + ' tally marks', noun: named(noun, n) });
     } else if (kind === 'scatter') {
-      var g = R.pick(rng, [[2, 3], [3, 3], [3, 4], [2, 4], [4, 3]]);
+      var g0 = [[2, 3], [3, 3], [3, 4], [2, 4], [4, 3]];
+      var fits = g0.filter(function (g2) { return g2[0] * g2[1] >= n; }); /* the grid must hold exactly n, never fewer */
+      if (!fits.length) return null;
+      var g = R.pick(rng, fits);
       vis = V.grid({ rows: g[0], cols: g[1], cells: scattered(rng, g[0], g[1], n, mark),
         label: 'count the ' + named(noun, n), noun: named(noun, n) });
     } else {
