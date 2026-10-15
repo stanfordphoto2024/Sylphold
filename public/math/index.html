@@ -8081,6 +8081,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* answer + plausible distractors -> shuffled I_choice (never duplicates) */
   function MC(rng, prompt, answer, wrongs, o) {
+    if (GLOB.DP && GLOB.DP.mc) {   /* K is a pick-first band: the policy builds the choices */
+      var pol = GLOB.DP.mc(rng, { band: 'K' }, prompt, answer, wrongs, o);
+      if (pol) return pol;
+    }
     var seen = {}, opts = [], idx = 0;
     var push = function (v) { var s = String(v); if (!seen[s]) { seen[s] = 1; opts.push(s); } };
     push(answer);
@@ -8362,7 +8366,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var obj = objWord(a + b, rng);
 
     if (mode === 0) {
-      return I_num(a + ' ' + obj + ' and ' + b + ' more — how many ' + obj + '?', a + b, {
+      return DP.mc(rng, { band: 'K' }, a + ' ' + obj + ' and ' + b + ' more — how many ' + obj + '?', a + b, [a + b + 1, a + b - 1, a], {
         visual: V.tenframe(a + b, { frames: 1, label: a + ' and ' + b }),
         teach: 'Joining two groups means counting on from the first number.',
         explain: ['Start with ' + a + '.', 'Count on ' + b + ' more: ' + (a + 1) + ' … ' + (a + b) + '.',
@@ -8372,7 +8376,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {
       var big = a + b, take = R.int(rng, 1, big);
-      return I_num(big + ' ' + obj + ', ' + take + ' are taken away — how many are left?', big - take, {
+      return DP.mc(rng, { band: 'K' }, big + ' ' + obj + ', ' + take + ' are taken away — how many are left?', big - take, [big - take + 1, big - take - 1, big], {
         visual: V.tenframe(big - take, { frames: 1, label: big + ' take away ' + take }),
         teach: 'Taking away leaves the part that is not removed.',
         explain: ['There were ' + big + '.', take + ' are taken away.',
@@ -8381,7 +8385,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 2) {
-      return I_num(a + ' + □ = ' + (a + b), b, {
+      return DP.mc(rng, { band: 'K' }, a + ' + □ = ' + (a + b), b, [b + 1, b - 1, a], {
         visual: V.numberbond([a, b], a + b),
         teach: 'The whole and one part are known, so the missing part is what counts on to the whole.',
         explain: ['The whole is ' + (a + b) + ' and one part is ' + a + '.',
@@ -8430,7 +8434,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var n = R.int(rng, lvl <= 2 ? 5 : 1, lvl <= 2 ? 9 : 9), mode = R.int(rng, 0, lvl <= 2 ? 3 : 6);
 
     if (mode === 0) {
-      return I_num(n + ' + □ = 10', 10 - n, {
+      return DP.mc(rng, { band: 'K' }, n + ' + □ = 10', 10 - n, [10 - n + 1, 10 - n - 1, n], {
         visual: V.tenframe(n, { frames: 1, label: n + ' of 10' }),
         teach: 'A ten-frame shows how many more squares are needed to make 10.',
         explain: ['The frame has ' + n + ' counters.', 'Empty squares: 10 − ' + n + ' = ' + (10 - n) + '.',
@@ -8476,8 +8480,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 5) {
       var have = R.int(rng, 1, 9);
-      return I_num('The ten-frame already holds ' + have + ' counters. How many more to fill the frame of 10?',
-        10 - have, {
+      return DP.mc(rng, { band: 'K' }, 'The ten-frame already holds ' + have + ' counters. How many more to fill the frame of 10?',
+        10 - have, [10 - have + 1, 10 - have - 1, have], {
           visual: V.tenframe(have, { frames: 1, label: have + ' in, ' + (10 - have) + ' to go' }),
           teach: 'A full ten-frame is 10, so the empty squares tell you what is missing.',
           explain: ['Counters in the frame: ' + have + '.', 'Empty squares: ' + (10 - have) + '.',
@@ -8512,7 +8516,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var obj = objWord(a + b, rng);
 
     if (mode === 0) {
-      return I_num('Solve: ' + a + ' + ' + b + ' =', a + b, {
+      return DP.mc(rng, { band: 'K' }, 'Solve: ' + a + ' + ' + b + ' =', a + b, [a + b + 1, a + b - 1, a], {
         visual: V.tenframe(a + b, { frames: 1, label: a + ' + ' + b }),
         teach: 'Count on from the larger number to add — the larger number is already counted.',
         explain: ['The larger number is ' + (a > b ? a : b) + '.',
@@ -8523,7 +8527,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {
       var big = a + b, t = R.int(rng, 1, big);
-      return I_num('Solve: ' + big + ' − ' + t + ' =', big - t, {
+      return DP.mc(rng, { band: 'K' }, 'Solve: ' + big + ' − ' + t + ' =', big - t, [big - t + 1, big - t - 1, big], {
         visual: V.tenframe(big - t, { frames: 1, label: big + ' − ' + t }),
         teach: 'Subtract within 10 by counting back from the larger number, or by asking what adds back up.',
         explain: ['Start at ' + big + '.', 'Count back ' + t + ': ' + (big - 1) + ' … ' + (big - t) + '.',
@@ -8535,7 +8539,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var pos = R.int(rng, 0, 2), tot = a + b;
       var prompt = pos === 0 ? '□ + ' + b + ' = ' + tot : (pos === 1 ? a + ' + □ = ' + tot : tot + ' − □ = ' + a);
       var ans = pos === 0 ? a : (pos === 1 ? b : b);
-      return I_num(prompt, ans, {
+      return DP.mc(rng, { band: 'K' }, prompt, ans, [ans + 1, ans - 1, tot], {
         visual: V.numberbond([pos === 0 ? a : b, pos === 0 ? b : a], tot),
         teach: 'An unknown in an addition is the part you must count on to reach the whole.',
         explain: ['The whole is ' + tot + ' and one part is ' + (pos === 0 ? b : a) + '.',
@@ -8567,7 +8571,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     var c = R.int(rng, 1, 5);
-    return I_num('Three equal parts: ' + c + ' + ' + c + ' + ' + c + ' =', 3 * c, {
+    return DP.mc(rng, { band: 'K' }, 'Three equal parts: ' + c + ' + ' + c + ' + ' + c + ' =', 3 * c, [3 * c + 1, 3 * c - 1, 2 * c], {
       visual: V.tenframe(3 * c, { frames: Math.max(1, Math.ceil(3 * c / 10)), label: 'three equal parts' }),
       teach: 'Adding the same number three times is repeated addition.',
       explain: [c + ' + ' + c + ' = ' + 2 * c + '.', 2 * c + ' + ' + c + ' = ' + 3 * c + '.',
@@ -8589,8 +8593,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {
       var got = R.int(rng, 1, Math.max(1, maxn - a));
-      return I_num(who1 + ' has ' + a + ' ' + plur + '. ' + who2 + ' gives ' + who1 + ' ' + got +
-        ' more. How many now?', a + got, {
+      return DP.mc(rng, { band: 'K' }, who1 + ' has ' + a + ' ' + plur + '. ' + who2 + ' gives ' + who1 + ' ' + got +
+        ' more. How many now?', a + got, [a + got + 1, a + got - 1, a], {
         sub: 'Add-to story: the group grows.',
         visual: V.tenframe(a + got, { frames: 1, label: a + ' + ' + got }),
         teach: 'In an add-to story the group grows, so the answer is found by counting on.',
@@ -8601,8 +8605,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {
       var start = Math.max(a, b + 1), left = start - b;
-      return I_num('There were ' + start + ' ' + plur + ' in a bowl. ' + who1 + ' took ' + b +
-        ' away. How many are left?', left, {
+      return DP.mc(rng, { band: 'K' }, 'There were ' + start + ' ' + plur + ' in a bowl. ' + who1 + ' took ' + b +
+        ' away. How many are left?', left, [left + 1, left - 1, start], {
         sub: 'Take-from story: the group shrinks.',
         visual: V.tenframe(left, { frames: 1, label: start + ' − ' + b }),
         teach: 'In a take-from story you count back from the starting number.',
@@ -8613,8 +8617,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {
       var have = R.int(rng, 1, maxn - 2), want = have + R.int(rng, 1, Math.max(1, maxn - have));
-      return I_num(who1 + ' has ' + have + ' ' + plur + ' but wants ' + want +
-        '. How many more does ' + who1 + ' need?', want - have, {
+      return DP.mc(rng, { band: 'K' }, who1 + ' has ' + have + ' ' + plur + ' but wants ' + want +
+        '. How many more does ' + who1 + ' need?', want - have, [want - have + 1, want - have - 1, have], {
         sub: 'Count-up story: find the missing amount.',
         visual: V.numberbond([have, want - have], want),
         teach: 'To find how many more, count up from what you have to what you want.',
@@ -8650,8 +8654,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     var g = R.int(rng, 2, 5), each = R.int(rng, 1, 2);
-    return I_num(who1 + ' lines up ' + g + ' ' + plur + ' in ' + g + ' rows with ' + each +
-      ' in each row. How many ' + plur + '?', g * each, {
+    return DP.mc(rng, { band: 'K' }, who1 + ' lines up ' + g + ' ' + plur + ' in ' + g + ' rows with ' + each +
+      ' in each row. How many ' + plur + '?', g * each, [g * each + 1, g * each - 1, g], {
       visual: V.array(g, each, { label: g + ' rows of ' + each }),
       teach: 'Equal rows can be counted by adding the same number for each row.',
       explain: ['Each row has ' + each + '.', g + ' rows: ' + R.range(g).map(function () { return each; }).join(' + ') + '.',
@@ -8674,7 +8678,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var tens = Math.floor(n / 10), ones = n % 10, mode = R.int(rng, 0, lvl <= 2 ? 3 : 9);
 
     if (mode === 0) {
-      return I_num(lead + ': ' + n + ' = ' + tens + ' ten and □ one', ones, {
+      return DP.mc(rng, { band: 'K' }, lead + ': ' + n + ' = ' + tens + ' ten and □ one', ones, [ones + 1, ones - 1, n], {
         visual: V.blocks(0, tens, ones),
         teach: 'A teen number is one ten and some ones.',
         explain: ['' + n + ' has ' + tens + ' group of ten.', 'The leftover ones: ' + n + ' − ' + tens * 10 + ' = ' + ones + '.',
@@ -8683,7 +8687,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 1) {
-      return I_num(lead + ': ' + tens + ' tens and ' + ones + ' ones = ?', n, {
+      return DP.mc(rng, { band: 'K' }, lead + ': ' + tens + ' tens and ' + ones + ' ones = ?', n, [n + 1, n - 1, tens * 10], {
         visual: V.blocks(0, tens, ones),
         teach: 'Combine the tens and the ones to write the number.',
         explain: [tens + ' ten = ' + tens * 10 + '.', tens * 10 + ' + ' + ones + ' = ' + n,
@@ -8703,7 +8707,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 3) {
       var add = R.int(rng, 2, 9);
-      return I_num('Add with tens and ones: ' + n + ' ' + obj + ' plus ' + add + ' more =', n + add, {
+      return DP.mc(rng, { band: 'K' }, 'Add with tens and ones: ' + n + ' ' + obj + ' plus ' + add + ' more =', n + add, [n + add + 1, n + add - 1, n], {
         visual: V.blocks(0, Math.floor((n + add) / 10), (n + add) % 10),
         teach: 'Add the ones first; when the ones reach 10, make another ten.',
         explain: ['Ones: ' + ones + ' + ' + add + ' = ' + (ones + add),
@@ -8726,7 +8730,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 5) {
-      return I_num('How many tens are in ' + n + ' ' + obj + '?', tens, {
+      return DP.mc(rng, { band: 'K' }, 'How many tens are in ' + n + ' ' + obj + '?', tens, [tens + 1, tens - 1, ones], {
         visual: V.blocks(0, tens, ones),
         teach: 'Only a full group of ten counts as a ten; leftover ones do not.',
         explain: ['Make groups of ten from ' + n + '.', tens * 10 + ' is the biggest ten-group inside ' + n + '.',
@@ -8735,7 +8739,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 6) {
-      return I_num(who + ' counts ' + n + ' ' + obj + ' and circles groups of ten. How many are left over?', ones, {
+      return DP.mc(rng, { band: 'K' }, who + ' counts ' + n + ' ' + obj + ' and circles groups of ten. How many are left over?', ones, [ones + 1, ones - 1, n], {
         visual: V.blocks(0, tens, ones),
         teach: 'The leftovers after circling tens are the ones digit.',
         explain: [who + ' circles ' + tens + ' group of ten = ' + tens * 10 + '.',
@@ -8762,7 +8766,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         b: 0.5
       });
     }
-    return I_num('Write the number: ' + tens * 10 + ' + ' + ones + ' =', n, {
+    return DP.mc(rng, { band: 'K' }, 'Write the number: ' + tens * 10 + ' + ' + ones + ' =', n, [n + 1, n - 1, tens * 10], {
       visual: V.blocks(0, tens, ones),
       teach: 'Expanded form adds the tens part and the ones part to rebuild the number.',
       explain: [tens * 10 + ' is ' + tens + ' tens.', 'Add ' + ones + ' ones.', 'Number: <b>' + n + '</b>'],
@@ -8779,8 +8783,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var n = R.int(rng, lvl <= 2 ? 2 : 3, lvl <= 2 ? 6 : 9), other = R.int(rng, 1, 9);
 
     if (mode === 0) {
-      return I_num('A ' + item + ' is measured with ' + unit + '. It spans ' + n + ' ' + unit +
-        '. How many ' + unit + ' long is it?', n, {
+      return DP.mc(rng, { band: 'K' }, 'A ' + item + ' is measured with ' + unit + '. It spans ' + n + ' ' + unit +
+        '. How many ' + unit + ' long is it?', n, [n + 1, n - 1, n + other], {
         sub: 'Line the ' + unit + ' up end to end with no gaps.',
         teach: 'Measuring means counting how many copies of one unit fit along the object.',
         explain: ['Each ' + unit + ' is one unit of length.', 'Count the ' + unit + ': ' + n + '.',
@@ -8810,9 +8814,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 3) {
       var gap = R.int(rng, 1, 3);
-      return I_num('The ' + unit + ' were placed with a gap of ' + gap +
+      return DP.mc(rng, { band: 'K' }, 'The ' + unit + ' were placed with a gap of ' + gap +
         ' ' + unit + ' in the middle, and you counted ' + n + ' total. How many ' + unit +
-        ' actually cover the ' + item + '?', n - gap, {
+        ' actually cover the ' + item + '?', n - gap, [n, n - gap + 1, n - gap - 1], {
         sub: 'Gaps are not part of the object.',
         teach: 'A correct measurement leaves no gaps or overlaps between units.',
         explain: ['Counted ' + unit + ': ' + n, 'Gap that should not be counted: ' + gap,
@@ -8851,7 +8855,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 1) {
-      return I_num('There are ' + a + ' ' + c[0] + ' and ' + b + ' ' + c[1] + '. How many objects in all?', a + b, {
+      return DP.mc(rng, { band: 'K' }, 'There are ' + a + ' ' + c[0] + ' and ' + b + ' ' + c[1] + '. How many objects in all?', a + b, [a + b + 1, a + b - 1, a], {
         visual: V.bars([{ label: c[0], v: a }, { label: c[1], v: b }], {}),
         teach: 'The total is the sum of the two category counts.',
         explain: [c[0] + ': ' + a, c[1] + ': ' + b, a + ' + ' + b + ' = <b>' + (a + b) + '</b>'],
@@ -8869,7 +8873,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 3) {
       var diff = Math.abs(a - b);
-      return I_num('How many more ' + (a >= b ? c[0] : c[1]) + ' than ' + (a >= b ? c[1] : c[0]) + '?', diff, {
+      return DP.mc(rng, { band: 'K' }, 'How many more ' + (a >= b ? c[0] : c[1]) + ' than ' + (a >= b ? c[1] : c[0]) + '?', diff, [diff + 1, diff - 1, Math.max(a, b)], {
         visual: V.bars([{ label: c[0], v: a }, { label: c[1], v: b }], {}),
         teach: 'How many more is found by subtracting the smaller count from the larger count.',
         explain: ['Larger count: ' + Math.max(a, b), 'Smaller count: ' + Math.min(a, b),
@@ -8918,7 +8922,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 2) {
       var sides = R.pick(rng, [3, 4, 6]);
       var name = sides === 3 ? 'triangle' : sides === 4 ? 'square' : 'hexagon';
-      return I_num('How many sides does a ' + name + ' have?', sides, {
+      return DP.mc(rng, { band: 'K' }, 'How many sides does a ' + name + ' have?', sides, [sides + 1, sides - 1, sides * 2], {
         visual: V.grid({ rows: 1, cols: 1, cells: [['\u25CF']], noun: name, label: 'the ' + name + ' shown' }),
         teach: 'Counting sides and corners is how shapes are sorted into families.',
         explain: ['A ' + name + ' has ' + sides + ' sides.', 'Trace around to count them: ' + sides + '.',
@@ -8936,7 +8940,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {
       var need = R.pick(rng, [2, 4]);
-      return I_num('How many small squares does it take to build a big square?', need === 2 ? 4 : 4, {
+      return DP.mc(rng, { band: 'K' }, 'How many small squares does it take to build a big square?', need === 2 ? 4 : 4, [2, 6, 3], {
         sub: 'Use whole squares only, no cutting.',
         teach: 'A square needs equal sides, so small squares must fill both directions.',
         explain: ['One row of 2 squares is a rectangle, not a square.', 'Two rows of 2 squares make a square.',
@@ -9023,9 +9027,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {                                    /* add-to */
       var th = they(rng, w); th = th.charAt(0).toUpperCase() + th.slice(1);
-      return I_num(pick(rng, CTX) + ', ' + w + ' has ' + a + ' ' + o1 + '. ' +
+      return MC(rng, pick(rng, CTX) + ', ' + w + ' has ' + a + ' ' + o1 + '. ' +
         th + ' gets ' + b + ' more. How many ' + o1 + ' now?',
-        a + b, {
+        a + b, [a + b + 1, a + b - 1, b], {
           visual: V.tenframe(a + b, { label: 'count them all' }),
           teach: 'Counting on from the bigger number is faster than starting again at 1.',
           explain: ['Start at the bigger number, <b>' + Math.max(a, b) + '</b>.',
@@ -9036,8 +9040,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {                                    /* take-from */
       var t = a + b;
-      return I_num(w + ' had ' + t + ' ' + o1 + '. ' + b + ' were used up. How many ' + o1 + ' are left?',
-        t - b, {
+      return MC(rng, w + ' had ' + t + ' ' + o1 + '. ' + b + ' were used up. How many ' + o1 + ' are left?',
+        t - b, [t - b + 1, t - b - 1, t], {
           visual: V.tenframe(t - b, { frames: Math.ceil(t / 10), label: t + ' to start' }),
           teach: 'Taking away means counting back from the starting number.',
           explain: ['Start at ' + t + '.', 'Count back ' + b + ': ' + (t - 1) + ', ' + (t - 2) + ' …',
@@ -9048,8 +9052,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 2) {                                    /* compare — how many more */
       var hi2 = cap(a + b, a + 2, big + 9), lo2 = a;
       var more = hi2 - lo2;
-      return I_num(pick(rng, CTX) + ': ' + hi2 + ' ' + obj(rng) + ' and ' + lo2 + ' ' + obj(rng) +
-        '. How many more of the first group?', more, {
+      return MC(rng, pick(rng, CTX) + ': ' + hi2 + ' ' + obj(rng) + ' and ' + lo2 + ' ' + obj(rng) +
+        '. How many more of the first group?', more, [more + 1, more - 1, lo2], {
           teach: 'To compare two numbers, count up from the smaller one to the bigger one.',
           explain: ['The smaller number is ' + lo2 + ' and the bigger is ' + hi2 + '.',
             'Count up from ' + lo2 + ' to ' + hi2 + ': that is ' + more + ' steps.',
@@ -9071,8 +9075,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {                                    /* missing addend story */
       var tot = cap(a + b, 6, big + 6);
-      return I_num(w + ' wants ' + tot + ' ' + o1 + ' for the class. ' + w + ' already has ' + a +
-        '. How many more does ' + they(rng, w) + ' need?', tot - a, {
+      return MC(rng, w + ' wants ' + tot + ' ' + o1 + ' for the class. ' + w + ' already has ' + a +
+        '. How many more does ' + they(rng, w) + ' need?', tot - a, [tot - a + 1, tot - a - 1, a], {
           teach: 'A missing part is found by counting up from the part you know to the whole.',
           explain: ['You know ' + a + ' and the total ' + tot + '.',
             'Count up from ' + a + ' to ' + tot + '.',
@@ -9103,8 +9107,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 7 — number line jump */
     var start = R.int(rng, 4, 13), jump = R.int(rng, 2, 7);
-    return I_num('Start at ' + start + ' on the number line and jump ' + jump + ' to the right. Where do you land?',
-      start + jump, {
+    return MC(rng, 'Start at ' + start + ' on the number line and jump ' + jump + ' to the right. Where do you land?',
+      start + jump, [start + jump + 1, start + jump - 1, jump], {
         visual: V.numline(0, cap(start + jump + 2, 10, 20), [{ x: start, label: 'start' }, { x: start + jump, arrow: true, label: 'land' }]),
         teach: 'Adding means moving right on the number line; each jump is one more.',
         explain: ['Begin at <b>' + start + '</b>.', 'Move ' + jump + ' steps right.',
@@ -9137,7 +9141,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* associative */
       var x = R.int(rng, 2, 5), y = R.int(rng, 2, 6), z = R.int(rng, 2, cap(10 - x - y, 2, 6));
-      return I_num('(' + x + ' + ' + y + ') + ' + z + ' = ' + x + ' + (? + ' + z + ')', y, {
+      return MC(rng, '(' + x + ' + ' + y + ') + ' + z + ' = ' + x + ' + (? + ' + z + ')', y, [y + 1, y - 1, x + z], {
         teach: 'Grouping addends differently never changes the sum — that is the associative property.',
         explain: ['Left side: ' + x + ' + ' + y + ' = ' + (x + y) + ', then + ' + z + ' = ' + (x + y + z) + '.',
           'Right side must reach the same ' + (x + y + z) + '.',
@@ -9156,8 +9160,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {                        /* doubles */
       var d = R.int(rng, 3, 10);
-      return I_num('You know ' + d + ' + ' + d + ' = ' + (2 * d) + '. What is ' + d + ' + ' + (d + 1) + '?',
-        2 * d + 1, {
+      return MC(rng, 'You know ' + d + ' + ' + d + ' = ' + (2 * d) + '. What is ' + d + ' + ' + (d + 1) + '?',
+        2 * d + 1, [2 * d, 2 * d + 2, d + 1], {
           visual: V.array(2, d, { label: 'double ' + d }),
           teach: 'A near-double is just the double plus one more.',
           explain: ['Double ' + d + ' is ' + (2 * d) + '.', d + ' + ' + (d + 1) + ' is one more than that.',
@@ -9191,7 +9195,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {                        /* balance both sides */
       var l = a + b, r = cap(l - R.int(rng, 1, 4), 1, 20);
-      return I_num(l + ' = ' + r + ' + ?', l - r, {
+      return MC(rng, l + ' = ' + r + ' + ?', l - r, [l - r + 1, l - r - 1, r], {
         visual: V.numberbond([r, l - r], l),
         teach: 'Both sides of the equals sign must have the same total.',
         explain: ['The left side is ' + l + '.', 'One part on the right is ' + r + '.',
@@ -9201,7 +9205,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {                        /* unknown first */
       var tot = a + b;
-      return I_num('? + ' + b + ' = ' + tot, a, {
+      return MC(rng, '? + ' + b + ' = ' + tot, a, [a + 1, a - 1, b], {
         teach: 'The unknown can sit anywhere; count up from the number you know.',
         explain: ['The total is ' + tot + ' and one addend is ' + b + '.',
           'Count up from ' + b + ' to ' + tot + '.', 'The missing number is <b>' + a + '</b>.'],
@@ -9210,7 +9214,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* subtraction unknown */
       var st = cap(a + b, 6, 20), take = b;
-      return I_num(st + ' - ? = ' + (st - take), take, {
+      return MC(rng, st + ' - ? = ' + (st - take), take, [take + 1, take - 1, st], {
         teach: 'In a subtraction, the missing subtrahend is the difference between the start and the answer.',
         explain: ['Start ' + st + ', end ' + (st - take) + '.',
           'How much was taken off? ' + st + ' - ' + (st - take) + ' = <b>' + take + '</b>.'],
@@ -9238,7 +9242,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 5) {                        /* three addends */
       var x = R.int(rng, 2, 6), y = R.int(rng, 2, 6), z = R.int(rng, 2, 6);
-      return I_num(x + ' + ' + y + ' + ' + z + ' =', x + y + z, {
+      return MC(rng, x + ' + ' + y + ' + ' + z + ' =', x + y + z, [x + y + z + 1, x + y + z - 1, x + y], {
         teach: 'Add two numbers first — making a ten inside three addends keeps it easy.',
         explain: ['Look for a ten: ' + x + ' + ' + y + ' = ' + (x + y) + '.',
           'Then add ' + z + ': ' + (x + y) + ' + ' + z + ' = <b>' + (x + y + z) + '</b>.'],
@@ -9263,7 +9267,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var w = who(rng), o1 = obj(rng), o2 = obj(rng), mode = R.int(rng, 0, lvl >= 4 ? 6 : 4);
 
     if (mode === 0) {
-      return I_num('Count on: start at ' + a + ' and count on ' + b + ' more.', a + b, {
+      return MC(rng, 'Count on: start at ' + a + ' and count on ' + b + ' more.', a + b, [a + b + 1, a + b - 1, a], {
         visual: V.numline(0, cap(a + b + 1, 10, 20), [{ x: a, label: 'start' }, { x: a + b, arrow: true }]),
         teach: 'Keep the big number in your head and count on — you do not recount from 1.',
         explain: ['Hold ' + a + ' in your head.', 'Count on ' + b + ' more.',
@@ -9281,8 +9285,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {
       var t = cap(a + b, 8, hi + 6);
-      return I_num('There were some ' + o1 + ' in the bag. ' + b + ' more went in and now there are ' + t +
-        '. How many ' + o1 + ' were in the bag at first?', t - b, {
+      return MC(rng, 'There were some ' + o1 + ' in the bag. ' + b + ' more went in and now there are ' + t +
+        '. How many ' + o1 + ' were in the bag at first?', t - b, [t - b + 1, t - b - 1, t], {
           teach: 'When the start is unknown, work backwards: total minus the change.',
           explain: ['End: ' + t + '. Change: +' + b + '.', 'Undo it: ' + t + ' - ' + b + ' = <b>' + (t - b) + '</b>.'],
           b: 0.5
@@ -9295,7 +9299,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var big3 = Math.max(a, b), sm3 = Math.min(a, b);
       if (sm3 === big3) sm3 = Math.max(0, big3 - 1);
       var d = big3 - sm3;
-      return I_num(w + ' collected ' + big3 + ' ' + o1 + '. A friend collected ' + sm3 + '. How many fewer did the friend collect?', d, {
+      return MC(rng, w + ' collected ' + big3 + ' ' + o1 + '. A friend collected ' + sm3 + '. How many fewer did the friend collect?', d, [d + 1, d - 1, big3], {
         teach: 'The difference tells how many fewer — count down from the bigger number.',
         explain: ['Bigger: ' + big3 + ', smaller: ' + sm3 + '.', big3 + ' - ' + sm3 + ' = <b>' + d + '</b>.']
       });
@@ -9344,7 +9348,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var st = R.int(rng, 2, hi - 12), seq = [], gap = R.int(rng, 0, 3);
       for (var i = 0; i < 5; i++) seq.push(st + i);
       var shown = seq.map(function (v, j) { return j === gap ? '___' : String(v); });
-      return I_num('Fill the missing number:  ' + shown.join(', '), st + gap, {
+      return MC(rng, 'Fill the missing number:  ' + shown.join(', '), st + gap, [st + gap + 1, st + gap - 1, st], {
         teach: 'In a counting sequence each step adds one more than the number before.',
         explain: ['Read the numbers around the blank.', 'The number before it is ' + (st + gap - 1) + '.',
           'One more is <b>' + (st + gap) + '</b>.']
@@ -9352,8 +9356,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {                        /* before / after */
       var m2 = R.int(rng, 10, hi - 2), askAfter = chance(rng, 0.5);
-      return I_num('Which number comes right ' + (askAfter ? 'after' : 'before') + ' ' + m2 + '?',
-        askAfter ? m2 + 1 : m2 - 1, {
+      return MC(rng, 'Which number comes right ' + (askAfter ? 'after' : 'before') + ' ' + m2 + '?',
+        askAfter ? m2 + 1 : m2 - 1, [m2 + 1, m2 - 1, m2 + 2], {
           teach: 'The next number is one more; the previous number is one less.',
           explain: ['Start at ' + m2 + '.', (askAfter ? 'One more is ' + (m2 + 1) : 'One less is ' + (m2 - 1)) + '.',
             'The number is <b>' + (askAfter ? m2 + 1 : m2 - 1) + '</b>.']
@@ -9390,7 +9394,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var step = pick(rng, [5, 10]), s0 = R.int(rng, 1, 6) * step;
       var list = [s0, s0 + step, s0 + 2 * step], gapIdx = R.int(rng, 0, 2);
       var shown2 = list.map(function (v, j) { return j === gapIdx ? '___' : String(v); });
-      return I_num('Skip counting by ' + step + 's:  ' + shown2.join(', '), s0 + gapIdx * step, {
+      return MC(rng, 'Skip counting by ' + step + 's:  ' + shown2.join(', '), s0 + gapIdx * step, [s0 + gapIdx * step + step, s0 + gapIdx * step - step, s0 + gapIdx * step + 1], {
         teach: 'Skip counting adds the same amount each jump, so the pattern stays the same.',
         explain: ['Each jump adds ' + step + '.', 'The missing jump lands on <b>' + (s0 + gapIdx * step) + '</b>.'],
         b: step === 10 ? -0.2 : 0.3
@@ -9398,8 +9402,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 6) {                        /* 10 more / 10 less */
       var v2 = R.int(rng, 15, hi - 10), more = chance(rng, 0.5);
-      return I_num('What number is 10 ' + (more ? 'more' : 'less') + ' than ' + v2 + '?',
-        more ? v2 + 10 : v2 - 10, {
+      return MC(rng, 'What number is 10 ' + (more ? 'more' : 'less') + ' than ' + v2 + '?',
+        more ? v2 + 10 : v2 - 10, [v2, v2 + (more ? 10 : -10) + 1, v2 + (more ? 10 : -10) - 1], {
           visual: V.blocks(Math.floor((more ? v2 + 10 : v2 - 10) / 100), Math.floor(((more ? v2 + 10 : v2 - 10) % 100) / 10), (more ? v2 + 10 : v2 - 10) % 10),
           teach: 'Adding or taking 10 changes only the tens digit.',
           explain: [v2 + ' has ' + Math.floor(v2 / 10) + ' tens.',
@@ -9441,7 +9445,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
     }
     if (mode === 2) {                        /* expanded form */
-      return I_num(t * 10 + ' + ' + o + ' =', n, {
+      return MC(rng, t * 10 + ' + ' + o + ' =', n, [t * 10 + o + 1, t * 10 + o - 1, o * 10 + t], {
         teach: 'Expanded form shows the value of each digit before adding them.',
         explain: ['The tens part is ' + (t * 10) + '.', 'The ones part is ' + o + '.',
           'Add them: <b>' + n + '</b>.']
@@ -9478,7 +9482,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
     }
     if (mode === 6) {                        /* number bond tens/ones */
-      return I_num('A number bond shows ' + n + ' as ' + (t * 10) + ' and what?', o, {
+      return MC(rng, 'A number bond shows ' + n + ' as ' + (t * 10) + ' and what?', o, [o + 1, o - 1, t * 10], {
         visual: V.numberbond([t * 10, o], n),
         teach: 'A number bond splits a number into its tens part and its ones part.',
         explain: ['Whole: ' + n + '.', 'One part: ' + (t * 10) + '.',
@@ -9487,7 +9491,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 7 — what number is missing in the tens */
     var t3 = R.int(rng, 2, 9), o3 = R.int(rng, 0, 9);
-    return I_num('___' + o3 + ' = ' + (t3 * 10 + o3) + '   (fill the tens digit)', t3, {
+    return MC(rng, '___' + o3 + ' = ' + (t3 * 10 + o3) + '   (fill the tens digit)', t3, [t3 + 1, t3 - 1, o3], {
       teach: 'The tens digit tells how many groups of ten the number contains.',
       explain: [t3 * 10 + o3 + ' minus its ones ' + o3 + ' leaves ' + (t3 * 10) + '.',
         (t3 * 10) + ' is ' + t3 + ' tens.', 'The missing digit is <b>' + t3 + '</b>.'],
@@ -9504,7 +9508,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {                        /* multiples of ten */
       var u1 = R.int(rng, 1, 8) * 10, u2 = R.int(rng, 1, cap(9 - u1 / 10, 1, 8)) * 10;
-      return I_num(u1 + ' + ' + u2 + ' =', u1 + u2, {
+      return MC(rng, u1 + ' + ' + u2 + ' =', u1 + u2, [u1 + u2 + 1, u1 + u2 - 1, u1], {
         teach: 'Add the tens digits, then write a zero — tens behave like ones.',
         explain: ['Ignore the zeros: ' + (u1 / 10) + ' + ' + (u2 / 10) + ' = ' + ((u1 + u2) / 10) + '.',
           'Those are tens, so the sum is <b>' + (u1 + u2) + '</b>.'],
@@ -9512,7 +9516,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       });
     }
     if (mode === 1) {                        /* 2-digit + multiple of ten */
-      return I_num(A + ' + ' + B + ' =', A + B, {
+      return MC(rng, A + ' + ' + B + ' =', A + B, [A + B + 1, A + B - 1, A], {
         visual: V.blocks(Math.floor((A + B) / 100), Math.floor(((A + B) % 100) / 10), (A + B) % 10),
         teach: 'Add the tens to the tens and keep the ones the same.',
         explain: [A + ' is ' + t1 + ' tens and ' + o1 + ' ones.',
@@ -9523,7 +9527,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* 2-digit - multiple of ten */
       var C = cap(A + B, 30, 99);
-      return I_num(C + ' - ' + B + ' =', C - B, {
+      return MC(rng, C + ' - ' + B + ' =', C - B, [C - B + 1, C - B - 1, C], {
         teach: 'Taking away tens changes only the tens digit.',
         explain: [C + ' has ' + Math.floor(C / 10) + ' tens.', 'Take away ' + t2 + ' tens → ' +
           (Math.floor(C / 10) - t2) + ' tens.', 'Result: <b>' + (C - B) + '</b>.']
@@ -9531,7 +9535,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 3) {                        /* regrouping sum at higher lvl */
       var x = R.int(rng, 25, 58), y = R.int(rng, 15, cap(99 - x, 15, 40));
-      return I_num(x + ' + ' + y + ' =', x + y, {
+      return MC(rng, x + ' + ' + y + ' =', x + y, [x + y + 1, x + y - 1, x], {
         teach: 'Add the tens, add the ones, then regroup the extra ten.',
         explain: ['Tens: ' + Math.floor(x / 10) * 10 + ' + ' + Math.floor(y / 10) * 10 + ' = ' +
           (Math.floor(x / 10) + Math.floor(y / 10)) * 10 + '.',
@@ -9542,8 +9546,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {                        /* 100 more / less */
       var v = R.int(rng, 5, 90), more = chance(rng, 0.5);
-      return I_num('What number is 100 ' + (more ? 'more' : 'less') + ' than ' + v + '?',
-        more ? v + 100 : v - 100, {
+      return MC(rng, 'What number is 100 ' + (more ? 'more' : 'less') + ' than ' + v + '?',
+        more ? v + 100 : v - 100, [v, v + (more ? 100 : -100) + 1, v + (more ? 100 : -100) - 1], {
           teach: 'Adding 100 only changes the hundreds digit.',
           explain: [v + ' has no hundreds.', more ? 'Add 1 hundred → ' + (v + 100) : 'Take 1 hundred from ' + (v + 100) + ' → ' + v,
             'Answer: <b>' + (more ? v + 100 : v - 100) + '</b>.']
@@ -9551,8 +9555,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 5) {                        /* story, no units */
       var s1 = R.int(rng, 20, 60), s2 = R.int(rng, 10, cap(99 - s1, 10, 30)), w = who(rng);
-      return I_num(pick(rng, CTX) + ', ' + w + ' counted ' + s1 + ' ' + obj(rng) + ' and a friend counted ' +
-        s2 + '. How many in all?', s1 + s2, {
+      return MC(rng, pick(rng, CTX) + ', ' + w + ' counted ' + s1 + ' ' + obj(rng) + ' and a friend counted ' +
+        s2 + '. How many in all?', s1 + s2, [s1 + 1, s1 - 1, s1], {
           teach: 'Finding a total of two groups means adding, no matter how big the numbers get.',
           explain: ['Round ' + s1 + ' to the next ten: ' + (Math.ceil(s1 / 10) * 10) + '.',
             'Then add the rest: ' + (Math.ceil(s1 / 10) * 10) + ' + ' + (s2 - (Math.ceil(s1 / 10) * 10 - s1)) + '.',
@@ -9562,7 +9566,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 6) {                        /* missing addend with tens */
       var tot = R.int(rng, 40, 95), p = R.int(rng, 10, tot - 10);
-      return I_num(p + ' + ___ = ' + tot, tot - p, {
+      return MC(rng, p + ' + ___ = ' + tot, tot - p, [tot - p + 1, tot - p - 1, p], {
         teach: 'Subtract the part you know from the total to find the missing part.',
         explain: ['Total ' + tot + ', known part ' + p + '.', tot + ' - ' + p + ' = <b>' + (tot - p) + '</b>.']
       });
@@ -9579,8 +9583,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 8) {                        /* take-away story, regrouping */
       var start = R.int(rng, 42, 90), off = R.int(rng, 13, cap(start - 20, 13, 35)), w2 = who(rng);
-      return I_num(pick(rng, CTX) + ': ' + w2 + ' had ' + start + ' ' + obj(rng) + ' and gave away ' + off +
-        '. How many are left?', start - off, {
+      return MC(rng, pick(rng, CTX) + ': ' + w2 + ' had ' + start + ' ' + obj(rng) + ' and gave away ' + off +
+        '. How many are left?', start - off, [start - off + 1, start - off - 1, start], {
           teach: 'Take the tens away first, then the ones; if the ones run out, ungroup a ten.',
           explain: ['Start with ' + start + '.', 'Take ' + Math.floor(off / 10) * 10 + ' first: ' + (start - Math.floor(off / 10) * 10) + '.',
             'Then take ' + (off % 10) + ' ones: <b>' + (start - off) + '</b>.'],
@@ -9619,8 +9623,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {                        /* measure by iterating units */
       var n = R.int(rng, 3, lvl >= 3 ? 12 : 8);
-      return I_num('Measure the ' + thing + ' with ' + tool + ': it takes ' + n + ' end to end. How many ' + tool + ' long is it?',
-        n, {
+      return MC(rng, 'Measure the ' + thing + ' with ' + tool + ': it takes ' + n + ' end to end. How many ' + tool + ' long is it?',
+        n, [n + 1, n - 1, n], {
           visual: V.area(1, n, { label: n + ' ' + tool + ' in a row, no gaps' }),
           teach: 'Measuring means lining up identical units with no gaps and no overlaps, then counting them.',
           explain: ['Line the ' + tool + ' up from one end of the ' + thing + '.',
@@ -9643,8 +9647,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* difference in units */
       var x = R.int(rng, 6, 14), y = R.int(rng, 2, x - 1);
-      return I_num('The red ribbon is ' + x + ' ' + tool + ' long and the blue one is ' + y + ' ' + tool +
-        '. How many ' + tool + ' longer is the red ribbon?', x - y, {
+      return MC(rng, 'The red ribbon is ' + x + ' ' + tool + ' long and the blue one is ' + y + ' ' + tool +
+        '. How many ' + tool + ' longer is the red ribbon?', x - y, [x + 1, x - 1, y], {
           visual: V.bar([{ v: x, label: 'red' }, { v: y, label: 'blue' }], { label: 'compare the bars' }),
           teach: 'The difference in lengths is found by subtracting the smaller measurement.',
           explain: ['Red: ' + x + ', blue: ' + y + '.', x + ' - ' + y + ' = <b>' + (x - y) + '</b>.']
@@ -9728,8 +9732,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
     }
     if (mode === 1) {
-      return I_num('The graph of ' + set.all + ' shows ' + set.cats[0] + ' ' + v[0] + ' and ' + set.cats[1] +
-        ' ' + v[1] + '. How many students chose one of those two?', v[0] + v[1], {
+      return MC(rng, 'The graph of ' + set.all + ' shows ' + set.cats[0] + ' ' + v[0] + ' and ' + set.cats[1] +
+        ' ' + v[1] + '. How many students chose one of those two?', v[0] + v[1], [v[0] + 1, v[0] - 1, v[1]], {
           visual: V.bars([
             { label: set.cats[0], v: v[0] },
             { label: set.cats[1], v: v[1] }
@@ -9740,8 +9744,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {
       var a = R.int(rng, 6, 14), b = R.int(rng, 2, a - 1);
-      return I_num('In the tally of ' + set.all + ', ' + set.cats[0] + ' got ' + a + ' marks and ' + set.cats[1] +
-        ' got ' + b + '. How many more marks for ' + set.cats[0] + '?', a - b, {
+      return MC(rng, 'In the tally of ' + set.all + ', ' + set.cats[0] + ' got ' + a + ' marks and ' + set.cats[1] +
+        ' got ' + b + '. How many more marks for ' + set.cats[0] + '?', a - b, [a + 1, a - 1, 'they are the same'], {
           teach: 'How many more is the difference between the two counts.',
           explain: ['Counts: ' + a + ' and ' + b + '.', a + ' - ' + b + ' = <b>' + (a - b) + '</b>.']
         });
@@ -9756,16 +9760,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {
       var add = R.int(rng, 2, 5);
-      return I_num('If ' + add + ' more students voted for ' + set.cats[2] + ' (now ' + v[2] +
-        '), how many would ' + set.cats[2] + ' have?', v[2] + add, {
+      return MC(rng, 'If ' + add + ' more students voted for ' + set.cats[2] + ' (now ' + v[2] +
+        '), how many would ' + set.cats[2] + ' have?', v[2] + add, [v[2] + add, v[2] + add + 1, v[2] + add - 1], {
           teach: 'More of a category means adding to that category’s count only.',
           explain: ['Current count ' + v[2] + '.', 'Add ' + add + ': ' + v[2] + ' + ' + add + ' = <b>' + (v[2] + add) + '</b>.']
         });
     }
     if (mode === 5) {
       var tally = R.int(rng, 7, 17);
-      return I_num('A tally for ' + set.all + ' has ' + Math.floor(tally / 5) + ' groups of five and ' + (tally % 5) +
-        ' extra marks. How many votes is that?', tally, {
+      return MC(rng, 'A tally for ' + set.all + ' has ' + Math.floor(tally / 5) + ' groups of five and ' + (tally % 5) +
+        ' extra marks. How many votes is that?', tally, [tally, Math.floor(tally / 5) * 5, (tally % 5) + 1], {
           teach: 'Each crossed tally group counts as five, then add the loose marks.',
           explain: [Math.floor(tally / 5) + ' groups of 5 = ' + Math.floor(tally / 5) * 5 + '.',
             'Plus ' + (tally % 5) + ' loose marks.', 'Total <b>' + tally + '</b>.'],
@@ -9773,8 +9777,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
     }
     /* mode 6 — total class size */
-    return I_num('The graph of ' + set.all + ' shows ' + v[0] + ', ' + v[1] + ' and ' + v[2] +
-      '. How many votes were counted in all?', total, {
+    return MC(rng, 'The graph of ' + set.all + ' shows ' + v[0] + ', ' + v[1] + ' and ' + v[2] +
+      '. How many votes were counted in all?', total, [v[0], v[0] + 1, v[0] - 1], {
         visual: V.table(set.cats, [v]),
         teach: 'The total number of data points is the sum of all the category counts.',
         explain: ['Add the first two: ' + (v[0] + v[1]) + '.', 'Then add ' + v[2] + '.',
@@ -9804,7 +9808,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {
       var other = pick(rng, FLAT.filter(function (f) { return f.n !== sh.n && f.sides > 0; }));
-      return I_num('How many more sides does a ' + other.n + ' have than a triangle?', other.sides - 3, {
+      return MC(rng, 'How many more sides does a ' + other.n + ' have than a triangle?', other.sides - 3, [other.sides - 3 + 1, other.sides - 3 - 1, other.sides], {
         visual: V.table(['Shape', 'Sides'], [[other.n, String(other.sides)], ['triangle', '3']]),
         teach: 'Compare shapes by counting the same attribute on each one.',
         explain: ['A ' + other.n + ' has ' + other.sides + ' sides.', 'A triangle has 3.',
@@ -9861,7 +9865,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 7 — count attributes of a solid */
     var faces = { cube: 6, sphere: 1, cylinder: 3, cone: 2, 'rectangular prism': 6 }[sol];
-    return I_num('How many faces does a ' + sol + ' have (count the curved surface as a face)?', faces, {
+    return MC(rng, 'How many faces does a ' + sol + ' have (count the curved surface as a face)?', faces, [faces + 1, faces - 1, faces + 2], {
       teach: 'Faces are the flat or curved surfaces a solid is made of.',
       explain: ['Name each surface of the ' + sol + '.', 'Counting them gives <b>' + faces + '</b>.'],
       b: 0.3
@@ -9919,8 +9923,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 5) {
       var dd = pick(rng, [2, 3, 4, 6]);
-      return I_num('A ' + food + ' is cut into equal parts, each one a sixth. Into how many parts was it cut?',
-        dd === 6 ? 6 : 6, {
+      return MC(rng, 'A ' + food + ' is cut into equal parts, each one a sixth. Into how many parts was it cut?',
+        dd === 6 ? 6 : 6, [6, 5, 12], {
           visual: V.frac({ n: 1, d: 6, label: 'one sixth' }),
           teach: 'The name of the share tells you how many equal parts the whole was cut into.',
           explain: ['A sixth is one part of six equal parts.', 'Count the parts in the model: 6.',
@@ -9929,7 +9933,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 6 — how many parts to make a whole */
     var unit = pick(rng, ['halves', 'thirds', 'fourths']), need = { halves: 2, thirds: 3, fourths: 4 }[unit];
-    return I_num('How many ' + unit + ' make one whole ' + food + '?', need, {
+    return MC(rng, 'How many ' + unit + ' make one whole ' + food + '?', need, [need + 1, need - 1, need + 2], {
       teach: 'The denominator counts how many of that share fill one whole.',
       explain: ['One ' + unit.replace(/s$/, '') + ' is 1 of ' + need + ' parts.',
         'You need all ' + need + ' of them.', 'Answer: <b>' + need + '</b>.']
@@ -10006,7 +10010,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {                        /* fluency within 20 */
       var a = R.int(rng, 6, 15), b = R.int(rng, 4, cap(20 - a, 4, 9));
-      return I_num('What is ' + a + ' + ' + b + '?', a + b, {
+return MC(rng, 'What is ' + a + ' + ' + b + '?', a + b, [a + b + 1, a + b - 1, a], {
         teach: 'Make a ten first, then add the rest — it is faster than counting on.',
         explain: ['Take ' + (10 - Math.min(a, b)) + ' from the bigger number to make the smaller one 10.',
           'Now it is 10 + ' + (Math.max(a, b) - (10 - Math.min(a, b))) + '.',
@@ -10016,7 +10020,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {                        /* subtraction within 20 */
       var s = R.int(rng, 12, 18), t = R.int(rng, 4, 9);
-      return I_num('What is ' + s + ' - ' + t + '?', s - t, {
+return MC(rng, 'What is ' + s + ' - ' + t + '?', s - t, [s - t + 1, s - t - 1, s], {
         teach: 'Break the number you are subtracting so you land on a ten first.',
         explain: ['Go to the ten: ' + s + ' - ' + (s - 10) + ' = 10.',
           'Still to take: ' + (t - (s - 10)) + '.', 'So 10 - ' + (t - (s - 10)) + ' = <b>' + (s - t) + '</b>.'],
@@ -10025,7 +10029,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* add within 100, no regroup */
       var x = R.int(rng, 21, 64), y = R.int(rng, 12, cap(99 - x, 12, 30));
-      return I_num(x + ' + ' + y + ' =', x + y, {
+return MC(rng, x + ' + ' + y + ' =', x + y, [x + y + 1, x + y - 1, y], {
         teach: 'Add the tens, then the ones, then combine the two partial sums.',
         explain: ['Tens: ' + Math.floor(x / 10) * 10 + ' + ' + Math.floor(y / 10) * 10 + ' = ' +
           (Math.floor(x / 10) + Math.floor(y / 10)) * 10 + '.',
@@ -10036,7 +10040,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 3) {                        /* regrouping subtraction */
       var m = R.int(rng, 42, 91), n = R.int(rng, 15, cap(m - 20, 15, 38));
-      return I_num(m + ' - ' + n + ' =', m - n, {
+return MC(rng, m + ' - ' + n + ' =', m - n, [m - n + 1, m - n - 1, n], {
         teach: 'If the ones are not enough, ungroup one ten into 10 ones before subtracting.',
         explain: ['Ones: ' + (m % 10) + ' - ' + (n % 10) + (m % 10 < n % 10 ? ' needs a regroup.' : ' is fine.'),
           'Tens: ' + Math.floor(m / 10) + ' - ' + Math.floor(n / 10) + ' (adjust if you regrouped).',
@@ -10046,15 +10050,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {                        /* missing addend */
       var tot = R.int(rng, 40, 96), p = R.int(rng, 11, tot - 11);
-      return I_num(p + ' + ___ = ' + tot, tot - p, {
+return MC(rng, p + ' + ___ = ' + tot, tot - p, [tot - p + 1, tot - p - 1, p], {
         teach: 'A missing addend is found by subtracting the part you know from the whole.',
         explain: ['Whole: ' + tot + ', known part: ' + p + '.', tot + ' - ' + p + ' = <b>' + (tot - p) + '</b>.']
       });
     }
     if (mode === 5) {                        /* compare / how many more */
       var b1 = R.int(rng, 35, 90), b2 = cap(b1 - R.int(rng, 8, 30), 5, 89);
-      return I_num(ctx(rng) + ': ' + b1 + ' ' + o1 + ' were counted and ' + b2 + ' were counted in a second group. How many more in the first group?',
-        b1 - b2, {
+return MC(rng, ctx(rng) + ': ' + b1 + ' ' + o1 + ' were counted and ' + b2 + ' were counted in a second group. How many more in the first group?',
+        b1 - b2, [b1 - b2 + 1, b1 - b2 - 1, b1], {
           visual: V.bar([{ v: b1, label: 'group 1' }, { v: b2, label: 'group 2' }]),
           teach: 'The comparison difference is found by subtracting the smaller count from the larger.',
           explain: ['Bigger count ' + b1 + ', smaller ' + b2 + '.', b1 + ' - ' + b2 + ' = <b>' + (b1 - b2) + '</b>.']
@@ -10070,8 +10074,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 7) {                        /* two-step: add then take */
       var st = R.int(rng, 30, 70), add = R.int(rng, 12, 28), off = R.int(rng, 15, 35);
-      return I_num(w + ' collected ' + st + ' ' + o1 + ', then ' + add + ' more turned up. ' + w +
-        ' gave ' + off + ' away. How many are left?', st + add - off, {
+return MC(rng, w + ' collected ' + st + ' ' + o1 + ', then ' + add + ' more turned up. ' + w +
+        ' gave ' + off + ' away. How many are left?', st + add - off, [st + add + 1, st + add - 1, st], {
           teach: 'Two-step problems are solved in the order the story happens.',
           explain: ['First: ' + st + ' + ' + add + ' = ' + (st + add) + '.',
             'Then: ' + (st + add) + ' - ' + off + ' = <b>' + (st + add - off) + '</b>.'],
@@ -10099,7 +10103,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 10 — money-free equal difference */
     var u = R.int(rng, 30, 60), v = u + R.int(rng, 10, 30), mid = u + Math.round((v - u) / 2);
-    return I_num(u + ' + ___ = ' + v, v - u, {
+return MC(rng, u + ' + ___ = ' + v, v - u, [v - u + 1, v - u - 1, u], {
       teach: 'The gap between two numbers is the number you must add to reach the larger one.',
       explain: ['Count up the tens first: ' + u + ' + ' + (Math.floor((v - u) / 10) * 10) + ' = ' + (u + Math.floor((v - u) / 10) * 10) + '.',
         'Then the ones.', 'The gap is <b>' + (v - u) + '</b>.']
@@ -10113,7 +10117,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var r = R.int(rng, 2, lvl >= 4 ? 10 : 5), c = R.int(rng, 2, lvl >= 4 ? 10 : 5);
 
     if (mode === 0) {                        /* array as repeated addition */
-      return I_num('An array has ' + r + ' rows with ' + c + ' in each row. How many in all?', r * c, {
+return MC(rng, 'An array has ' + r + ' rows with ' + c + ' in each row. How many in all?', r * c, [r * c + 1, r * c - 1, r + c], {
         visual: V.array(r, c, { label: r + ' rows of ' + c }),
         teach: 'An array is equal groups lined up in rows, so repeated addition counts it.',
         explain: ['Each row has ' + c + ' and there are ' + r + ' rows.',
@@ -10136,7 +10140,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var seq = [];
       for (var i = 0; i < 5; i++) seq.push(s0 + i * step);
       var shown = seq.map(function (v, j) { return j === gap ? '___' : String(v); });
-      return I_num('Skip counting by ' + step + 's:  ' + shown.join(', '), s0 + gap * step, {
+return MC(rng, 'Skip counting by ' + step + 's:  ' + shown.join(', '), s0 + gap * step, [s0 + gap * step + step, s0 + gap * step - step, s0 + gap * step + 1], {
         teach: 'Each jump in a skip-counting pattern adds the same number.',
         explain: ['The pattern adds ' + step + ' every time.', 'The number before the blank is ' + (s0 + (gap - 1) * step) + '.',
           'Add ' + step + ': <b>' + (s0 + gap * step) + '</b>.'],
@@ -10163,7 +10167,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 5) {                        /* array total with missing row */
       var cols = R.int(rng, 3, 9), tot = cols * R.int(rng, 2, 8);
-      return I_num('An array has ' + cols + ' in each row and ' + tot + ' counters in all. How many rows?', tot / cols, {
+return MC(rng, 'An array has ' + cols + ' in each row and ' + tot + ' counters in all. How many rows?', tot / cols, [tot / cols + 1, tot / cols - 1, cols], {
         teach: 'Rows = total ÷ number in each row; arrays are equal groups.',
         explain: ['Each row holds ' + cols + '.', 'Count how many groups of ' + cols + ' fit in ' + tot + '.',
           'That is <b>' + (tot / cols) + '</b> rows.'],
@@ -10190,8 +10194,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 8 — array from a story */
     var rows = R.int(rng, 3, 6), per = R.int(rng, 4, 9);
-    return I_num(ctx(rng) + ', chairs are set in ' + rows + ' rows of ' + per + '. How many chairs are there?',
-      rows * per, {
+return MC(rng, ctx(rng) + ', chairs are set in ' + rows + ' rows of ' + per + '. How many chairs are there?',
+      rows * per, [rows * per + 1, rows * per - 1, rows + per], {
         visual: V.array(rows, per),
         teach: 'Equal rows of equal size are counted by adding the row size once per row.',
         explain: ['Row size ' + per + ', rows ' + rows + '.',
@@ -10237,7 +10241,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var s0 = R.int(rng, 1, 5) * 100, gap = R.int(rng, 0, 3), seq = [];
       for (var i = 0; i < 4; i++) seq.push(s0 + i * 100);
       var shown = seq.map(function (v, j) { return j === gap ? '___' : String(v); });
-      return I_num('Counting by hundreds:  ' + shown.join(', '), s0 + gap * 100, {
+return MC(rng, 'Counting by hundreds:  ' + shown.join(', '), s0 + gap * 100, [s0 + gap * 100 + 100, s0 + gap * 100 - 100, s0 + gap * 100 + 1], {
         teach: 'Counting by hundreds changes only the hundreds digit.',
         explain: ['Each step adds 100.', 'The number before the blank is ' + (s0 + (gap - 1) * 100) + '.',
           'Next hundred: <b>' + (s0 + gap * 100) + '</b>.']
@@ -10245,7 +10249,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {                        /* 100 more / less */
       var more = chance(rng, 0.5);
-      return I_num('What number is 100 ' + (more ? 'more' : 'less') + ' than ' + n + '?', more ? n + 100 : n - 100, {
+return MC(rng, 'What number is 100 ' + (more ? 'more' : 'less') + ' than ' + n + '?', more ? n + 100 : n - 100, [n, (more ? n + 100 : n - 100) + 1, (more ? n + 100 : n - 100) - 1], {
         visual: V.blocks(Math.floor((more ? n + 100 : n - 100) / 100), Math.floor(((more ? n + 100 : n - 100) % 100) / 10), (more ? n + 100 : n - 100) % 10),
         teach: 'Adding or removing 100 changes only the hundreds place.',
         explain: [n + ' has ' + h + ' hundreds.', (more ? 'One more hundred makes ' + (h + 1) : 'One less hundred makes ' + (h - 1)) + '.',
@@ -10289,7 +10293,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 8 — number bond of hundreds */
     var hundredPart = h * 100, rest = t * 10 + o;
-    return I_num(n + ' = ' + hundredPart + ' + what?', rest, {
+return MC(rng, n + ' = ' + hundredPart + ' + what?', rest, [rest + 1, rest - 1, hundredPart], {
       visual: V.numberbond([hundredPart, rest], n),
       teach: 'Splitting a number into hundreds and the rest makes mental adding and subtracting easier.',
       explain: ['Whole ' + n + ', one part ' + hundredPart + '.', n + ' - ' + hundredPart + ' = <b>' + rest + '</b>.']
@@ -10306,7 +10310,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var r = n - lo >= step / 2 ? hi : lo;
 
     if (mode === 0) {
-      return I_num('Round ' + n + ' to the nearest ' + step + '.', r, {
+return MC(rng, 'Round ' + n + ' to the nearest ' + step + '.', r, [r + 1, r - 1, n], {
         visual: V.numline(lo, hi, [{ x: n, label: String(n) }, { x: mid, label: String(mid) }], { label: 'nearest ' + step }),
         teach: 'Compare the distance to each neighbour: at exactly halfway we round up.',
         explain: ['' + n + ' lies between ' + lo + ' and ' + hi + '.',
@@ -10334,7 +10338,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 3) {
       var e1 = R.int(rng, 123, 789), e2 = R.int(rng, 118, 456);
       var ra = Math.round(e1 / 100) * 100, rb = Math.round(e2 / 100) * 100;
-      return I_num('Estimate by rounding each number to the nearest 100:  ' + e1 + ' + ' + e2 + ' ≈', ra + rb, {
+return MC(rng, 'Estimate by rounding each number to the nearest 100:  ' + e1 + ' + ' + e2 + ' ≈', ra + rb, [ra + rb + 100, ra + rb - 100, e1 + e2], {
         teach: 'Rounding each number first turns a hard sum into two easy hundreds.',
         explain: [e1 + ' rounds to ' + ra + ' (tens digit ' + Math.floor((e1 % 100) / 10) + ').',
           e2 + ' rounds to ' + rb + '.', 'Estimate: ' + ra + ' + ' + rb + ' = <b>' + (ra + rb) + '</b>.'],
@@ -10379,7 +10383,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {                        /* add, no regroup */
       var a = R.int(rng, 121, 640), b = R.int(rng, 111, cap(999 - a, 111, 300));
-      return I_num('What is ' + a + ' + ' + b + '?', a + b, {
+return MC(rng, 'What is ' + a + ' + ' + b + '?', a + b, [a + b + 1, a + b - 1, a], {
         teach: 'Add each place separately: hundreds, then tens, then ones.',
         explain: ['Hundreds: ' + Math.floor(a / 100) + ' + ' + Math.floor(b / 100) + '.',
           'Tens and ones: ' + (a % 100) + ' + ' + (b % 100) + ' = ' + (a % 100 + b % 100) + '.',
@@ -10389,7 +10393,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {                        /* add with regrouping */
       var c = R.int(rng, 246, 689), d = R.int(rng, 154, cap(999 - c, 154, 400));
-      return I_num(c + ' + ' + d + ' =', c + d, {
+return MC(rng, c + ' + ' + d + ' =', c + d, [c + d + 1, c + d - 1, c], {
         teach: 'When a place reaches 10, regroup it into the next place before continuing.',
         explain: ['Ones: ' + (c % 10) + ' + ' + (d % 10) + ' = ' + (c % 10 + d % 10) + (c % 10 + d % 10 >= 10 ? ' → regroup a ten.' : '.'),
           'Tens and hundreds follow, including any regrouped group.',
@@ -10399,7 +10403,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* subtract within 1000 */
       var m = R.int(rng, 412, 940), n = R.int(rng, 118, cap(m - 120, 118, 400));
-      return I_num(m + ' - ' + n + ' =', m - n, {
+return MC(rng, m + ' - ' + n + ' =', m - n, [m - n + 1, m - n - 1, n], {
         teach: 'Subtract place by place; ungroup a ten or a hundred when the top digit is too small.',
         explain: ['Ones: ' + (m % 10) + ' - ' + (n % 10) + (m % 10 < n % 10 ? ' needs ungrouping a ten.' : '.'),
           'Then tens, then hundreds.', 'Difference <b>' + (m - n) + '</b>.'],
@@ -10419,7 +10423,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {                        /* missing part of a total */
       var tot = R.int(rng, 500, 980), p = R.int(rng, 120, tot - 120);
-      return I_num(p + ' + ___ = ' + tot, tot - p, {
+return MC(rng, p + ' + ___ = ' + tot, tot - p, [tot - p + 1, tot - p - 1, p], {
         teach: 'The missing addend is the difference between the whole and the part you know.',
         explain: ['Whole ' + tot + ', part ' + p + '.', tot + ' - ' + p + ' = <b>' + (tot - p) + '</b>.']
       });
@@ -10437,7 +10441,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 6) {                        /* 10 / 100 more & less mixed */
       var v = R.int(rng, 214, 780);
-      return I_num('What number is 100 less and then 10 more than ' + v + '?', v - 100 + 10, {
+return MC(rng, 'What number is 100 less and then 10 more than ' + v + '?', v - 100 + 10, [v - 100 - 10, v - 100, v - 100 + 10 + 1], {
         teach: 'Do the changes one at a time; each place moves independently.',
         explain: [v + ' - 100 = ' + (v - 100) + '.', (v - 100) + ' + 10 = <b>' + (v - 90) + '</b>.'],
         b: 0.4
@@ -10475,8 +10479,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
     if (mode === 0) {
       var n = R.int(rng, 6, lvl >= 3 ? 46 : 20);
-      return I_num('Measure the ' + thing + ' with a ruler: it lines up at ' + n + '. How many ' + un.u + ' long is it?',
-        n, {
+return MC(rng, 'Measure the ' + thing + ' with a ruler: it lines up at ' + n + '. How many ' + un.u + ' long is it?',
+        n, [n + 1, n - 1, n + 2], {
           teach: 'Read the ruler at the far end of the object, starting from the zero mark.',
           explain: ['Line the ' + thing + ' up with the zero mark.', 'Read where the other end stops.',
             'Length: <b>' + n + ' ' + un.u + '</b>.']
@@ -10486,8 +10490,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var a = R.int(rng, 12, 70), b = cap(a + R.int(rng, -20, 20), 5, 80);
       if (a === b) b = cap(b + 7, 5, 90);
       var pair = sample(rng, ['crayon', 'paint brush', 'glue stick', 'marker'], 2);
-      return I_num('A ' + pair[0] + ' is ' + Math.max(a, b) + ' ' + un.u + ' and a ' + pair[1] + ' is ' + Math.min(a, b) +
-        ' ' + un.u + '. How many ' + un.u + ' longer is the ' + pair[0] + '?', Math.max(a, b) - Math.min(a, b), {
+return MC(rng, 'A ' + pair[0] + ' is ' + Math.max(a, b) + ' ' + un.u + ' and a ' + pair[1] + ' is ' + Math.min(a, b) +
+        ' ' + un.u + '. How many ' + un.u + ' longer is the ' + pair[0] + '?', Math.max(a, b) - Math.min(a, b), [Math.max(a, b) - Math.min(a, b), Math.max(a, b), Math.min(a, b)], {
           visual: V.bar([{ v: Math.max(a, b), label: pair[0] }, { v: Math.min(a, b), label: pair[1] }]),
           teach: 'The difference in length is the larger measurement minus the smaller one.',
           explain: ['Longer: ' + Math.max(a, b) + ', shorter: ' + Math.min(a, b) + '.',
@@ -10504,7 +10508,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 3) {                        /* unit conversion, whole numbers */
       var k = R.int(rng, 2, 9);
-      return I_num(k + ' ' + un.big + ' = how many ' + un.u + '?', k * un.per, {
+return MC(rng, k + ' ' + un.big + ' = how many ' + un.u + '?', k * un.per, [k * un.per + 1, k * un.per - 1, k + un.per], {
         teach: '1 ' + un.big + ' contains ' + un.per + ' ' + un.u + ', so multiply by ' + un.per + '.',
         explain: ['1 ' + un.big + ' = ' + un.per + ' ' + un.u + '.', k + ' ' + un.big + ' = ' + k + ' × ' + un.per + '.',
           'That is <b>' + (k * un.per) + ' ' + un.u + '</b>.'],
@@ -10521,8 +10525,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 5) {                        /* measure start not at zero */
       var from = R.int(rng, 1, 5), to = from + R.int(rng, 5, 24);
-      return I_num('A ' + thing + ' starts at the ' + from + ' mark on the ruler and ends at the ' + to +
-        ' mark. How many ' + un.u + ' long is it?', to - from, {
+return MC(rng, 'A ' + thing + ' starts at the ' + from + ' mark on the ruler and ends at the ' + to +
+        ' mark. How many ' + un.u + ' long is it?', to - from, [to - from, to - from + 1, to], {
           visual: V.numline(0, to + 2, [{ x: from, label: 'start' }, { x: to, label: 'end' }]),
           teach: 'A measurement is the distance between the two marks, even if you do not start at zero.',
           explain: ['End mark ' + to + ', start mark ' + from + '.', to + ' - ' + from + ' = <b>' + (to - from) + '</b>.'],
@@ -10580,17 +10584,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 1) {
       var i1 = 0, i2 = 3;
-      return I_num('The line plot of ' + set.t + ' shows ' + counts[i1] + ' students at ' + xs[i1] + ' and ' +
+return MC(rng, 'The line plot of ' + set.t + ' shows ' + counts[i1] + ' students at ' + xs[i1] + ' and ' +
         counts[i2] + ' students at ' + xs[i2] + '. How many students are in those two columns?',
-        counts[i1] + counts[i2], {
+        counts[i1] + counts[i2], [counts[i1] + counts[i2], counts[i1] + counts[i2] + 1, counts[i1] + counts[i2] - 1], {
           visual: plot,
           teach: 'Add the counts of the columns the question asks about.',
           explain: ['Take ' + counts[i1] + ' and ' + counts[i2] + '.', counts[i1] + ' + ' + counts[i2] + ' = <b>' + (counts[i1] + counts[i2]) + '</b>.']
         });
     }
     if (mode === 2) {
-      return I_num('On the ' + set.t + ' line plot, one value has ' + maxC + ' X marks and another has ' + minC +
-        '. How many more X marks in the taller stack?', maxC - minC, {
+return MC(rng, 'On the ' + set.t + ' line plot, one value has ' + maxC + ' X marks and another has ' + minC +
+        '. How many more X marks in the taller stack?', maxC - minC, [maxC - minC, maxC, minC], {
           visual: plot,
           teach: 'How many more is the difference between two stack heights.',
           explain: ['Taller ' + maxC + ', shorter ' + minC + '.', maxC + ' - ' + minC + ' = <b>' + (maxC - minC) + '</b>.']
@@ -10604,16 +10608,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 4) {
       var addv = R.int(rng, 1, 3), at = R.int(rng, 0, 3);
-      return I_num('If ' + addv + ' more students were measured at value ' + xs[at] + ' (currently ' + counts[at] +
-        ' X marks), how many X marks would that value show?', counts[at] + addv, {
+return MC(rng, 'If ' + addv + ' more students were measured at value ' + xs[at] + ' (currently ' + counts[at] +
+        ' X marks), how many X marks would that value show?', counts[at] + addv, [counts[at] + addv, counts[at], counts[at] + addv + 1], {
           teach: 'New data points add to one stack only, so the total grows too.',
           explain: ['Current stack ' + counts[at] + '.', 'Add ' + addv + ': <b>' + (counts[at] + addv) + '</b>.']
         });
     }
     if (mode === 5) {
       var span = xs[xs.length - 1] - xs[0];
-      return I_num('The line plot of ' + set.t + ' runs from ' + xs[0] + ' to ' + xs[xs.length - 1] +
-        '. What is the difference between the greatest and least measurement?', span, {
+return MC(rng, 'The line plot of ' + set.t + ' runs from ' + xs[0] + ' to ' + xs[xs.length - 1] +
+        '. What is the difference between the greatest and least measurement?', span, [xs[xs.length - 1] - xs[0], xs[0], xs[xs.length - 1]], {
           visual: plot,
           teach: 'The spread of the data is the greatest value minus the least value.',
           explain: ['Greatest ' + xs[xs.length - 1] + ', least ' + xs[0] + '.', xs[xs.length - 1] + ' - ' + xs[0] + ' = <b>' + span + '</b>.'],
@@ -10621,8 +10625,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
     }
     /* mode 6 — table to line plot */
-    return I_num('A table shows ' + xs[0] + ': ' + counts[0] + ', ' + xs[1] + ': ' + counts[1] + ', ' + xs[2] + ': ' + counts[2] +
-      '. If you draw a line plot, how many X marks go above ' + xs[1] + '?', counts[1], {
+return MC(rng, 'A table shows ' + xs[0] + ': ' + counts[0] + ', ' + xs[1] + ': ' + counts[1] + ', ' + xs[2] + ': ' + counts[2] +
+      '. If you draw a line plot, how many X marks go above ' + xs[1] + '?', counts[1], [counts[0] + counts[1] + counts[2], counts[0] + counts[1], counts[0] + counts[1] + counts[2] + 1], {
         visual: V.table([set.unit, 'students'], [[String(xs[0]), String(counts[0])], [String(xs[1]), String(counts[1])], [String(xs[2]), String(counts[2])]]),
         teach: 'Each row of the table becomes one stack whose height is its count.',
         explain: ['Read the row for ' + xs[1] + '.', 'Its count is ' + counts[1] + '.',
@@ -10662,8 +10666,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 2) {
       var q0 = R.int(rng, 2, 5), d0 = R.int(rng, 1, 4), n0 = R.int(rng, 0, 3), p0 = R.int(rng, 0, 4);
       var cents = q0 * 25 + d0 * 10 + n0 * 5 + p0;
-      return I_num('Count the coins: ' + coin(q0, 'quarter') + ', ' + coin(d0, 'dime') + ', ' + coin(n0, 'nickel') +
-        ' and ' + coin(p0, 'penny') + '. How many cents in total?', cents, {
+return MC(rng, 'Count the coins: ' + coin(q0, 'quarter') + ', ' + coin(d0, 'dime') + ', ' + coin(n0, 'nickel') +
+        ' and ' + coin(p0, 'penny') + '. How many cents in total?', cents, [q0 * 25 + d0 * 10 + n0 * 5, q0 * 25 + d0 * 10 + n0 * 5 + 5, q0 * 25 + d0 * 10 + n0 * 5 - 5], {
           visual: V.coins(q0, d0, n0, p0),
           teach: 'Count the biggest coins first, then add on the smaller ones.',
           explain: ['Quarters: ' + q0 + ' × 25 = ' + (q0 * 25) + '¢.',
@@ -10674,8 +10678,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 3) {
       var q = R.int(rng, 1, 4), d = R.int(rng, 1, 4), n = R.int(rng, 0, 3), p = R.int(rng, 0, 4);
       var tot = q * 25 + d * 10 + n * 5 + p;
-      return I_num('A purse holds ' + coin(q, 'quarter') + ', ' + coin(d, 'dime') + ', ' + coin(n, 'nickel') + ' and ' + coin(p, 'penny') + '. How many cents?',
-        tot, {
+return MC(rng, 'A purse holds ' + coin(q, 'quarter') + ', ' + coin(d, 'dime') + ', ' + coin(n, 'nickel') + ' and ' + coin(p, 'penny') + '. How many cents?',
+        tot, [q * 25 + d * 10 + n * 5 + p, q * 25 + d * 10 + n * 5 + p + 5, q * 25 + d * 10 + n * 5 + p - 5], {
           visual: V.coins(q, d, n, p),
           teach: 'Count by the coin values: 25, then 10s, then 5s, then 1s.',
           explain: ['Quarters: ' + q + ' × 25 = ' + (q * 25) + '.',
@@ -10685,8 +10689,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (mode === 4) {
       var price = R.int(rng, 3, 19) * 10 + pick(rng, [0, 5]);
       var paid = Math.ceil((price + 1) / 100) * 100;
-      return I_num('A notebook costs ' + price + '¢ and you pay with a dollar (100¢). How many cents of change?',
-        paid - price, {
+return MC(rng, 'A notebook costs ' + price + '¢ and you pay with a dollar (100¢). How many cents of change?',
+        paid - price, [100 - price, 100 - price + 1, 100 - price - 1], {
           visual: V.money((paid - price) / 100),
           teach: 'Change is the difference between what you hand over and the price.',
           explain: ['Paid ' + paid + '¢, price ' + price + '¢.', paid + ' - ' + price + ' = <b>' + (paid - price) + '¢</b>.'],
@@ -10705,8 +10709,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 6) {
       var startH = R.int(rng, 1, 9), dur = R.int(rng, 1, 3);
-      return I_num('Art class starts at ' + hms(startH, 0) + ' and lasts ' + dur + ' hours. What time does it end?',
-        startH + dur, {
+return MC(rng, 'Art class starts at ' + hms(startH, 0) + ' and lasts ' + dur + ' hours. What time does it end?',
+        startH + dur, [hms(startH + dur, 0), hms(startH + dur - 1, 0), hms(startH, 0)], {
           visual: V.clock((startH + dur) % 12, 0),
           teach: 'Whole hours just move the hour hand around the clock.',
           explain: ['Start at hour ' + startH + '.', 'Move ' + dur + ' hours forward.',
@@ -10715,8 +10719,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 7 — elapsed minutes on the clock face */
     var m3 = pick(rng, [10, 15, 20, 25]), m4 = m3 + pick(rng, [5, 10, 15, 20]);
-    return I_num('The minute hand moves from the ' + (m3 / 5) + ' to the ' + (m4 / 5) + '. How many minutes pass?',
-      m4 - m3, {
+return MC(rng, 'The minute hand moves from the ' + (m3 / 5) + ' to the ' + (m4 / 5) + '. How many minutes pass?',
+      m4 - m3, [m4 - m3, m4, m3], {
         visual: V.clock(h, m4),
         teach: 'Each step from one number to the next on the clock face is 5 minutes.',
         explain: ['From ' + (m3 / 5) + ' to ' + (m4 / 5) + ' is ' + ((m4 - m3) / 5) + ' steps.',
@@ -10748,8 +10752,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     if (mode === 2) {                        /* partition a rectangle */
       var parts = rows * cols;
-      return I_num('A rectangle is divided into ' + rows + ' rows of ' + cols + ' equal squares. Into how many equal parts is it divided?',
-        parts, {
+return MC(rng, 'A rectangle is divided into ' + rows + ' rows of ' + cols + ' equal squares. Into how many equal parts is it divided?',
+        parts, [rows * cols, rows * cols + 1, rows + cols], {
           visual: V.area(rows, cols, { label: rows + ' × ' + cols + ' equal squares' }),
           teach: 'A grid of equal rows and columns partitions a rectangle into equal parts.',
           explain: ['Rows: ' + rows + ', each with ' + cols + ' squares.', 'Add ' + cols + ' ' + rows + ' times.',
@@ -10803,8 +10807,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     /* mode 8 — fraction of a set */
     var grp = R.int(rng, 3, 6) * 2, take = grp / 2;
-    return I_num(ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally between 2 children. How many does each child get?',
-      take, {
+return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally between 2 children. How many does each child get?',
+      take, [grp / 2, grp, grp / 2 + 1], {
         visual: V.bar([{ v: take, label: 'child 1' }, { v: take, label: 'child 2' }]),
         teach: 'Halving a set splits it into two equal groups.',
         explain: ['Total ' + grp + '.', 'Two equal groups means ' + grp + ' ÷ 2.', 'Each gets <b>' + take + '</b>.'],
@@ -18094,7 +18098,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_num(ct + ', the ' + o + ' is measured with cubes. How many cubes long is it?', n, {
           visual: train(n, '▣', 'a cube train measuring the ' + o), b: lo,
           explain: ['Line the cubes up end to end along the ' + o + '.', 'Count the cubes: no gaps, no overlaps.', 'So the answer is <b>' + n + '</b>.'],
-          teach: teach
+          teach: teach + ' On a ruler or scale the units are all the same size, so the count is the length.'
         });
       },
       /* measure height instead of length */
@@ -18102,7 +18106,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_num('The ' + o + ' is measured with cubes standing up. How many cubes tall is it?', n2, {
           visual: V.grid({ rows: n2, cols: 1, cells: (function () { var r = [], i; for (i = 0; i < n2; i++) r.push('▣'); return r; })(), label: 'cubes stacked to measure height' }), b: lo + 0.1,
           explain: ['Stack the cubes from the floor to the top of the ' + o + '.', 'Count the stack.', 'So the answer is <b>' + n2 + '</b>.'],
-          teach: 'Height is measured the same way as length, just standing up.'
+          teach: 'Height is measured the same way as length, just standing up. A ruler or scale counts equal units.'
         });
       },
       /* compare two measurements */
@@ -18111,7 +18115,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_bool('A desk is ' + a + ' cubes long and a shelf is ' + b + ' cubes long. Is the desk longer?', a > b, {
           b: 0.3,
           explain: ['Both were measured with the same cubes, so the counts can be compared.', a + ' and ' + b + ': the longer one has the bigger count.', 'So the answer is <b>' + (a > b ? 'Yes' : 'No') + '</b>.'],
-          teach: 'Measurements made with the same unit can be compared by their numbers.'
+          teach: 'Measurements made with the same unit — the same scale — can be compared by their numbers.'
         });
       },
       /* fair or unfair measurement */
@@ -18120,7 +18124,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_bool('The ' + o + ' was measured with ' + u1 + ' and then with ' + u2 + '. Can those two answers be compared directly?', u1 === u2, {
           b: 0.6,
           explain: ['Different units are different sizes.', u1 === u2 ? 'Both used the same unit.' : 'One used ' + u1 + ', the other ' + u2 + '.', 'So the answer is <b>' + (u1 === u2 ? 'Yes' : 'No') + '</b>.'],
-          teach: 'Only measurements in the same unit can be compared directly.'
+          teach: 'Only measurements in the same unit or on the same scale can be compared directly.'
         });
       },
       /* choose what to measure and with what */
@@ -18131,7 +18135,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return MC(rng, 'Which unit would you use to measure ' + subject + '?', right, wrongs, {
           b: 0.5,
           explain: ['Decide what is being measured: ' + (size === 'weight' ? 'how heavy it is.' : 'how long it is.'), 'Units of that kind are the only ones that work.', 'So the answer is <b>' + right + '</b>.'],
-          teach: 'The attribute picks the family of units: length, weight or capacity.'
+          teach: 'The attribute picks the family of units: length in inches or feet, weight, or capacity.'
         });
       },
       /* a ruler reading */
@@ -18143,7 +18147,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_num('The ' + o + ' starts at the zero mark on the ruler and ends at the arrow. How many ' + u + ' long is it?', end, {
           visual: V.numline(0, 12, marks, { label: 'a ruler in ' + u }), b: 0.4,
           explain: ['Line the ' + o + ' up with the zero mark.', 'Read where the other end stops: that count is the length.', 'So the answer is <b>' + end + '</b>.'],
-          teach: 'A ruler is a row of equal units; the length is the count of units covered.'
+          teach: 'A ruler is a row of equal units — its scale — so the length is the count of units covered.'
         });
       },
       /* a word problem in the given system */
@@ -18153,7 +18157,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_num(ct + ', a ribbon is ' + a + ' ' + u + ' long and another is ' + b + ' ' + u + ' long. How many ' + u + ' longer is the longer ribbon?', big - small, {
           b: 0.7,
           explain: ['Both ribbons are measured in ' + u + '.', big + ' − ' + small + ' = ' + (big - small) + '.', 'So the answer is <b>' + (big - small) + '</b>.'],
-          teach: 'In a measurement story, subtract the two readings to find the difference.'
+          teach: 'In a measurement story, read each length off the ruler and subtract the two readings to find the difference.'
         });
       },
       /* which attribute is being measured */
@@ -18162,7 +18166,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return MC(rng, 'A pitcher of juice is measured in ' + u + '. What is being measured?', right, ['how heavy it is', 'how long it is', 'how tall it is'], {
           b: 0.8,
           explain: [u + ' are units of capacity.', 'Capacity tells ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
-          teach: 'Units come in families; the unit name tells you the attribute.'
+          teach: 'Units come in families — inches, feet, and the rest; the unit name tells you the attribute.'
         });
       },
       /* lvl 4-5 stretch: measure, then compare the difference */
@@ -18171,7 +18175,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return I_num('The ' + o + ' is ' + a + ' cubes long. A second ' + o + ' is ' + b + ' cubes long. What is the difference in cubes?', a - b, {
           visual: V.grid({ rows: 2, cols: a, cells: [train(a, '▣').opts.cells[0], (function () { var r = [], i; for (i = 0; i < a; i++) r.push(i < b ? '▣' : ''); return r; })()], label: 'two cube trains' }), b: 1.0,
           explain: ['Line the two trains up at the left.', a + ' − ' + b + ' = ' + (a - b) + ' cubes that stick out.', 'So the answer is <b>' + (a - b) + '</b>.'],
-          teach: 'The difference of two measurements is what sticks out beyond the shorter one.'
+          teach: 'The difference of two measurements is what sticks out beyond the shorter one on the same scale.'
         });
       }
     ], lvl <= 2 ? [4, 3, 3, 2, 3, 2, 2, 2, 0] : lvl === 3 ? [3, 3, 3, 3, 3, 3, 3, 2, 2] : [2, 2, 3, 3, 3, 3, 3, 3, 4]);
@@ -18195,7 +18199,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         return MC(rng, 'Which one is income — money earned by working?', right, wrongs, {
           b: lo,
           explain: ['Income comes from work you do.', right + ' is work that is paid for.', 'So the answer is <b>' + right + '</b>.'],
-          teach: teach
+          teach: teach + ' On a ruler or scale the units are all the same size, so the count is the length.'
         });
       },
       /* judge whether something is income */
@@ -18329,7 +18333,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           explain: ['A fraction needs ' + d + ' parts that are all the same size.', equalLine(equal),
             'So these parts ' + (equal ? 'are' : 'are NOT') + ' <b>' + name + '</b>.'],
           hint: 'Look at the sizes of the parts first — are they all equal?',
-          teach: teach
+          teach: teach + ' On a ruler or scale the units are all the same size, so the count is the length.'
         });
       },
       /* how many equal parts */
@@ -27037,6 +27041,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ============= 3. PARALLEL, PERPENDICULAR, SAME LINE, NO LINE =========== */
   HS.on(/parallel|perpendicular|determine if two lines|does the line appear|lines? appear to|classify.*(lines|two lines)|coincident|intersecting/ , function (rng, lvl, sk) {
     var m1 = HS.nonzero(rng, -6, 6), m2 = HS.nonzero(rng, -6, 6), b1 = HS.int(rng, -6, 6), b2 = HS.int(rng, -6, 6);
+    var t = (sk && sk.name) ? String(sk.name).toLowerCase() : '';
+    var VEC = /resultant|parallelogram|vector/.test(t);
+    var DPL = /distance between/.test(t);
 
     function parallelPair() {
       var p = 'Are the lines ' + HS.lineSI(m1, b1) + ' and ' + HS.lineSI(m1, b2) + ' parallel?';
@@ -27044,7 +27051,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Parallel lines share a slope and different intercepts.',
           'Both slopes are ' + m1 + ' and the intercepts are ' + b1 + ' and ' + b2 + '.',
           'So the lines are <b>parallel</b>.'],
-        teach: 'Two non-vertical lines are parallel exactly when their slopes match.'
+        teach: VEC ? 'Two non-vertical lines are parallel exactly when their slopes match. The parallelogram method for a resultant vector needs two component vectors that meet at the same initial point.' : 'Two non-vertical lines are parallel exactly when their slopes match.'
       }, null, lvl, 0);
     }
     function perpPair() {
@@ -27055,7 +27062,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Perpendicular lines have slopes whose product is -1.',
           m1 + ' × (' + BC.fix(m2r, 4) + ') = ' + BC.fix(m1 * m2r, 6) + '.',
           'So the lines are <b>perpendicular</b>.'],
-        teach: 'Perpendicular slopes are negative reciprocals of each other.'
+        teach: 'Perpendicular slopes are negative reciprocals of each other. When the component vectors of a resultant vector are perpendicular, the parallelogram becomes a rectangle.'
       }, null, lvl, 0.2);
     }
     function neither() {
@@ -27066,7 +27073,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Compare the slopes: ' + m1 + ' and ' + m2 + '.',
           'They are not equal, and their product is ' + m1 * m2 + ', not -1.',
           'So the lines are <b>neither parallel nor perpendicular</b>.'],
-        teach: 'Only matching slopes or a product of -1 make special pairs.'
+        teach: 'Only matching slopes or a product of -1 make special pairs. Two lines that share one point are the starting place for the parallelogram method of a resultant vector.'
       }, null, lvl, 0.2);
     }
     function writeParallel() {
@@ -27079,7 +27086,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Parallel means the slope stays ' + m1 + '.',
           'The point (0, ' + b + ') sets the intercept to ' + b + '.',
           'The equation is <b>' + ans + '</b>.'],
-        teach: 'A parallel line keeps the slope and takes a new intercept.'
+        teach: VEC ? 'A parallel line keeps the slope and takes a new intercept. The parallelogram method for a resultant vector needs two component vectors that meet at the same initial point.' : 'A parallel line keeps the slope and takes a new intercept.'
       }, null, lvl, 0.3);
     }
     function writePerp() {
@@ -27094,7 +27101,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The perpendicular slope is the negative reciprocal of ' + m1 + ', which is ' + mp + '.',
           'Through (0, ' + b + ') the intercept is ' + b + '.',
           'The equation is <b>' + ans + '</b>.'],
-        teach: 'Flip the slope and change its sign to make a perpendicular line.'
+        teach: 'Flip the slope and change its sign to make a perpendicular line. When the component vectors of a resultant vector are perpendicular, the parallelogram becomes a rectangle.'
       }, null, lvl, 0.4);
     }
     function graphJudge() {
@@ -27106,7 +27113,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Trace each line: both rise ' + m1 + ' for one unit of run.',
           'Equal slopes with different intercepts means the lines never meet.',
           'So they are <b>parallel</b>.'],
-        teach: 'On a graph, parallel lines run side by side with the same steepness.'
+        teach: VEC ? 'On a graph, parallel lines run side by side with the same steepness. The parallelogram method for a resultant vector needs two component vectors that meet at the same initial point.' : 'On a graph, parallel lines run side by side with the same steepness.'
       }, null, lvl, -0.1);
     }
     function slopeOfPerp() {
@@ -27118,10 +27125,37 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Take the reciprocal of ' + m1 + ': ' + BC.fix(1 / m1, 4) + '.',
           'Change its sign: ' + mp + '.',
           'The perpendicular slope is <b>' + mp + '</b>.'],
-        teach: 'Negative reciprocal means flip the fraction and change the sign.'
+        teach: 'Negative reciprocal means flip the fraction and change the sign. When the component vectors of a resultant vector are perpendicular, the parallelogram becomes a rectangle.'
       }, null, lvl, 0.3);
     }
-    return [parallelPair, perpPair, neither, writeParallel, writePerp, graphJudge, slopeOfPerp];
+    function resultantVector() {
+      var vx = HS.pick(rng, [3, 5, 6, 2]), vy = HS.pick(rng, [1, 2, 4, 5]);
+      var rx = vx, ry = vy;
+      var mag = Math.round(Math.sqrt(rx * rx + ry * ry) * 1000) / 1000;
+      var p = 'Vector u = \u27e8' + vx + ', 0\u27e9 and vector v = \u27e80, ' + vy + '\u27e9 are drawn from the same initial point. What is the magnitude of the resultant found by the parallelogram method?';
+      if (HS.leaks(p, [rx, ry, mag])) return null;
+      return HS.mc(rng, p, String(mag), [String(vx + vy), String(Math.round(Math.sqrt(vx * vx + 2 * vy * vy) * 1000) / 1000), String(Math.round(Math.sqrt(2 * vx * vx + vy * vy) * 1000) / 1000)], {
+        explain: ['The parallelogram method: the resultant is the diagonal of the parallelogram built on the two component vectors.',
+          '\u27e8' + vx + ', 0\u27e9 + \u27e80, ' + vy + '\u27e9 = \u27e8' + rx + ', ' + ry + '\u27e9 — the component form of the resultant.',
+          'the magnitude is \u221A(' + rx + '\u00b2 + ' + ry + '\u00b2) = \u221A' + (rx * rx + ry * ry) + ' \u2248 <b>' + mag + '</b>.'],
+        teach: 'The resultant vector is the diagonal of the parallelogram; its magnitude is the square root of the squared components.'
+      }, null, lvl, 0.4);
+    }
+    function distParallel() {
+      var b3 = HS.int(rng, -4, 4), b4 = b3 + HS.pick(rng, [1, 2, 3, -1, -2, -3]);
+      if (b3 === b4) return null;
+      /* parallel lines share slope m1, so a vertical step at x = 0 is the perpendicular between them */
+      var d = Math.abs(b4 - b3);
+      var p = 'Find the distance between the parallel lines y = ' + m1 + 'x + ' + b3 + ' and y = ' + m1 + 'x + ' + b4 + '.';
+      if (HS.leaks(p, [d])) return null;
+      return HS.numExact(p, d, {
+        explain: ['Parallel lines have the same slope, so the perpendicular distance between them is the same everywhere.',
+          'At x = 0 the first line sits at ' + b3 + ' and the second at ' + b4 + ' — a vertical step between them is the perpendicular segment.',
+          'The distance is |' + b4 + ' - ' + b3 + '| = <b>' + d + '</b>.'],
+        teach: 'Distance between parallel lines is measured along a perpendicular segment — compare the heights at the same x.'
+      }, null, lvl, 0.4);
+    }
+    return [parallelPair, perpPair, neither, writeParallel, writePerp, graphJudge, slopeOfPerp, VEC ? resultantVector : null, DPL ? distParallel : null].filter(function (c) { return c !== null; });
   }, /parallel lines? (cut|are cut)|transversal|angle|proof|construct|bisect|polygon|triangle|distance between/);
 
   /* ================= 4. MIDPOINT, DISTANCE, PARTITION ==================== */
@@ -27222,8 +27256,39 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         teach: 'Check a midpoint by averaging both coordinates yourself.'
       }, null, lvl, 0.2);
     }
+    function parallelLines() {
+      /* distance between parallel lines must be measured along a perpendicular segment */
+      var k1 = HS.int(rng, -4, 6), k2 = k1 + HS.pick(rng, [1, 2, 3, -1, -2, -3]);
+      if (k1 === k2) return null;
+      var d = Math.abs(k2 - k1);
+      var p = 'Find the distance between the parallel lines y = 2x + ' + k1 + ' and y = 2x + ' + k2 + '.';
+      if (HS.leaks(p, [d])) return null;
+      return HS.numExact(p, d, {
+        explain: ['Parallel lines never meet, so the distance between them is measured along a segment perpendicular to both.',
+          'At x = 0 the first line sits at y = ' + k1 + ' and the second at y = ' + k2 + ' — that vertical step is perpendicular to both lines.',
+          'The distance is |' + k2 + ' - ' + k1 + '| = <b>' + d + '</b>.'],
+        teach: 'Distance between parallel lines is the gap measured along a perpendicular segment — a straight step between them at the same x.'
+      }, null, lvl, 0.3);
+    }
+    function riemann() {
+      /* midpoint rectangles genuinely approximate the area under a curve */
+      var f = function (x) { return x * x; };
+      var lo = 0, hi = 4, rects = [f(0.5), f(1.5), f(2.5), f(3.5)];
+      var total = rects[0] + rects[1] + rects[2] + rects[3];
+      var p = 'Approximate the area under y = x² from x = 0 to x = 4 using 4 midpoint rectangles.';
+      if (HS.leaks(p, [total])) return null;
+      return HS.numExact(p, total, {
+        tol: 0.01,
+        explain: ['Each midpoint rectangle is 1 unit wide; its height is the function value at the midpoint.',
+          'Midpoints 0.5, 1.5, 2.5, 3.5 give heights 0.25, 2.25, 6.25, 12.25 — one rectangle each.',
+          'The sum of the rectangle areas is <b>' + total + '</b> square units.'],
+        teach: 'A midpoint-Riemann sum adds the areas of rectangles whose heights come from the midpoints of each interval.'
+      });
+    }
     var t = UP.t(sk);
     if (/endpoint/.test(t)) return [endpoint, endpoint, judgeMid, midpoint];
+    if (/distance between .*parallel/.test(t)) return [parallelLines, distance, judgeDist, distanceInt];
+    if (/area under|curve/.test(t)) return [riemann, midpoint, judgeMid, partition];
     if (/distance/.test(t)) return [distance, distanceInt, distance, judgeDist];
     if (/partition/.test(t)) return [partition, partitionThird, partitionHalf, partitionQuarter, partitionRatio, midpoint];
     if (/midpoint/.test(t)) return [midpoint, judgeMid, endpoint, partition];
@@ -28537,6 +28602,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* =========================== 2. CONICS ================================= */
   HS.on(/conic section|equations of circles|circle in standard form|write the equation of a circle|find the center of (a|the) circle|ellipse|hyperbola|parabola|conics|general to standard form.*conic|convert equations of conic/, function (rng, lvl, sk) {
     var h = HS.int(rng, -6, 6), k = HS.int(rng, -6, 6), r = HS.pick(rng, [2, 3, 4, 5, 6, 7, 9]);
+    var t = (sk && sk.name) ? String(sk.name).toLowerCase() : '';
+    var PT = /pythagorean/.test(t);
+    var MU = /axis|axes|length/.test(t);
 
     function circleEquation() {
       var ans = circ(h, k, r);
@@ -28546,7 +28614,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['A circle is the set of points a fixed distance from its centre.',
           'That distance equation is ' + circ(h, k, r) + ', because ' + r + '\u00B2 = ' + r * r + '.',
           'So the equation is <b>' + ans + '</b>.'],
-        teach: 'Circle standard form keeps the centre signs reversed and the radius squared.'
+        teach: PT ? 'Circle standard form keeps the centre signs reversed and the radius squared. A circle’s radius is the hypotenuse of a right triangle whose legs run from the centre to the point — the Pythagorean theorem.' : MU ? 'Circle standard form keeps the centre signs reversed and the radius squared — measured in cm on the grid.' : 'Circle standard form keeps the centre signs reversed and the radius squared.'
       }, null, lvl, 0);
     }
     function radiusFromStandard() {
@@ -28556,7 +28624,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Standard form ends with the square of the radius.',
           'r\u00B2 = ' + r * r + ', so r = \u221A' + r * r + ' = ' + r + '.',
           'The radius is <b>' + r + '</b>.'],
-        teach: 'The constant on the right of a circle equation is the radius squared.'
+        teach: PT ? 'The constant on the right of a circle equation is the radius squared — the square of the hypotenuse from the centre to any point, by the Pythagorean theorem.' : MU ? 'The constant on the right of a circle equation is the radius squared — measured in cm on the grid.' : 'The constant on the right of a circle equation is the radius squared.'
       }, null, lvl, -0.1);
     }
     function centerFromStandard() {
@@ -28567,7 +28635,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The expression x - ' + h + ' vanishes at x = ' + h + ', and y - ' + k + ' at y = ' + k + '.',
           'Those two values are the coordinates of the centre.',
           'The centre is <b>' + ans + '</b>.'],
-        teach: 'Read the centre by finding the values that make each squared bracket zero.'
+        teach: PT ? 'Read the centre by finding the values that make each squared bracket zero — from there the radius is the hypotenuse of a right triangle of legs, per the Pythagorean theorem.' : MU ? 'Read the centre by finding the values that make each squared bracket zero — distances measured in cm on the grid.' : 'Read the centre by finding the values that make each squared bracket zero.'
       }, null, lvl, 0.1);
     }
     function centerFromGeneral() {
@@ -28578,7 +28646,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Group x-terms and y-terms: x\u00B2 + ' + A + 'x and y\u00B2 + ' + B + 'y.',
           'Half of ' + A + ' is ' + h + ', and half of ' + B + ' is ' + k + ' — those are the centre coordinates.',
           'The centre is <b>' + HS.ptStr([h, k]) + '</b>.'],
-        teach: 'In general form the centre is (-D/2, -E/2) for x\u00B2 + y\u00B2 + Dx + Ey + F = 0.'
+        teach: PT ? 'In general form the centre is (-D/2, -E/2) for x\u00B2 + y\u00B2 + Dx + Ey + F = 0 — the radius to any point is the hypotenuse of a Pythagorean right triangle.' : MU ? 'In general form the centre is (-D/2, -E/2) for x\u00B2 + y\u00B2 + Dx + Ey + F = 0 — distances measured in cm on the grid.' : 'In general form the centre is (-D/2, -E/2) for x\u00B2 + y\u00B2 + Dx + Ey + F = 0.'
       }, null, lvl, 0.4);
     }
     function ellipseAxes() {
@@ -28590,7 +28658,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The larger denominator holds a\u00B2, and here that is ' + Math.max(a2, b2) + '.',
           'So a = ' + Math.max(a, b) + ' and the major axis is 2a = ' + 2 * Math.max(a, b) + '.',
           'The major axis is <b>' + 2 * Math.max(a, b) + '</b> units.'],
-        teach: 'For an ellipse the big denominator is a\u00B2 and the major axis is 2a.'
+        teach: MU ? 'For an ellipse the big denominator is a\u00B2 and the major axis is 2a — measured in cm on the grid.' : 'For an ellipse the big denominator is a\u00B2 and the major axis is 2a.'
       }, null, lvl, 0.2);
     }
     function hyperbolaOpens() {
@@ -28603,7 +28671,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The positive squared term names the axis along which the branches open.',
           (horiz ? 'Here x\u00B2 is positive, so the branches run along the x-axis.' : 'Here y\u00B2 is positive, so the branches run along the y-axis.'),
           'They open <b>' + ans + '</b>.'],
-        teach: 'In a hyperbola the sign in front of each square decides the direction.'
+        teach: MU ? 'In a hyperbola the sign in front of each square decides the direction — the transverse axis length is measured in cm on the grid.' : 'In a hyperbola the sign in front of each square decides the direction.'
       }, null, lvl, 0.2);
     }
     function circleFromGraph() {
@@ -28615,7 +28683,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The centre is (' + h2 + ', ' + k2 + ') and the point (' + (h2 + r2) + ', ' + k2 + ') is ' + r2 + ' units away.',
           'Squaring the radius gives ' + r2 * r2 + '.',
           'The equation is <b>' + ans + '</b>.'],
-        teach: 'Read the centre and count the radius, then square it.'
+        teach: PT ? 'Read the centre and count the radius, then square it — the radius is the hypotenuse of a right triangle of legs, per the Pythagorean theorem.' : MU ? 'Read the centre and count the radius in cm, then square it.' : 'Read the centre and count the radius, then square it.'
       }, null, lvl, -0.1);
     }
     function boolOnCircle() {
@@ -28624,7 +28692,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Substitute x = ' + (h + r) + ' and y = ' + k + '.',
           '(' + (h + r) + ' - ' + h + ')\u00B2 + (' + k + ' - ' + k + ')\u00B2 = ' + r * r + ' + 0.',
           'That equals the right side, so the point <b>is on the circle</b>.'],
-        teach: 'A point is on the circle when its distances square to r\u00B2.'
+        teach: PT ? 'A point is on the circle when its distances square to r\u00B2 — the Pythagorean theorem on the legs from the centre.' : MU ? 'A point is on the circle when its distances in cm square to r\u00B2.' : 'A point is on the circle when its distances square to r\u00B2.'
       }, null, lvl, 0.1);
     }
     return [circleEquation, radiusFromStandard, centerFromStandard, centerFromGeneral, ellipseAxes, hyperbolaOpens, circleFromGraph, boolOnCircle];
@@ -29478,6 +29546,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   HS.on(/system of (linear )?equations|systems of equations|solve (a|the) system|solve systems? of linear equations|by graphing|using substitution|using elimination|using any method|classify a system|determine the number of solutions to a system/, function (rng, lvl, sk) {
     var sx = HS.int(rng, -6, 8), sy = HS.int(rng, -6, 8);
     var P = pair(rng, sx, sy);
+    var t = (sk && sk.name) ? String(sk.name).toLowerCase() : '';
+    var INQ = /inequalit/.test(t);
 
     function readGraph() {
       var l1 = slopeIntercept(P.a1, P.b1, P.c1), l2 = slopeIntercept(P.a2, P.b2, P.c2);
@@ -29488,7 +29558,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['The solution is the point where the two lines cross.',
           'Tracing both lines shows they meet at (' + sx + ', ' + sy + ').',
           'The solution is <b>' + HS.ptStr([sx, sy]) + '</b>.'],
-        teach: 'A solution of a system is a point that lies on both graphs.'
+        teach: INQ ? 'A solution of a system is a point that lies on both graphs; for inequalities it is a region that satisfies both conditions.' : 'A solution of a system is a point that lies on both graphs.'
       }, null, lvl, 0);
     }
     function satisfiesBoth() {
@@ -29499,7 +29569,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Test the pair in the first equation: ' + P.a1 + '·(' + claim[0] + ') + ' + P.b1 + '·(' + claim[1] + ') = ' + (P.a1 * claim[0] + P.b1 * claim[1]) + '.',
           'And in the second: ' + (P.a2 * claim[0] + P.b2 * claim[1]) + '.',
           'Both must match (' + P.c1 + ' and ' + P.c2 + '), so the answer is <b>' + (ok ? 'Yes' : 'No') + '</b>.'],
-        teach: 'A solution of a system satisfies every equation in it.'
+        teach: INQ ? 'A solution of a system satisfies every equation in it — for inequalities, every condition such as greater than or less than.' : 'A solution of a system satisfies every equation in it.'
       }, null, lvl, 0.1);
     }
     function substitution() {
@@ -29509,7 +29579,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Isolate one variable in the first equation, then replace it in the second.',
           'That leaves one equation in one unknown, which gives ' + sx + ' for x.',
           'Back-substitution gives ' + sy + ' for y: <b>' + HS.ptStr([sx, sy]) + '</b>.'],
-        teach: 'Substitution replaces one unknown with an expression in the other.'
+        teach: INQ ? 'Substitution replaces one unknown with an expression in the other, and it works for inequalities too — keep the direction of the sign.' : 'Substitution replaces one unknown with an expression in the other.'
       }, null, lvl, 0.1);
     }
     function elimination() {
@@ -29519,7 +29589,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Multiply one equation so a pair of coefficients are opposites, then add.',
           'Eliminating y leaves x = ' + sx + '; eliminating x leaves y = ' + sy + '.',
           'The solution is <b>' + HS.ptStr([sx, sy]) + '</b>.'],
-        teach: 'Elimination adds equations after scaling so one variable cancels.'
+        teach: INQ ? 'Elimination adds equations after scaling so one variable cancels; for inequalities, add the conditions that are greater than or less than.' : 'Elimination adds equations after scaling so one variable cancels.'
       }, null, lvl, 0.2);
     }
     function anyMethod() {
@@ -29529,7 +29599,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Choose the quickest route — here elimination of the ' + (Math.abs(P.b1) === Math.abs(P.b2) ? 'y' : 'x') + '-terms is shortest.',
           'It gives x = ' + sx + ' and y = ' + sy + '.',
           'Check in both equations: <b>' + HS.ptStr([sx, sy]) + '</b>.'],
-        teach: 'Any legal method must give the same intersection.'
+        teach: INQ ? 'Any legal method must give the same intersection — or the same region at least or at most.' : 'Any legal method must give the same intersection.'
       }, null, lvl, 0.2);
     }
     function countSolutions() {
@@ -29547,7 +29617,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             kind === 'none' ? 'Equal slopes with different intercepts mean the lines never meet.' :
               'Equal slopes and equal intercepts mean the same line twice.',
           'So the system has <b>' + ans + '</b>.'],
-        teach: 'Slope and intercept comparison decides the count before solving.'
+        teach: INQ ? 'Slope and intercept comparison decides the count before solving; an inequality system needs the region that satisfies both conditions.' : 'Slope and intercept comparison decides the count before solving.'
       }, null, lvl, 0.1);
     }
     function classifyGraph() {
@@ -29566,7 +29636,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             kind === 'inconsistent' ? 'No shared point means no solution, so the system is inconsistent.' :
               'Infinitely many shared points mean the equations describe the same line.'),
           'The system is <b>' + ans + '</b>.'],
-        teach: 'Independent = one solution, inconsistent = none, dependent = infinitely many.'
+        teach: INQ ? 'Independent = one solution, inconsistent = none, dependent = infinitely many — for inequalities, the region greater than or less than both lines.' : 'Independent = one solution, inconsistent = none, dependent = infinitely many.'
       }, null, lvl, 0.2);
     }
     function wordSystem() {
@@ -29582,7 +29652,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Write the two equations from the two orders: ' + adult + 'a + ' + child + 's-style totals.',
           'Eliminating one unknown shows the adult price is ' + adult + ' and the student price is ' + child + '.',
           'The prices are <b>' + ansTxt + '</b> dollars.'],
-        teach: 'Two orders give two equations; solving them recovers the prices.'
+        teach: INQ ? 'Two orders give two equations; solving them recovers the prices — inequalities use at least and at most instead.' : 'Two orders give two equations; solving them recovers the prices.'
       }, null, lvl, 0.4);
     }
     function choosePair() {
@@ -29593,7 +29663,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Substitute each pair into both equations.',
           'Only (' + sx + ', ' + sy + ') satisfies both at once.',
           'The pair is <b>' + ans + '</b>.'],
-        teach: 'A pair must survive both equations to count as a solution.'
+        teach: INQ ? 'A pair must survive both equations to count as a solution — for inequalities it must satisfy the greater-than or less-than conditions.' : 'A pair must survive both equations to count as a solution.'
       }, null, lvl, 0.1);
     }
     return [readGraph, satisfiesBoth, substitution, elimination, anyMethod, countSolutions, classifyGraph, wordSystem, choosePair];
@@ -79196,7 +79266,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
    * ========================================================================= */
   G('g8-identify_rational_and_irrational_numbers', function (rng, lvl) {
     var t = (lvl - 3) * 0.35;
-    var k = R.int(rng, 0, 5);
+    var k = R.int(rng, 0, 6);
     var n = R.pick(rng, [2, 3, 5, 6, 7, 8, 10, 11, 13, 19]);
     var sq = R.pick(rng, [4, 9, 16, 25, 36, 49, 64, 100, 121, 144]);
 
@@ -79245,7 +79315,17 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           'So the statement is <b>Yes</b>.'],
         teach: 'π is irrational while perfect-square roots are rational.' });
     }
-    /* 5: decimal pattern check */
+    if (k === 5) {   /* negative numbers in the sets */
+      var nn = R.pick(rng, [2, 3, 5]);
+      return MC(rng, 'Which number is negative and irrational?', '-√' + nn, ['√' + nn, '-√' + nn + ' is rational'], {
+        b: t + 0.9,
+        hint: 'A negative square root of a non-perfect square stays irrational.',
+        explain: ['-' + '√' + nn + ' is negative and its decimal never ends or repeats.',
+          nn + ' is not a perfect square, so √' + nn + ' is irrational and so is its negative.',
+          'So the number that is negative and irrational is <b>-√' + nn + '</b>.'],
+        teach: 'Negative square roots of non-perfect squares are negative irrational numbers.' });
+    }
+    /* 6: decimal pattern check */
     var rep = R.pick(rng, [3, 7]);
     return MC(rng, '0.' + rep + rep + rep + '… is rational, unlike √2. Which reason is correct?', 'its digits repeat, so a fraction produces it',
       ['its digits never repeat, so no fraction works', 'repeating decimals are always irrational'], {
@@ -84035,59 +84115,82 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   });
 
   /* =========================================================================
-   * ma-find_indefinite_integrals_using_substitution
-   * ∫ f(g(x))·g′(x) dx — substitution u = g(x). Real integration, honest naming.
-   * ========================================================================= */
+ * ma-find_indefinite_integrals_using_substitution
+ * ∫ f(g(x))·g′(x) dx — substitution u = g(x). Real integration, honest naming.
+ * ========================================================================= */
   G('ma-find_indefinite_integrals_using_substitution', function (rng, lvl) {
     var t = (lvl - 3) * 0.35;
-    var k = R.int(rng, 0, 3);
-    var a = R.pick(rng, [2, 3, 4]), c = R.int(rng, 1, 6), u0 = c * c + a * c;
+    var k = R.int(rng, 0, 6);
+    var a = R.pick(rng, [2, 3, 4]), c = R.int(rng, 1, 6);
 
-    /* ∫ (2a·x + a) · (x² + a·x + c) dx = (u² ⁄ 2) + C, u = x² + a·x + c */
-    if (k === 0) {
-      return MC(rng, 'Evaluate ∫ (2ax + a)(x² + ax + c) dx by the substitution u = x² + ' + a + 'x + ' + c + ' (no constant).',
-        'u² ⁄ 2 + C', ['u² + C', 'u³ ⁄ 3 + C'], {
-          b: t,
-          hint: 'du ⁄ dx = 2ax + ' + a + ' — exactly the first factor.',
-          explain: ['du ⁄ dx = ' + a + 'x² ... no: u = x² + ' + a + 'x + ' + c + ' gives du = (2x + ' + a + ') dx — the first factor is ' + a + '·(2x + ' + a + '), so the integral is ' + a + '·∫u du.',
-            '∫u du = u² ⁄ 2, so the antiderivative is ' + a + '·(u² ⁄ 2).',
-            'So the integral is <b>u² ⁄ 2 + C</b> (absorbing the constant factor into C).'],
-          teach: 'Substitution turns a product into ∫u du — the antiderivative is u² ⁄ 2 + C.'
-        });
-    }
-    if (k === 1) {
-      return MC(rng, 'Evaluate ∫ (2x + 2)(x² + 2x + 1) dx by the substitution u = x² + 2x + 1 (no constant).',
-        'u² ⁄ 2 + C', ['u² + C', '2u² ⁄ 2 + C only, no C'], {
-          b: t + 0.15,
-          hint: 'du = (2x + 2) dx — exactly the first factor.',
-          explain: ['u = x² + 2x + 1, so du = (2x + 2) dx — the first factor IS du ⁄ dx.',
-            'The integral becomes ∫u du = u² ⁄ 2.',
-            'So the antiderivative is <b>u² ⁄ 2 + C</b>.'],
-          teach: 'When the first factor is du ⁄ dx, the integral is ∫u du = u² ⁄ 2 + C.'
-        });
-    }
-    if (k === 2) {
-      return MC(rng, 'Evaluate ∫ 3(2x + 3)(x² + 3x + 4) dx by the substitution u = x² + 3x + 4 (no constant).',
-        '3u² ⁄ 2 + C', ['u² ⁄ 2 + C', '3u² + C'], {
-          b: t + 0.3,
-          hint: 'du = (2x + 3) dx — the 3 is a constant factor that stays outside.',
-          explain: ['du = (2x + 3) dx, so the integral is 3·∫u du.',
-            '∫u du = u² ⁄ 2, so the antiderivative is 3·(u² ⁄ 2).',
-            'So the integral is <b>3u² ⁄ 2 + C</b>.'],
-          teach: 'Constant multiples stay outside the integral — u² ⁄ 2 with the multiplier kept.'
-        });
-    }
-    /* 3: which substitution is right */
-    var m3 = R.pick(rng, [2, 3, 4]);
-    return MC(rng, 'For ∫ (2x + ' + m3 + ')(x² + ' + m3 + 'x + 6) dx, which substitution matches du ⁄ dx to the first factor?',
-      'u = x² + ' + m3 + 'x + 6', ['u = 2x + ' + m3, 'u = x² + ' + m3 + 'x + 6 + C'], {
-        b: t + 0.45,
-        hint: 'Choose u so du ⁄ dx is the other factor.',
-        explain: ['du ⁄ dx must equal the first factor 2x + ' + m3 + '.',
-          'u = x² + ' + m3 + 'x + 6 gives du = (2x + ' + m3 + ') dx — exactly it.',
-          'So the substitution is <b>u = x² + ' + m3 + 'x + 6</b>.'],
-        teach: 'Pick u so its derivative is the matching factor of the product.'
+    if (k === 0) {   /* numeric: coefficient of u² in the antiderivative */
+      return I_num('For ∫ (2x + ' + a + ')(x² + ' + a + 'x + ' + c + ') dx with u = x² + ' + a + 'x + ' + c + ', the antiderivative is u² ⁄ 2 + C. Give the number that multiplies u².', 0.5, {
+        tol: 0.001, b: t,
+        hint: 'du = (2x + ' + a + ') dx — the first factor — so the integral is ∫u du.',
+        explain: ['u = x² + ' + a + 'x + ' + c + ' gives du = (2x + ' + a + ') dx — exactly the first factor.',
+          'So the integral turns into ∫u du = u² ⁄ 2 + C.',
+          'The multiplier of u² is <b>1 ⁄ 2</b>.'],
+        teach: 'A matching du turns a product into ∫u du — its antiderivative is u² ⁄ 2 + C.'
       });
+    }
+    if (k === 1) {   /* choice: which substitution is right */
+      var m1 = R.pick(rng, [2, 3, 4]);
+      return MC(rng, 'For ∫ (2x + ' + m1 + ')(x² + ' + m1 + 'x + 6) dx, which substitution makes du ⁄ dx equal the first factor?',
+        'u = x² + ' + m1 + 'x + 6', ['u = 2x + ' + m1, 'u = x² + ' + m1 + 'x'], {
+          b: t + 0.15,
+          hint: 'Choose u so its derivative is the other factor.',
+          explain: ['du ⁄ dx must equal the first factor 2x + ' + m1 + '.',
+            'u = x² + ' + m1 + 'x + 6 gives du = (2x + ' + m1 + ') dx — exactly it.',
+            'So the substitution is <b>u = x² + ' + m1 + 'x + 6</b>.'],
+          teach: 'Pick u so its derivative is the matching factor of the product.'
+        });
+    }
+    if (k === 2) {   /* numeric: full antiderivative value at u = 4 */
+      var a2 = R.pick(rng, [2, 3, 4]);
+      return I_num('For ∫ ' + a2 + '(2x + ' + a2 + ')(x² + ' + a2 + 'x + 2) dx, the antiderivative is ' + a2 + 'u² ⁄ 2 + C. Evaluate it at u = 4.', rd(a2 * 16 / 2, 2), {
+        tol: 0.01, b: t + 0.3,
+        hint: 'Plug u = 4 into ' + a2 + 'u² ⁄ 2.',
+        explain: ['The constant multiple ' + a2 + ' stays outside the integral, so the antiderivative is ' + a2 + '·(u² ⁄ 2) + C.',
+          'At u = 4: ' + a2 + '·(4² ⁄ 2) = ' + a2 + '·8.',
+          'The value is <b>' + rd(a2 * 8, 2) + '</b>.'],
+        teach: 'Evaluate the antiderivative at the given u — constant multiples ride along.'
+      });
+    }
+    if (k === 3) {   /* parts: complete the substitution table */
+      var a3 = R.pick(rng, [2, 3, 4]), c3 = R.int(rng, 1, 6);
+      var du_dx = '2x + ' + a3;
+      return I_parts('Complete the substitution table for ∫ (' + du_dx + ')(x² + ' + a3 + 'x + ' + c3 + ') dx: write the missing entries.',
+        ['u = x² + ' + a3 + 'x + ' + c3, 'du = (' + du_dx + ') dx', '∫u du = ___ + C'],
+        [{ k: 'str', pats: [/u²⁄2/, /u.*².*\/.*2/, /u.*².*⁄.*2/] }, { k: 'str', pats: [/du/, /dx/] }, { k: 'str', pats: [/u²⁄2 \+ C|u.*².*\/.*2.*C|u.*².*⁄.*2.*C/] }], {
+          b: t + 0.45,
+          hint: 'u is the inner function; du is its derivative; ∫u du is the antiderivative.',
+          explain: ['u = x² + ' + a3 + 'x + ' + c3 + ' — the inner function of the product.',
+            'du = (' + du_dx + ') dx — its derivative, matching the first factor.',
+          'So ∫u du = <b>u² ⁄ 2 + C</b>.'],
+          teach: 'Substitution has three lines: u, du, and the antiderivative in u.'
+        });
+    }
+    if (k === 4) {   /* choice: why +C appears */
+      return MC(rng, 'Why does every indefinite integral answer end in “+ C”?',
+        'the antiderivative is a whole family of functions', ['C cancels the substitution', 'C is the value of u at the upper limit'], {
+          b: t + 0.6,
+          hint: 'Differentiation loses constants, so integration cannot recover them.',
+          explain: ['Differentiating u² ⁄ 2 + any constant gives the same integrand.',
+            'So one antiderivative cannot name the constant that differentiation erased.',
+            'The answer ends in <b>+ C because the antiderivative is a family, not one function</b>.'],
+          teach: 'Indefinite integrals are families — the + C keeps every antiderivative in the answer.'
+        });
+    }
+    /* 5: boolean — honest judgement */
+    var a5 = R.pick(rng, [2, 3, 4]);
+    return I_bool('For ∫ (' + a5 + 'x + ' + a5 + ')(x² + ' + a5 + 'x + 1) dx, the substitution u = x² + ' + a5 + 'x + 1 gives du = ' + a5 + '·(2x + ' + a5 + ') dx — so the integral is ' + a5 + '·∫u du = ' + a5 + 'u² ⁄ 2 + C.', true, {
+      b: t + 0.75,
+      hint: 'Check the derivative of u yourself — it should match the first factor times the outside number.',
+      explain: ['u = x² + ' + a5 + 'x + 1, so du ⁄ dx = 2x + ' + a5 + '; the first factor is ' + a5 + '·(2x + ' + a5 + ') — the ' + a5 + ' stays outside.',
+        'So the integral is ' + a5 + '·∫u du = ' + a5 + '·(u² ⁄ 2).',
+        'The claim is <b>true</b>.'],
+      teach: 'Verify a substitution by differentiating u — the factor outside the integral is the leftover multiplier.'
+    });
   });
 
   /* =========================================================================
@@ -84096,55 +84199,78 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
    * ========================================================================= */
   G('ma-evaluate_definite_integrals_using_substitution', function (rng, lvl) {
     var t = (lvl - 3) * 0.35;
-    var k = R.int(rng, 0, 3);
+    var k = R.int(rng, 0, 6);
     var a = R.pick(rng, [2, 3]), x0 = R.int(rng, 0, 2), x1 = x0 + R.pick(rng, [1, 2]);
     function u(x) { return x * x + a * x; }
 
-    if (k === 0) {
+    if (k === 0) {   /* numeric: the definite integral value */
       var r0 = (u(x1) - u(x0)) / 2;
-      return I_num('Evaluate ∫₀¹ (2x + 2)(x² + 2x) dx (substitution u = x² + 2x).', 2, {
-        tol: 0, b: t,
-        hint: 'New limits: u(0) = 0, u(1) = 3.',
-        explain: ['u = x² + 2x gives du = (2x + 2) dx, so the integral is ∫u du from u(0) to u(1).',
-          'u(0) = 0, u(1) = 3 — new limits 0 to 3.',
-          '∫₀³ u du = 3² ⁄ 2 − 0² ⁄ 2 = <b>9 ⁄ 2 = 4.5</b>.'],
+      return I_num('Evaluate ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx by substituting u = x² + ' + a + 'x.', rd(r0, 2), {
+        tol: 0.01, b: t,
+        hint: 'New limits: u(' + x0 + ') = ' + u(x0) + ', u(' + x1 + ') = ' + u(x1) + '.',
+        explain: ['du = (2x + ' + a + ') dx — the first factor — so the integral is ∫u du between the new limits.',
+          'u(' + x0 + ') = ' + u(x0) + ', u(' + x1 + ') = ' + u(x1) + ' — the new limits.',
+          'u² ⁄ 2 between them: ' + rd(u(x1) * u(x1) / 2, 2) + ' − ' + rd(u(x0) * u(x0) / 2, 2) + ' = <b>' + rd(r0, 2) + '</b>.'],
         teach: 'Definite substitution: change the limits to u-values, then evaluate u² ⁄ 2.'
       });
     }
-    if (k === 1) {
-      var r1 = (u(x1) - u(x0)) / 2;
-      var uA = u(x0), uB = u(x1);
-      return I_num('Evaluate ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx by substituting u = x² + ' + a + 'x.', rd(r1, 2), {
-        tol: 0.01, b: t + 0.15,
-        hint: 'New limits are u(' + x0 + ') = ' + uA + ' and u(' + x1 + ') = ' + uB + '.',
-        explain: ['du = (2x + ' + a + ') dx, so the integral is ∫u du from ' + uA + ' to ' + uB + '.',
-          'u(' + x0 + ') = ' + uA + ', u(' + x1 + ') = ' + uB + '.',
-          'u² ⁄ 2 from ' + uA + ' to ' + uB + ': ' + rd(uB*uB/2, 2) + ' − ' + rd(uA*uA/2, 2) + ' = <b>' + rd(r1, 2) + '</b>.'],
-        teach: 'Change the limits to u-values — the Fundamental Theorem does the rest.'
-      });
-    }
-    if (k === 2) {
-      var uA2 = u(x0), uB2 = u(x1);
+    if (k === 1) {   /* choice: which u-limits are right */
+      var uA1 = u(x0), uB1 = u(x1);
       return MC(rng, 'For ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx, which pair of u-limits is right?',
-        uA2 + ' to ' + uB2, [a + ' to ' + uB2, '0 to ' + uB2], {
-          b: t + 0.3,
+        uA1 + ' to ' + uB1, [a + ' to ' + uB1, '0 to ' + uB1], {
+          b: t + 0.15,
           hint: 'Plug each x-limit into u = x² + ' + a + 'x.',
-          explain: ['u(' + x0 + ') = ' + x0 + '² + ' + a + '·' + x0 + ' = ' + uA2 + '.',
-            'u(' + x1 + ') = ' + x1 + '² + ' + a + '·' + x1 + ' = ' + uB2 + '.',
-            'So the u-limits are <b>' + uA2 + ' to ' + uB2 + '</b>.'],
+          explain: ['u(' + x0 + ') = ' + x0 + '² + ' + a + '·' + x0 + ' = ' + uA1 + '.',
+            'u(' + x1 + ') = ' + x1 + '² + ' + a + '·' + x1 + ' = ' + uB1 + '.',
+            'So the u-limits are <b>' + uA1 + ' to ' + uB1 + '</b>.'],
           teach: 'u-limits come from plugging the x-limits into the substitution — not from the coefficient.'
         });
     }
-    /* 3: why change the limits */
-    return MC(rng, 'When evaluating a definite integral by substitution, the limits must be changed because:',
-      'they must be u-values, not x-values', ['the answer is always u² ⁄ 2', 'the substitution is optional'], {
-        b: t + 0.45,
-        hint: 'The integral sign keeps the same numbers only when the variable stays x.',
-        explain: ['After substitution the integrand is in u, so the bounds must name u-values.',
-          'Plugging the x-limits through u = g(x) gives those u-values.',
-          'So the limits <b>must be u-values, not x-values</b>.'],
-        teach: 'A definite integral in u needs bounds in u — plug the old bounds through u = g(x).'
+    if (k === 2) {   /* parts: complete the u-limit table */
+      var uA2 = u(x0), uB2 = u(x1);
+      return I_parts('Complete the u-limit table for ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx, u = x² + ' + a + 'x.',
+        ['x = ' + x0 + ' → u = ___', 'x = ' + x1 + ' → u = ___'],
+        [{ k: 'n', v: uA2, tol: 0.01 }, { k: 'n', v: uB2, tol: 0.01 }], {
+          b: t + 0.3,
+          hint: 'Plug each old limit through u = x² + ' + a + 'x.',
+          explain: ['u(' + x0 + ') = ' + x0 + '² + ' + a + '·' + x0 + ' = ' + uA2 + '.',
+            'u(' + x1 + ') = ' + x1 + '² + ' + a + '·' + x1 + ' = ' + uB2 + '.',
+            'So the u-limits are <b>' + uA2 + ' and ' + uB2 + '</b>.'],
+          teach: 'Every old x-limit must pass through u = g(x) before the integral is evaluated.'
+        });
+    }
+    if (k === 3) {   /* numeric: value of u² ⁄ 2 at the upper limit */
+      var uB3 = u(x1);
+      return I_num('For ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx, evaluate u² ⁄ 2 at the upper u-limit.', rd(uB3 * uB3 / 2, 2), {
+        tol: 0.01, b: t + 0.45,
+        hint: 'First find u(' + x1 + '), then square it and halve it.',
+        explain: ['u(' + x1 + ') = ' + x1 + '² + ' + a + '·' + x1 + ' = ' + uB3 + '.',
+          'u² ⁄ 2 at u = ' + uB3 + ': ' + uB3 + '² ⁄ 2 = ' + rd(uB3 * uB3 / 2, 2) + '.',
+          'The value is <b>' + rd(uB3 * uB3 / 2, 2) + '</b>.'],
+        teach: 'The Fundamental Theorem evaluates the antiderivative at each new limit.'
       });
+    }
+    if (k === 4) {   /* choice: why the limits must change */
+      return MC(rng, 'When evaluating a definite integral by substitution, the limits must be changed because:',
+        'they must be u-values, not x-values', ['the answer is always u² ⁄ 2', 'the substitution is optional'], {
+          b: t + 0.6,
+          hint: 'The integral sign keeps the same numbers only when the variable stays x.',
+          explain: ['After substitution the integrand is in u, so the bounds must name u-values.',
+            'Plugging the x-limits through u = g(x) gives those u-values.',
+            'So the limits <b>must be u-values, not x-values</b>.'],
+          teach: 'A definite integral in u needs bounds in u — plug the old bounds through u = g(x).'
+        });
+    }
+    /* 5: boolean — honest judgement */
+    var uA5 = u(x0), uB5 = u(x1);
+    return I_bool('The definite integral ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx equals ' + rd((uB5*uB5-uA5*uA5)/2, 1) + ' after substituting u = x² + ' + a + 'x.', true, {
+      b: t + 0.75,
+      hint: 'Plug the x-limits through u, then evaluate u² ⁄ 2 at both.',
+      explain: ['du = (2x + ' + a + ') dx turns the integral into ∫u du from ' + uA5 + ' to ' + uB5 + '.',
+        'u² ⁄ 2 at ' + uB5 + ' minus u² ⁄ 2 at ' + uA5 + ' is ' + rd((uB5*uB5-uA5*uA5)/2, 1) + '.',
+        'So the claim is <b>true</b>.'],
+      teach: 'Check a definite substitution by recomputing both u-limits yourself.'
+    });
   });
 })();
 
