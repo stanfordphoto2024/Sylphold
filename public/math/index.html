@@ -10902,8 +10902,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 4);
 
     if (mode === 0) {                        /* equal groups -> total */
-      return I_num(ctx(rng) + ', ' + g + ' ' + plur(g, 'bag') + ' hold ' + k + ' ' + o1 +
-        ' each. How many ' + o1 + ' in all?', tot, {
+return MC(rng, ctx(rng) + ', ' + g + ' ' + plur(g, 'bag') + ' hold ' + k + ' ' + o1 +
+        ' each. How many ' + o1 + ' in all?', tot, [g * k + 1, g * k - 1, g + k], {
           visual: V.array(g, k, { label: g + ' groups of ' + k }),
           teach: 'Equal groups mean the same size over and over, so a product counts them all at once.',
           explain: ['There are <b>' + g + '</b> groups and each holds <b>' + k + '</b>.',
@@ -10914,8 +10914,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 1) {                        /* array -> total */
       var r = cap(g, 2, 9), c = cap(k, 2, 9);
-      return I_num('A ' + pick(rng, ['garden plot', 'tray of cookies', 'seat chart', 'tile floor']) +
-        ' is arranged in ' + r + ' rows with ' + c + ' in each row. How many in all?', r * c, {
+return MC(rng, 'A ' + pick(rng, ['garden plot', 'tray of cookies', 'seat chart', 'tile floor']) +
+        ' is arranged in ' + r + ' rows with ' + c + ' in each row. How many in all?', r * c, [r * c + 1, r * c - 1, r + c], {
           visual: V.array(r, c, { label: r + ' rows of ' + c }),
           teach: 'An array is a rectangle of equal rows, so rows × columns counts every item.',
           explain: ['Count the rows: <b>' + r + '</b>.', 'Each row has <b>' + c + '</b>.',
@@ -10937,8 +10937,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 3) {                        /* partitive division: find the size */
       var d2 = cap(g, 2, 8), t2 = d2 * k;
-      return I_num(w + ' shares ' + t2 + ' ' + o1 + ' equally among ' + d2 + ' friends. How many does each friend get?',
-        t2 / d2, {
+return MC(rng, w + ' shares ' + t2 + ' ' + o1 + ' equally among ' + d2 + ' friends. How many does each friend get?',
+        t2 / d2, [t2 / d2 + 1, t2 / d2 - 1, t2], {
           visual: V.array(d2, k, { label: t2 + ' split into ' + d2 + ' equal rows' }),
           teach: 'Sharing equally means every share is the same size, which is what division undoes.',
           explain: ['The total is <b>' + t2 + '</b> and there are <b>' + d2 + '</b> equal shares.',
@@ -10949,8 +10949,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 4) {                        /* measurement division: find the groups */
       var per = cap(k, 2, 9), nGroups = cap(g, 2, 9), tot4 = per * nGroups;
-      return I_num(tot4 + ' ' + obj(rng) + ' are packed into ' + plur(per, 'box') + ' of ' + per +
-        '. How many boxes are needed?', nGroups, {
+return MC(rng, tot4 + ' ' + obj(rng) + ' are packed into ' + plur(per, 'box') + ' of ' + per +
+        '. How many boxes are needed?', nGroups, [tot4 / per + 1, tot4 / per - 1, per], {
           teach: 'When the size of each group is fixed, division counts how many groups fit.',
           explain: ['Each box holds <b>' + per + '</b> and there are <b>' + tot4 + '</b> to pack.',
             'Count up by ' + per + 's until ' + tot4 + ': ' + per + ', ' + (per * 2) + ' …',
@@ -10994,7 +10994,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 8) {                        /* unknown number of groups */
       var sz = cap(k, 2, 9), ng = cap(g, 2, 9), tot8 = sz * ng;
-      return I_num(tot8 + ' ' + obj(rng) + ' are lined up in rows of ' + sz + '. How many rows are there?', ng, {
+return MC(rng, tot8 + ' ' + obj(rng) + ' are lined up in rows of ' + sz + '. How many rows are there?', ng, [ng + 1, ng - 1, sz], {
         visual: V.array(ng, sz, { label: tot8 + ' in rows of ' + sz }),
         teach: 'A missing factor is found by asking what times the group size reaches the total.',
         explain: ['Each row has <b>' + sz + '</b> and the total is <b>' + tot8 + '</b>.',
@@ -11042,7 +11042,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     var mode = R.int(rng, 0, lvl >= 4 ? 9 : lvl >= 3 ? 7 : 4);
 
     if (mode === 0) {                        /* unknown factor */
-      return I_num(a + ' × ? = ' + p, b, {
+return MC(rng, a + ' × ? = ' + p, b, [b + 1, b - 1, p], {
         teach: 'A missing factor is the division you already know: product ÷ known factor.',
         explain: ['The product is <b>' + p + '</b> and one factor is <b>' + a + '</b>.',
           'Ask: ' + a + ' groups of what make ' + p + '?',
@@ -11051,7 +11051,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
       });
     }
     if (mode === 1) {                        /* unknown dividend */
-      return I_num('? ÷ ' + b + ' = ' + a, p, {
+return MC(rng, '? ÷ ' + b + ' = ' + a, p, [p + 1, p - 1, a], {
         teach: 'Division undoes multiplication, so multiply to find the missing dividend.',
         explain: ['A number is split into ' + b + ' equal shares of ' + a + '.',
           'Put it back together: ' + b + ' × ' + a + '.',
@@ -11060,7 +11060,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
       });
     }
     if (mode === 2) {                        /* unknown divisor */
-      return I_num(p + ' ÷ ? = ' + a, b, {
+return MC(rng, p + ' ÷ ? = ' + a, b, [b + 1, b - 1, p], {
         teach: 'The missing divisor is the group size that makes the product with the answer.',
         explain: ['' + p + ' is shared into equal groups of size ?, and each count is ' + a + '.',
           'So ? × ' + a + ' = ' + p + '.',
@@ -11080,7 +11080,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 4) {                        /* distributive split */
       var m4 = cap(a, 4, 9), n4 = cap(b, 4, 9), split = cap(n4 - 5, 1, n4 - 1);
-      return I_num(m4 + ' × ' + n4 + ' = ' + m4 + ' × 5 + ' + m4 + ' × ?', n4 - 5, {
+return MC(rng, m4 + ' × ' + n4 + ' = ' + m4 + ' × 5 + ' + m4 + ' × ?', n4 - 5, [n4 - 5 + 1, n4 - 5 - 1, 5], {
         visual: V.area(m4, n4, { label: 'split the ' + n4 + ' columns into 5 and ' + (n4 - 5) }),
         teach: 'Breaking a factor apart and adding the two products is the distributive property.',
         explain: ['The full rectangle is ' + m4 + ' × ' + n4 + ' = ' + (m4 * n4) + '.',
@@ -11100,7 +11100,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
         });
     }
     if (mode === 6) {                        /* fluency */
-      return I_num('What is ' + a + ' × ' + b + '?', p, {
+return MC(rng, 'What is ' + a + ' × ' + b + '?', p, [p + 1, p - 1, a + b], {
         visual: lvl <= 2 ? V.array(a, b, { label: a + ' rows of ' + b }) : null,
         teach: 'Say the products of single digits from memory; check a doubtful one with an array.',
         explain: ['This is a fact to know by heart: ' + a + ' × ' + b + '.',
@@ -11163,8 +11163,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
 
     if (mode === 0) {                        /* packs then give away */
       var packs = R.int(rng, 2, lvl >= 3 ? 8 : 4), per = R.int(rng, 2, 9), gave = R.int(rng, 1, cap(packs * per - 1, 1, 9));
-      return I_num(w + ' buys ' + packs + ' packs of ' + per + ' ' + o1 + '. ' + w + ' gives ' + gave +
-        ' away. How many ' + o1 + ' are left?', packs * per - gave, {
+return MC(rng, w + ' buys ' + packs + ' packs of ' + per + ' ' + o1 + '. ' + w + ' gives ' + gave +
+        ' away. How many ' + o1 + ' are left?', packs * per - gave, [gave + 1, gave - 1, packs * per], {
           teach: 'Two-step problems are solved in the order the story happens, one question at a time.',
           explain: ['First the total: ' + packs + ' × ' + per + ' = ' + (packs * per) + '.',
             'Then the giveaway: ' + (packs * per) + ' - ' + gave + '.',
@@ -11174,8 +11174,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 1) {                        /* share then add */
       var sh = pick(rng, [2, 3, 4]), each1 = R.int(rng, 3, lvl >= 3 ? 12 : 8), tot = sh * each1, extra = R.int(rng, 2, 8);
-      return I_num(tot + ' ' + obj(rng) + ' are shared equally among ' + sh + ' children. Each child then adds ' + extra +
-        ' of their own. How many does each child have now?', each1 + extra, {
+return MC(rng, tot + ' ' + obj(rng) + ' are shared equally among ' + sh + ' children. Each child then adds ' + extra +
+        ' of their own. How many does each child have now?', each1 + extra, [tot / sh, tot / sh + extra + 1, tot / sh + extra - 1], {
           teach: 'Do the sharing first, then the adding — the story sets the order.',
           explain: ['Share: ' + tot + ' ÷ ' + sh + ' = ' + each1 + '.', 'Add their own ' + extra + ': ' + each1 + ' + ' + extra + '.',
             'Each child has <b>' + (each1 + extra) + '</b>.'],
@@ -11184,8 +11184,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 2) {                        /* money: two buys, change back */
       var p1 = R.int(rng, 2, 9), p2 = R.int(rng, 2, 9), paid = pick(rng, [20, 50, 100]);
-      return I_num('A notebook costs $' + p1 + ' and a folder costs $' + p2 + '. ' + w + ' pays with a $' + paid +
-        ' bill. How many cents of change come back?', (paid - p1 - p2) * 100, {
+return MC(rng, 'A notebook costs $' + p1 + ' and a folder costs $' + p2 + '. ' + w + ' pays with a $' + paid +
+        ' bill. How many cents of change come back?', (paid - p1 - p2) * 100, [paid - p1, paid - p2, paid - p1 - p2 + 1], {
           teach: 'Add the costs first, then take that total away from the money handed over.',
           explain: ['Cost: $' + p1 + ' + $' + p2 + ' = $' + (p1 + p2) + '.',
             'Change in dollars: $' + paid + ' - $' + (p1 + p2) + ' = $' + (paid - p1 - p2) + '.',
@@ -11220,7 +11220,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 5) {                        /* order of operations */
       var x6 = R.int(rng, 2, 9), y6 = R.int(rng, 2, 9), z6 = R.int(rng, 2, 9);
-      return I_num(x6 + ' + ' + y6 + ' × ' + z6, x6 + y6 * z6, {
+return MC(rng, x6 + ' + ' + y6 + ' × ' + z6, x6 + y6 * z6, [(x6 + y6) * z6, x6 + y6 + z6, x6 * y6 * z6], {
         teach: 'Multiply or divide before you add or subtract, unless parentheses say otherwise.',
         explain: ['Do the multiplication first: ' + y6 + ' × ' + z6 + ' = ' + (y6 * z6) + '.',
           'Then add ' + x6 + ': ' + (y6 * z6) + ' + ' + x6 + '.',
@@ -11230,7 +11230,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 6) {                        /* parentheses change the answer */
       var a7 = R.int(rng, 2, 8), b7 = R.int(rng, 2, 8), c7 = R.int(rng, 2, 5);
-      return I_num('(' + a7 + ' + ' + b7 + ') × ' + c7, (a7 + b7) * c7, {
+return MC(rng, '(' + a7 + ' + ' + b7 + ') × ' + c7, (a7 + b7) * c7, [a7 + b7 * c7, (a7 + b7) + c7, a7 * b7 * c7], {
         teach: 'Parentheses first: whatever is inside them must be worked out before anything else.',
         explain: ['Inside the parentheses: ' + a7 + ' + ' + b7 + ' = ' + (a7 + b7) + '.',
           'Then multiply by ' + c7 + ': ' + (a7 + b7) + ' × ' + c7 + '.',
@@ -11252,8 +11252,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 8) {                        /* find the starting amount */
       var out = R.int(rng, 2, 9), per9 = R.int(rng, 2, 6), left = R.int(rng, 3, 20);
-      return I_num(w + ' fills ' + out + ' boxes with ' + per9 + ' ' + obj(rng) + ' each and has ' + left +
-        ' left over. How many were there to start?', out * per9 + left, {
+return MC(rng, w + ' fills ' + out + ' boxes with ' + per9 + ' ' + obj(rng) + ' each and has ' + left +
+        ' left over. How many were there to start?', out * per9 + left, [out * per9, out * per9 + left + 1, out + left], {
           teach: 'Working backwards undoes each step: add back what was given away or left over.',
           explain: ['The boxes hold ' + out + ' × ' + per9 + ' = ' + (out * per9) + '.',
             'The ' + left + ' leftovers were part of the start too.',
@@ -11290,7 +11290,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     if (mode === 0) {                        /* round to the nearest 10 */
       var n1 = noTie10(R.int(rng, 11, lvl >= 3 ? 489 : 89));
       var r1 = Math.round(n1 / 10) * 10;
-      return I_num('Round ' + n1 + ' to the nearest ten.', r1, {
+return MC(rng, 'Round ' + n1 + ' to the nearest ten.', r1, [r1 + 10, r1 - 10, n1], {
         visual: V.numline(n1 - (n1 % 10) - 1, n1 - (n1 % 10) + 11, [{ x: n1, arrow: true, label: String(n1) }], { label: 'which ten is closest?' }),
         teach: 'Look at the ones digit: 4 or less rounds down, 5 or more rounds up.',
         explain: ['The tens around ' + n1 + ' are ' + (n1 - (n1 % 10)) + ' and ' + (n1 - (n1 % 10) + 10) + '.',
@@ -11302,7 +11302,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     if (mode === 1) {                        /* round to the nearest 100 */
       var n2 = noTie100(R.int(rng, 150, 899));
       var r2 = Math.round(n2 / 100) * 100;
-      return I_num('Round ' + n2 + ' to the nearest hundred.', r2, {
+return MC(rng, 'Round ' + n2 + ' to the nearest hundred.', r2, [r2 + 100, r2 - 100, n2], {
         teach: 'Compare the number to the two hundreds around it and pick the closer one.',
         explain: ['The hundreds around ' + n2 + ' are ' + (n2 - (n2 % 100)) + ' and ' + (n2 - (n2 % 100) + 100) + '.',
           'The last two digits are ' + ('00' + (n2 % 100)).slice(-2) + ', which is ' + (n2 % 100 >= 50 ? 'at least 50' : 'less than 50') + '.',
@@ -11325,7 +11325,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 3) {                        /* add within 1000 */
       var a3 = R.int(rng, lvl >= 3 ? 148 : 13, lvl >= 3 ? 689 : 78), b3 = R.int(rng, lvl >= 3 ? 137 : 12, lvl >= 3 ? cap(999 - a3, 137, 689) : cap(99 - a3, 12, 78));
-      return I_num('What is ' + a3 + ' + ' + b3 + '?', a3 + b3, {
+return MC(rng, 'What is ' + a3 + ' + ' + b3 + '?', a3 + b3, [a3 + b3 + 1, a3 + b3 - 1, a3], {
         teach: 'Add the ones, then the tens, then the hundreds, trading up whenever a column reaches 10.',
         explain: ['Ones: ' + (a3 % 10) + ' + ' + (b3 % 10) + ' = ' + (a3 % 10 + b3 % 10) + '.',
           'Tens and hundreds next: ' + (a3 - a3 % 10) + ' + ' + (b3 - b3 % 10) + ' = ' + (a3 - a3 % 10 + b3 - b3 % 10) + '.',
@@ -11335,7 +11335,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 4) {                        /* subtract within 1000 */
       var m4 = R.int(rng, lvl >= 3 ? 320 : 40, 940), s4 = R.int(rng, lvl >= 3 ? 118 : 12, lvl >= 3 ? cap(m4 - 100, 118, 640) : cap(m4 - 10, 12, 38));
-      return I_num('What is ' + m4 + ' - ' + s4 + '?', m4 - s4, {
+return MC(rng, 'What is ' + m4 + ' - ' + s4 + '?', m4 - s4, [m4 - s4 + 1, m4 - s4 - 1, s4], {
         teach: 'If a column is not big enough, ungroup one from the next place before subtracting.',
         explain: ['Ones: ' + (m4 % 10) + ' - ' + (s4 % 10) + (m4 % 10 < s4 % 10 ? ' needs an ungroup.' : '.'),
           'Take away the rest place by place.',
@@ -11345,7 +11345,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 5) {                        /* 1-digit x multiple of 10 */
       var f5 = R.int(rng, 3, 9), t5 = R.int(rng, 2, 9) * 10;
-      return I_num('What is ' + f5 + ' × ' + t5 + '?', f5 * t5, {
+return MC(rng, 'What is ' + f5 + ' × ' + t5 + '?', f5 * t5, [f5 + t5, f5 * t5 + 1, f5 * t5 - 1], {
         teach: 'Multiply the tens digit and put the zero back: 3 tens × 4 is 12 tens.',
         explain: ['Ignore the zero for a moment: ' + f5 + ' × ' + (t5 / 10) + ' = ' + (f5 * t5 / 10) + '.',
           'That answer is in tens, so ' + (f5 * t5 / 10) + ' tens = ' + (f5 * t5) + '.',
@@ -11355,7 +11355,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 6) {                        /* divide a multiple of 10 */
       var d6 = R.int(rng, 2, 9), q6 = R.int(rng, 2, 9), prod6 = d6 * q6 * 10;
-      return I_num('What is ' + prod6 + ' ÷ ' + d6 + '?', prod6 / d6, {
+return MC(rng, 'What is ' + prod6 + ' ÷ ' + d6 + '?', prod6 / d6, [prod6 - d6, prod6 / d6 + 1, prod6 / d6 - 1], {
         teach: 'Cover the zero, do the small fact, then put the zero back.',
         explain: ['' + prod6 + ' is ' + (prod6 / 10) + ' tens.',
           (prod6 / 10) + ' tens ÷ ' + d6 + ' = ' + (prod6 / 10 / d6) + ' tens.',
@@ -11365,7 +11365,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 7) {                        /* missing number in a big sentence */
       var tot7 = R.int(rng, 400, 980), p7 = R.int(rng, 110, tot7 - 110);
-      return I_num(p7 + ' + ? = ' + tot7, tot7 - p7, {
+return MC(rng, p7 + ' + ? = ' + tot7, tot7 - p7, [tot7 - p7 + 1, tot7 - p7 - 1, p7], {
         teach: 'The missing part is the gap: subtract the part you know from the whole.',
         explain: ['The whole is <b>' + tot7 + '</b> and one part is <b>' + p7 + '</b>.',
           tot7 + ' - ' + p7 + ' = ' + (tot7 - p7) + '.',
@@ -11455,7 +11455,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
         });
     }
     if (mode === 3) {                        /* how many unit fractions */
-      return I_num('How many ' + 1 + '/' + d + ' pieces make ' + n + '/' + d + '?', n, {
+return MC(rng, 'How many ' + 1 + '/' + d + ' pieces make ' + n + '/' + d + '?', n, [n + 1, n - 1, d], {
         visual: V.frac([{ n: n, d: d, label: n + ' pieces of size 1/' + d }]),
         teach: 'Any fraction a/b is a copies of the unit fraction 1/b.',
         explain: ['One piece is 1/' + d + '.', 'The numerator of ' + n + '/' + d + ' counts pieces of that size.',
@@ -11638,7 +11638,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 7) {                        /* how many parts make a whole */
       var d8 = pick(rng, FR_D);
-      return I_num('How many pieces of size 1/' + d8 + ' fill exactly one whole?', d8, {
+return MC(rng, 'How many pieces of size 1/' + d8 + ' fill exactly one whole?', d8, [d8 + 1, d8 - 1, 1], {
         visual: V.frac([{ n: d8, d: d8, label: d8 + '/' + d8 + ' = 1 whole' }]),
         teach: 'A whole is exactly d pieces of size 1/d, which is why d/d equals 1.',
         explain: ['Each piece is 1/' + d8 + ' of the whole.', 'd/d equals one whole.',
@@ -11697,8 +11697,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     var thing = pick(rng, ['garden', 'floor', 'bulletin board', 'sandbox', 'mural', 'rug', 'patio']);
 
     if (mode === 0) {                        /* tile count -> area */
-      return I_num('The ' + thing + ' below is covered with ' + r + ' rows of ' + c +
-        ' unit squares. What is its area in square units?', r * c, {
+return MC(rng, 'The ' + thing + ' below is covered with ' + r + ' rows of ' + c +
+        ' unit squares. What is its area in square units?', r * c, [r * c + 1, r * c - 1, r + c], {
           visual: V.area(r, c, { label: r + ' rows of ' + c + ' unit squares' }),
           teach: 'Area counts the unit squares that cover a figure with no gaps or overlaps.',
           explain: ['There are <b>' + r + '</b> rows and <b>' + c + '</b> squares in each row.',
@@ -11708,8 +11708,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
         });
     }
     if (mode === 1) {                        /* area by multiplication */
-      return I_num('A rectangular ' + thing + ' measures ' + r + ' units long and ' + c +
-        ' units wide. What is its area in square units?', r * c, {
+return MC(rng, 'A rectangular ' + thing + ' measures ' + r + ' units long and ' + c +
+        ' units wide. What is its area in square units?', r * c, [r + c, r * c + 1, r * c - 1], {
           visual: lvl <= 2 ? V.area(r, c, { label: 'count ' + r + ' rows of ' + c }) : null,
           teach: 'Multiplying the side lengths counts the same squares that tiling would show.',
           explain: ['The length is <b>' + r + '</b> and the width is <b>' + c + '</b>.',
@@ -11719,8 +11719,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
         });
     }
     if (mode === 2) {                        /* perimeter by adding sides */
-      return I_num('Fencing a rectangular ' + thing + ' that is ' + r + ' units by ' + c +
-        ' units means adding all four sides. How many units of fence?', 2 * (r + c), {
+return MC(rng, 'Fencing a rectangular ' + thing + ' that is ' + r + ' units by ' + c +
+        ' units means adding all four sides. How many units of fence?', 2 * (r + c), [r * c, r + c, 2 * (r + c) + 2], {
           teach: 'Perimeter is the distance around: every side is walked once and added.',
           explain: ['A rectangle has two sides of ' + r + ' and two sides of ' + c + '.',
             r + ' + ' + r + ' + ' + c + ' + ' + c + ' = ' + (2 * (r + c)) + '.',
@@ -11730,8 +11730,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 3) {                        /* missing side from the area */
       var w4 = R.int(rng, 2, 9), area4 = w4 * c;
-      return I_num('A rectangular rug has an area of ' + area4 + ' square units and is ' + w4 +
-        ' units wide. How long is it?', c, {
+return MC(rng, 'A rectangular rug has an area of ' + area4 + ' square units and is ' + w4 +
+        ' units wide. How long is it?', c, [area4 / w4 + 1, area4 / w4 - 1, w4], {
           visual: V.area(w4, c, { label: 'area ' + area4 + ' square units' }),
           teach: 'Area is length × width, so a missing side is the area divided by the side you know.',
           explain: ['Area = length × width, and the width is <b>' + w4 + '</b>.',
@@ -11742,8 +11742,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 4) {                        /* missing side from the perimeter */
       var len5 = R.int(rng, 3, 12), wid5 = R.int(rng, 2, len5), per5 = 2 * (len5 + wid5);
-      return I_num('A rectangle has a perimeter of ' + per5 + ' units and a length of ' + len5 +
-        ' units. How wide is it?', wid5, {
+return MC(rng, 'A rectangle has a perimeter of ' + per5 + ' units and a length of ' + len5 +
+        ' units. How wide is it?', wid5, [per5 - 2 * len5, len5 + 1, len5 - 1], {
           teach: 'Two lengths and two widths make the perimeter, so take the two known lengths out first.',
           explain: ['The two long sides are ' + len5 + ' + ' + len5 + ' = ' + (2 * len5) + '.',
             'Left for the two widths: ' + per5 + ' - ' + (2 * len5) + ' = ' + (2 * wid5) + '.',
@@ -11781,8 +11781,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 7) {                        /* rectilinear figure, area is additive */
       var topW = R.int(rng, 2, 6), botW = R.int(rng, 2, 6), h1 = R.int(rng, 2, 5), h2 = R.int(rng, 2, 5);
-      return I_num('An L-shaped ' + pick(rng, ['garden', 'floor', 'rug']) + ' splits into a ' + topW + ' by ' + h1 +
-        ' rectangle and a ' + botW + ' by ' + h2 + ' rectangle. What is its total area in square units?', topW * h1 + botW * h2, {
+return MC(rng, 'An L-shaped ' + pick(rng, ['garden', 'floor', 'rug']) + ' splits into a ' + topW + ' by ' + h1 +
+        ' rectangle and a ' + botW + ' by ' + h2 + ' rectangle. What is its total area in square units?', topW * h1 + botW * h2, [topW * h1, topW * h1 + botW * h2 + 1, topW * h1 + botW * h2 - 1], {
           visual: V.table(['part', 'sides', 'area'], [['top', topW + ' × ' + h1, topW * h1], ['bottom', botW + ' × ' + h2, botW * h2]]),
           teach: 'Area is additive: split a figure into rectangles and add the parts.',
           explain: ['First rectangle: ' + topW + ' × ' + h1 + ' = ' + (topW * h1) + ' square units.',
@@ -11793,8 +11793,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 8) {                        /* distributive area model */
       var h8 = cap(r, 3, 8), a8 = R.int(rng, 2, 5), b8 = R.int(rng, 2, 5);
-      return I_num('An area model splits a ' + h8 + ' × ' + (a8 + b8) + ' rectangle into ' + h8 + ' × ' + a8 +
-        ' and ' + h8 + ' × ?. What is the missing width?', b8, {
+return MC(rng, 'An area model splits a ' + h8 + ' × ' + (a8 + b8) + ' rectangle into ' + h8 + ' × ' + a8 +
+        ' and ' + h8 + ' × ?. What is the missing width?', b8, [h8 * a8, h8 * (a8 + b8) + 1, h8 * (a8 + b8) - 1], {
           visual: V.frac([{ n: a8, d: a8 + b8, label: h8 + ' × ' + a8 }, { n: b8, d: a8 + b8, label: h8 + ' × ?' }]),
           teach: 'The whole width is the sum of the two parts, which is the distributive property drawn.',
           explain: ['The full rectangle is ' + h8 + ' × ' + (a8 + b8) + ' = ' + (h8 * (a8 + b8)) + ' square units.',
@@ -11866,8 +11866,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 2) {                        /* duration */
       var s2h = R.int(rng, 1, 8), s2m = pick(rng, [0, 15, 20, 30, 45]), dur2 = pick(rng, [20, 35, 45, 60, 75, 90]);
-      return I_num('The movie started at ' + hms(s2h * 60 + s2m) + ' and ended at ' + hms(s2h * 60 + s2m + dur2) +
-        '. How many minutes was it?', dur2, {
+return MC(rng, 'The movie started at ' + hms(s2h * 60 + s2m) + ' and ended at ' + hms(s2h * 60 + s2m + dur2) +
+        '. How many minutes was it?', dur2, [dur2 + 1, dur2 - 1, s2m], {
           visual: V.numline(0, cap(dur2 + 20, 40, 120), [{ x: 0, label: 'start' }, { x: dur2, arrow: true, label: 'end' }], { label: 'count the minutes' }),
           teach: 'Count up to the next hour first, then on to the end time; that total is the elapsed time.',
           explain: ['From ' + hms(s2h * 60 + s2m) + ' to the next hour is ' + (60 - s2m) + ' minutes.',
@@ -11890,8 +11890,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 4) {                        /* litres, one step */
       var l1 = R.int(rng, 2, 40), l2 = R.int(rng, 2, cap(99 - l1, 2, 40));
-      return I_num('The punch bowl holds ' + l1 + ' litres and ' + w + ' pours in ' + l2 +
-        ' more litres. How many litres now?', l1 + l2, {
+return MC(rng, 'The punch bowl holds ' + l1 + ' litres and ' + w + ' pours in ' + l2 +
+        ' more litres. How many litres now?', l1 + l2, [l1 + l2 + 1, l1 + l2 - 1, l1], {
           visual: V.bar([{ v: l1, label: 'in the bowl' }, { v: l2, label: 'poured in' }], { label: 'litres' }),
           teach: 'Volume in the same unit is added like any other quantity.',
           explain: ['Both amounts are in litres, so add them.', l1 + ' + ' + l2 + ' = ' + (l1 + l2) + '.',
@@ -11901,8 +11901,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 5) {                        /* grams, one step */
       var g1 = R.int(rng, 200, 900), g2 = R.int(rng, 50, cap(g1 - 20, 50, 400));
-      return I_num('A bag of apples weighs ' + g1 + ' grams. ' + w + ' uses ' + g2 +
-        ' grams for a pie. How many grams are left?', g1 - g2, {
+return MC(rng, 'A bag of apples weighs ' + g1 + ' grams. ' + w + ' uses ' + g2 +
+        ' grams for a pie. How many grams are left?', g1 - g2, [g1 - g2 + 1, g1 - g2 - 1, g1], {
           teach: 'Mass in the same unit is subtracted like any other quantity; grams stay grams.',
           explain: ['Start with ' + g1 + ' grams and take away ' + g2 + '.',
             g1 + ' - ' + g2 + ' = ' + (g1 - g2) + '.',
@@ -11956,8 +11956,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     /* mode 10 — two beakers poured together */
     var b10 = pick(rng, [120, 250, 340, 480, 560]), b10b = pick(rng, [130, 220, 360, 450, 270]);
-    return I_num('One beaker holds ' + b10 + ' millilitres and another holds ' + b10b +
-      ' millilitres. Both are poured into a jug. How many millilitres are in the jug?', b10 + b10b, {
+return MC(rng, 'One beaker holds ' + b10 + ' millilitres and another holds ' + b10b +
+      ' millilitres. Both are poured into a jug. How many millilitres are in the jug?', b10 + b10b, [b10 + b10b + 1, b10 + b10b - 1, b10], {
         visual: V.bars([{ label: 'beaker 1', v: b10 }, { label: 'beaker 2', v: b10b }], { yMax: 600, label: 'millilitres' }),
         teach: 'Same unit on both measures means the amounts can be added straight away.',
         explain: ['Both beakers are measured in millilitres.', b10 + ' + ' + b10b + ' = ' + (b10 + b10b) + '.',
@@ -11984,7 +11984,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
 
     if (mode === 0) {                        /* read a bar */
       var pick0 = R.int(rng, 0, 3);
-      return I_num('From the graph: how many ' + glabel + ' are ' + cats[pick0] + '?', vals[pick0], {
+return MC(rng, 'From the graph: how many ' + glabel + ' are ' + cats[pick0] + '?', vals[pick0], [vals[pick0] + 1, vals[pick0] - 1, vals[(pick0 + 1) % vals.length]], {
         visual: V.bars(data, { yMax: yTop(vals), label: glabel }),
         teach: 'Read the height of the bar against the scale, then say the number with its unit.',
         explain: ['Find the bar labelled <b>' + cats[pick0] + '</b>.',
@@ -11996,7 +11996,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     if (mode === 1) {                        /* how many more */
       var hi1 = R.int(rng, 0, 3), lo1 = (hi1 + 1 + R.int(rng, 0, 2)) % 4;
       if (vals[hi1] === vals[lo1]) vals[hi1] = vals[lo1] + scale;
-      return I_num('How many more ' + glabel + ' are ' + cats[hi1] + ' than ' + cats[lo1] + '?', Math.abs(vals[hi1] - vals[lo1]), {
+return MC(rng, 'How many more ' + glabel + ' are ' + cats[hi1] + ' than ' + cats[lo1] + '?', Math.abs(vals[hi1] - vals[lo1]), [Math.abs(vals[hi1] - vals[lo1]) + 1, Math.abs(vals[hi1] - vals[lo1]) - 1, Math.max(vals[hi1], vals[lo1])], {
         visual: V.bars([data[hi1], data[lo1]], { yMax: yTop([vals[hi1], vals[lo1]]), label: 'compare the heights' }),
         teach: 'A comparison question is a subtraction of the two bar values.',
         explain: ['' + cats[hi1] + ' is ' + vals[hi1] + ' and ' + cats[lo1] + ' is ' + vals[lo1] + '.',
@@ -12007,8 +12007,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 2) {                        /* scale conversion */
       var sq2 = R.int(rng, 3, 9);
-      return I_num('On a scaled bar graph each square stands for ' + scale + ' ' + glabel +
-        '. A bar is ' + sq2 + ' squares tall. How many is that?', sq2 * scale, {
+return MC(rng, 'On a scaled bar graph each square stands for ' + scale + ' ' + glabel +
+        '. A bar is ' + sq2 + ' squares tall. How many is that?', sq2 * scale, [sq2 + scale, sq2 * scale + scale, sq2 * scale - scale], {
           visual: V.bars([{ label: cats[0], v: sq2 }], { yMax: 10, label: 'each square = ' + scale }),
           teach: 'A scaled graph counts groups, so multiply the squares by the value of one square.',
           explain: ['One square = ' + scale + '.', sq2 + ' squares = ' + sq2 + ' groups of ' + scale + '.',
@@ -12018,7 +12018,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 3) {                        /* two-step total from the graph */
       var a3 = R.int(rng, 0, 3), b3 = (a3 + 1 + R.int(rng, 0, 2)) % 4;
-      return I_num('How many ' + glabel + ' are ' + cats[a3] + ' and ' + cats[b3] + ' together?', vals[a3] + vals[b3], {
+return MC(rng, 'How many ' + glabel + ' are ' + cats[a3] + ' and ' + cats[b3] + ' together?', vals[a3] + vals[b3], [vals[a3] + vals[b3] + 1, vals[a3] + vals[b3] - 1, vals[a3]], {
         visual: V.bars([data[a3], data[b3]], { yMax: yTop([vals[a3], vals[b3]]), label: 'two categories' }),
         teach: 'A total uses every value, so read both bars before adding.',
         explain: ['' + cats[a3] + ' = ' + vals[a3] + ', ' + cats[b3] + ' = ' + vals[b3] + '.',
@@ -12043,7 +12043,7 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
       var labels = ['0', '1', '2', '3'];
       var marks = labels.map(function () { return R.int(rng, 1, 8); });
       var total = marks.reduce(function (a, b) { return a + b; }, 0);
-      return I_num('A line plot of seed lengths is marked in half inches. How many seeds were measured in all?', total, {
+return MC(rng, 'A line plot of seed lengths is marked in half inches. How many seeds were measured in all?', total, [total + 1, total - 1, Math.max.apply(null, marks)], {
         visual: V.table(['length (in)', 'X marks'], labels.map(function (L, i) {
           return [L, Array.apply(null, Array(marks[i])).map(function () { return '✕'; }).join(' ')];
         })),
@@ -12089,8 +12089,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
       var marks8 = labels8.map(function () { return R.int(rng, 3, 9); });
       var hi8 = marks8.indexOf(Math.max.apply(null, marks8)), lo8 = marks8.indexOf(Math.min.apply(null, marks8));
       if (hi8 === lo8) { marks8[(hi8 + 1) % 4] = marks8[hi8] - 2; lo8 = (hi8 + 1) % 4; }
-      return I_num('On a line plot marked in fourths, how many more measurements are above ' + labels8[hi8] +
-        ' than above ' + labels8[lo8] + '?', marks8[hi8] - marks8[lo8], {
+return MC(rng, 'On a line plot marked in fourths, how many more measurements are above ' + labels8[hi8] +
+        ' than above ' + labels8[lo8] + '?', marks8[hi8] - marks8[lo8], [marks8[hi8] - marks8[lo8] + 1, marks8[hi8] - marks8[lo8] - 1, Math.max.apply(null, marks8)], {
           visual: V.table(['measurement (in)', 'X marks'], labels8.map(function (L, i) {
             return [L, Array.apply(null, Array(marks8[i])).map(function () { return '✕'; }).join(' ')];
           })),
@@ -12184,8 +12184,8 @@ return MC(rng, ctx(rng) + ': ' + grp + ' ' + obj(rng) + ' are shared equally bet
     }
     if (mode === 5) {                        /* area of one part */
       var area5 = parts * R.int(rng, 2, 6);
-      return I_num('A rectangle has an area of ' + area5 + ' square units and is cut into ' + parts +
-        ' parts with equal area. How many square units is each part?', area5 / parts, {
+return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut into ' + parts +
+        ' parts with equal area. How many square units is each part?', area5 / parts, [area5 / parts + 1, area5 / parts - 1, parts], {
           visual: V.frac([{ n: 1, d: parts, label: 'one part' }]),
           teach: 'Equal-area parts divide the total area evenly, so each part is the area shared by the number of parts.',
           explain: ['Total area is <b>' + area5 + '</b> square units in <b>' + parts + '</b> equal parts.',
