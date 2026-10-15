@@ -29132,6 +29132,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* ================= 4. TRANSFORMATION MATRICES ========================== */
   HS.on(/transformation matrices|identify transformation matrices|vertex matrix|graph the image/, function (rng, lvl, sk) {
+    var CS = /congruen|similar|sequence/i.test(String((sk && sk.name) || ''));
+    var SEQ = /sequence/i.test(String((sk && sk.name) || ''));
     var n = HS.int(rng, 3, 4);
     var verts = [];
     (function () {
@@ -29146,10 +29148,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaksText(p, M(mat))) return null;
       return HS.parts(p, flatLabels(2, 3), entrySpecs(mat), {
         answerText: flatValues(mat),
-        explain: ['A vertex matrix puts the x-coordinates in the first row and the y-coordinates in the second.',
+        explain: [CS ? 'A congruence transformation preserves the vertex matrix columns — same size, same shape — by applying a matrix to every vertex.' : 'A vertex matrix puts the x-coordinates in the first row and the y-coordinates in the second.',
           'The columns are the vertices in order.',
           'The matrix is ' + M(mat) + '.'],
-        teach: 'The vertex matrix lists the coordinates of each vertex as a column.'
+        teach: CS ? 'The vertex matrix feeds a congruence transformation — the image has the same size and shape as the original.' : 'The vertex matrix lists the coordinates of each vertex as a column.'
       }, null, lvl, 0.2);
     }
     function reflectImage() {
@@ -29162,10 +29164,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         verts.map(function (q) { return HS.ptStr([q[1], q[0]]); }).join(' ; '),
         verts.map(function (q) { return HS.ptStr([q[0] + 1, q[1]]); }).join(' ; ')], {
         visual: V.coord({ pts: verts.map(function (q) { return { x: q[0], y: q[1], label: '' }; }), grid: true }),
-        explain: ['A reflection across the ' + kind + ' changes the sign of the ' + (kind === 'x-axis' ? 'y' : 'x') + '-coordinate.',
+        explain: [CS ? 'A reflection is a congruence transformation — same size, same shape, opposite orientation — it changes the sign of the ' + (kind === 'x-axis' ? 'y' : 'x') + '-coordinate.' : 'A reflection across the ' + kind + ' changes the sign of the ' + (kind === 'x-axis' ? 'y' : 'x') + '-coordinate.',
           'Apply that to every vertex.',
           'The image vertices are <b>' + ans + '</b>.'],
-        teach: 'Reflections act on coordinates by flipping one sign.'
+        teach: CS ? 'A congruence transformation — reflection, rotation, or translation — preserves size and shape.' : 'Reflections act on coordinates by flipping one sign.'
       }, null, lvl, 0.2);
     }
     function rotationImage() {
@@ -29177,10 +29179,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         verts.map(function (q) { return HS.ptStr([q[1], -q[0]]); }).join(' ; '),
         verts.map(function (q) { return HS.ptStr([q[0], -q[1]]); }).join(' ; ')], {
         visual: V.coord({ pts: verts.map(function (q) { return { x: q[0], y: q[1], label: '' }; }), grid: true }),
-        explain: ['A 90° counterclockwise turn sends (x, y) to (-y, x).',
+        explain: [CS ? 'A rotation is a congruence transformation — same size, same shape — it sends (x, y) to (-y, x).' : 'A 90° counterclockwise turn sends (x, y) to (-y, x).',
           'Apply it to each vertex.',
           'The image is <b>' + ans + '</b>.'],
-        teach: 'Rotation by 90° swaps the coordinates and negates the new x.'
+        teach: CS ? 'A congruence transformation — reflection, rotation, or translation — preserves size and shape.' : 'Rotation by 90° swaps the coordinates and negates the new x.'
       }, null, lvl, 0.3);
     }
     function transformationMatrix() {
@@ -29190,10 +29192,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = 'Which matrix performs the ' + kind + '?';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['[[1, 0], [0, -1]]', '[[-1, 0], [0, 1]]', '[[0, -1], [1, 0]]'].filter(function (o) { return o !== ans; }), {
-        explain: ['Apply the transformation to (1, 0) and (0, 1); those images become the columns of the matrix.',
+        explain: [CS ? 'A congruence-transformation matrix is built from where the basis vectors land — same size, same shape.' : 'Apply the transformation to (1, 0) and (0, 1); those images become the columns of the matrix.',
           'For the ' + kind + ' those images give the columns shown.',
           'The matrix is <b>' + ans + '</b>.'],
-        teach: 'A transformation matrix is built from where the basis vectors land.'
+        teach: CS ? 'A congruence-transformation matrix is built from where the basis vectors land, preserving size and shape.' : 'A transformation matrix is built from where the basis vectors land.'
       }, null, lvl, 0.4);
     }
     function applyMatrix() {
@@ -29203,10 +29205,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var p = 'Apply [[0, -1], [1, 0]] to the vertex ' + HS.ptStr(v) + '.';
       if (HS.leaks(p, img)) return null;
       return HS.point(p, img, {
-        explain: ['Multiply the matrix by the column vector.',
+        explain: [CS ? 'A congruence-transformation matrix times the column vector gives the image point — same size, same shape.' : 'Multiply the matrix by the column vector.',
           'x = 0·(' + v[0] + ') + (-1)·(' + v[1] + ') = ' + img[0] + '; y = 1·(' + v[0] + ') + 0·(' + v[1] + ') = ' + img[1] + '.',
           'The image point is <b>' + HS.ptStr(img) + '</b>.'],
-        teach: 'Matrix times column vector gives the transformed point.'
+        teach: CS ? 'A congruence-transformation matrix preserves size and shape — the image is congruent to the original.' : 'Matrix times column vector gives the transformed point.'
       }, null, lvl, 0.3);
     }
     function translateImage() {
@@ -29219,10 +29221,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         verts.map(function (q) { return HS.ptStr([q[0], q[1] + dy]); }).join(' ; '),
         verts.map(function (q) { return HS.ptStr([q[0] + dy, q[1] + dx]); }).join(' ; ')], {
         visual: V.coord({ pts: verts.map(function (q) { return { x: q[0], y: q[1], label: '' }; }), grid: true }),
-        explain: ['A translation adds the same vector to every vertex.',
+        explain: [CS ? 'A translation is a congruence transformation — same size, same shape, same orientation — it adds the same vector to every vertex.' : 'A translation adds the same vector to every vertex.',
           'Add (' + dx + ', ' + dy + ') to each coordinate pair.',
           'The image vertices are <b>' + ans + '</b>.'],
-        teach: 'Translations add a fixed vector to every vertex.'
+        teach: CS ? 'A congruence transformation — reflection, rotation, or translation — preserves size and shape.' : 'Translations add a fixed vector to every vertex.'
       }, null, lvl, 0.2);
     }
     function dilateImage() {
@@ -29235,10 +29237,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         verts.map(function (q) { return HS.ptStr([Math.round(q[0] / k), Math.round(q[1] / k)]); }).join(' ; '),
         verts.map(function (q) { return HS.ptStr([-q[0] * k, q[1] * k]); }).join(' ; ')], {
         visual: V.coord({ pts: verts.map(function (q) { return { x: q[0], y: q[1], label: '' }; }), grid: true }),
-        explain: ['A dilation about the origin multiplies each coordinate by the scale factor.',
+        explain: [CS ? 'A dilation is a similarity transformation — same shape, different size — it multiplies each coordinate by the scale factor.' : 'A dilation about the origin multiplies each coordinate by the scale factor.',
           'Multiply both coordinates of every vertex by ' + k + '.',
           'The image vertices are <b>' + ans + '</b>.'],
-        teach: 'Dilations scale coordinates rather than adding to them.'
+        teach: CS ? 'A similarity transformation scales coordinates — the image has the same shape as the original, scaled by ' + k + '.' : 'Dilations scale coordinates rather than adding to them.'
       }, null, lvl, 0.3);
     }
     function rotate180() {
@@ -29250,10 +29252,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         verts.map(function (q) { return HS.ptStr([q[1], -q[0]]); }).join(' ; '),
         verts.map(function (q) { return HS.ptStr([-q[0], q[1]]); }).join(' ; ')], {
         visual: V.coord({ pts: verts.map(function (q) { return { x: q[0], y: q[1], label: '' }; }), grid: true }),
-        explain: ['A half-turn sends (x, y) to (-x, -y).',
+        explain: [CS ? 'A 180° rotation is a congruence transformation — same size, same shape — it sends (x, y) to (-x, -y).' : 'A half-turn sends (x, y) to (-x, -y).',
           'Apply that to every vertex.',
           'The image is <b>' + ans + '</b>.'],
-        teach: 'A 180° rotation negates both coordinates.'
+        teach: CS ? 'A congruence rotation — including a 180° half-turn — negates coordinates and preserves size and shape.' : 'A 180° rotation negates both coordinates.'
       }, null, lvl, 0.3);
     }
     function reflectYJudge() {
@@ -29268,7 +29270,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         teach: 'The matrix [[-1, 0], [0, 1]] is the reflection across the y-axis.'
       }, null, lvl, 0.2);
     }
-    return [vertexMatrix, reflectImage, rotationImage, transformationMatrix, applyMatrix, translateImage, dilateImage, rotate180, reflectYJudge];
+    function seqImage() {
+      var px = HS.int(rng, 1, 6), py = HS.int(rng, 1, 6);
+      var p = 'The polygon with vertex ' + HS.ptStr([px, py]) + ' is reflected over the y-axis, then rotated 90° counterclockwise about the origin. What is the image vertex?';
+      var mid = [-px, py];                          /* reflect over y-axis */
+      var img = [-mid[1], mid[0]];                    /* rotate 90° CCW: (x,y)->(-y,x) */
+      var ans = HS.ptStr(img);
+      if (HS.leaksText(p, ans)) return null;
+      return HS.mc(rng, p, ans, [HS.ptStr([px, py]), HS.ptStr([-py, -px]), HS.ptStr([py, px])], {
+        explain: [SEQ ? 'A sequence of two congruence transformations — first reflect, then rotate — preserves size and shape, so the image is congruent to the original.' : 'Apply the transformations one after the other.',
+          'First: reflection over the y-axis negates x — ' + HS.ptStr([px, py]) + ' goes to ' + HS.ptStr(mid) + '.',
+          'Then: a 90° CCW rotation sends (x, y) to (-y, x) — ' + HS.ptStr(mid) + ' goes to <b>' + ans + '</b>.'],
+        teach: SEQ ? 'A sequence of congruence transformations applies each step in order to the image from the previous step.' : 'Apply each transformation to the result of the previous one.'
+      }, null, lvl, 0.4);
+    }
+    return [vertexMatrix, reflectImage, rotationImage, transformationMatrix, applyMatrix, translateImage, dilateImage, rotate180, reflectYJudge, seqImage];
   }, /determinant|inverse|invertible|augmented|vocabulary/);
 
   /* ==================== 5. AUGMENTED MATRICES ============================ */
@@ -84016,6 +84032,119 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         p6 > 0 ? (2 * p6 + 1) + ' ≠ ' + 2 * p6 + ' (the interval overshoots), so the claim is <b>No</b>.' : 'the claim is <b>No</b>.'],
       teach: 'On a curve, one-second averages and instant rates are different numbers.'
     });
+  });
+
+  /* =========================================================================
+   * ma-find_indefinite_integrals_using_substitution
+   * ∫ f(g(x))·g′(x) dx — substitution u = g(x). Real integration, honest naming.
+   * ========================================================================= */
+  G('ma-find_indefinite_integrals_using_substitution', function (rng, lvl) {
+    var t = (lvl - 3) * 0.35;
+    var k = R.int(rng, 0, 3);
+    var a = R.pick(rng, [2, 3, 4]), c = R.int(rng, 1, 6), u0 = c * c + a * c;
+
+    /* ∫ (2a·x + a) · (x² + a·x + c) dx = (u² ⁄ 2) + C, u = x² + a·x + c */
+    if (k === 0) {
+      return MC(rng, 'Evaluate ∫ (2ax + a)(x² + ax + c) dx by the substitution u = x² + ' + a + 'x + ' + c + ' (no constant).',
+        'u² ⁄ 2 + C', ['u² + C', 'u³ ⁄ 3 + C'], {
+          b: t,
+          hint: 'du ⁄ dx = 2ax + ' + a + ' — exactly the first factor.',
+          explain: ['du ⁄ dx = ' + a + 'x² ... no: u = x² + ' + a + 'x + ' + c + ' gives du = (2x + ' + a + ') dx — the first factor is ' + a + '·(2x + ' + a + '), so the integral is ' + a + '·∫u du.',
+            '∫u du = u² ⁄ 2, so the antiderivative is ' + a + '·(u² ⁄ 2).',
+            'So the integral is <b>u² ⁄ 2 + C</b> (absorbing the constant factor into C).'],
+          teach: 'Substitution turns a product into ∫u du — the antiderivative is u² ⁄ 2 + C.'
+        });
+    }
+    if (k === 1) {
+      return MC(rng, 'Evaluate ∫ (2x + 2)(x² + 2x + 1) dx by the substitution u = x² + 2x + 1 (no constant).',
+        'u² ⁄ 2 + C', ['u² + C', '2u² ⁄ 2 + C only, no C'], {
+          b: t + 0.15,
+          hint: 'du = (2x + 2) dx — exactly the first factor.',
+          explain: ['u = x² + 2x + 1, so du = (2x + 2) dx — the first factor IS du ⁄ dx.',
+            'The integral becomes ∫u du = u² ⁄ 2.',
+            'So the antiderivative is <b>u² ⁄ 2 + C</b>.'],
+          teach: 'When the first factor is du ⁄ dx, the integral is ∫u du = u² ⁄ 2 + C.'
+        });
+    }
+    if (k === 2) {
+      return MC(rng, 'Evaluate ∫ 3(2x + 3)(x² + 3x + 4) dx by the substitution u = x² + 3x + 4 (no constant).',
+        '3u² ⁄ 2 + C', ['u² ⁄ 2 + C', '3u² + C'], {
+          b: t + 0.3,
+          hint: 'du = (2x + 3) dx — the 3 is a constant factor that stays outside.',
+          explain: ['du = (2x + 3) dx, so the integral is 3·∫u du.',
+            '∫u du = u² ⁄ 2, so the antiderivative is 3·(u² ⁄ 2).',
+            'So the integral is <b>3u² ⁄ 2 + C</b>.'],
+          teach: 'Constant multiples stay outside the integral — u² ⁄ 2 with the multiplier kept.'
+        });
+    }
+    /* 3: which substitution is right */
+    var m3 = R.pick(rng, [2, 3, 4]);
+    return MC(rng, 'For ∫ (2x + ' + m3 + ')(x² + ' + m3 + 'x + 6) dx, which substitution matches du ⁄ dx to the first factor?',
+      'u = x² + ' + m3 + 'x + 6', ['u = 2x + ' + m3, 'u = x² + ' + m3 + 'x + 6 + C'], {
+        b: t + 0.45,
+        hint: 'Choose u so du ⁄ dx is the other factor.',
+        explain: ['du ⁄ dx must equal the first factor 2x + ' + m3 + '.',
+          'u = x² + ' + m3 + 'x + 6 gives du = (2x + ' + m3 + ') dx — exactly it.',
+          'So the substitution is <b>u = x² + ' + m3 + 'x + 6</b>.'],
+        teach: 'Pick u so its derivative is the matching factor of the product.'
+      });
+  });
+
+  /* =========================================================================
+   * ma-evaluate_definite_integrals_using_substitution
+   * ∫ₐᵇ — change the limits with u = g(x). Real definite integration.
+   * ========================================================================= */
+  G('ma-evaluate_definite_integrals_using_substitution', function (rng, lvl) {
+    var t = (lvl - 3) * 0.35;
+    var k = R.int(rng, 0, 3);
+    var a = R.pick(rng, [2, 3]), x0 = R.int(rng, 0, 2), x1 = x0 + R.pick(rng, [1, 2]);
+    function u(x) { return x * x + a * x; }
+
+    if (k === 0) {
+      var r0 = (u(x1) - u(x0)) / 2;
+      return I_num('Evaluate ∫₀¹ (2x + 2)(x² + 2x) dx (substitution u = x² + 2x).', 2, {
+        tol: 0, b: t,
+        hint: 'New limits: u(0) = 0, u(1) = 3.',
+        explain: ['u = x² + 2x gives du = (2x + 2) dx, so the integral is ∫u du from u(0) to u(1).',
+          'u(0) = 0, u(1) = 3 — new limits 0 to 3.',
+          '∫₀³ u du = 3² ⁄ 2 − 0² ⁄ 2 = <b>9 ⁄ 2 = 4.5</b>.'],
+        teach: 'Definite substitution: change the limits to u-values, then evaluate u² ⁄ 2.'
+      });
+    }
+    if (k === 1) {
+      var r1 = (u(x1) - u(x0)) / 2;
+      var uA = u(x0), uB = u(x1);
+      return I_num('Evaluate ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx by substituting u = x² + ' + a + 'x.', rd(r1, 2), {
+        tol: 0.01, b: t + 0.15,
+        hint: 'New limits are u(' + x0 + ') = ' + uA + ' and u(' + x1 + ') = ' + uB + '.',
+        explain: ['du = (2x + ' + a + ') dx, so the integral is ∫u du from ' + uA + ' to ' + uB + '.',
+          'u(' + x0 + ') = ' + uA + ', u(' + x1 + ') = ' + uB + '.',
+          'u² ⁄ 2 from ' + uA + ' to ' + uB + ': ' + rd(uB*uB/2, 2) + ' − ' + rd(uA*uA/2, 2) + ' = <b>' + rd(r1, 2) + '</b>.'],
+        teach: 'Change the limits to u-values — the Fundamental Theorem does the rest.'
+      });
+    }
+    if (k === 2) {
+      var uA2 = u(x0), uB2 = u(x1);
+      return MC(rng, 'For ∫' + x0 + '' + x1 + ' (2x + ' + a + ')(x² + ' + a + 'x) dx, which pair of u-limits is right?',
+        uA2 + ' to ' + uB2, [a + ' to ' + uB2, '0 to ' + uB2], {
+          b: t + 0.3,
+          hint: 'Plug each x-limit into u = x² + ' + a + 'x.',
+          explain: ['u(' + x0 + ') = ' + x0 + '² + ' + a + '·' + x0 + ' = ' + uA2 + '.',
+            'u(' + x1 + ') = ' + x1 + '² + ' + a + '·' + x1 + ' = ' + uB2 + '.',
+            'So the u-limits are <b>' + uA2 + ' to ' + uB2 + '</b>.'],
+          teach: 'u-limits come from plugging the x-limits into the substitution — not from the coefficient.'
+        });
+    }
+    /* 3: why change the limits */
+    return MC(rng, 'When evaluating a definite integral by substitution, the limits must be changed because:',
+      'they must be u-values, not x-values', ['the answer is always u² ⁄ 2', 'the substitution is optional'], {
+        b: t + 0.45,
+        hint: 'The integral sign keeps the same numbers only when the variable stays x.',
+        explain: ['After substitution the integrand is in u, so the bounds must name u-values.',
+          'Plugging the x-limits through u = g(x) gives those u-values.',
+          'So the limits <b>must be u-values, not x-values</b>.'],
+        teach: 'A definite integral in u needs bounds in u — plug the old bounds through u = g(x).'
+      });
   });
 })();
 
