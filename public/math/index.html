@@ -369,7 +369,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-14 — 95 modules inlined:
+/* MathPath 2026-10-15 — 95 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -22962,7 +22962,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   /* ============== 1. ABSOLUTE VALUE EQUATIONS AND FUNCTIONS ============== */
   HS.on(/absolute value (equation|function|functions)|solve absolute value equations|graph solutions to absolute value equations|write absolute value equations from graphs|graph an absolute value function|function table: absolute value|vertex of an absolute value/, function (rng, lvl, sk) {
-    var t = (sk && sk.title) ? String(sk.title).toLowerCase() : '';
+    var t = (sk && sk.name) ? String(sk.name).toLowerCase() : '';
+    var LIM = /limit/i.test(t);
     var h = HS.int(rng, -5, 5), k = HS.int(rng, -6, 6);
     var a = HS.int(rng, -6, 6), b = HS.int(rng, 1, 9);
     var s1 = -a - b, s2 = -a + b;                    /* solutions of |x + a| = b */
@@ -22972,7 +22973,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [s1, s2])) return null;
       return HS.parts(p, ['smaller value', 'larger value'], [{ k: 'n', v: s1 }, { k: 'n', v: s2 }], {
         answerText: s1 + ' ; ' + s2,
-        explain: ['The expression inside the bars can be ' + b + ' or -' + b + '.',
+        explain: [LIM ? 'The two branches meet as x approaches the vertex, so the limit can be ' + b + ' or -' + b + '.' : 'The expression inside the bars can be ' + b + ' or -' + b + '.',
           'x + ' + a + ' = ' + b + ' gives x = ' + s2 + '; x + ' + a + ' = -' + b + ' gives x = ' + s1 + '.',
           'The solutions are ' + s1 + ' and ' + s2 + '.'],
         teach: 'An absolute value equation usually splits into two ordinary equations.'
@@ -22983,7 +22984,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var ans = 'no solution';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['x = -' + (a + b), 'x = ' + Math.abs(b), 'x = -' + a], {
-        explain: ['An absolute value measures a distance, so it is never negative.',
+        explain: [LIM ? 'As the inside approaches the vertex, the distance it approaches can never be negative.' : 'An absolute value measures a distance, so it is never negative.',
           'The equation asks for ' + absText(a, 0) + ' to equal -' + b + '.',
           'That is impossible, so there is <b>no solution</b>.'],
         teach: 'An absolute value equal to a negative number has no solution.'
@@ -22995,7 +22996,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [s1, s2])) return null;
       return HS.parts(p, ['smaller value', 'larger value'], [{ k: 'n', v: s1 }, { k: 'n', v: s2 }], {
         answerText: s1 + ' ; ' + s2,
-        explain: ['Subtract ' + c + ' first so the bars stand alone: ' + absText(a, 0) + ' = ' + b + '.',
+        explain: [LIM ? 'Isolate first, then the limit is the distance the approach settles at: ' + b + ' and -' + b + '.' : 'Subtract ' + c + ' first so the bars stand alone: ' + absText(a, 0) + ' = ' + b + '.',
           'Now split into the two cases.',
           'The solutions are ' + s1 + ' and ' + s2 + '.'],
         teach: 'Isolate the absolute value before splitting into two cases.'
@@ -23004,11 +23005,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function graphInterpret() {
       var kk = HS.pick(rng, [2, 0, -2]);
       var want = kk > 0 ? 'two solutions' : kk === 0 ? 'exactly one solution' : 'no solution';
-      var p = 'The graph of y = ' + absText(0, kk) + ' is shown. How many solutions does ' + absText(0, kk) + ' = 0 have?';
+      var p = LIM
+        ? 'The graph of y = ' + absText(0, kk) + ' is shown. Reading the limit as x approaches the vertex, how many solutions does ' + absText(0, kk) + ' = 0 have?'
+        : 'The graph of y = ' + absText(0, kk) + ' is shown. How many solutions does ' + absText(0, kk) + ' = 0 have?';
       if (HS.leaksText(p, want)) return null;
       return HS.mc(rng, p, want, ['two solutions', 'exactly one solution', 'no solution'].filter(function (o) { return o !== want; }), {
         visual: V.graph([{ expr: absExpr(0, kk), label: 'y = ' + absText(0, kk) }, { expr: '0', label: 'y = 0' }]),
-        explain: ['Solutions are where the V-shaped graph meets the x-axis.',
+        explain: [LIM ? 'The limit is where the approach lines up with the axis — count the crossings.' : 'Solutions are where the V-shaped graph meets the x-axis.',
           kk > 0 ? 'The vertex sits ' + kk + ' above the axis, so the graph never reaches it.' :
             kk === 0 ? 'The vertex touches the axis exactly once.' :
               'The whole V sits below the axis, so it never touches it.',
@@ -23022,7 +23025,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['y = ' + absText(-h, k), 'y = ' + absText(h, -k), 'y = ' + absText(h + 2, k)], {
         visual: V.graph([{ expr: absExpr(h, k), label: 'y = ' + absText(h, k) }]),
-        explain: ['A graph of y = |x - h| + k has its vertex at (' + h + ', ' + k + ').',
+        explain: [LIM ? 'Approaching the vertex from both sides, the limit is ' + k + ', so the equation is ' + ans + ' at that point.' : 'A graph of y = |x - h| + k has its vertex at (' + h + ', ' + k + ').',
           'The horizontal shift moves in the opposite direction from the sign inside the bars.',
           'The equation is <b>' + ans + '</b>.'],
         teach: 'The vertex of the V tells you both shifts in the equation.'
@@ -23033,7 +23036,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [h, k])) return null;
       return HS.point(p, [h, k], {
         visual: V.graph([{ expr: absExpr(h, k), label: 'y = ' + absText(h, k) }]),
-        explain: ['The absolute value is smallest — zero — when its inside is zero.',
+        explain: [LIM ? 'Approaching the vertex, the inside approaches zero, so the limit is ' + k + '.' : 'The absolute value is smallest — zero — when its inside is zero.',
           'That happens at x = ' + h + ', where y = ' + k + '.',
           'The vertex is <b>' + HS.ptStr([h, k]) + '</b>.'],
         teach: 'The vertex of y = |x - h| + k is the point (h, k).'
@@ -23042,11 +23045,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function tableValue() {
       var x = HS.int(rng, -8, 8);
       var y = Math.abs(x - h) + k;
-      var p = 'Complete the table for y = ' + absText(h, k) + ': what is y when x = ' + x + '?';
+      var p = LIM
+        ? 'Complete the table for y = ' + absText(h, k) + ': as x approaches ' + x + ' in the table, what value does y approach?'
+        : 'Complete the table for y = ' + absText(h, k) + ': what is y when x = ' + x + '?';
       if (HS.leaks(p, [y])) return null;
       return HS.numExact(p, y, {
         visual: V.table(['x', 'y'], [[String(x), '?'], [String(x + 1), String(Math.abs(x + 1 - h) + k)]]),
-        explain: ['Evaluate the inside first: ' + x + (h > 0 ? ' - ' + h : ' + ' + Math.abs(h)) + ' = ' + (x - h) + '.',
+        explain: [LIM ? 'As x approaches ' + x + ', the inside approaches ' + (x - h) + ', so the limit follows the table value.' : 'Evaluate the inside first: ' + x + (h > 0 ? ' - ' + h : ' + ' + Math.abs(h)) + ' = ' + (x - h) + '.',
           'The bars turn a negative into a positive: |' + (x - h) + '| = ' + Math.abs(x - h) + '.',
           'Then add ' + k + ': y = <b>' + y + '</b>.'],
         teach: 'Evaluate the inside, take its distance from zero, then adjust.'
@@ -23054,12 +23059,14 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function domainRange() {
       var isRange = /range/.test(t);
-      var p = isRange ? 'What is the range of y = ' + absText(h, k) + '?' : 'What is the domain of y = ' + absText(h, k) + '?';
+      var p = isRange
+        ? (LIM ? 'As x grows without bound, what is the limit of the range of y = ' + absText(h, k) + '?' : 'What is the range of y = ' + absText(h, k) + '?')
+        : (LIM ? 'As x approaches any value, what is the limit of the domain of y = ' + absText(h, k) + '?' : 'What is the domain of y = ' + absText(h, k) + '?');
       var ans = isRange ? 'y ≥ ' + k : 'all real numbers';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['y ≥ ' + k, 'all real numbers', 'y ≤ ' + k].filter(function (o) { return o !== ans; }), {
         visual: V.graph([{ expr: absExpr(h, k), label: 'y = ' + absText(h, k) }]),
-        explain: ['An absolute value never goes below zero, so ' + absText(h, k) + ' never goes below ' + k + '.',
+        explain: [LIM ? 'Approaching from both sides, the limit is the height the curve settles at — it never goes below ' + k + '.' : 'An absolute value never goes below zero, so ' + absText(h, k) + ' never goes below ' + k + '.',
           isRange ? 'The graph takes every height from ' + k + ' upward.' : 'Any x produces a y, so nothing is excluded.',
           'The answer is <b>' + ans + '</b>.'],
         teach: 'Absolute value graphs have all real numbers as domain and a vertex-bounded range.'
@@ -23068,9 +23075,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function judgeSolution() {
       var v = HS.chance(rng, 0.5) ? s1 : s1 + HS.pick(rng, [1, 2, -3]);
       var ok = Math.abs(v + a) === b;
-      var p = 'Is x = ' + v + ' a solution of ' + absText(a, 0) + ' = ' + b + '?';
+      var p = LIM
+        ? 'As x approaches ' + v + ', the limit of ' + absText(a, 0) + ' equals ' + b + '. Do you agree?'
+        : 'Is x = ' + v + ' a solution of ' + absText(a, 0) + ' = ' + b + '?';
       return HS.judge(p, ok, {
-        explain: ['Substitute: ' + absText(v, 0).replace('|x|', '|' + v + '|') + ' = ' + Math.abs(v + a) + '.',
+        explain: [LIM ? 'Approaching ' + v + ', the limit is the distance ' + Math.abs(v + a) + '.' : 'Substitute: ' + absText(v, 0).replace('|x|', '|' + v + '|') + ' = ' + Math.abs(v + a) + '.',
           Math.abs(v + a) + (ok ? ' equals ' : ' does not equal ') + b + '.',
           'So the answer is <b>' + (ok ? 'Yes' : 'No') + '</b>.'],
         teach: 'Check a candidate by evaluating the absolute value.'
@@ -23082,7 +23091,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var ans = '|x - ' + c + '| = ' + d;
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['|x + ' + c + '| = ' + d, '|x - ' + d + '| = ' + c, 'x - ' + c + ' = ' + d], {
-        explain: ['|x - c| measures the distance between x and c on the number line.',
+        explain: [LIM ? 'As x approaches c, the distance it approaches is the answer.' : '|x - c| measures the distance between x and c on the number line.',
           'Setting that distance equal to ' + d + ' gives the equation.',
           'The equation is <b>' + ans + '</b>.'],
         teach: '|x - c| is the distance from x to c.'
@@ -26735,9 +26744,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
        rate over any interval IS its slope — naming the average when the standard
        says average is saying the same number, honestly. */
     var AV = /average rate of change/i.test(String((sk && sk.name) || ''));
+    var LIM = /limits/i.test(String((sk && sk.name) || ''));
 
     function fromPoints() {
-      var p = AV
+      var p = LIM
+        ? 'Find the limit of the average rate of change from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '.'
+        : AV
         ? 'Find the average rate of change from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '.'
         : 'Find the slope of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '.';
       if (HS.leaks(p, [red.n, red.d])) return null;
@@ -26745,7 +26757,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Slope is rise over run: (y₂ - y₁) ÷ (x₂ - x₁).',
           '(' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')) = ' + num + ' ÷ ' + den + '.',
           AV ? 'The average rate of change over the interval is <b>' + slopeStr(num, den) + '</b>.'
-             : 'The slope is <b>' + slopeStr(num, den) + '</b>.'],
+             : 'The slope is <b>' + slopeStr(num, den) + '</b>.',
+          LIM ? 'The limit of that rate as the interval shrinks is still ' + slopeStr(num, den) + ', because the line has one constant rate.'
+                : 'So the answer is <b>' + slopeStr(num, den) + '</b>.'],
         teach: 'Slope is the change in y divided by the matching change in x.'
       }, null, lvl, 0);
     }
@@ -26753,7 +26767,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       var rows = [], i, xs = [], step = HS.pick(rng, [1, 2]);
       for (i = 0; i < 4; i++) xs.push(x1 + i * step);
       for (i = 0; i < 4; i++) rows.push([String(xs[i]), String(y1 + L.m * i)]);
-      var p = AV ? 'What is the average rate of change shown by this table of values?'
+      var p = LIM ? 'What is the limit of the average rate of change shown by this table of values?'
+                : AV ? 'What is the average rate of change shown by this table of values?'
                  : 'What is the slope of the line shown by this table of values?';
       if (HS.leaks(p, [red.n, red.d])) return null;
       return HS.numExact(p, BC.fix(L.m / L.run, 6), {
@@ -26761,13 +26776,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Pick any two rows. Moving from one to the next changes x by ' + step + ' and y by ' + L.m + '.',
           'Slope = ' + L.m + ' ÷ ' + step + ' = ' + slopeStr(L.m, step) + '.',
           AV ? 'The average rate of change over each interval is <b>' + slopeStr(L.m, step) + '</b>.'
-             : 'The slope is <b>' + slopeStr(L.m, step) + '</b>.'],
+             : 'The slope is <b>' + slopeStr(L.m, step) + '</b>.',
+          LIM ? 'The limit of that rate as the interval shrinks is still ' + slopeStr(L.m, step) + ', the same for every interval.'
+                : 'So the answer is <b>' + slopeStr(L.m, step) + '</b>.'],
         teach: 'A constant rate in a table is the slope of the line behind it.'
       }, null, lvl, 0.1);
     }
     function fromGraph() {
       var m = L.m, b = HS.int(rng, -4, 4);
-      var p = AV ? 'Read the average rate of change of the line drawn on the coordinate plane.'
+      var p = LIM ? 'Read the limit of the average rate of change of the line drawn on the coordinate plane.'
+                : AV ? 'Read the average rate of change of the line drawn on the coordinate plane.'
                  : 'Read the slope of the line drawn on the coordinate plane.';
       if (HS.leaks(p, [reduce(m, 1).n])) return null;
       return HS.numExact(p, m, {
@@ -26776,7 +26794,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Start at (0, ' + b + ') and follow the line one run to the right.',
           'It rises ' + m + ' for every 1 to the right.',
           AV ? 'The average rate of change is <b>' + m + '</b>.'
-             : 'The slope is <b>' + m + '</b>.'],
+             : 'The slope is <b>' + m + '</b>.',
+          LIM ? 'The limit of that rate as the interval shrinks is still ' + m + ', the same for every interval.'
+                : 'So the answer is <b>' + m + '</b>.'],
         teach: 'On a graph the slope is the rise you trace for one unit of run.'
       }, null, lvl, -0.1);
     }
@@ -26789,6 +26809,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: [AV ? 'From the equation the average rate of change is ' + slopeStr(L.m, L.run) + ', for every interval.'
                       : 'Substitute x = ' + want + ' into the equation.',
           'y = ' + slopeStr(L.m, L.run) + ' × ' + want + (L.b ? ' ' + HS.sgn(L.b) : '') + ' = ' + yWant + '.',
+          LIM ? 'The limit of that rate is the same, ' + slopeStr(L.m, L.run) + ', because the line has one constant rate.'
+                : 'That is the rate the equation gives for every step along the line.',
           'The missing coordinate is <b>' + yWant + '</b>.'],
         teach: 'A point is on a line exactly when its coordinates satisfy the equation.'
       }, null, lvl, 0.3);
@@ -26802,6 +26824,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return HS.numExact(p, xWant, {
         explain: [AV ? 'From the equation the average rate of change is ' + slopeStr(L.m, L.run) + ', for every interval.'
                       : 'Put y = ' + want + ' into the equation and undo the operations.',
+          LIM ? 'The limit of that rate is the same, ' + slopeStr(L.m, L.run) + ', because the line has one constant rate.'
+                : 'That is the rate the equation gives for every step along the line.',
           want + (L.b ? ' - (' + L.b + ')' : '') + ' = ' + (want - L.b) + ', then divide by ' + slopeStr(L.m, L.run) + '.',
           'x = <b>' + xWant + '</b>.'],
         teach: 'Solve the equation for x to recover a missing coordinate.'
@@ -26813,13 +26837,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       return HS.judge(p, false, {
         explain: [AV ? 'Work the average rate of change yourself: (' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')).'
                       : 'Work the slope yourself: (' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')).',
+          LIM ? 'The limit of that rate as the interval shrinks is the same, because the line has one constant rate.'
+                : 'That is the rate for every step along the line.',
           'That is ' + num + ' ÷ ' + den + ' = ' + slopeStr(num, den) + ', not ' + BC.fix(claim, 4) + '.',
           'So the claim is <b>incorrect</b>.'],
         teach: 'Always recompute rise over run before agreeing with a stated slope.'
       }, null, lvl, 0.2);
     }
     function choice() {
-      var p = AV
+      var p = LIM
+        ? 'What is the limit of the average rate of change from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '?'
+        : AV
         ? 'What is the average rate of change from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '?'
         : 'What is the slope of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '?';
       if (HS.leaksText(p, slopeStr(num, den))) return null;
@@ -26827,13 +26855,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         explain: ['Rise is ' + num + ' and run is ' + den + '.',
           'Divide them: ' + slopeStr(num, den) + '.',
           AV ? 'The average rate of change over the interval is <b>' + slopeStr(num, den) + '</b>.'
-             : 'The slope is <b>' + slopeStr(num, den) + '</b>.'],
+             : 'The slope is <b>' + slopeStr(num, den) + '</b>.',
+          LIM ? 'The limit of that rate as the interval shrinks is still ' + slopeStr(num, den) + ', the same for every interval.'
+                : 'So the answer is <b>' + slopeStr(num, den) + '</b>.'],
         teach: 'Dividing run by rise instead of rise by run is the classic slip.'
       }, null, lvl, 0);
     }
     function compareSlope() {
       var b2 = HS.int(rng, -6, 6), num2 = b2, den2 = HS.pick(rng, [1, 2, 3]);
-      var p = AV
+      var p = LIM
+        ? 'Choose >, < or =.   limit of the average rate from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '  ○  ' + slopeStr(num2, den2)
+        : AV
         ? 'Choose >, < or =.   average rate from ' + HS.ptStr([x1, y1]) + ' to ' + HS.ptStr([x2, y2]) + '  ○  ' + slopeStr(num2, den2)
         : 'Choose >, < or =.   slope through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '  ○  ' + slopeStr(num2, den2);
       var v1 = num / den, v2 = num2 / den2;
@@ -26848,7 +26880,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function storyRate() {
       var per = HS.pick(rng, [3, 4, 5, 6, 9]), flat = HS.int(rng, 0, 20), who = HS.who(rng);
-      var p = who + ' earns ' + per + ' dollars for every hour of babysitting and ' + flat + ' dollars for supplies. What is the ' + (AV ? 'average ' : '') + 'rate of change of earnings with time?';
+      var p = LIM
+        ? who + ' earns ' + per + ' dollars for every hour of babysitting and ' + flat + ' dollars for supplies. What is the limit of the average rate of change of earnings with time?'
+        : who + ' earns ' + per + ' dollars for every hour of babysitting and ' + flat + ' dollars for supplies. What is the ' + (AV ? 'average ' : '') + 'rate of change of earnings with time?';
       if (HS.leaks(p, [per])) return null;
       return HS.numExact(p, per, {
         sub: 'Earnings = ' + per + 'h + ' + flat + '.',
@@ -26856,14 +26890,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Each extra hour adds ' + per + ' dollars.',
           AV ? 'The average rate of change is <b>' + per + '</b> dollars per hour.'
              : 'The rate of change is <b>' + per + '</b> dollars per hour.'],
-        teach: 'The rate of change is the amount the output gains per unit of input.'
+        teach: LIM ? 'The limit of the average rate of change, as time shrinks to one hour, is the constant ' + per + ' dollars per hour.'
+                      : 'The rate of change is the amount the output gains per unit of input.'
       }, null, lvl, -0.2);
     }
     function tableRate() {
       var days = HS.int(rng, 2, 5), per = HS.pick(rng, [-9, -6, -5, -4, -3]);
       var start = HS.int(rng, 20, 60), rows = [], i;
       for (i = 0; i < 4; i++) rows.push(['day ' + (i * days), String(start + per * i)]);
-      var p = AV ? 'A tank loses water at a constant rate. What is the average rate of change shown by the table?'
+      var p = LIM ? 'A tank loses water at a constant rate. What is the limit of the average rate of change shown by the table?'
+                : AV ? 'A tank loses water at a constant rate. What is the average rate of change shown by the table?'
                  : 'A tank loses water at a constant rate. What is the rate of change shown by the table?';
       if (HS.leaks(p, [per])) return null;
       return HS.numExact(p, BC.fix(per / days, 4), {
@@ -26872,7 +26908,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
           'Rate = ' + per + ' ÷ ' + days + ' = ' + BC.fix(per / days, 4) + '.',
           AV ? 'The average rate of change is <b>' + BC.fix(per / days, 4) + '</b> litres per day.'
              : 'The rate of change is <b>' + BC.fix(per / days, 4) + '</b> litres per day.'],
-        teach: 'A rate of change is signed: a decrease has a negative rate.'
+        teach: LIM ? 'The limit of the average rate as the interval shrinks is ' + BC.fix(per / days, 4) + ' litres per day, the same for every interval.'
+                      : 'A rate of change is signed: a decrease has a negative rate.'
       }, null, lvl, 0.3);
     }
     return [fromPoints, fromTable, fromGraph, missingY, missingX, judgeSlope, choice, compareSlope, storyRate, tableRate];
