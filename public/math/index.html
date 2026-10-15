@@ -74381,7 +74381,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var wA = hw(Math.min(4, eSum + 1));
       var wB = hw(Math.max(0, eSum - 1));
       return MC(rng, 'Estimate ' + a8 + '/8 + ' + b8 + '/8 by rounding each fraction to the nearest benchmark (0, 1/2 or 1). Which estimate?', good,
-        [wA, wB], {
+        [wA, wB, String(hw(eSum + 1))], {
           b: t,
           explain: [a8 + '/8 is closer to ' + hw(ea) + ' than to any other benchmark.',
             b8 + '/8 is closer to ' + hw(eb) + '.', hw(ea) + ' + ' + hw(eb) + ' is ' + hw(eSum) + '.',
@@ -74436,7 +74436,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* 6: which is closest to 1 whole */
     var lo8 = Math.min(a8, b8); if (lo8 === 7 || lo8 < 0) lo8 = 3;
     var mid8 = lo8 === 3 ? 1 : 3;
-    return MC(rng, 'Which fraction is closest to a whole: 7/8, ' + lo8 + '/8 or ' + mid8 + '/8?', '7/8', [lo8 + '/8', mid8 + '/8'], {
+    return MC(rng, 'Which fraction is closest to a whole: 7/8, ' + lo8 + '/8 or ' + mid8 + '/8?', '7/8', [lo8 + '/8', mid8 + '/8', '1/8'], {
       b: t + 0.6,
       explain: ['7/8 needs just 1/8 more to reach 8/8.', 'The others are farther from 1.', 'So the answer is <b>7/8</b>.'],
       teach: 'Benchmark thinking: how far is it to 0, 1/2 or 1?' });
@@ -74477,7 +74477,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (k === 2) {   /* story */
         var w = pick2(rng, WHO);
         return MC(rng, w + ' hiked ' + m1 + ' miles and ' + m2 + ' miles more. About how far did ' + w + ' hike in all?', String(est),
-          [String(est + 1), String(est - 1)], {
+          [String(est + 1), String(est - 1), String(e1 + m2)], {
             b: t + 0.3,
             explain: ['Round first: ' + m1 + ' rounds to ' + e1 + ' and ' + m2 + ' rounds to ' + e2 + '.', e1 + ' + ' + e2 + ' = ' + est + '.',
               'So ' + w + ' hiked about <b>' + est + '</b> miles.'],
@@ -74905,7 +74905,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {
       var b5 = R.pick(rng, [250, 500]);
       return MC(rng, 'How many ' + b5 + ' mL bottles make exactly 1 liter of volume?', String(1000 / b5),
-        [String(1000 / b5 + 1), String(2)], { b: t + 0.4,
+        [String(1000 / b5 + 1), String(2), String(1000 / b5 * 10)], { b: t + 0.4,
           explain: [b5 + ' × ' + (1000 / b5) + ' = 1000 mL.', 'So the answer is <b>' + (1000 / b5) + '</b>.'],
           teach: 'Find how many equal parts fill 1000 mL.' });
     }
@@ -75113,7 +75113,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 4) {   /* which measurement */
       return MC(rng, w + ' frames the edge of a ' + ln + '/' + ld + '-m by ' + wn + '/' + wd + '-m picture. Which measurement does ' + w + ' need?', 'perimeter',
-        ['area', 'volume'], { b: t + 0.45,
+        ['area', 'volume', 'counting square metres'], { b: t + 0.45,
           explain: ['Going around the edge measures the boundary — the perimeter.', 'So the answer is <b>perimeter</b>.'],
           teach: 'Around → perimeter; across the surface → area.' });
     }
@@ -75252,7 +75252,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Place is positional: count right from the decimal point.' });
     }
     if (k === 2) {   /* expanded → standard */
-      return I_num(o + ' + 0.' + ta + ' + 0.' + hu + ' + 0.' + th + ' =', val, {
+      return MC(rng, o + ' + 0.' + ta + ' + 0.' + hu + ' + 0.' + th + ' =', val, [r2(val + 0.1), r2(val - 0.1), r2(val + 1)], {
         b: t + 0.2,
         explain: [o + ' ones plus ' + ta + ' tenths plus ' + hu + ' hundredths plus ' + th + ' thousandths.',
           'In standard form that is ' + num + '.', 'So the answer is <b>' + num + '</b>.'],
@@ -75260,7 +75260,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 3) {   /* missing expanded piece */
       var missV = (10 * hu + th) / 1000;
-      return I_num(num + ' = ' + o + ' + ' + r2(ta / 10) + ' + ?', missV, {
+      return MC(rng, num + ' = ' + o + ' + ' + r2(ta / 10) + ' + ?', missV, [r2(missV + 1), r2(missV - 1), o], {
         b: t + 0.3,
         explain: ['The missing piece holds the last two places: ' + hu + ' hundredths and ' + th + ' thousandths.',
           'That is ' + (10 * hu) + ' thousandths plus ' + th + ' thousandths, written as the decimal ' + missV + '.',
@@ -75268,7 +75268,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Each block of places has its own decimal value.' });
     }
     if (k === 4) {   /* digit value */
-      return I_num('What is the value of the digit ' + th + ' in ' + num + '?', th / 1000, {
+      return MC(rng, 'What is the value of the digit ' + th + ' in ' + num + '?', th / 1000, [th / 10, th / 100, th], {
         visual: dTable([o, ta, hu, th]), b: t + 0.4,
         explain: [th + ' sits in the thousandths place.', th + ' thousandths is ' + th / 1000 + '.',
           'So the answer is <b>' + th / 1000 + '</b>.'],
@@ -75334,7 +75334,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       while (d1 === d2) { d2 = r2(d2 + 0.3); }
       var better = d1 > d2 ? r2(a) + ' − ' + r2(b) : r2(c) + ' − ' + r2(d);
       var worse = d1 > d2 ? r2(c) + ' − ' + r2(d) : r2(a) + ' − ' + r2(b);
-      return MC(rng, 'Which difference has the greater value?', better, [worse], {
+      return MC(rng, 'Which difference has the greater value?', better, [worse, d1 > d2 ? r2(a) + ' − ' + r2(b) : r2(c) + ' − ' + r2(d)], {
         b: t + 0.35,
         explain: ['Evaluate both: ' + Math.max(d1, d2) + ' and ' + Math.min(d1, d2) + '.',
           'So the answer is <b>' + better + '</b>.'],
@@ -75370,7 +75370,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
       if (k === 0) {
         return MC(rng, 'Estimate ' + r2(a) + (isSum ? ' + ' : ' − ') + r2(b) + ' by rounding each decimal to the nearest whole number.', String(est),
-          [String(est + 1), String(est - 1)], {
+          [String(est + 1), String(est - 1), String(r2(a + b))], {
             b: t,
             explain: [r2(a) + ' rounds to ' + e1 + ' and ' + r2(b) + ' rounds to ' + e2 + '.',
               e1 + (isSum ? ' + ' : ' − ') + e2 + ' = ' + est + '.', 'So the estimate is <b>' + est + '</b>.'],
@@ -75379,7 +75379,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (k === 1) {   /* story */
         var w = pick2(rng, WHO);
         return MC(rng, w + ' rode ' + r2(a) + ' km and ' + r2(b) + ' km more. About how many km did ' + w + ' ride?', String(e1 + e2),
-          [String(e1 + e2 + 1), String(e1 + e2 - 1)], {
+          [String(e1 + e2 + 1), String(e1 + e2 - 1), String(r2(a + b))], {
             b: t + 0.15,
             explain: ['Round each distance: ' + r2(a) + ' → ' + e1 + ' and ' + r2(b) + ' → ' + e2 + '.', e1 + ' + ' + e2 + ' = ' + (e1 + e2) + '.',
               'So about <b>' + (e1 + e2) + '</b> km.'],
@@ -75387,7 +75387,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       }
       if (k === 2) {   /* which rounding */
         return MC(rng, 'Which is ' + r2(a) + ' rounded to the nearest whole number?', String(e1),
-          [String(e1 + 1), String(e1 - 1)], {
+          [String(e1 + 1), String(e1 - 1), String(r2(a))], {
             b: t + 0.25,
             explain: ['The tenths digit ' + Math.round(a * 10) % 10 + (a % 1 >= 0.5 ? ' is 5 or more, so round up.' : ' is under 5, so stay down.'),
               'So the rounded value is <b>' + e1 + '</b>.'],
@@ -75507,7 +75507,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {
       var p1 = pow();
-      return I_num('Multiply by a power of ten: ' + base + ' × ' + p1 + ' = ?', r2(base * p1), {
+      return MC(rng, 'Multiply by a power of ten: ' + base + ' × ' + p1 + ' = ?', r2(base * p1), [r2(base * p1) + 1, r2(base * p1) - 1, r2(base * p1 * 10)], {
         b: t,
         explain: ['Multiplying by ' + p1 + ' moves the decimal point right.', base + ' × ' + p1 + ' = ' + r2(base * p1) + '.',
           'So the answer is <b>' + r2(base * p1) + '</b>.'],
@@ -75515,21 +75515,21 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 1) {   /* missing factor */
       var res = R.int(rng, 2, 9) * 100;
-      return I_num('? × 10 = ' + res + ', using a power of ten. What is the missing number?', res / 10, {
+      return MC(rng, '? × 10 = ' + res + ', using a power of ten. What is the missing number?', res / 10, [r2(res / 10 + 1), r2(res / 10 - 1), res], {
         b: t + 0.1,
         explain: ['Undo the move: shift ' + res + ' one place left.', res + ' ÷ 10 = ' + (res / 10) + '.', 'So the answer is <b>' + (res / 10) + '</b>.'],
         teach: 'Missing-factor cards are division practice in disguise.' });
     }
     if (k === 2) {   /* hundredths × 100 */
       var p2 = 100;
-      return I_num(base2 + ' × ' + p2 + ' = ? (a power of ten moves the point)', r2(base2 * p2), {
+      return MC(rng, base2 + ' × ' + p2 + ' = ? (a power of ten moves the point)', r2(base2 * p2), [r2(base2 * p2) + 1, r2(base2 * p2) - 1, r2(base2 + p2)], {
         b: t + 0.2,
         explain: ['Two places right for ' + p2 + '.', base2 + ' × ' + p2 + ' = ' + r2(base2 * p2) + '.', 'So the answer is <b>' + r2(base2 * p2) + '</b>.'],
         teach: '100 moves the decimal point two places.' });
     }
     if (k === 3) {   /* MC which power */
       var v3 = R.int(rng, 2, 8) / 10;
-      return MC(rng, 'Which power of ten turns ' + v3 + ' into ' + r2(v3 * 100) + '?', '100', ['10', '1000'], {
+      return MC(rng, 'Which power of ten turns ' + v3 + ' into ' + r2(v3 * 100) + '?', '100', ['10', '1000', '10000'], {
         b: t + 0.3,
         explain: ['The point moved two places, and two places is 100.', 'So the answer is <b>100</b>.'],
         teach: 'Count the places, then pick the power with that many zeros.' });
@@ -75547,14 +75547,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var w = pick2(rng, WHO);
       var p5 = R.pick(rng, [10, 100]);
       var val5 = r2(0.25 * p5);
-      return I_num('A nickel is worth 0.25 dollars. How many dollars are ' + p5 + ' nickels worth?', val5, {
+      return MC(rng, 'A nickel is worth 0.25 dollars. How many dollars are ' + p5 + ' nickels worth?', val5, [r2(val5 + 0.25), r2(val5 - 0.25), p5], {
         b: t + 0.5,
         explain: ['Multiply by the power of ten: 0.25 × ' + p5 + ' = ' + val5 + '.', 'So the answer is <b>' + val5 + '</b> dollars.'],
         teach: 'Money × a power of ten is the same point move.' });
     }
     /* 6: thousandths × 1000 */
     var v6 = R.int(rng, 1, 9) / 1000;
-    return I_num(v6 + ' × 1000 = ? (find the missing product)', v6 * 1000, {
+    return MC(rng, v6 + ' × 1000 = ? (find the missing product)', v6 * 1000, [v6, r2(v6 * 1000 + 1000), r2(v6 * 1000 - 1000)], {
       b: t + 0.6,
       explain: ['Three places right for the power 1000.', v6 + ' × 1000 = ' + v6 * 1000 + '.', 'So the answer is <b>' + v6 * 1000 + '</b>.'],
       teach: '1000 has three zeros — the point moves three places.' });
@@ -75590,7 +75590,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 2) {   /* which estimate */
       var dir = R.chance(rng, 0.5) ? ed + 1 : Math.max(1, ed - 1);
       return MC(rng, 'Which estimate uses the rounded decimal for ' + wh + ' × ' + r2(dec) + '?', String(est),
-        [String(dir * wh), String(wh * (ed + 2))].filter(function (x) { return x !== String(est); }), {
+        [String(dir * wh), String(wh * (ed + 2)), String(wh * (ed - 2))].filter(function (x) { return x !== String(est); }), {
           b: t + 0.3,
           explain: ['Round first: ' + r2(dec) + ' → ' + ed + '.', 'Then ' + ed + ' × ' + wh + ' = ' + est + '.', 'So the answer is <b>' + est + '</b>.'],
           teach: 'Round first, multiply second — never the other way.' });
@@ -75631,14 +75631,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var k = R.int(rng, 0, 5);
 
     if (k === 0) {   /* fill the split */
-      return I_num(w + ' × ' + r2(dec) + ' = ' + w + ' × ' + wh + ' + ' + w + ' × ?  (distributive property)', tenth / 10, {
+      return MC(rng, w + ' × ' + r2(dec) + ' = ' + w + ' × ' + wh + ' + ' + w + ' × ?  (distributive property)', tenth / 10, [r2(tenth / 10 + 1), r2(tenth / 10 - 1), tenth], {
         b: t,
         explain: ['Split ' + r2(dec) + ' into ' + wh + ' and ' + tenth / 10 + '.', w + ' × ' + wh + ' and ' + w + ' × ' + tenth / 10 + ' cover both pieces.',
           'So the missing piece is <b>' + tenth / 10 + '</b>.'],
         teach: 'Distribute: multiply each piece of the split, then add.' });
     }
     if (k === 1) {   /* full product via the split */
-      return I_num('Using the split: ' + w + ' × ' + wh + ' + ' + w + ' × ' + tenth / 10 + ' =', prod, {
+      return MC(rng, 'Using the split: ' + w + ' × ' + wh + ' + ' + w + ' × ' + tenth / 10 + ' =', prod, [r2(prod + 1), r2(prod - 1), w * wh], {
         b: t + 0.15,
         explain: [w + ' × ' + wh + ' = ' + w * wh + ' and ' + w + ' × ' + tenth / 10 + ' = ' + r2(w * tenth / 10) + '.',
           w * wh + ' + ' + r2(w * tenth / 10) + ' = ' + prod + '.', 'So the answer is <b>' + prod + '</b>.'],
@@ -75647,14 +75647,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 2) {   /* which split is right */
       var goodS = w + ' × ' + wh + ' + ' + w + ' × ' + tenth / 10;
       var badS = w + ' × ' + wh + ' + ' + tenth / 10;
-      return MC(rng, 'Which distributive split finds ' + w + ' × ' + r2(dec) + '?', goodS, [badS, w + ' × ' + tenth / 10 + ' + ' + wh], {
+      return MC(rng, 'Which distributive split finds ' + w + ' × ' + r2(dec) + '?', goodS, [badS, w + ' × ' + tenth / 10 + ' + ' + wh, w + ' × ' + r2(dec)], {
         b: t + 0.3,
         explain: ['Multiply BOTH pieces by ' + w + ': ' + goodS + ' = ' + prod + '.', 'So the answer is <b>' + goodS + '</b>.'],
         teach: 'Every piece must be multiplied by the same whole.' });
     }
     if (k === 3) {   /* story */
       var w2 = pick2(rng, WHO);
-      return I_num(w2 + ' bought ' + w + ' books that cost ' + r2(dec) + ' dollars each. Use the split ' + w + ' × ' + wh + ' + ' + w + ' × ' + tenth / 10 + '. What is the total?', prod, {
+      return MC(rng, w2 + ' bought ' + w + ' books that cost ' + r2(dec) + ' dollars each. Use the split ' + w + ' × ' + wh + ' + ' + w + ' × ' + tenth / 10 + '. What is the total?', prod, [r2(prod + 1), r2(prod - 1), w * wh], {
         b: t + 0.4,
         explain: [w + ' × ' + wh + ' = ' + w * wh + '; ' + w + ' × ' + tenth / 10 + ' = ' + r2(w * tenth / 10) + '.',
           'Total: ' + w * wh + ' + ' + r2(w * tenth / 10) + ' = ' + prod + ' dollars.', 'So the answer is <b>' + prod + '</b>.'],
@@ -75673,7 +75673,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var d5 = R.int(rng, 1, 4) / 10 * (w5 === 5 ? 2 : w5 === 4 ? 5 : 10) / 10;   /* 0.1..0.4 style */
     d5 = R.pick(rng, [0.3, 0.6, 1.2, 2.4]);
     var p5 = r2(w5 * d5);
-    return MC(rng, 'What is ' + w5 + ' × ' + d5 + '?', String(p5), [String(r2(p5 + w5)), String(r2(p5 - w5))].filter(function (x) { return x !== String(p5); }), {
+    return MC(rng, 'What is ' + w5 + ' × ' + d5 + '?', String(p5), [String(r2(p5 + w5)), String(r2(p5 - w5)), String(r2(w5 + d5))].filter(function (x) { return x !== String(p5); }), {
       b: t + 0.6,
       explain: ['Split if helpful: ' + d5 + ' × ' + w5 + ' = ' + p5 + '.', 'So the answer is <b>' + p5 + '</b>.'],
       teach: 'Mental products with decimals keep the point in place.' });
@@ -75691,7 +75691,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var a = R.int(rng, 2, 5), d = R.int(rng, 2, 9) / 10, c = R.int(rng, 2, 6);
 
     if (k === 0) {
-      return I_num(a + ' × ' + d + ' × ' + c + ' =', triple(a, d, c), {
+      return MC(rng, a + ' × ' + d + ' × ' + c + ' =', triple(a, d, c), [triple(a, d, c) + 1, triple(a, d, c) - 1, a * d], {
         b: t,
         explain: ['Multiply two at a time: ' + a + ' × ' + c + ' = ' + a * c + ' (associative regrouping).', a * c + ' × ' + d + ' = ' + triple(a, d, c) + '.',
           'So the answer is <b>' + triple(a, d, c) + '</b>.'],
@@ -75701,7 +75701,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var a2 = R.pick(rng, [2, 4, 5]), d2 = R.pick(rng, [0.7, 0.6, 0.25, 1.2]), c2 = a2 === 5 ? 2 : a2 === 2 ? 5 : R.pick(rng, [20, 2, 5]);
       var p2 = r2(a2 * c2 * d2);
       return MC(rng, 'Which quick route best finds ' + a2 + ' × ' + d2 + ' × ' + c2 + '?', a2 + ' × ' + c2 + ' first, then × ' + d2,
-        [d2 + ' × ' + a2 + ' only', 'add them all'], {
+        [d2 + ' × ' + a2 + ' only', 'add them all', a2 + ' × ' + d2 + ' first, then × ' + c2], {
           b: t + 0.15,
           explain: ['Group ' + a2 + ' × ' + c2 + ' = ' + a2 * c2 + ' first.', a2 * c2 + ' × ' + d2 + ' = ' + p2 + '.', 'So the answer is <b>' + (a2 + ' × ' + c2 + ' first, then × ' + d2) + '</b>.'],
           teach: 'Regrouping with the associative property saves work.' });
@@ -75711,7 +75711,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       per = R.pick(rng, [0.4, 0.5, 1.5, 2.5]);
       var days = R.int(rng, 3, 5), bots = R.int(rng, 2, 4);
       var p3 = r2(per * days * bots);
-      return I_num('Each bottle holds ' + per + ' liters. ' + w + ' fills ' + bots + ' bottles a day for ' + days + ' days. How many liters in all?', p3, {
+      return MC(rng, 'Each bottle holds ' + per + ' liters. ' + w + ' fills ' + bots + ' bottles a day for ' + days + ' days. How many liters in all?', p3, [r2(p3 + 1), r2(p3 - 1), bots * per], {
         b: t + 0.3,
         explain: ['Three factors multiply: ' + per + ' × ' + bots + ' × ' + days + '.', per + ' × ' + bots + ' = ' + r2(per * bots) + '; × ' + days + ' = ' + p3 + '.',
           'So the answer is <b>' + p3 + '</b> liters.'],
@@ -75791,7 +75791,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (Math.abs(trueP - est) === Math.abs(trueP - alt)) { trueP = r2(trueP + 0.3); }
       var better = Math.abs(trueP - est) <= Math.abs(trueP - alt) ? String(est) : String(alt);
       var other = better === String(est) ? String(alt) : String(est);
-      return MC(rng, 'The true product is ' + trueP + '. Which estimate is closer to the true value?', better, [other], {
+      return MC(rng, 'The true product is ' + trueP + '. Which estimate is closer to the true value?', better, [other, String(alt)], {
         b: t + 0.5,
         explain: ['Distance from ' + est + ': ' + r2(Math.abs(trueP - est)) + '.', 'Distance from ' + alt + ': ' + r2(Math.abs(trueP - alt)) + '.',
           'The smaller distance wins: <b>' + better + '</b>.'],
@@ -75814,28 +75814,28 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 0) {
       var p = R.pick(rng, [10, 100]);
       var v = R.int(rng, 21, 99) * (p === 10 ? 1 : 10);
-      return I_num('Divide by a power of ten: ' + v + ' ÷ ' + p + ' = ?', r2(v / p), {
+      return MC(rng, 'Divide by a power of ten: ' + v + ' ÷ ' + p + ' = ?', r2(v / p), [r2(v * p), r2(v / p) + 1, r2(v / p) - 1], {
         b: t,
         explain: ['Dividing by ' + p + ' moves the decimal point left.', v + ' ÷ ' + p + ' = ' + r2(v / p) + '.', 'So the answer is <b>' + r2(v / p) + '</b>.'],
         teach: 'Division moves the decimal point left, one place per zero.' });
     }
     if (k === 1) {   /* decimal ÷ 10 */
       var v1 = R.int(rng, 25, 95) / 10;
-      return I_num(r2(v1) + ' ÷ 10 = ?', r2(v1 / 10), {
+      return MC(rng, r2(v1) + ' ÷ 10 = ?', r2(v1 / 10), [r2(v1 * 10), r2(v1 / 10) + 1, r2(v1 / 10) - 1], {
         b: t + 0.1,
         explain: ['One place left: ' + r2(v1) + ' becomes ' + r2(v1 / 10) + '.', 'So the answer is <b>' + r2(v1 / 10) + '</b>.'],
         teach: '10 has one zero — one place left.' });
     }
     if (k === 2) {   /* MC which power */
       var v2 = 45, res2 = 4.5;
-      return MC(rng, 'Which power of ten turns 45 into 4.5?', '10', ['100', '1000'], {
+      return MC(rng, 'Which power of ten turns 45 into 4.5?', '10', ['100', '1000', '1'], {
         b: t + 0.2,
         explain: ['One place left is one zero.', 'So the answer is <b>10</b>.'],
         teach: 'Count places: the power has that many zeros.' });
     }
     if (k === 3) {   /* story sharing */
       var w = pick2(rng, WHO), total = R.int(rng, 3, 9) * 10;
-      return I_num(w + ' shared ' + total + ' grams of clay equally among 10 molds. How many grams per mold?', r2(total / 10), {
+      return MC(rng, w + ' shared ' + total + ' grams of clay equally among 10 molds. How many grams per mold?', r2(total / 10), [r2(total / 10) + 1, r2(total / 10) - 1, total], {
         unit: 'g', b: t + 0.3,
         explain: ['Sharing by 10 is division by a power of ten.', total + ' ÷ 10 = ' + r2(total / 10) + '.', 'So each mold gets <b>' + r2(total / 10) + '</b> grams.'],
         teach: 'Share-by-10 stories are point-moves to the left.' });
@@ -75851,7 +75851,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 5) {   /* 7.2 ÷ 10 pattern */
       var v5 = R.pick(rng, [7.2, 6.3, 8.4]);
-      return MC(rng, 'What is ' + v5 + ' ÷ 10?', String(r2(v5 / 10)), [String(r2(v5 * 10)), String(r2(v5 - 10))].filter(function (x) { return x !== String(r2(v5 / 10)); }), {
+      return MC(rng, 'What is ' + v5 + ' ÷ 10?', String(r2(v5 / 10)), [String(r2(v5 * 10)), String(r2(v5 - 10)), String(r2(v5 / 100))].filter(function (x) { return x !== String(r2(v5 / 10)); }), {
         b: t + 0.5,
         explain: ['Left one place: ' + r2(v5 / 10) + '.', 'So the answer is <b>' + r2(v5 / 10) + '</b>.'],
         teach: 'Dividing by 10 never multiplies.' });
@@ -75859,7 +75859,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* 6: missing dividend */
     var p6 = R.pick(rng, [10, 100]);
     var m6 = R.int(rng, 3, 9) * p6;
-    return I_num('? ÷ ' + p6 + ' = ' + r2(m6 / p6) + '. Find the missing dividend.', m6, {
+    return MC(rng, '? ÷ ' + p6 + ' = ' + r2(m6 / p6) + '. Find the missing dividend.', m6, [r2(m6 + 1), r2(m6 - 1), r2(m6 / p6)], {
       b: t + 0.6,
       explain: ['Undo the move: ' + r2(m6 / p6) + ' shifted ' + (p6 === 10 ? 'one' : 'two') + ' places right gives ' + m6 + '.',
         'So the missing dividend is <b>' + m6 + '</b>.'],
@@ -75875,27 +75875,27 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {   /* ÷ 10^2 */
       var v = R.int(rng, 21, 99) * 10;
-      return I_num('Divide by the power with an exponent: ' + v + ' ÷ 10^2 = ?', r2(v / 100), {
+      return MC(rng, 'Divide by the power with an exponent: ' + v + ' ÷ 10^2 = ?', r2(v / 100), [r2(v / 10), r2(v / 1000), r2(v / 100) + 1], {
         b: t,
         explain: ['10^2 = 100.', v + ' ÷ 100 moves the point two places left: ' + r2(v / 100) + '.', 'So the answer is <b>' + r2(v / 100) + '</b>.'],
         teach: 'Evaluate the power first: 10^2 is 100, then divide.' });
     }
     if (k === 1) {   /* which power */
-      return MC(rng, 'Which power completes 480 ÷ ___ = 0.48?', '10^3', ['10^2', '10^1'], {
+      return MC(rng, 'Which power completes 480 ÷ ___ = 0.48?', '10^3', ['10^2', '10^1', '10^4'], {
         b: t + 0.15,
         explain: ['0.48 is 480 shifted three places left.', 'Three places is 10^3.', 'So the answer is <b>10^3</b>.'],
         teach: 'The exponent counts the places the point moved.' });
     }
     if (k === 2) {   /* ÷ 10^3 */
       var v2 = R.int(rng, 25, 95) * 10;
-      return I_num(r2(v2 / 10) + ' ÷ 10^3 = ?', r2(v2 / 10 / 1000), {
+      return MC(rng, r2(v2 / 10) + ' ÷ 10^3 = ?', r2(v2 / 10 / 1000), [r2(v2 / 10 / 100), r2(v2 / 10 / 10000), r2(v2 / 1000)], {
         b: t + 0.3,
         explain: ['10^3 = 1000.', r2(v2 / 10) + ' ÷ 1000 shifts three places left: ' + r2(v2 / 10 / 1000) + '.', 'So the answer is <b>' + r2(v2 / 10 / 1000) + '</b>.'],
         teach: 'The exponent says how far the point travels.' });
     }
     if (k === 3) {   /* story */
       var n3 = R.int(rng, 3, 9) * 100;
-      return I_num('A factory packs ' + n3 + ' clips into boxes of 10^3 clips each. How many boxes are filled?', r2(n3 / 1000), {
+      return MC(rng, 'A factory packs ' + n3 + ' clips into boxes of 10^3 clips each. How many boxes are filled?', r2(n3 / 1000), [r2(n3 / 100), r2(n3 / 10000), r2(n3 / 1000) + 1], {
         b: t + 0.4,
         explain: ['10^3 = 1000 clips per box.', n3 + ' ÷ 1000 = ' + r2(n3 / 1000) + '.', 'So <b>' + r2(n3 / 1000) + '</b> boxes are filled.'],
         teach: 'Powers of ten in stories still divide by moving the point.' });
@@ -75910,7 +75910,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     /* 5: write as a power */
     var p5 = R.pick(rng, [100, 1000]);
-    return MC(rng, 'Which exponent writes ' + p5 + ' as a power of ten?', '10^' + (p5 === 100 ? 2 : 3), ['10^' + (p5 === 100 ? 3 : 2), '10^' + (p5 === 100 ? 1 : 4)], {
+    return MC(rng, 'Which exponent writes ' + p5 + ' as a power of ten?', '10^' + (p5 === 100 ? 2 : 3), ['10^' + (p5 === 100 ? 3 : 2), '10^' + (p5 === 100 ? 1 : 4), p5 === 100 ? '10^4' : '10^0'], {
       b: t + 0.6,
       explain: ['Count the zeros in ' + p5 + ': that many tens multiply.', p5 + ' = 10^' + (p5 === 100 ? 2 : 3) + '.', 'So the answer is <b>10^' + (p5 === 100 ? 2 : 3) + '</b>.'],
       teach: 'The exponent counts the zeros of the power.' });
@@ -75926,14 +75926,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {
       var v = R.int(rng, 25, 95) / 10;
-      return I_num('Find the missing number: ' + r2(v) + ' ÷ 10 = ?', r2(v / 10), {
+      return MC(rng, 'Find the missing number: ' + r2(v) + ' ÷ 10 = ?', r2(v / 10), [r2(v * 10), r2(v / 10) + 1, r2(v / 10) - 1], {
         b: t,
         explain: ['One place left for the power of ten 10.', r2(v) + ' ÷ 10 = ' + r2(v / 10) + '.', 'So the answer is <b>' + r2(v / 10) + '</b>.'],
         teach: 'Every zero in the power moves the point one place.' });
     }
     if (k === 1) {   /* missing dividend */
       var res = R.int(rng, 2, 9) / 10 * 100;
-      return I_num('? ÷ 100 = ' + r2(res / 100) + '. Find the missing dividend.', r2(res), {
+      return MC(rng, '? ÷ 100 = ' + r2(res / 100) + '. Find the missing dividend.', r2(res), [r2(res + 1), r2(res - 1), r2(res / 10)], {
         b: t + 0.1,
         explain: ['Undo the shift: move ' + r2(res / 100) + ' two places right.', r2(res / 100) + ' × 100 = ' + r2(res) + '.',
           'So the missing dividend is <b>' + r2(res) + '</b>.'],
@@ -75941,7 +75941,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 2) {   /* missing divisor */
       var v2 = 5.6;
-      return MC(rng, 'Which power of ten completes 5.6 ÷ ___ = 0.56?', '10', ['100', '1000'], {
+      return MC(rng, 'Which power of ten completes 5.6 ÷ ___ = 0.56?', '10', ['100', '1000', '10000'], {
         b: t + 0.2,
         explain: ['One place left means one zero.', 'So the answer is <b>10</b>.'],
         teach: 'Count the places to name the power.' });
@@ -75957,13 +75957,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 4) {   /* MC */
       var v4 = R.pick(rng, [4.5, 6.3, 8.7]);
-      return MC(rng, 'What is ' + v4 + ' ÷ 10?', String(r2(v4 / 10)), [String(r2(v4 * 10))].concat(String(r2(v4 * 10))), {
+      return MC(rng, 'What is ' + v4 + ' ÷ 10?', String(r2(v4 / 10)), [String(r2(v4 * 10)), String(r2(v4 / 100))].concat(String(r2(v4 * 10))), {
         b: t + 0.45,
         explain: ['Left one place: ' + r2(v4 / 10) + '.', 'So the answer is <b>' + r2(v4 / 10) + '</b>.'],
         teach: 'Point left for division, right for multiplication.' });
     }
     /* 5: thousandths */
-    return I_num('0.9 ÷ 10 = ?', 0.09, {
+    return MC(rng, '0.9 ÷ 10 = ?', 0.09, [0.9, 0.009, 9], {
       b: t + 0.6,
       explain: ['One more place left: 0.09.', 'So the answer is <b>0.09</b>.'],
       teach: 'Leading zeros keep the point honest.' });
@@ -75981,14 +75981,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     function strip() { return V.area(1, parts, { label: 'a ' + area + ' rectangle split into ' + parts + ' equal parts' }); }
 
     if (k === 0) {   /* complete: width × ? = area */
-      return I_num('The area model covers ' + area + ' square meters in ' + parts + ' equal parts. Complete the equation: ' + width + ' × ? = ' + area, parts, {
+      return MC(rng, 'The area model covers ' + area + ' square meters in ' + parts + ' equal parts. Complete the equation: ' + width + ' × ? = ' + area, parts, [width, parts + 1, parts - 1], {
         visual: strip(), b: t,
         explain: ['Each part is ' + width + ' wide.', 'The model fills ' + parts + ' parts across.', width + ' × ' + parts + ' = ' + area + '.',
           'So the missing number is <b>' + parts + '</b>.'],
         teach: 'An area model division asks how many equal parts fit the total.' });
     }
     if (k === 1) {   /* area ÷ parts */
-      return I_num('Complete the equation: ' + area + ' ÷ ' + parts + ' = ?', width, {
+      return MC(rng, 'Complete the equation: ' + area + ' ÷ ' + parts + ' = ?', width, [parts, r2(width + 1), r2(width - 1)], {
         visual: strip(), b: t + 0.1,
         explain: ['Spread ' + area + ' over ' + parts + ' equal parts.', parts + ' × ' + width + ' = ' + area + ' checks it.',
           'So the answer is <b>' + width + '</b>.'],
@@ -75996,7 +75996,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 2) {   /* story */
       var w = pick2(rng, WHO);
-      return I_num(w + ' divided ' + area + ' kg of dough into ' + parts + ' equal pieces for the oven. How heavy is each piece?', width, {
+      return MC(rng, w + ' divided ' + area + ' kg of dough into ' + parts + ' equal pieces for the oven. How heavy is each piece?', width, [parts, r2(width + 1), r2(width - 1)], {
         unit: 'kg', visual: strip(), b: t + 0.3,
         explain: ['The model spreads ' + area + ' evenly across ' + parts + ' parts.', area + ' ÷ ' + parts + ' = ' + width + '.',
           'So each piece is <b>' + width + '</b> kg.'],
@@ -76013,14 +76013,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {   /* which equation fits */
       var goodEq = width + ' × ' + parts + ' = ' + area;
       var badEq = width + ' + ' + parts + ' = ' + area;
-      return MC(rng, 'Which equation matches the area model?', goodEq, [badEq], {
+      return MC(rng, 'Which equation matches the area model?', goodEq, [badEq, width + ' + ' + parts + ' = ' + (width + parts)], {
         visual: strip(), b: t + 0.5,
         explain: ['The model has ' + parts + ' equal columns each ' + width + ' wide — equal rows mean multiplication.',
           'So the answer is <b>' + goodEq + '</b>.'],
         teach: 'Repeated equal widths are a product, never a sum.' });
     }
     /* 5: missing area */
-    return I_num('Equal parts, each ' + width + ' wide, cover ' + parts + ' parts. Complete: ' + width + ' × ' + parts + ' = ?', area, {
+    return MC(rng, 'Equal parts, each ' + width + ' wide, cover ' + parts + ' parts. Complete: ' + width + ' × ' + parts + ' = ?', area, [r2(width + parts), r2(area + 1), r2(area - 1)], {
       visual: strip(), b: t + 0.6,
       explain: ['Multiply across the columns: ' + width + ' × ' + parts + ' = ' + area + '.', 'So the answer is <b>' + area + '</b>.'],
       teach: 'The model total is always width × parts.' });
@@ -76049,7 +76049,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var k = R.int(rng, 0, 5);
 
     if (k === 0) {
-      return I_num(a + ' ÷ ' + b + ' =', q, {
+      return MC(rng, a + ' ÷ ' + b + ' =', q, [r2(q * factor), r2(q / factor), q + 1], {
         b: t,
         explain: ['Move the decimal in both by the same amount (place value!): ' + a + ' and ' + b + ' become ' + r2(a * factor) + ' and ' + r2(b * factor) + '.',
           r2(a * factor) + ' ÷ ' + r2(b * factor) + ' = ' + q + '.', 'So the answer is <b>' + q + '</b>.'],
@@ -76058,14 +76058,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 1) {   /* which moved pair */
       var goodP = r2(a * factor) + ' ÷ ' + r2(b * factor);
       var badP = r2(a * factor) + ' ÷ ' + b;
-      return MC(rng, 'Which moved pair has the same quotient as ' + a + ' ÷ ' + b + '?', goodP, [badP, a + ' ÷ ' + r2(b * factor)], {
+      return MC(rng, 'Which moved pair has the same quotient as ' + a + ' ÷ ' + b + '?', goodP, [badP, a + ' ÷ ' + r2(b * factor), r2(a * factor) + ' ÷ ' + b], {
         b: t + 0.15,
         explain: ['Both numbers must move together — ' + goodP + ' = ' + q + ' keeps the quotient.', 'So the answer is <b>' + goodP + '</b>.'],
         teach: 'Move both decimals the same number of places.' });
     }
     if (k === 2) {   /* story */
       var w = pick2(rng, WHO);
-      return I_num('A hiker walked ' + a + ' km at ' + b + ' km per minute. How many minutes did the walk take?', q, {
+      return MC(rng, 'A hiker walked ' + a + ' km at ' + b + ' km per minute. How many minutes did the walk take?', q, [q + 1, q - 1, r2(a + b)], {
         b: t + 0.3,
         explain: ['Move both to whole numbers: ' + r2(a * factor) + ' ÷ ' + r2(b * factor) + '.', r2(a * factor) + ' ÷ ' + r2(b * factor) + ' = ' + q + '.',
           'So the walk took <b>' + q + '</b> minutes.'],
@@ -76086,7 +76086,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Never move just one decimal.' });
     }
     /* 5: fill the scale line */
-    return I_num(a + ' × ' + factor + ' = ?', r2(a * factor), {
+    return MC(rng, a + ' × ' + factor + ' = ?', r2(a * factor), [r2(a + factor), r2(a * factor) + 1, r2(a * factor) - 1], {
       b: t + 0.6,
       explain: ['Place value says the point moves ' + (factor === 100 ? 'two' : 'one') + ' places right.', 'So the answer is <b>' + r2(a * factor) + '</b>.'],
       teach: 'The scaling step is itself a power-of-ten move.' });
@@ -76107,7 +76107,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var k = R.int(rng, 0, 5);
 
     if (k === 0) {
-      return I_num(a + ' ÷ ' + b + ' =', q, {
+      return MC(rng, a + ' ÷ ' + b + ' =', q, [r2(q * f), r2(q / f), q + 1], {
         b: t,
         explain: ['Move both points ' + move + ' place(s): ' + r2(a * f) + ' ÷ ' + r2(b * f) + '.', r2(a * f) + ' ÷ ' + r2(b * f) + ' = ' + q + ' and it divides evenly.',
           'So the answer is <b>' + q + '</b>.'],
@@ -76115,14 +76115,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 1) {   /* story */
       var w = pick2(rng, WHO);
-      return I_num(w + ' poured ' + a + ' liters of tea into cups holding ' + b + ' liters. How many cups did it take?', q, {
+      return MC(rng, w + ' poured ' + a + ' liters of tea into cups holding ' + b + ' liters. How many cups did it take?', q, [q + 1, q - 1, r2(a - b)], {
         b: t + 0.2,
         explain: ['Move the points: ' + r2(a * f) + ' ÷ ' + r2(b * f) + '.', 'The division ends in ' + q + ' with nothing left over.',
           'So it took <b>' + q + '</b> cups.'],
         teach: 'Fitting equal cups is a division that stops cleanly.' });
     }
     if (k === 2) {   /* MC */
-      return MC(rng, 'What is ' + a + ' ÷ ' + b + '?', String(q), [String(r2(q * 10)), String(q + 1)].filter(function (x) { return x !== String(q); }), {
+      return MC(rng, 'What is ' + a + ' ÷ ' + b + '?', String(q), [String(r2(q * 10)), String(q + 1), String(r2(q / 10))].filter(function (x) { return x !== String(q); }), {
         b: t + 0.35,
         explain: [r2(a * f) + ' ÷ ' + r2(b * f) + ' = ' + q + ' — the division finishes.', 'So the answer is <b>' + q + '</b>.'],
         teach: 'Clean divisions never need padded zeros.' });
@@ -76136,7 +76136,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Multiply back to verify a quotient.' });
     }
     if (k === 4) {   /* which moved pair */
-      return MC(rng, 'Which pair shows the point move for ' + a + ' ÷ ' + b + '?', r2(a * f) + ' ÷ ' + r2(b * f), [r2(a * f) + ' ÷ ' + b, a + ' ÷ ' + r2(b * f)], {
+      return MC(rng, 'Which pair shows the point move for ' + a + ' ÷ ' + b + '?', r2(a * f) + ' ÷ ' + r2(b * f), [r2(a * f) + ' ÷ ' + b, a + ' ÷ ' + r2(b * f), r2(a * f * 10) + ' ÷ ' + r2(b * f * 10)], {
         b: t + 0.5,
         explain: ['Both points move together by ' + move + ' place(s): ' + r2(a * f) + ' ÷ ' + r2(b * f) + '.', 'So the answer is <b>' + r2(a * f) + ' ÷ ' + r2(b * f) + '</b>.'],
         teach: 'Equal moves keep the quotient.' });
@@ -76163,7 +76163,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var k = R.int(rng, 0, 5);
 
     if (k === 0) {
-      return I_num(a + ' ÷ ' + b + ' =', q, {
+      return MC(rng, a + ' ÷ ' + b + ' =', q, [r2(q * f), r2(q / f), q + 1], {
         b: t,
         explain: [f > 1 ? 'Make the divisor whole: move both points — ' + r2(a * f) + ' ÷ ' + r2(b * f) + '.' : 'The divisor is already whole.',
           r2(a * f) + ' ÷ ' + r2(b * f) + ' = ' + q + '.', 'So the answer is <b>' + q + '</b>.'],
@@ -76171,20 +76171,20 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 1) {   /* story */
       var w = pick2(rng, WHO);
-      return I_num('How many ' + b + '-kg bags can ' + w + ' fill from ' + a + ' kg of rice?', q, {
+      return MC(rng, 'How many ' + b + '-kg bags can ' + w + ' fill from ' + a + ' kg of rice?', q, [q + 1, q - 1, r2(a - b)], {
         b: t + 0.2,
         explain: ['Divide the total by the bag size: ' + (f > 1 ? r2(a * f) + ' ÷ ' + r2(b * f) : a + ' ÷ ' + b) + ' = ' + q + '.',
           'So ' + w + ' fills <b>' + q + '</b> bags.'],
         teach: 'Fitting bags is division — move the point, divide.' });
     }
     if (k === 2) {   /* MC */
-      return MC(rng, 'What is ' + a + ' ÷ ' + b + '?', String(q), [String(r2(q * 10)), String(r2(q / 10))].filter(function (x) { return x !== String(q); }), {
+      return MC(rng, 'What is ' + a + ' ÷ ' + b + '?', String(q), [String(r2(q * 10)), String(r2(q / 10)), String(q * 10)].filter(function (x) { return x !== String(q); }), {
         b: t + 0.35,
         explain: [(f > 1 ? r2(a * f) + ' ÷ ' + r2(b * f) : a + ' ÷ ' + b) + ' = ' + q + '.', 'So the answer is <b>' + q + '</b>.'],
         teach: 'Estimate first to keep the point honest.' });
     }
     if (k === 3) {   /* missing dividend */
-      return I_num('? ÷ ' + b + ' = ' + q + '. Find the missing dividend.', r2(b * q), {
+      return MC(rng, '? ÷ ' + b + ' = ' + q + '. Find the missing dividend.', r2(b * q), [r2(b * q + 1), r2(b * q - 1), q], {
         b: t + 0.45,
         explain: ['Multiply back: ' + b + ' × ' + q + ' = ' + r2(b * q) + '.', 'So the missing dividend is <b>' + r2(b * q) + '</b>.'],
         teach: 'The inverse of division fills missing dividends.' });
@@ -76224,19 +76224,19 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var quot = r2(dv_a / dv_b);
 
       if (k === 0) {   /* add */
-        return I_num(a + ' + ' + r2(b) + ' =', sum, {
+        return MC(rng, a + ' + ' + r2(b) + ' =', sum, [r2(sum + 1), r2(sum - 1), r2(a + b + 1)], {
           b: mode === 'direct' ? t : t + 0.1,
           explain: ['Line the points up.', a + ' + ' + r2(b) + ' = ' + sum + '.', 'So the answer is <b>' + sum + '</b>.'],
           teach: 'Decimals add exactly like wholes — keep points aligned.' });
       }
       if (k === 1) {   /* subtract */
-        return I_num(a + ' − ' + r2(b) + ' =', dif, {
+        return MC(rng, a + ' − ' + r2(b) + ' =', dif, [r2(dif + 1), r2(dif - 1), r2(a + b)], {
           b: t + 0.12,
           explain: ['Borrow just like wholes.', a + ' − ' + r2(b) + ' = ' + dif + '.', 'So the answer is <b>' + dif + '</b>.'],
           teach: 'Subtraction cares about place, not size of digits.' });
       }
       if (k === 2) {   /* multiply */
-        return I_num(d1 + ' × ' + m1 + ' =', prod, {
+        return MC(rng, d1 + ' × ' + m1 + ' =', prod, [r2(prod + 1), r2(prod - 1), r2(d1 + m1)], {
           b: t + 0.2,
           explain: ['Multiply as wholes, then point off one decimal place.', d1 + ' × ' + m1 + ' = ' + prod + '.', 'So the answer is <b>' + prod + '</b>.'],
           teach: 'Count the decimal places of the factors, then point off.' });
@@ -76245,7 +76245,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var pairOK = dv_a % dv_b === 0 || r2(dv_a / dv_b * 10) % 10 === 0;
         if (!pairOK) dv_a = r2(dv_b * R.int(rng, 3, 9));
         var q3 = r2(dv_a / dv_b);
-        return I_num(r2(dv_a) + ' ÷ ' + dv_b + ' =', q3, {
+        return MC(rng, r2(dv_a) + ' ÷ ' + dv_b + ' =', q3, [r2(q3 * 10), r2(q3 / 10), r2(dv_a - dv_b)], {
           b: t + 0.3,
           explain: ['Move both points so the divisor is whole.', r2(dv_a * 10) + ' ÷ ' + r2(dv_b * 10) + ' = ' + q3 + '.', 'So the answer is <b>' + q3 + '</b>.'],
           teach: 'Division of decimals: move both points together.' });
@@ -76274,38 +76274,38 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         if (mode === 'stories') {
           var s5 = R.int(rng, 0, 5);
           if (s5 === 0) {
-            return I_num('A trail measured ' + a + ' km and ' + w + ' extended it by ' + r2(b) + ' km. How long is the trail now?', sum, {
+            return MC(rng, 'A trail measured ' + a + ' km and ' + w + ' extended it by ' + r2(b) + ' km. How long is the trail now?', sum, [r2(sum + 1), r2(sum - 1), r2(a + b + 1)], {
               unit: 'km', b: t + 0.5,
               explain: ['Combine both stretches: ' + a + ' + ' + r2(b) + ' = ' + sum + '.', 'So the trail is <b>' + sum + '</b> km.'],
               teach: 'Growth stories add decimals with aligned points.' });
           }
           if (s5 === 1) {
-            return I_num('Each juice box holds ' + d1 + ' liters. ' + w + ' filled ' + m1 + ' boxes. How many liters in all?', prod, {
+            return MC(rng, 'Each juice box holds ' + d1 + ' liters. ' + w + ' filled ' + m1 + ' boxes. How many liters in all?', prod, [r2(prod + 1), r2(prod - 1), r2(d1 + m1)], {
               b: t + 0.52,
               explain: ['Equal repeated amounts: ' + d1 + ' × ' + m1 + ' = ' + prod + '.', 'So ' + w + ' poured <b>' + prod + '</b> liters.'],
               teach: 'Boxes of equal decimal amounts multiply.' });
           }
           if (s5 === 2) {
-            return I_num('How many ' + dv_b + '-kg bags can ' + w + ' fill from ' + r2(safeA) + ' kg of rice?', safeQ, {
+            return MC(rng, 'How many ' + dv_b + '-kg bags can ' + w + ' fill from ' + r2(safeA) + ' kg of rice?', safeQ, [r2(safeQ * 10), r2(safeQ / 10), r2(safeA - dv_b)], {
               b: t + 0.55,
               explain: ['Move both points, then divide: ' + r2(safeA * 10) + ' ÷ ' + r2(dv_b * 10) + ' = ' + safeQ + '.',
                 'So ' + w + ' fills <b>' + safeQ + '</b> bags.'],
               teach: 'Fitting bags is division — move the point, divide.' });
           }
           if (s5 === 3) {
-            return I_num('A rope measured ' + a + ' m and ' + w + ' cut off ' + r2(b) + ' m for a flag. How much rope is left?', dif, {
+            return MC(rng, 'A rope measured ' + a + ' m and ' + w + ' cut off ' + r2(b) + ' m for a flag. How much rope is left?', dif, [r2(dif + 1), r2(dif - 1), r2(a + b)], {
               unit: 'm', b: t + 0.58,
               explain: ['Cutting off subtracts: ' + a + ' − ' + r2(b) + ' = ' + dif + '.', 'So <b>' + dif + '</b> m remain.'],
               teach: 'Cutting stories subtract decimals.' });
           }
           if (s5 === 4) {
             var bigC = Math.max(a, r2(b)), smlC = Math.min(a, r2(b));
-            return I_num('Maya ran ' + a + ' km and Leo ran ' + r2(b) + ' km. How many km more did the longer runner go?', r2(bigC - smlC), {
+            return MC(rng, 'Maya ran ' + a + ' km and Leo ran ' + r2(b) + ' km. How many km more did the longer runner go?', r2(bigC - smlC), [r2(bigC - smlC + 1), r2(bigC - smlC - 1), r2(bigC + smlC)], {
               b: t + 0.62,
               explain: ['Find the difference: ' + r2(bigC) + ' − ' + r2(smlC) + ' = ' + r2(bigC - smlC) + '.', 'So the longer runner went <b>' + r2(bigC - smlC) + '</b> km more.'],
               teach: 'Comparison stories subtract the two distances.' });
           }
-          return I_num('A snail crawls ' + d1 + ' m each minute for ' + m1 + ' minutes. How far does it crawl in all?', prod, {
+          return MC(rng, 'A snail crawls ' + d1 + ' m each minute for ' + m1 + ' minutes. How far does it crawl in all?', prod, [r2(prod + 1), r2(prod - 1), r2(d1 + m1)], {
             unit: 'm', b: t + 0.66,
             explain: ['Repeated equal distances multiply: ' + d1 + ' × ' + m1 + ' = ' + prod + '.', 'So the snail crawls <b>' + prod + '</b> m.'],
             teach: 'Rate × time with decimals stays exact.' });
@@ -76314,7 +76314,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var s7 = R.int(rng, 0, 5);
         if (s7 === 0) {
           var spent = r2(d1 * 2), leftOver = r2(a - spent);
-          return I_num('A spool held ' + a + ' m of ribbon. ' + w + ' cut two pieces each ' + d1 + ' m long. How many meters are left?', leftOver, {
+          return MC(rng, 'A spool held ' + a + ' m of ribbon. ' + w + ' cut two pieces each ' + d1 + ' m long. How many meters are left?', leftOver, [a, r2(leftOver + 1), r2(leftOver - 1)], {
             unit: 'm', b: t + 0.5,
             explain: ['Step 1 (multiply): two pieces use ' + d1 + ' × 2 = ' + spent + ' m.', 'Step 2 (subtract): ' + a + ' − ' + spent + ' = ' + leftOver + ' m.',
               'So the answer is <b>' + leftOver + '</b>.'],
@@ -76323,7 +76323,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         if (s7 === 1) {
           var m2b = R.int(rng, 2, 4);
           var tot = r2(d1 * (m1 + m2b));
-          return I_num('A baker uses ' + d1 + ' kg of flour for each of ' + m1 + ' cakes in the morning and ' + m2b + ' more cakes in the afternoon. How many kilograms of flour are used in all?', tot, {
+          return MC(rng, 'A baker uses ' + d1 + ' kg of flour for each of ' + m1 + ' cakes in the morning and ' + m2b + ' more cakes in the afternoon. How many kilograms of flour are used in all?', tot, [r2(tot + 1), r2(tot - 1), r2(d1 * m1)], {
             b: t + 0.52,
             explain: ['Cakes: ' + m1 + ' + ' + m2b + ' = ' + (m1 + m2b) + '.', 'Flour: ' + d1 + ' × ' + (m1 + m2b) + ' = ' + tot + ' kg.',
               'So the answer is <b>' + tot + '</b>.'],
@@ -76331,7 +76331,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         }
         if (s7 === 2) {
           var per8 = r2(safeA / 2);
-          return I_num('Two friends split a ' + r2(safeA) + '-kg haul equally, then each carries ' + dv_b + ' kg more. How many kg does each carry now?', r2(per8 + dv_b), {
+          return MC(rng, 'Two friends split a ' + r2(safeA) + '-kg haul equally, then each carries ' + dv_b + ' kg more. How many kg does each carry now?', r2(per8 + dv_b), [r2(per8), r2(per8 + dv_b + 1), r2(per8 + dv_b - 1)], {
             b: t + 0.55,
             explain: ['Step 1 (divide): ' + r2(safeA) + ' ÷ 2 = ' + per8 + ' kg.', 'Step 2 (add): ' + per8 + ' + ' + dv_b + ' = ' + r2(per8 + dv_b) + ' kg.',
               'So each carries <b>' + r2(per8 + dv_b) + '</b> kg.'],
@@ -76339,7 +76339,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         }
         if (s7 === 3) {
           var jar = r2(safeA / 2), poured = r2(jar - dv_b);
-          return I_num('A ' + r2(safeA) + '-liter bucket is poured equally into 2 jars. One jar gives away ' + dv_b + ' liters. How many liters are in that jar now?', poured, {
+          return MC(rng, 'A ' + r2(safeA) + '-liter bucket is poured equally into 2 jars. One jar gives away ' + dv_b + ' liters. How many liters are in that jar now?', poured, [r2(safeA), r2(poured + 1), r2(poured - 1)], {
             b: t + 0.58,
             explain: ['Step 1 (divide): ' + r2(safeA) + ' ÷ 2 = ' + jar + ' liters.', 'Step 2 (subtract): ' + jar + ' − ' + dv_b + ' = ' + poured + ' liters.',
               'So the jar holds <b>' + poured + '</b> liters.'],
@@ -76347,14 +76347,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         }
         if (s7 === 4) {
           var goal = 15, short = r2(goal - sum);
-          return I_num(w + ' has run ' + a + ' km this week and ' + r2(b) + ' km yesterday. How many km more are needed to reach ' + goal + ' km?', short, {
+          return MC(rng, w + ' has run ' + a + ' km this week and ' + r2(b) + ' km yesterday. How many km more are needed to reach ' + goal + ' km?', short, [r2(short + 1), r2(short - 1), goal], {
             unit: 'km', b: t + 0.62,
             explain: ['Step 1 (add): ' + a + ' + ' + r2(b) + ' = ' + sum + ' km.', 'Step 2 (subtract from the goal): ' + goal + ' − ' + sum + ' = ' + short + ' km.',
               'So ' + w + ' needs <b>' + short + '</b> more km.'],
             teach: 'Goal stories: add what is done, then subtract from the target.' });
         }
         var combo = r2(d1 * m1 + d1 * 2);
-        return I_num('Tanks hold ' + d1 + ' liters each. ' + w + ' fills ' + m1 + ' tanks for the class and 2 more for the club. How many liters are needed in all?', combo, {
+        return MC(rng, 'Tanks hold ' + d1 + ' liters each. ' + w + ' fills ' + m1 + ' tanks for the class and 2 more for the club. How many liters are needed in all?', combo, [r2(combo + 1), r2(combo - 1), r2(d1 * m1)], {
           b: t + 0.66,
           explain: ['Step 1 (multiply): ' + d1 + ' × ' + m1 + ' = ' + r2(d1 * m1) + ' and ' + d1 + ' × 2 = ' + r2(d1 * 2) + '.',
             'Step 2 (add): ' + r2(d1 * m1) + ' + ' + r2(d1 * 2) + ' = ' + combo + ' liters.',
