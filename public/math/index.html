@@ -22964,6 +22964,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   HS.on(/absolute value (equation|function|functions)|solve absolute value equations|graph solutions to absolute value equations|write absolute value equations from graphs|graph an absolute value function|function table: absolute value|vertex of an absolute value/, function (rng, lvl, sk) {
     var t = (sk && sk.name) ? String(sk.name).toLowerCase() : '';
     var LIM = /limit/i.test(t);
+    var TRANS = /transformation/i.test(t);
     var h = HS.int(rng, -5, 5), k = HS.int(rng, -6, 6);
     var a = HS.int(rng, -6, 6), b = HS.int(rng, 1, 9);
     var s1 = -a - b, s2 = -a + b;                    /* solutions of |x + a| = b */
@@ -23011,7 +23012,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaksText(p, want)) return null;
       return HS.mc(rng, p, want, ['two solutions', 'exactly one solution', 'no solution'].filter(function (o) { return o !== want; }), {
         visual: V.graph([{ expr: absExpr(0, kk), label: 'y = ' + absText(0, kk) }, { expr: '0', label: 'y = 0' }]),
-        explain: [LIM ? 'The limit is where the approach lines up with the axis — count the crossings.' : 'Solutions are where the V-shaped graph meets the x-axis.',
+        explain: [TRANS ? 'The graph shows the V-shape y = |x| translated ' + Math.abs(kk) + ' units ' + (kk > 0 ? 'up' : 'down') + ' — so the x-axis crossings show the solutions.' : LIM ? 'The limit is where the approach lines up with the axis — count the crossings.' : 'Solutions are where the V-shaped graph meets the x-axis.',
           kk > 0 ? 'The vertex sits ' + kk + ' above the axis, so the graph never reaches it.' :
             kk === 0 ? 'The vertex touches the axis exactly once.' :
               'The whole V sits below the axis, so it never touches it.',
@@ -23051,7 +23052,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (HS.leaks(p, [y])) return null;
       return HS.numExact(p, y, {
         visual: V.table(['x', 'y'], [[String(x), '?'], [String(x + 1), String(Math.abs(x + 1 - h) + k)]]),
-        explain: [LIM ? 'As x approaches ' + x + ', the inside approaches ' + (x - h) + ', so the limit follows the table value.' : 'Evaluate the inside first: ' + x + (h > 0 ? ' - ' + h : ' + ' + Math.abs(h)) + ' = ' + (x - h) + '.',
+        explain: [TRANS ? 'The graph y = |x ' + (h < 0 ? '+ ' + Math.abs(h) : '- ' + h) + '| + ' + k + ' is y = |x| translated ' + Math.abs(h) + ' units ' + (h < 0 ? 'right' : 'left') + ' and ' + Math.abs(k) + ' units ' + (k >= 0 ? 'up' : 'down') + ' — so at x = ' + x + ', y = ' + Math.abs(x - h) + ' + ' + k + ' = ' + y + '.' : LIM ? 'As x approaches ' + x + ', the inside approaches ' + (x - h) + ', so the limit follows the table value.' : 'Evaluate the inside first: ' + x + (h > 0 ? ' - ' + h : ' + ' + Math.abs(h)) + ' = ' + (x - h) + '.',
           'The bars turn a negative into a positive: |' + (x - h) + '| = ' + Math.abs(x - h) + '.',
           'Then add ' + k + ': y = <b>' + y + '</b>.'],
         teach: 'Evaluate the inside, take its distance from zero, then adjust.'
@@ -23079,7 +23080,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         ? 'As x approaches ' + v + ', the limit of ' + absText(a, 0) + ' equals ' + b + '. Do you agree?'
         : 'Is x = ' + v + ' a solution of ' + absText(a, 0) + ' = ' + b + '?';
       return HS.judge(p, ok, {
-        explain: [LIM ? 'Approaching ' + v + ', the limit is the distance ' + Math.abs(v + a) + '.' : 'Substitute: ' + absText(v, 0).replace('|x|', '|' + v + '|') + ' = ' + Math.abs(v + a) + '.',
+        explain: [TRANS ? 'The equation is the translated absolute value — substitute x = ' + v + ' to check it honestly.' : LIM ? 'Approaching ' + v + ', the limit is the distance ' + Math.abs(v + a) + '.' : 'Substitute: ' + absText(v, 0).replace('|x|', '|' + v + '|') + ' = ' + Math.abs(v + a) + '.',
           Math.abs(v + a) + (ok ? ' equals ' : ' does not equal ') + b + '.',
           'So the answer is <b>' + (ok ? 'Yes' : 'No') + '</b>.'],
         teach: 'Check a candidate by evaluating the absolute value.'
@@ -26745,6 +26746,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
        says average is saying the same number, honestly. */
     var AV = /average rate of change/i.test(String((sk && sk.name) || ''));
     var LIM = /limits/i.test(String((sk && sk.name) || ''));
+    var FN = /function/i.test(String((sk && sk.name) || ''));
 
     function fromPoints() {
       var p = LIM
@@ -27472,9 +27474,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* =========================== 1. GRAPHING =============================== */
   HS.on(/graph a line|graph a linear|graph (the )?(linear )?(equation|line)|graph.*equation in standard form|slope.intercept form: graph|point.slope form: graph|standard form: graph|graph.*using slope|graph.*slope.intercept|relate the graph of a linear equation/, function (rng, lvl, sk) {
     var L = gl(rng, lvl), eq = eqOf(L.m, L.b);
+    var FN = /function/i.test(String((sk && sk.name) || ''));
 
     function yIntercept() {
-      var p = 'What is the y-intercept of ' + eq + '?';
+      var p = FN ? 'Which output does the function ' + eq + ' give when the input is zero?' : 'What is the y-intercept of ' + eq + '?';
       if (HS.leaks(p, [L.m])) return null;
       return HS.numExact(p, L.b, {
         explain: ['Slope-intercept form is y = mx + b, and b is the y-intercept.',
@@ -27486,7 +27489,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function xIntercept() {
       var x = BC.fix(-L.b / L.m, 6);
       if (!isFinite(x)) return null;
-      var p = 'Which x-value does ' + eq + ' cross the x-axis at?';
+      var p = FN ? 'Which input makes the output of the function ' + eq + ' equal zero?' : 'Which x-value does ' + eq + ' cross the x-axis at?';
       if (HS.leaks(p, [L.m])) return null;
       return HS.numExact(p, x, {
         explain: ['The x-axis is where y = 0.',
@@ -27497,7 +27500,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function pointOnLine() {
       var x = HS.int(rng, -5, 5), y = L.m * x + L.b;
-      var p = 'Which point lies on the graph of ' + eq + '?';
+      var p = FN ? 'Which input-output pair belongs to the function ' + eq + '?' : 'Which point lies on the graph of ' + eq + '?';
       if (HS.leaksText(p, HS.ptStr([x, y]))) return null;
       return HS.mc(rng, p, HS.ptStr([x, y]), [HS.ptStr([x, y + HS.pick(rng, [1, 2, -3])]), HS.ptStr([x + HS.pick(rng, [1, 2]), y]), HS.ptStr([-x, y])], {
         explain: ['Test each point by substituting its x-coordinate into ' + eq + '.',
@@ -27507,7 +27510,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }, null, lvl, 0.1);
     }
     function graphChoice() {
-      var p = 'Which equation matches the line drawn on the coordinate plane?';
+      var p = FN ? 'Which equation matches the function drawn on the coordinate plane?' : 'Which equation matches the line drawn on the coordinate plane?';
       var wrong = [eqOf(L.m, L.b + HS.pick(rng, [2, -2])), eqOf(-L.m, L.b), eqOf(L.m + HS.pick(rng, [1, -2]), L.b)];
       if (HS.leaksText(p, eq)) return null;
       return HS.mc(rng, p, eq, wrong, {
@@ -27519,7 +27522,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }, null, lvl, -0.1);
     }
     function direction() {
-      var p = 'As x increases, how does the graph of ' + eq + ' move?';
+      var p = FN ? 'As the input grows, how does the output of the function ' + eq + ' move?' : 'As x increases, how does the graph of ' + eq + ' move?';
       var ans = L.m > 0 ? 'it rises' : 'it falls';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, [L.m > 0 ? 'it falls' : 'it rises', 'it stays level', 'it doubles'], {
@@ -27531,7 +27534,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     }
     function throughOrigin() {
       var yes = L.b === 0;
-      var p = 'Does the graph of ' + eq + ' pass through the origin?';
+      var p = FN ? 'Does the function ' + eq + ' map the input 0 to the output 0?' : 'Does the graph of ' + eq + ' pass through the origin?';
       return HS.judge(p, yes, {
         explain: ['The origin is (0, 0), so substitute x = 0 and y = 0.',
           'y = ' + L.m + '·0' + HS.sgn(L.b) + ' = ' + L.b + ', and the origin needs 0.',
@@ -27542,7 +27545,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     function stdSlope() {
       var A = HS.pick(rng, [2, 3, 4, 5]), B = HS.pick(rng, [1, 2, 3]), C = HS.int(rng, -12, 12);
       var m = BC.fix(-A / B, 6);
-      var p = 'What is the slope of ' + A + 'x + ' + B + 'y = ' + C + '?';
+      var p = FN ? 'What is the constant rate of the function ' + A + 'x + ' + B + 'y = ' + C + '?' : 'What is the slope of ' + A + 'x + ' + B + 'y = ' + C + '?';
       if (HS.leaks(p, [A, B, C])) return null;
       return HS.numExact(p, m, {
         explain: ['Solve for y: ' + B + 'y = -' + A + 'x + ' + C + '.',
@@ -27552,7 +27555,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }, null, lvl, 0.2);
     }
     function infinitePoints() {
-      var p = 'How many points lie on the graph of ' + eq + '?';
+      var p = FN ? 'How many input-output pairs does the function ' + eq + ' have?' : 'How many points lie on the graph of ' + eq + '?';
       if (HS.leaksText(p, 'infinitely many')) return null;
       return HS.mc(rng, p, 'infinitely many', ['exactly one', 'exactly two', 'none'], {
         explain: ['Every x-value produces exactly one y through the equation.',
@@ -27562,7 +27565,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       }, null, lvl, -0.1);
     }
     function interceptQuadrant() {
-      var p = 'The graph of ' + eq + ' crosses the y-axis at (0, ' + L.b + '). Which way does it go from there?';
+      var p = FN ? 'The function ' + eq + ' outputs ' + L.b + ' when the input is 0. As the input grows, which way does the output go?' : 'The graph of ' + eq + ' crosses the y-axis at (0, ' + L.b + '). Which way does it go from there?';
       var ans = L.m > 0 ? 'up and to the right' : 'down and to the right';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, [L.m > 0 ? 'down and to the right' : 'up and to the right', 'straight to the right', 'up and to the left'], {
@@ -68737,6 +68740,47 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         'x is ' + (qx > 0 ? 'positive' : 'negative') + ' and y is ' + (qy > 0 ? 'positive' : 'negative') + ', which places it in ' + qname + '.',
         'Quadrants are numbered counterclockwise starting at the upper right.', bFor(lvl));
     }
+    /* honest congruence — names the transformation that produces the image */
+    if (/congruence/.test(title)) {
+      var px = int(rng, 1, 6), py = int(rng, 1, 6);
+      var overY = rng() < 0.5;
+      var cx2 = overY ? (-px) : px, cy2 = overY ? py : (-py);
+      var wrongs3 = [[px, py], overY ? [px, -py] : [-px, py], [py, px]];
+      var ans2 = '(' + cx2 + ', ' + cy2 + ')';
+      var wrongs2 = wrongs3.filter(function (w) { return w[0] !== cx2 || w[1] !== cy2; }).slice(0, 3);
+      return card(rng, sk,
+        'Point P(' + px + ', ' + py + ') is reflected over the ' + (overY ? 'y' : 'x') + '-axis. What are the coordinates of the image?',
+        ans2,
+        wrongs2.map(function (w) { return '(' + w[0] + ', ' + w[1] + ')'; }),
+        'A reflection over the ' + (overY ? 'y' : 'x') + '-axis negates ' + (overY ? 'x' : 'y') + ', so P(' + px + ', ' + py + ') maps to ' + ans2 + ' — a congruent image.',
+        'A congruence transformation — reflection, rotation, or translation — preserves size and shape.',
+        bFor(lvl));
+    }
+    /* honest similarity — names the dilation that scales the shape */
+    if (/similarity/.test(title)) {
+      var sf = pick(rng, [2, 3, 4]);
+      var qx = int(rng, 1, 5), qy = int(rng, 1, 5);
+      var ans3 = '(' + qx * sf + ', ' + qy * sf + ')';
+      return card(rng, sk,
+        'Point Q(' + qx + ', ' + qy + ') is dilated about the origin by scale factor ' + sf + '. What are the coordinates of the image?',
+        ans3,
+        ['(' + qx + ', ' + qy + ')', '(' + (qx*sf) + ', ' + qy + ')', '(' + qx + ', ' + (qy*sf) + ')'],
+        'Multiply both coordinates by scale factor ' + sf + ': (' + qx + '×' + sf + ', ' + qy + '×' + sf + ') = ' + ans3 + '.',
+        'A dilation is a similarity transformation — the image has the same shape as the original, scaled by ' + sf + ' — so it is similar, not congruent.',
+        bFor(lvl));
+    }
+    /* honest function transformation — names the shift that maps f to g */
+    if (/function/.test(title)) {
+      var hh = int(rng, 1, 4), kk = int(rng, 1, 4);
+      var ans4 = 'translate ' + hh + ' right and ' + kk + ' up';
+      return card(rng, sk,
+        'f(x) = x² and g(x) = (x − ' + hh + ')² + ' + kk + '. What transformation maps f to g?',
+        ans4,
+        ['translate ' + hh + ' left and ' + kk + ' up', 'translate ' + kk + ' right and ' + hh + ' up', 'dilate by factor ' + hh + ' then translate ' + kk + ' up'],
+        'The inside is x − ' + hh + ' → shift right ' + hh + '; the added ' + kk + ' → shift up ' + kk + ' — so g is f translated ' + hh + ' right and ' + kk + ' up.',
+        'A horizontal shift changes x inside the function; a vertical shift adds outside it.',
+        bFor(lvl));
+    }
     if (/checkpoint|coordinate plane/.test(title)) {
       var ax = int(rng, 1, 9), onX = rng() < 0.5;
       var pt = onX ? '(' + ax + ', 0)' : '(0, ' + ax + ')';
@@ -70393,11 +70437,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
    * ========================================================================= */
   G('a1-transformations_of_linear_functions', function (rng, lvl) {
     var t = (lvl - 3) * 0.4;
+    var FN = true;
     var k = R.int(rng, 0, 5);
     var m = R.pick(rng, [2, 3, 4, 5]), b = R.int(rng, 1, 9), vd = R.int(rng, 2, 7);
 
     if (k === 0) {   /* vertical shift */
-      return MC(rng, 'Which shift changes y = ' + m + 'x + ' + b + ' into y = ' + m + 'x + ' + (b + vd) + '?', 'a translation ' + vd + ' units up',
+      return MC(rng, FN ? 'Which shift changes the function y = ' + m + 'x + ' + b + ' into the image y = ' + m + 'x + ' + (b + vd) + '?' : 'Which shift changes y = ' + m + 'x + ' + b + ' into y = ' + m + 'x + ' + (b + vd) + '?', 'a translation ' + vd + ' units up',
         ['a translation ' + vd + ' units down', 'a translation ' + m + ' units up'], {
           b: t,
           sub: 'Compare the slope and the y-intercept of the two lines.',
@@ -70409,18 +70454,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 1) {   /* horizontal-shift wording */
       var m1 = R.pick(rng, [1, 2, 3]), b1 = R.int(rng, 2, 8), s1 = R.int(rng, 1, 6);
-      return MC(rng, 'The line y = ' + m1 + 'x is translated ' + s1 + ' units up. Which equation is the image?', m1 + 'x + ' + s1,
+      return MC(rng, FN ? 'The function rule y = ' + m1 + 'x is translated ' + s1 + ' units up. What is the image function rule?' : 'The line y = ' + m1 + 'x is translated ' + s1 + ' units up. Which equation is the image?', m1 + 'x + ' + s1,
         [m1 + 'x − ' + s1, (m1 + s1) + 'x'], {
           b: t + 0.12,
-          sub: 'A vertical translation adds to the y-intercept.',
+          sub: FN ? 'Each input x maps to an output y; the vertical shift adds to the output.' : 'A vertical translation adds to the y-intercept.',
           hint: 'Slope stays ' + m1 + '; the intercept goes from 0 to ' + s1 + '.',
-          explain: ['Translating up adds ' + s1 + ' to every y-value.',
+          explain: [FN ? 'The function rule maps each input to an output, and translating up adds ' + s1 + ' to every output.' : 'Translating up adds ' + s1 + ' to every y-value.',
             'That adds a constant term, giving y = ' + m1 + 'x + ' + s1 + ' with slope still ' + m1 + '.',
             'So the image is <b>y = ' + m1 + 'x + ' + s1 + '</b>.'],
         teach: 'Vertical shifts live in the intercept, not the slope.' });
     }
     if (k === 2) {   /* reflection over the y-axis */
-      return MC(rng, 'Which transformation changes y = ' + m + 'x + ' + b + ' into y = −' + m + 'x + ' + b + '?', 'a reflection over the y-axis',
+      return MC(rng, FN ? 'Which transformation maps the function y = ' + m + 'x + ' + b + ' to the image function y = −' + m + 'x + ' + b + '?' : 'Which transformation changes y = ' + m + 'x + ' + b + ' into y = −' + m + 'x + ' + b + '?', 'a reflection over the y-axis',
         ['a reflection over the x-axis', 'a translation ' + m + ' units left'], {
           b: t + 0.3,
           sub: 'The y-intercept is fixed while the slope reverses.',
@@ -70472,11 +70517,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
    * ========================================================================= */
   G('a1-transformations_of_quadratic_functions', function (rng, lvl) {
     var t = (lvl - 3) * 0.4;
+    var FN = true;
     var k = R.int(rng, 0, 5);
     var h = R.int(rng, 1, 7), vd = R.int(rng, 1, 8), a = R.int(rng, 2, 5);
 
     if (k === 0) {   /* horizontal shift */
-      return MC(rng, 'Which shift changes y = x² into y = (x − ' + h + ')²?', h + ' units right',
+      return MC(rng, FN ? 'Which shift changes the function y = x² into the image function y = (x − ' + h + ')²?' : 'Which shift changes y = x² into y = (x − ' + h + ')²?', h + ' units right',
         [h + ' units left', vd + ' units right'], {
           b: t,
           sub: 'Track the vertex from y = x² to the new equation.',
@@ -70487,7 +70533,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Inside the parentheses, the shift goes the other way.' });
     }
     if (k === 1) {   /* vertical shift */
-      return MC(rng, 'y = x² is translated ' + vd + ' units up. What is the image equation?', 'y = x² + ' + vd,
+      return MC(rng, FN ? 'The function y = x² is translated ' + vd + ' units up. What is the image function rule?' : 'y = x² is translated ' + vd + ' units up. What is the image equation?', 'y = x² + ' + vd,
         ['y = (x + ' + vd + ')²', 'y = x² − ' + vd], {
           b: t + 0.12,
           sub: 'A vertical translation adds outside the square.',
@@ -70498,7 +70544,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Outside the square, the shift matches the sign.' });
     }
     if (k === 2) {   /* reflection */
-      return MC(rng, 'Which transformation changes y = x² into y = −x²?', 'a reflection over the x-axis',
+      return MC(rng, FN ? 'Which transformation maps the function y = x² to the image function y = −x²?' : 'Which transformation changes y = x² into y = −x²?', 'a reflection over the x-axis',
         ['a reflection over the y-axis', 'a translation down'], {
           b: t + 0.3,
           sub: 'Negating y reflects over the x-axis; the vertex stays put.',
@@ -70510,7 +70556,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 3) {   /* vertex reading */
       var h3 = R.int(rng, 1, 9), v3 = R.int(rng, 1, 9);
-      return MC(rng, 'What is the vertex of y = (x + ' + h3 + ')² − ' + v3 + '?', '(' + (-h3) + ', ' + (-v3) + ')',
+      return MC(rng, FN ? 'What is the vertex of the function y = (x + ' + h3 + ')² − ' + v3 + '?' : 'What is the vertex of y = (x + ' + h3 + ')² − ' + v3 + '?', '(' + (-h3) + ', ' + (-v3) + ')',
         ['(' + h3 + ', ' + v3 + ')', '(' + h3 + ', ' + (-v3) + ')'], {
           b: t + 0.45,
           sub: 'Read the vertex from the shifts in the vertex form.',
@@ -70523,7 +70569,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {   /* stretch judgement */
       var a4 = R.int(rng, 2, 4);
       var claim4 = R.pick(rng, ['narrower', 'wider']);
-      return I_bool('y = ' + a4 + 'x² is ' + claim4 + ' than y = x².', claim4 === 'narrower', {
+      return I_bool(FN ? 'the function y = ' + a4 + 'x² is ' + claim4 + ' than the function y = x².' : 'y = ' + a4 + 'x² is ' + claim4 + ' than y = x².', claim4 === 'narrower', {
         b: t + 0.6,
         hint: 'Compare y-values at x = 1: ' + a4 + ' versus 1.',
         explain: ['At x = 1 the two parabolas give y = ' + a4 + ' and y = 1.',
@@ -70533,7 +70579,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     /* 5: combined shift */
     var h5 = R.int(rng, 1, 6), v5 = R.int(rng, 1, 6);
-    return MC(rng, 'y = x² becomes y = (x − ' + h5 + ')² + ' + v5 + '. Which pair of shifts was applied?', h5 + ' right and ' + v5 + ' up',
+    return MC(rng, FN ? 'The function y = x² becomes the image function y = (x − ' + h5 + ')² + ' + v5 + '. Which pair of shifts was applied?' : 'y = x² becomes y = (x − ' + h5 + ')² + ' + v5 + '. Which pair of shifts was applied?', h5 + ' right and ' + v5 + ' up',
       [h5 + ' left and ' + v5 + ' up', h5 + ' right and ' + v5 + ' down'], {
         b: t + 0.75,
         sub: 'Track the vertex: (0, 0) to (' + h5 + ', ' + v5 + ').',
