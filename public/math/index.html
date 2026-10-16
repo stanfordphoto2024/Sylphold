@@ -83647,7 +83647,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (mode === 0) {
       var a = centsItem(), b = cap(centsItem(), 1, 99 - a);
-      return I_num(dollar(a) + ' + ' + dollar(b) + ' =', (a + b) / 100, {
+      return MC(rng, dollar(a) + ' + ' + dollar(b) + ' =', (a + b) / 100, [(a + b + 5) / 100, (a + b - 5) / 100, a / 100], {
         unit: '$', b: t,
         explain: ['Work in cents: ' + a + '¢ + ' + b + '¢ = ' + (a + b) + '¢.', (a + b) + '¢ is ' + usd(a + b) + ' dollars.',
           'So the answer is <b>' + dollar(a + b) + '</b>.'],
@@ -83655,7 +83655,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 1) {
       var s1 = R.int(rng, 15, 85);
-      return I_num('$1.00 − ' + dollar(s1) + ' =', (100 - s1) / 100, {
+      return MC(rng, '$1.00 − ' + dollar(s1) + ' =', (100 - s1) / 100, [s1 / 100, (100 - s1 + 10) / 100, (100 - s1 - 10) / 100], {
         unit: '$', b: t + 0.1,
         explain: ['$1.00 is 100¢.', '100¢ − ' + s1 + '¢ = ' + (100 - s1) + '¢.', (100 - s1) + '¢ is ' + usd(100 - s1) + ' dollars.',
           'So the answer is <b>' + dollar(100 - s1) + '</b>.'],
@@ -83663,7 +83663,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 2) {
       var price2 = R.int(rng, 21, 99);
-      return I_num('A sticker costs ' + price2 + '¢. You pay with $1.00. How much change?', (100 - price2) / 100, {
+      return MC(rng, 'A sticker costs ' + price2 + '¢. You pay with $1.00. How much change?', (100 - price2) / 100, [price2 / 100, (100 - price2 + 10) / 100, (100 - price2 - 10) / 100], {
         unit: '$', b: t + 0.2,
         explain: ['$1.00 = 100¢.', '100¢ − ' + price2 + '¢ = ' + (100 - price2) + '¢.', 'Change is ' + dollar(100 - price2) + '.',
           'So the answer is <b>' + dollar(100 - price2) + '</b>.'],
@@ -83699,7 +83699,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     /* 6: missing addend, all money */
     var base6 = R.int(rng, 10, 60), sum6 = cap(base6 + R.int(rng, 10, 39), 11, 99);
-    return I_num(dollar(base6) + ' + ? = ' + dollar(sum6), (sum6 - base6) / 100, {
+    return MC(rng, dollar(base6) + ' + ? = ' + dollar(sum6), (sum6 - base6) / 100, [sum6 / 100, base6 / 100, (sum6 - base6 + 10) / 100], {
       unit: '$', b: t + 0.6,
       explain: [sum6 + '¢ − ' + base6 + '¢ = ' + (sum6 - base6) + '¢.', 'The missing amount is ' + dollar(sum6 - base6) + '.',
         'So the answer is <b>' + dollar(sum6 - base6) + '</b>.'],
@@ -83719,7 +83719,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (mode === 0) {   /* total of two items */
       var a = R.int(rng, 15, 45), b = cap(R.int(rng, 15, 45), 5, 99 - a);
-      return I_num(w + ' buys a ' + pair[0] + ' for ' + dollar(a) + ' and a ' + pair[1] + ' for ' + dollar(b) + '. How much money does ' + w + ' need?', (a + b) / 100, {
+      return MC(rng, w + ' buys a ' + pair[0] + ' for ' + dollar(a) + ' and a ' + pair[1] + ' for ' + dollar(b) + '. How much money does ' + w + ' need?', (a + b) / 100, [(a + b + 10) / 100, (a + b - 10) / 100, a / 100], {
         unit: '$', b: t,
         explain: ['Add the two prices: ' + a + '¢ + ' + b + '¢.', a + ' + ' + b + ' = ' + (a + b) + '¢.', (a + b) + '¢ = ' + dollar(a + b) + '.',
           'So the answer is <b>' + dollar(a + b) + '</b>.'],
@@ -83727,7 +83727,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 1) {   /* change from $1 */
       var price = R.int(rng, 25, 95);
-      return I_num(w + ' buys a ' + price + '¢ ' + pair[0] + ' and pays with $1.00. How much change should ' + w + ' get?', (100 - price) / 100, {
+      return MC(rng, w + ' buys a ' + price + '¢ ' + pair[0] + ' and pays with $1.00. How much change should ' + w + ' get?', (100 - price) / 100, [price / 100, (100 - price + 10) / 100, (100 - price - 10) / 100], {
         unit: '$', b: t + 0.1,
         explain: ['$1.00 = 100¢.', '100¢ − ' + price + '¢ = ' + (100 - price) + '¢.', 'Change is ' + dollar(100 - price) + '.',
           'So the answer is <b>' + dollar(100 - price) + '</b>.'],
@@ -83735,7 +83735,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 2) {   /* how much more is needed */
       var have = R.int(rng, 20, 65), cost = cap(have + R.int(rng, 5, 30), have + 1, 99);
-      return I_num(w + ' has ' + dollar(have) + ' and wants a ' + dollar(cost) + ' ' + pair[0] + '. How much more money does ' + w + ' need?', (cost - have) / 100, {
+      return MC(rng, w + ' has ' + dollar(have) + ' and wants a ' + dollar(cost) + ' ' + pair[0] + '. How much more money does ' + w + ' need?', (cost - have) / 100, [cost / 100, (cost - have + 10) / 100, (cost - have - 10) / 100], {
         unit: '$', b: t + 0.2,
         explain: [cost + '¢ − ' + have + '¢ = ' + (cost - have) + '¢.', 'The extra money needed is ' + dollar(cost - have) + '.',
           'So the answer is <b>' + dollar(cost - have) + '</b>.'],
@@ -83743,7 +83743,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 3) {   /* two-step: spend twice from $1 */
       var p3 = R.int(rng, 10, 40), q3 = cap(R.int(rng, 10, 30), 5, 99 - p3);
-      return I_num('$1.00 − ' + dollar(p3) + ' − ' + dollar(q3) + ' =', (100 - p3 - q3) / 100, {
+      return MC(rng, '$1.00 − ' + dollar(p3) + ' − ' + dollar(q3) + ' =', (100 - p3 - q3) / 100, [(100 - p3) / 100, (100 - p3 - q3 + 10) / 100, (100 - p3 - q3 - 10) / 100], {
         sub: w + ' starts with $1.00, buys a ' + dollar(p3) + ' ' + pair[0] + ', then a ' + dollar(q3) + ' ' + pair[1] + '.',
         unit: '$', b: t + 0.5,
         explain: ['$1.00 − ' + dollar(p3) + ' = ' + dollar(100 - p3) + ' left after the first purchase.',
@@ -83833,7 +83833,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 5) {
       var f5 = R.int(rng, 2, 7);
-      return I_num('How many inches are in ' + f5 + ' feet?', f5 * 12, {
+      return MC(rng, 'How many inches are in ' + f5 + ' feet?', f5 * 12, [f5 * 10, f5 * 12 + 12, f5 * 12 - 12], {
         unit: 'in', b: t + 0.5,
         explain: ['1 foot = 12 inches.', f5 + ' × 12 = ' + f5 * 12 + '.', 'So the answer is <b>' + f5 * 12 + '</b>.'],
         teach: 'Changing units multiplies by the rate: 12 inches per foot.' });
@@ -83847,7 +83847,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     /* 7: how much longer, in inches */
     var ft7 = R.int(rng, 2, 6), trim = R.int(rng, 5, 20);
-    return I_num('A shelf is ' + ft7 + ' feet long. A bracket is ' + trim + ' inches long. How many inches longer is the shelf?', ft7 * 12 - trim, {
+    return MC(rng, 'A shelf is ' + ft7 + ' feet long. A bracket is ' + trim + ' inches long. How many inches longer is the shelf?', ft7 * 12 - trim, [ft7 * 12, ft7 * 12 - trim + 12, ft7 * 12 - trim - 12], {
       unit: 'in', b: t + 0.7,
       explain: [ft7 + ' feet = ' + ft7 * 12 + ' inches.', ft7 * 12 + ' − ' + trim + ' = ' + (ft7 * 12 - trim) + '.',
         'So the answer is <b>' + (ft7 * 12 - trim) + '</b>.'],
@@ -83909,7 +83909,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (mode === 5) {
       var cm6 = R.int(rng, 5, 45), over = R.int(rng, 5, 40);
-      return I_num('A ribbon is ' + (cm6 + over) + ' cm long. How many centimeters longer is it than a ' + cm6 + '-cm ribbon?', over, {
+      return MC(rng, 'A ribbon is ' + (cm6 + over) + ' cm long. How many centimeters longer is it than a ' + cm6 + '-cm ribbon?', over, [cm6 + over, over + 1, over - 1], {
         unit: 'cm', b: t + 0.5,
         explain: [(cm6 + over) + ' − ' + cm6 + ' = ' + over + '.', 'So the answer is <b>' + over + '</b>.'],
         teach: 'Difference in length is subtraction once both are in the same unit.' });
@@ -83924,7 +83924,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     /* 7: how many cm in N meters */
     var m8 = R.int(rng, 2, 6);
-    return I_num('How many centimeters are in ' + m8 + ' meters?', m8 * 100, {
+    return MC(rng, 'How many centimeters are in ' + m8 + ' meters?', m8 * 100, [m8 * 10, m8 * 100 + 100, m8 * 100 - 100], {
       unit: 'cm', b: t + 0.7,
       explain: ['1 meter = 100 centimeters.', m8 + ' × 100 = ' + m8 * 100 + '.', 'So the answer is <b>' + m8 * 100 + '</b>.'],
       teach: 'The metric system converts by 10s: 100 cm in every meter.' });
@@ -83943,7 +83943,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var model = V.area(L, W, {});
 
     if (mode === 0) {
-      return I_num('Each small square is a centimeter cube. What is the perimeter of the rectangle?', P, {
+      return MC(rng, 'Each small square is a centimeter cube. What is the perimeter of the rectangle?', P, [L * W, P + 1, P - 1], {
         visual: model, unit: 'cm', b: t,
         explain: ['The rectangle is ' + L + ' cm long and ' + W + ' cm wide.',
           'Perimeter = ' + L + ' + ' + L + ' + ' + W + ' + ' + W + '.', L + ' + ' + L + ' = ' + 2 * L + ' and ' + W + ' + ' + W + ' = ' + 2 * W + '; ' + 2 * L + ' + ' + 2 * W + ' = ' + P + '.',
@@ -83951,7 +83951,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Perimeter is the distance around: add all four sides.' });
     }
     if (mode === 1) {
-      return I_num('A rectangle is ' + L + ' cm long and ' + W + ' cm wide. What is its perimeter?', P, {
+      return MC(rng, 'A rectangle is ' + L + ' cm long and ' + W + ' cm wide. What is its perimeter?', P, [L * W, P + 1, P - 1], {
         sub: 'Centimeter cubes would frame it: ' + L + ' cubes along the length, ' + W + ' along the width.',
         unit: 'cm', b: t + 0.1,
         explain: ['Opposite sides of a rectangle are equal.', '2 × ' + L + ' = ' + 2 * L + ' and 2 × ' + W + ' = ' + 2 * W + '; ' + 2 * L + ' + ' + 2 * W + ' = ' + P + '.',
@@ -83959,14 +83959,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         teach: 'Perimeter of a rectangle = 2 × length + 2 × width.' });
     }
     if (mode === 2) {   /* missing width from the perimeter */
-      return I_num('The perimeter is ' + P + ' cm. One side is ' + L + ' cm. What is the other side?', W, {
+      return MC(rng, 'The perimeter is ' + P + ' cm. One side is ' + L + ' cm. What is the other side?', W, [L, P / 2, W + 1], {
         visual: model, unit: 'cm', b: t + 0.3,
         explain: ['Two sides of ' + L + ' cm use ' + 2 * L + ' cm of the border.', P + ' − ' + 2 * L + ' = ' + 2 * W + ' cm left for the other two sides.',
           2 * W + ' ÷ 2 = ' + W + '.', 'So the answer is <b>' + W + ' cm</b>.'],
         teach: 'To find a missing side, remove the two known sides from the perimeter.' });
     }
     if (mode === 3) {   /* border-cube count */
-      return I_num('Centimeter cubes are placed around the edge of the rectangle. How many cubes fit around the edge?', P, {
+      return MC(rng, 'Centimeter cubes are placed around the edge of the rectangle. How many cubes fit around the edge?', P, [L * W, P + 1, P - 1], {
         visual: model, b: t + 0.2,
         explain: ['Cubes around the edge measure the perimeter.', L + ' + ' + W + ' + ' + L + ' + ' + W + ' = ' + P + '.',
           'So the answer is <b>' + P + '</b>.'],
