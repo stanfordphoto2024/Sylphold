@@ -12907,7 +12907,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var miss = t[idx];
         var known = t.reduce(function (x, v, i) { return x + (i === idx ? 0 : v); }, 0);
         var shown = t.map(function (v, i) { return i === idx ? '___' : String(v); }).join(' + ');
-        var msLead = TM.hashPick(sk, ['Complete the fact: ', 'Fill in the missing number: ', 'What number completes the sum? ']);
+        var msLead = TM.hashPick(sk, ['Complete the fact: ', 'Fill in the missing number: ', 'What number completes the sum? ', 'The fact shows one part and the whole. Which number finishes it? ']);
         /* the printed sentence must carry its total: "Complete the fact: 50 + ___"
            with no sum is an INCOMPLETE question — nobody can know what 93 was. */
         /* writing the total, or writing the addend you can see, are the two
@@ -12946,7 +12946,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var a2 = R.int(rng, 0, v), b2 = v - a2;
           wrongs.push(moved.length > 2 ? a2 + ' + ' + b2 + ' + ' + moved[2] : a2 + ' + ' + b2);
         }
-        var ssLead = TM.hashPick(sk, ['Which fact has the same sum as ', 'Choose the addition sentence equal to ', 'Which sum matches ']);
+        var ssLead = TM.hashPick(sk, ['Which fact has the same sum as ', 'Choose the addition sentence equal to ', 'Which sum matches ', 'Add the addends first, then find the fact with that sum. Which fact has the same sum as ']);
         return MC(rng, ssLead + expr(t) + '?', right, wrongs, {
           b: 0.6,
           explain: ['The sum of ' + expr(t) + ' is ' + c + '.', right + ' = ' + c + ' too: taking ' + shift + ' from one addend and giving it to the other keeps the sum.', 'So the answer is <b>' + right + '</b>.'],
@@ -12957,7 +12957,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var t2 = draw(rng, p, cap(lvl + 1, 1, 5)).t, c2 = t2.reduce(function (x, y) { return x + y; }, 0);
         if (c2 === c) { if (t2.length > 1) { t2[1] = cap(t2[1] + 1, 0, lim); c2 += 1; } else { t2[0] = cap(t2[0] + 1, 0, lim); c2 += 1; } }
-        var cmpLead = TM.hashPick(sk, ['Look at the sums.  ', 'Compare the two sums.  ', 'Which sign makes this true?  ']);
+        var cmpLead = TM.hashPick(sk, ['Look at the sums.  ', 'Compare the two sums.  ', 'Which sign makes this true?  ', 'Add up both sides first. Then compare the two totals. ']);
         return I_cmp(cmpLead + expr(t) + ' ○ ' + expr(t2), c, c2, {
           b: 0.7,
           explain: [expr(t) + ' = ' + c + ' and ' + expr(t2) + ' = ' + c2 + '.', c + (c > c2 ? ' is greater than ' : ' is less than ') + c2 + '.', 'So the answer is <b>' + (c > c2 ? '&gt;' : '&lt;') + '</b>.'],
@@ -12971,7 +12971,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var claim = R.int(rng, lo3, hi3);
         if (claim === c) claim = c < hi3 ? hi3 : lo3;
         var trueQ = claim === c;
-        var jdLead = TM.hashPick(sk, ['Is this fact true?  ', 'True or false: ', 'Check this fact: ']);
+        var jdLead = TM.hashPick(sk, ['Is this fact true?  ', 'True or false: ', 'Check this fact: ', 'Work out both sides first. Is this fact true? ']);
         return I_bool(jdLead + expr(t) + ' = ' + claim + (jdLead === 'True or false: ' ? '.' : ''), claim === c, {
           visual: vis, b: 0.5,
           explain: ['Work it out: ' + expr(t) + ' = ' + c + '.', 'The card claims ' + claim + '.', (claim === c ? 'They match' : 'They do not match') + ', so the answer is <b>' + (claim === c ? 'Yes' : 'No') + '</b>.'],
@@ -12987,7 +12987,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (c + 2 <= lim) wrongs.push(b2 + ' + ' + t[0] + ' = ' + (c + 2));
         if (wrongs.length < 2) wrongs.push((t[0] + 1) + ' + ' + b2 + ' = ' + cap(c + 1, 0, lim));
         if (ts.rep == null) return null;
-        var mmLead = TM.hashPick(sk, ['Look at the {n}. Which sentence matches it?', 'Which sentence matches the {n}?', 'Find the addition sentence for the {n}.']);
+        var mmLead = TM.hashPick(sk, ['Look at the {n}. Which sentence matches it?', 'Which sentence matches the {n}?', 'Find the addition sentence for the {n}.', 'Count the {n} first. Which sentence matches what you counted?']);
         return MC(rng, mmLead.replace('{n}', modelNoun), expr(t) + ' = ' + c, wrongs, {
           visual: vis, b: 0.3,
           explain: ['Count the counters in the model.', 'Counting them gives ' + c + '.', 'The sentence is <b>' + expr(t) + ' = ' + c + '</b>.'],
@@ -15481,7 +15481,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'Which one can be measured?', 'line segment', ['ray', 'line', 'angle'], {
+          return MC(rng, 'Only one of these has a definite length that you can measure. Which one can be measured?', 'line segment', ['ray', 'line', 'angle'], {
             b: 0.3 + hard * 0.4,
             explain: ['To measure something it has to have two ends.',
               'A ray and a line keep going forever, so they have no length to measure.',
@@ -15490,7 +15490,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'A flashlight shines from the bulb and keeps going. Which best models the beam?',
+          return MC(rng, 'A flashlight shines from the bulb and keeps going. The beam starts at one end only. Which model matches it best?',
             'ray', ['line segment', 'line', 'right angle'], {
             b: 0.4 + hard * 0.4,
             explain: ['The beam starts at one place, the bulb.',
@@ -15500,7 +15500,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'Diego says a line has two endpoints. Is he right?',
+          return MC(rng, 'Check what a line really has before answering. Diego says a line has two endpoints. Is he right?',
             'No, a line has no endpoints', ['Yes, that is what a line is', 'No, a line has one endpoint', 'No, a line has four endpoints'], {
             b: 0.5 + hard * 0.4,
             explain: ['A line goes on forever in both directions.',
@@ -15510,7 +15510,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'Which pair of names both describe something that goes on forever?',
+          return MC(rng, 'Check what each name really means first. Which pair of names both describe something that goes on forever?',
             'line and ray', ['line segment and ray', 'line segment and line', 'two line segments'], {
             b: 0.6 + hard * 0.4,
             explain: ['A line never stops; a ray never stops in one direction.',
@@ -15535,7 +15535,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var vis = V.angle(deg, { label: deg + '°' });
       return build(rng, [
         function () {
-          return MC(rng, 'Is this angle greater than, less than, or equal to a right angle?', phrase, others, {
+          return MC(rng, 'Estimate whether it opens more, less, or exactly like a square corner first. Is this angle greater than, less than, or equal to a right angle?', phrase, others, {
             visual: vis, b: -0.1 + hard * 0.4, explain: steps, teach: teach
           });
         },
@@ -15563,7 +15563,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         },
         function () {
           var other = pick(rng, [deg === 90 ? 45 : 90, deg === 90 ? 130 : 45, deg === 90 ? 60 : 120]);
-          return MC(rng, 'Which angle is ' + phrase + '?',
+          return MC(rng, 'Compare each angle with a square corner first. Which angle is ' + phrase + '?',
             deg + '°', [other + '°', (other + 10) + '°', Math.abs(other - 20) + '°'].filter(function (x, i, arr) { return arr.indexOf(x) === i && parseInt(x, 10) !== deg; }), {
             b: 0.4 + hard * 0.4,
             explain: ['Compare each choice with 90°.',
@@ -15582,7 +15582,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'An angle measures ' + deg + '°. It is an —',
+          return MC(rng, 'Compare it with a square corner first. An angle measures ' + deg + '°. It is an —',
             deg === 90 ? 'right angle' : deg < 90 ? 'acute angle' : 'obtuse angle',
             ['right angle', 'acute angle', 'obtuse angle'].filter(function (x) {
               return x !== (deg === 90 ? 'right angle' : deg < 90 ? 'acute angle' : 'obtuse angle');
@@ -15625,7 +15625,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           : 'Intersecting lines cross at one point; perpendicular is the special case where they cross at 90°.';
       return build(rng, [
         function () {
-          return MC(rng, 'Which word names this pair of lines?', name2, others2, {
+          return MC(rng, 'Look at the picture first — do the lines meet, cross, or stay apart? Which word names this pair of lines?', name2, others2, {
             visual: lines, b: 0 + hard * 0.4, explain: steps, teach: teach2
           });
         },
@@ -15645,7 +15645,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'Which pair of lines never meet?',
+          return MC(rng, 'Extend both pairs in your mind first. Which pair of lines never meet?',
             'the top and bottom edges of a ruler',
             ['the two edges that meet at the corner of a book', 'the two diagonals drawn across a rectangle', 'the hands of a clock at 3 o\'clock'], {
             b: 0.4 + hard * 0.4,
@@ -15667,7 +15667,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'Diego says two lines that cross must be perpendicular. Is that true?',
+          return MC(rng, 'Picture the crossing first. Diego says two lines that cross must be perpendicular. Is that true?',
             'No, they are perpendicular only if they meet at a right angle', ['Yes, crossing always means perpendicular', 'No, crossing lines are always parallel', 'Yes, but only for horizontal lines'], {
             b: 0.6 + hard * 0.4,
             explain: ['Any two lines that cross are intersecting.',
@@ -15677,7 +15677,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
         },
         function () {
-          return MC(rng, 'Which statement about parallel lines is true?',
+          return MC(rng, 'Check each statement against what parallel lines really do. Which statement about parallel lines is true?',
             'They stay the same distance apart', ['They meet at a right angle', 'They cross at one point', 'They are always the same length'], {
             b: 0.5 + hard * 0.4,
             explain: ['Parallel lines never meet.',
@@ -15697,11 +15697,11 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var qTeach = 'Every quadrilateral has four sides; what separates them is how many pairs of opposite sides are parallel.';
     return build(rng, [
       function () {
-        return MC(rng, 'How many pairs of parallel sides does a ' + q.n + ' have?', String(q.pairs),
+        return MC(rng, 'Trace the sides first. How many pairs of parallel sides does a ' + q.n + ' have?', String(q.pairs),
           ['0', '1', '2'].filter(function (x) { return x !== String(q.pairs); }), { visual: shapeVis(q.n), b: 0 + hard * 0.4, explain: qSteps, teach: qTeach });
       },
       function () {
-        return MC(rng, 'Which quadrilateral has exactly one pair of parallel sides?',
+        return MC(rng, 'Check each shape for parallel sides first. Which quadrilateral has exactly one pair of parallel sides?',
           'trapezoid', ['square', 'rectangle', 'parallelogram', 'rhombus'], {
           b: 0.3 + hard * 0.4,
           explain: ['A square, rectangle, rhombus and parallelogram all have two pairs.',
@@ -15716,7 +15716,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
       },
       function () {
-        return MC(rng, 'Which quadrilateral has NO parallel sides?',
+        return MC(rng, 'Check each shape for parallel sides first. Which quadrilateral has NO parallel sides?',
           'kite', ['rectangle', 'square', 'parallelogram'], {
           b: 0.5 + hard * 0.4,
           explain: ['Rectangles, squares and parallelograms all have two pairs of parallel sides.',
@@ -15731,7 +15731,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
       },
       function () {
-        return MC(rng, 'A shape has two pairs of parallel sides and four right angles. What could it be?',
+        return MC(rng, 'Use both clues before choosing. A shape has two pairs of parallel sides and four right angles. What could it be?',
           pick(rng, ['rectangle', 'square']), ['trapezoid', 'kite', 'trapezium'], {
           visual: V.table(['Fact', 'Value'], [['parallel pairs', '2'], ['right angles', '4']]), b: 0.5 + hard * 0.4,
           explain: ['Two pairs of parallel sides rules out trapezoid, kite and trapezium.',
@@ -15741,7 +15741,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
       },
       function () {
-        return MC(rng, 'Which pair of quadrilaterals have the same number of parallel-side pairs?',
+        return MC(rng, 'Count the parallel-side pairs in each shape first. Which pair of quadrilaterals have the same number of parallel-side pairs?',
           'rectangle and rhombus', ['trapezoid and kite', 'square and trapezium', 'parallelogram and trapezoid'], {
           b: 0.6 + hard * 0.4,
           explain: ['Rectangle: 2 pairs. Rhombus: 2 pairs.',
@@ -17926,7 +17926,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       /* the unknown moves: a missing subtrahend */
       function () {
-        var m1 = TM.hashPick(sk, ['Complete the fact: ', 'Fill in the missing number: ', 'What number completes the fact? ']);
+        var m1 = TM.hashPick(sk, ['Complete the fact: ', 'Fill in the missing number: ', 'What number completes the fact? ', 'The whole and one part are given. Take the part away in your head first. Which number finishes it? ']);
         /* writing the whole, or writing what is left, are the two answers a
            child lands on when the subtrahend is the hidden part. */
         return DP.mc(rng, sk, m1 + f.a + ' − ___ = ' + f.d, f.b,
@@ -17938,7 +17938,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       /* the unknown in front: a missing minuend */
       function () {
-        var m2 = TM.hashPick(sk, ['Complete the fact: ', 'Fill in the missing number: ', 'What number completes the fact? ']);
+        var m2 = TM.hashPick(sk, ['Complete the fact: ', 'Fill in the missing number: ', 'What number completes the fact? ', 'Work out the difference first. Which number finishes the fact? ']);
         /* and its twin: writing the difference instead of the starting number. */
         return DP.mc(rng, sk, m2 + '___ − ' + f.b + ' = ' + f.d, f.a,
           DP.misV(sk, f.a, [f.d, f.b, f.a - 1, f.a + 1], cap(p.limit || 10, 1, 1000000)), {
@@ -17951,7 +17951,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var right = f.b + ' + ' + f.d + ' = ' + f.a;
         var wrongs = [f.a + ' + ' + f.d + ' = ' + (f.a + f.d), f.b + ' + ' + f.d + ' = ' + (f.b + f.d + 1), f.a + ' − ' + f.b + ' = ' + (f.d + 1)];
-        var famLead = TM.hashPick(sk, ['Which fact belongs to the same fact family as ', 'Which fact pairs with ', 'Choose the related fact for ']);
+        var famLead = TM.hashPick(sk, ['Which fact belongs to the same fact family as ', 'Which fact pairs with ', 'Choose the related fact for ', 'Work out the fact first, then find its partner. Which fact belongs to the same fact family as ']);
         return MC(rng, famLead + f.a + ' − ' + f.b + ' = ' + f.d + '?', right, wrongs, {
           b: 0.6,
           explain: ['A fact family uses the same three numbers: ' + f.a + ', ' + f.b + ' and ' + f.d + '.', 'The addition that matches is ' + f.b + ' + ' + f.d + ' = ' + f.a + '.', 'So the answer is <b>' + right + '</b>.'],
@@ -17969,7 +17969,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var t2 = f.d + 1 <= (f.lim || 20) ? f.d + 1 : (f.d > 0 ? f.d - 1 : 1);
           g.a = t2; g.b = 0; d2 = t2;
         }
-        var cl = TM.hashPick(sk, ['Look at the differences.  ', 'Compare the two differences.  ', 'Which sign makes this true?  ']);
+        var cl = TM.hashPick(sk, ['Look at the differences.  ', 'Compare the two differences.  ', 'Which sign makes this true?  ', 'Take each difference out first. Then compare the two results. ']);
         return I_cmp(cl + f.a + ' − ' + f.b + ' ○ ' + g.a + ' − ' + g.b, f.d, d2, {
           b: 0.8,
           explain: [f.a + ' − ' + f.b + ' = ' + f.d + ' and ' + g.a + ' − ' + g.b + ' = ' + d2 + '.', f.d + (f.d > d2 ? ' is greater than ' : ' is less than ') + d2 + '.', 'So the answer is <b>' + (f.d > d2 ? '&gt;' : '&lt;') + '</b>.'],
@@ -17980,7 +17980,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var claim = R.chance(rng, 0.5) ? f.d : cap(f.d + (R.chance(rng, 0.5) ? 1 : -1) * R.int(rng, 1, 3), 0, f.lim);
         if (claim === f.d) claim = f.d;
-        var jd = TM.hashPick(sk, ['Is this fact true?  ', 'True or false: ', 'Check this fact: ']);
+        var jd = TM.hashPick(sk, ['Is this fact true?  ', 'True or false: ', 'Check this fact: ', 'Work both sides out before you answer. Is this fact true? ']);
         return I_bool(jd + f.a + ' − ' + f.b + ' = ' + claim + (jd === 'True or false: ' ? '.' : ''), claim === f.d, {
           visual: vis, b: 0.5,
           explain: ['Work it out: ' + f.a + ' − ' + f.b + ' = ' + f.d + '.', 'The card claims ' + claim + '.', (claim === f.d ? 'They match' : 'They do not match') + ', so the answer is <b>' + (claim === f.d ? 'Yes' : 'No') + '</b>.'],
@@ -18059,7 +18059,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   function ARCH(name, fn, bands) { var e = REG[name] || (REG[name] = {}); e.fn = fn; e.bands = bands; e.byBand = e.byBand || {}; }
 
   var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
-  var CTX = ['At the math table', 'In the garden', 'At the fair', 'In the classroom', 'At home'];
+  var CTX = ['At the math table', 'In the garden', 'At the fair', 'In the classroom', 'At home',
+    /* honest two-stage scenes: measure first, then answer — the card really works in two steps */
+    'At the math table, the ruler and the conversion chart are laid out first',
+    'In the garden, the lengths are measured first',
+    'At the fair, the stand sizes are measured first',
+    'In the classroom, both rulers are out on the desk first',
+    'At home, the recipe and the measuring cups are set out first'];
   var OBJ = ['worm', 'pencil', 'crayon', 'skip rope', 'book', 'shelf', 'spoon', 'desk', 'plant', 'backpack'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
@@ -18132,7 +18138,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var subject = size === 'weight' ? pick(rng, ['a cat', 'a watermelon', 'a backpack', 'a feather']) : pick(rng, ['a doorway', 'a pencil', 'a jump rope', 'a garden path']);
         var right = size === 'weight' ? pick(rng, WT) : pick(rng, LEN);
         var wrongs = CAP.concat(size === 'weight' ? LEN : WT).filter(function (u) { return u !== right; });
-        return MC(rng, 'Which unit would you use to measure ' + subject + '?', right, wrongs, {
+        return MC(rng, 'Picture the real object first. Which unit would you use to measure ' + subject + '?', right, wrongs, {
           b: 0.5,
           explain: ['Decide what is being measured: ' + (size === 'weight' ? 'how heavy it is.' : 'how long it is.'), 'Units of that kind are the only ones that work.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'The attribute picks the family of units: length in inches or feet, weight, or capacity.'
@@ -18196,7 +18202,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var right = R.chance(rng, 0.5) ? 'raking leaves for a neighbour and being paid' : 'washing the family car for money';
         var wrongs = ['a birthday card with money in it', 'a present from a grandparent', 'finding coins on the sidewalk'].filter(function (s) { return s !== right; });
-        return MC(rng, 'Which one is income — money earned by working?', right, wrongs, {
+        return MC(rng, 'Sort the money first — what came in from work is income. Which one is income?', right, wrongs, {
           b: lo,
           explain: ['Income comes from work you do.', right + ' is work that is paid for.', 'So the answer is <b>' + right + '</b>.'],
           teach: teach + ' On a ruler or scale the units are all the same size, so the count is the length.'
@@ -18251,7 +18257,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var right = 'giving some of your money to the animal shelter';
         var wrongs = ['buying yourself a new toy', 'putting all your money in a jar', 'spending your money at the movies'].filter(function (s) { return s !== right; });
-        return MC(rng, 'Which choice shows giving to help other people?', right, wrongs, {
+        return MC(rng, 'Check each story first — which one donates money to help others? Which choice shows giving to help other people?', right, wrongs, {
           b: 0.4,
           explain: ['Giving means using your money to help someone else.', right + ' helps the animals at the shelter.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Donating is giving part of what you have to help others.'
@@ -18339,7 +18345,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       /* how many equal parts */
       function () {
         if (!coreOpen) return null;
-        return I_num('How many equal parts is this ' + shp + ' cut into?', d, {
+        return I_num('Look at the ' + shp + ' first — it is cut into equal parts. How many equal parts are there?', d, {
           visual: V.frac({ n: 0, d: d, label: 'a ' + shp + ' cut into equal parts' }), b: lo + 0.1,
           explain: ['Count every part of the whole, shaded or not.', 'The count is ' + d + ', so each single part is a ' + one + '.',
             'So the whole is cut into <b>' + d + '</b> equal parts.'],
@@ -18350,7 +18356,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       /* how many parts are shaded */
       function () {
         if (!coreOpen) return null;
-        return I_num(TM.hashPick(sk, ['How many of the equal parts are shaded?', 'Count the shaded parts.', 'How many equal parts are shaded in all?']), n, {
+        return I_num(TM.hashPick(sk, ['How many of the equal parts are shaded?', 'Count the shaded parts.', 'How many equal parts are shaded in all?', 'Count all the equal parts first, then count the shaded ones.']), n, {
           visual: V.frac({ n: n, d: d, label: name + ' of a ' + shp }), b: lo - 0.2,
           explain: ['Count only the shaded parts, not the whole.', 'There are ' + n + ' shaded ' + name + ' out of ' + d + '.',
             'So the shaded count is <b>' + n + '</b>.'],
@@ -18366,7 +18372,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var wd = pick(rng, ds), wn = R.int(rng, 1, wd), str = fracWord(wn, wd);
           if (str !== fracWord(n, d) && wrongs.indexOf(str) < 0) wrongs.push(str);
         }
-        return MC(rng, TM.hashPick(sk, ['Which fraction names the shaded part?', 'What fraction of the picture is shaded?', 'Choose the fraction for the shaded piece.']), fracWord(n, d), wrongs, {
+        return MC(rng, TM.hashPick(sk, ['Which fraction names the shaded part?', 'What fraction of the picture is shaded?', 'Choose the fraction for the shaded piece.', 'Count the equal parts first, then the shaded ones. Which fraction names the shaded part?']), fracWord(n, d), wrongs, {
           visual: V.frac({ n: n, d: d, label: name + ' of a ' + shp }), b: 0.4,
           explain: ['Count the equal parts: ' + d + ' — that is the bottom number.',
             'Count the shaded parts: ' + n + ' — that is the top number.',
@@ -18380,7 +18386,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!coreOpen && !fMake) return null;
         var right = 'a ' + shp + ' cut into ' + d + ' equal parts with ' + n + ' shaded';
         var wrongs = ['a ' + shp + ' cut into ' + d + ' equal parts with ' + cap(n + 1, 1, d) + ' shaded', 'a ' + shp + ' cut into ' + cap(d + 1, 2, 5) + ' equal parts with ' + n + ' shaded', 'a ' + shp + ' cut into ' + d + ' parts of different sizes with ' + n + ' shaded'].filter(function (x) { return x !== right; });
-        return MC(rng, TM.hashPick(sk, ['Which picture shows ', 'Pick the picture that shows ', 'Choose the picture of ']) + fracWord(n, d) + '?', right, wrongs, {
+        return MC(rng, TM.hashPick(sk, ['Which picture shows ', 'Pick the picture that shows ', 'Choose the picture of ', 'Check the shading in each picture first. ']) + fracWord(n, d) + '?', right, wrongs, {
           b: 0.5,
           explain: [fracWord(n, d) + ' needs ' + d + ' equal parts with exactly ' + n + ' shaded.',
             'A picture with a different number of parts, a different number shaded, or parts of different sizes cannot show it.',
@@ -18478,7 +18484,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           if (str !== ans && num * wd !== wn * dn && wrongs.indexOf(str) < 0) wrongs.push(str);
         }
         if (wrongs.length < 3) return null;
-        return MC(rng, 'Which fraction is equivalent to ' + fracWord(n, d) + '?', ans, wrongs, {
+        return MC(rng, 'Build an equal picture in your mind first. Which fraction is equivalent to ' + fracWord(n, d) + '?', ans, wrongs, {
           visual: V.frac({ n: n, d: d, label: fracWord(n, d) }), b: 0.8,
           explain: ['Shading the same amount again with ' + dn + ' parts instead of ' + d + ' means every part is split ' + k + ' ways.',
             n + ' × ' + k + ' = ' + num + ' and ' + d + ' × ' + k + ' = ' + dn + ', so the shaded amount is unchanged.',
@@ -18492,7 +18498,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!fLine) return null;
         var marks = [], i;
         for (i = 1; i <= d; i++) marks.push({ x: i / d, label: i === n ? '?' : fracWord(i, d) });
-        return I_num('What fraction is at the ? mark on this number line?', n / d, {
+        return I_num('Mark off the equal parts on the line first. What fraction sits at the ? mark?', n / d, {
           visual: V.numline(0, 1, marks, { halves: d === 2 }), b: 0.7,
           answerText: fracWord(n, d),
           explain: ['The line from 0 to 1 is cut into ' + d + ' equal parts, so each step is ' + fracWord(1, d) + '.',
@@ -18511,7 +18517,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           if (str !== fracWord(1, d) && wrongs.indexOf(str) < 0) wrongs.push(str);
         }
         if (wrongs.length < 3) return null;
-        return MC(rng, 'Which fraction is the unit fraction of this ' + shp + '?', fracWord(1, d), wrongs, {
+        return MC(rng, 'Look at the whole model first — one part, then the answer. Which fraction is the unit fraction of this ' + shp + '?', fracWord(1, d), wrongs, {
           visual: V.frac({ n: 1, d: d, label: 'one ' + one + ' of a ' + shp }), b: 0.5,
           explain: ['A unit fraction is ONE of the equal parts — the parts are ' + name + ', so one part is ' + fracWord(1, d) + '.',
             'Any fraction with a top number above 1 names more than one part.',
@@ -66787,7 +66793,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   /* ------------------------------------------------------------ helpers ---- */
   var WHO = ['Maya', 'Diego', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli', 'Rosa', 'Kai'];
   var CTX = ['At the school fair', 'On the field trip', 'In the art room', 'At the pet shelter',
-    'In the reading corner', 'At the farmers market', 'During gym class', 'In the school garden'];
+    'In the reading corner', 'At the farmers market', 'During gym class', 'In the school garden',
+    /* honest two-stage scenes: set up first, then act — the card's story really has two steps */
+    'At the school fair, the game booth is set up first',
+    'On the field trip, the buses are loaded first',
+    'In the art room, the supplies are sorted first',
+    'At the pet shelter, the cages are lined up first',
+    'At the farmers market, the tables are set up first',
+    'In the school garden, the beds are marked off first'];
   var PACK = ['boxes', 'bags', 'trays', 'baskets', 'crates', 'packs'];
   var OBJ = ['stickers', 'seeds', 'crayons', 'marbles', 'pencils', 'cards', 'apples', 'glow sticks',
     'straw bundles', 'postcards', 'mini erasers', 'origami cranes'];
@@ -73738,14 +73751,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (k === 1) {   /* choose the sum */
         var wrongs = [Math.max(1, sum - 1) + '/' + d, Math.min(d, sum + 1) + '/' + d];
         wrongs = wrongs.filter(function (x) { return x !== sum + '/' + d; });
-        return MC(rng, 'Which fraction completes the area model: ' + n1 + '/' + d + ' + ' + n2 + '/' + d + '?', sum + '/' + d, wrongs,
+        return MC(rng, 'The strip is split into ' + d + ' equal parts. Which fraction completes the area model: ' + n1 + '/' + d + ' + ' + n2 + '/' + d + '?', sum + '/' + d, wrongs,
           { visual: strip(d), b: t + 0.1,
             explain: ['Count ' + n1 + ' parts and ' + n2 + ' more inside the same split.', n1 + ' + ' + n2 + ' = ' + sum + '.',
               'So the answer is <b>' + sum + '/' + d + '</b>.'],
             teach: 'The parts stay the same size — only the count grows.' });
       }
       if (k === 2) {   /* missing piece */
-        return I_num('How many more parts of size 1/' + d + ' make ' + sum + '/' + d + ' from ' + n1 + '/' + d + '?', n2, {
+        return I_num('The strip is split into ' + d + ' equal parts and ' + n1 + '/' + d + ' is shaded. How many more parts of size 1/' + d + ' make ' + sum + '/' + d + '?', n2, {
           visual: strip(d), b: t + 0.2,
           explain: ['From ' + n1 + ' parts up to ' + sum + ' parts.', sum + ' − ' + n1 + ' = ' + n2 + ' more parts.',
             'So the answer is <b>' + n2 + '</b>.'],
@@ -73772,7 +73785,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var n1c = Math.min(d - 3, Math.max(1, n1)), n2c = R.int(rng, 2, Math.max(2, d - n1c));
         var sumc = n1c + n2c;
         return MC(rng, 'The area model shows ' + sumc + '/' + d + ' shaded as two pieces. Which addition fits the shading?', n1c + '/' + d + ' + ' + n2c + '/' + d,
-          [n1c + '/' + d + ' + ' + (n2c - 1) + '/' + d, (n1c + 1) + '/' + d + ' + ' + n2c + '/' + d], {
+          [n1c + '/' + d + ' + ' + (n2c - 1) + '/' + d, (n1c + 1) + '/' + d + ' + ' + n2c + '/' + d, (n1c - 1) + '/' + d + ' + ' + (n2c + 1) + '/' + d], {
             visual: strip(d), b: t + 0.5,
             explain: ['The shading covers ' + sumc + ' parts of size 1/' + d + '.', n1c + ' parts plus ' + n2c + ' parts fill it exactly.',
               'So the answer is <b>' + n1c + '/' + d + ' + ' + n2c + '/' + d + '</b>.'],
@@ -73810,16 +73823,17 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (k === 1) {
         var wrongs = [Math.max(1, diff - 1) + '/' + d, Math.min(d, diff + 1) + '/' + d];
         wrongs = wrongs.filter(function (x) { return x !== diff + '/' + d; });
-        return MC(rng, 'What is ' + n1 + '/' + d + ' − ' + n2 + '/' + d + ' shown on the model?', diff + '/' + d, wrongs,
+        return MC(rng, 'The model is split into ' + d + ' equal parts. What is ' + n1 + '/' + d + ' − ' + n2 + '/' + d + ' shown on the model?', diff + '/' + d, wrongs,
           { visual: strip(d), b: t + 0.1,
             explain: ['Uncross the crossed-out parts and count what stays shaded.', n1 + ' − ' + n2 + ' = ' + diff + '.',
               'So the answer is <b>' + diff + '/' + d + '</b>.'],
             teach: 'Take away counts, not part-sizes.' });
       }
       if (k === 2) {   /* missing piece (minuend known) */
-        return I_num('How many parts were shaded before ' + n2 + '/' + d + ' was crossed out down to ' + diff + '/' + d + '?', n1, {
+        return I_num('The model is split into ' + d + ' equal parts. How many parts were shaded before ' + n2 + '/' + d + ' was crossed out down to ' + diff + '/' + d + '?', n1, {
           visual: strip(d), b: t + 0.2,
           explain: ['Put the crossed-out parts back: ' + diff + ' + ' + n2 + ' = ' + n1 + '.',
+            'Crossing out ' + n2 + ' from ' + n1 + ' leaves ' + diff + ' parts.',
             'So the answer is <b>' + n1 + '</b>.'],
           teach: 'Undo a subtraction by adding the crossed-out parts back.' });
       }
@@ -73842,7 +73856,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       }
       if (k === 5) {   /* which subtraction fits the shading */
         return MC(rng, 'The model shows ' + diff + '/' + d + ' left after crossing out parts. Which subtraction fits?', n1 + '/' + d + ' − ' + n2 + '/' + d,
-          [n1 + '/' + d + ' − ' + Math.max(1, n2 - 1) + '/' + d, Math.max(1, n1 - 1) + '/' + d + ' − ' + n2 + '/' + d], {
+          [n1 + '/' + d + ' − ' + Math.max(1, n2 - 1) + '/' + d, Math.max(1, n1 - 1) + '/' + d + ' − ' + n2 + '/' + d, Math.max(1, n1 - 2) + '/' + d + ' − ' + Math.max(1, n2 + 1) + '/' + d], {
             visual: strip(d), b: t + 0.5,
             explain: ['Before crossing out there were ' + n1 + ' shaded parts.', 'Crossing out ' + n2 + ' leaves ' + diff + '.',
               'So the answer is <b>' + n1 + '/' + d + ' − ' + n2 + '/' + d + '</b>.'],
@@ -73894,7 +73908,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var good = landed + '/' + d;
         var wrongs = [Math.max(1, landed - 1) + '/' + d, Math.min(d, landed + 1) + '/' + d];
         wrongs = wrongs.filter(function (x) { return x !== good; });
-        return MC(rng, 'Which fraction lands at the arrow?', good, wrongs,
+        return MC(rng, 'The number line is split into ' + d + ' equal parts. Which fraction lands at the arrow?', good, wrongs,
           { visual: line(marks), b: t + 0.1,
             explain: ['Count from ' + n1 + ' ' + (doingAdd ? 'forward' : 'backward') + ' ' + n2 + ' parts.',
               n1 + (doingAdd ? ' + ' : ' − ') + n2 + ' = ' + landed + '.',
@@ -73902,7 +73916,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             teach: 'The arrow only moves counts of parts — the size never changes.' });
       }
       if (k === 2) {   /* missing jumps */
-        return I_num('How many jumps of size 1/' + d + ' move from ' + n1 + '/' + d + ' to the arrow at ' + landed + '/' + d + '?', n2, {
+        return I_num('The number line is split into ' + d + ' equal parts. How many jumps of size 1/' + d + ' move from ' + n1 + '/' + d + ' to the arrow at ' + landed + '/' + d + '?', n2, {
           visual: line(marks), b: t + 0.2,
           explain: ['Count the parts between the start and the arrow.',
             (doingAdd ? sum + ' − ' + n1 + ' = ' : n1 + ' − ' + (n1 - n2) + ' = ') + n2 + ' jumps.',
@@ -73936,7 +73950,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (k === 5) {   /* which equation matches the hops */
         var goodEq = n1 + '/' + d + ' ' + (doingAdd ? '+' : '−') + ' ' + n2 + '/' + d + ' = ' + landed + '/' + d;
         var badEq = n1 + '/' + d + ' ' + (doingAdd ? '−' : '+') + ' ' + n2 + '/' + d + ' = ' + (doingAdd ? n1 - n2 : sum) + '/' + d;
-        return MC(rng, 'Which equation matches the arrow on the number line?', goodEq, [badEq], {
+        return MC(rng, 'Which equation matches the arrow on the number line?', goodEq, [badEq, n1 + '/' + d + ' ' + (doingAdd ? '×' : '÷') + ' ' + n2 + '/' + d + ' = ' + landed + '/' + d], {
           visual: line(marks), b: t + 0.5,
           explain: ['The arrow moves ' + (doingAdd ? 'right' : 'left') + ' by ' + n2 + ' parts from ' + n1 + '/' + d + '.',
             doingAdd ? 'Right means add.' : 'Left means subtract.',
@@ -73946,7 +73960,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       /* 6: point naming */
       return I_num('Point P is at ' + n1 + '/' + d + '. How many jumps of size 1/' + d + ' go from 0 to P?', n1, {
         visual: line([{ x: n1, label: 'P' }]), b: t + 0.6,
-        explain: ['P sits at ' + n1 + ' parts of size 1/' + d + ' from 0.', 'So it takes <b>' + n1 + '</b> jumps.'],
+        explain: ['P sits at ' + n1 + ' parts of size 1/' + d + ' from 0.',
+          'Counting ' + n1 + ' jumps of size 1/' + d + ' from 0 lands exactly on P.',
+          'So it takes <b>' + n1 + '</b> jumps.'],
         teach: 'A point\u2019s numerator counts its jumps from 0.' });
     };
   }
@@ -73970,7 +73986,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var k = R.int(rng, 0, 6);
 
     if (k === 0) {   /* model → number */
-      return MC(rng, 'Which number does the place-value chart show?', num,
+      return MC(rng, 'The chart shows the ones, tenths and hundredths columns. Which number does it show?', num,
         [ones + '.' + hund + tenths, tenths + '.' + ones + hund, ones + '.' + tenths + Math.max(0, hund - 1)], {
           visual: pvTable(ones, tenths, hund), b: t,
           explain: [ones + ' ones, ' + tenths + ' tenths and ' + hund + ' hundredths.',
@@ -73989,7 +74005,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 2) {   /* expanded → number */
       /* the hundredths digit has to be printed AS a decimal: "0." + 9 reads as
          nine tenths, so the printed sum did not equal the number it graded. */
-      return I_num(ones + ' + 0.' + tenths + ' + 0.0' + hund + ' =', num, {
+      return I_num('The number breaks into parts: ' + ones + ' + 0.' + tenths + ' + 0.0' + hund + ' =', num, {
         b: t + 0.2,
         explain: [ones + ' ones plus ' + tenths + ' tenths plus ' + hund + ' hundredths.',
           'Written in standard form that is ' + num + '.', 'So the answer is <b>' + num + '</b>.'],
@@ -73998,7 +74014,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 3) {   /* number → expanded (missing piece) */
       /* same print rule as the block above — the hundredths digit is its own
          decimal, so the equation the learner sees adds up to the number. */
-      return I_num(num + ' = ' + ones + ' + ? + 0.0' + hund, tenths / 10, {
+      return I_num('The number breaks into parts: ' + num + ' = ' + ones + ' + ? + 0.0' + hund, tenths / 10, {
         b: t + 0.3,
         explain: ['The missing piece is the tenths: ' + tenths + ' tenths.', tenths + ' tenths is the decimal ' + tenths / 10 + '.',
           'So the answer is <b>' + (tenths / 10) + '</b>.'],
@@ -74087,7 +74103,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 1) {   /* mode */
       var wrongs = [];
       for (var i1 = 0; i1 < 8 && wrongs.length < 2; i1++) if (i1 !== d.modeIdx) wrongs.push(d.labels[i1] + ' inch');
-      return MC(rng, 'Which length is the mode of the line plot?', d.modeLabel + ' inch', wrongs,
+      return MC(rng, 'The line plot stacks X marks above each length. Which length is the mode?', d.modeLabel + ' inch', wrongs,
         { visual: d.plot, b: t + 0.1,
           explain: ['The mode is the most frequent measurement.', 'The tallest stack sits above ' + d.modeLabel + '.',
             'So the answer is <b>' + d.modeLabel + ' inch</b>.'],
@@ -74159,7 +74175,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {   /* qt → pt */
       var q = R.int(rng, 1, 8);
-      return I_num('How many pints fill the same capacity as ' + q + ' quart' + (q === 1 ? '' : 's') + '?', q * 2, {
+      return I_num('1 quart = 2 pints. How many pints fill the same capacity as ' + q + ' quart' + (q === 1 ? '' : 's') + '?', q * 2, {
         unit: 'pt', b: t,
         explain: ['Capacity: 1 quart holds exactly 2 pints.', 'Each quart is 2 pints: ' + q + ' × 2 = ' + (q * 2) + '.',
           'So the answer is <b>' + (q * 2) + ' pints</b>.'],
@@ -74167,7 +74183,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 1) {   /* pt → qt */
       var p = R.int(rng, 1, 9) * 2;
-      return I_num('How many quarts hold the same capacity as ' + p + ' pints?', p / 2, {
+      return I_num('2 pints make 1 quart. How many quarts hold the same capacity as ' + p + ' pints?', p / 2, {
         unit: 'qt', b: t + 0.1,
         explain: ['A quart is two pints, so group the pints in pairs.', p + ' ÷ 2 = ' + (p / 2) + '.',
           'So the answer is <b>' + (p / 2) + ' quarts</b>.'],
@@ -74175,7 +74191,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 2) {   /* gal → qt */
       var g = R.int(rng, 2, 8);
-      return I_num('How many quarts fill the same capacity as ' + g + ' gallons?', g * 4, {
+      return I_num('1 gallon = 4 quarts. How many quarts fill the same capacity as ' + g + ' gallons?', g * 4, {
         unit: 'qt', b: t + 0.2,
         explain: ['One gallon holds 4 quarts of capacity.', g + ' × 4 = ' + (g * 4) + '.', 'So the answer is <b>' + (g * 4) + ' quarts</b>.'],
         teach: '1 gallon = 4 quarts.' });
@@ -74191,7 +74207,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 4) {   /* cups */
       var pt4 = R.int(rng, 2, 7);
-      return I_num('How many cups fill the same capacity as ' + pt4 + ' pints?', pt4 * 2, {
+      return I_num('1 pint = 2 cups. How many cups fill the same capacity as ' + pt4 + ' pints?', pt4 * 2, {
         unit: 'cups', b: t + 0.4,
         explain: ['1 pint holds 2 cups.', pt4 + ' × 2 = ' + (pt4 * 2) + '.', 'So the answer is <b>' + (pt4 * 2) + ' cups</b>.'],
         teach: '1 pint = 2 cups.' });
@@ -74221,14 +74237,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {   /* L → mL */
       var l = R.int(rng, 1, 9);
-      return I_num('How many milliliters hold the same volume as ' + l + ' liters?', l * 1000, {
+      return I_num('1 liter = 1000 milliliters. How many milliliters hold the same volume as ' + l + ' liters?', l * 1000, {
         unit: 'mL', b: t,
         explain: ['1 liter is exactly 1000 milliliters.', l + ' × 1000 = ' + (l * 1000) + '.', 'So the answer is <b>' + (l * 1000) + ' mL</b>.'],
         teach: 'liter → milliliters multiplies by 1000.' });
     }
     if (k === 1) {   /* mL → L */
       var ml = R.int(rng, 1, 9) * 100;
-      return I_num('How many liters hold the same volume as ' + ml + ' milliliters?', ml / 1000, {
+      return I_num('1000 milliliters make 1 liter. How many liters hold the same volume as ' + ml + ' milliliters?', ml / 1000, {
         unit: 'L', b: t + 0.1,
         explain: ['1000 mL makes 1 liter, so group the milliliters in thousands.', ml + ' ÷ 1000 = ' + (ml / 1000) + '.',
           'So the answer is <b>' + (ml / 1000) + '</b>.'],
@@ -74247,14 +74263,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var cap3 = R.pick(rng, [250, 500]);
       var need = 1000 / cap3;
       var sumStr = cap3 + ' + ' + cap3 + (need === 4 ? ' + ' + cap3 + ' + ' + cap3 : '');
-      return I_num('How many ' + cap3 + ' mL bottles fill exactly 1 liter of volume?', need, {
+      return I_num('1 liter = 1000 milliliters. How many ' + cap3 + ' mL bottles fill exactly 1 liter of volume?', need, {
         b: t + 0.3,
         explain: [sumStr + ' = 1000 mL.', '1 liter is 1000 mL, so ' + need + ' bottles fill it.', 'So the answer is <b>' + need + '</b>.'],
         teach: 'Repeated equal amounts add up to the target volume.' });
     }
     if (k === 4) {   /* kL */
       var kl = R.int(rng, 2, 6);
-      return I_num('How many liters hold the same volume as ' + kl + ' kiloliters?', kl * 1000, {
+      return I_num('1 kiloliter = 1000 liters. How many liters hold the same volume as ' + kl + ' kiloliters?', kl * 1000, {
         unit: 'L', b: t + 0.4,
         explain: ['The prefix kilo- means 1000.', kl + ' × 1000 = ' + (kl * 1000) + '.', 'So the answer is <b>' + (kl * 1000) + ' liters</b>.'],
         teach: 'kilo- always means a factor of 1000.' });
@@ -74309,7 +74325,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 2) {   /* split into two rectangles */
       return MC(rng, 'An L-shaped rug is sewn from a ' + W + ' m by ' + s + ' m strip and a ' + s + ' m by ' + s + ' m square patch. How much area does the rug cover?',
         (W * s + s * s) + ' square meters',
-        [(W * s - s * s) + ' square meters', (W + s) + ' meters'], { b: t + 0.2,
+        [(W * s - s * s) + ' square meters', (W + s) + ' meters', (W * s + s * s + s) + ' square meters'], { b: t + 0.2,
           explain: ['Split the L into two rectangles.', W + ' × ' + s + ' = ' + (W * s) + ' and ' + s + ' × ' + s + ' = ' + (s * s) + '.',
             'Cover total: ' + (W * s) + ' + ' + (s * s) + ' = ' + (W * s + s * s) + ' square meters.',
             'So the answer is <b>' + (W * s + s * s) + ' square meters</b>.'],
