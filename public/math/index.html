@@ -81105,8 +81105,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 1) {   /* perimeter of the dilated rectangle */
       var per = 2 * (w + h);
-      return I_num('A rectangle ' + w + ' cm by ' + h + ' cm is dilated with scale factor ' + kStr + '. What is the perimeter of the image in cm?',
-        r1(per * kk), {
+      return MC(rng, 'A rectangle ' + w + ' cm by ' + h + ' cm is dilated with scale factor ' + kStr + '. What is the perimeter of the image in cm?', r1(per * kk), [r1(per * kk * kk), r1(per * kk + 1), r1(per * kk - 1)], {
           b: t + 0.12, unit: 'cm',
           hint: 'The sides become ' + r1(w * kk) + ' cm and ' + r1(h * kk) + ' cm.',
           explain: ['Image sides: ' + w + ' \u00D7 ' + kStr + ' = ' + r1(w * kk) + ' cm and ' + h + ' \u00D7 ' + kStr + ' = ' + r1(h * kk) + ' cm.',
@@ -81116,8 +81115,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
 
     if (k === 2) {   /* area of the dilated rectangle */
-      return I_num('A ' + w + ' in by ' + h + ' in photo is enlarged about the origin with scale factor ' + kStr + '. What is the area of the enlargement in square inches?',
-        r1(w * h * kk * kk), {
+      return MC(rng, 'A ' + w + ' in by ' + h + ' in photo is enlarged about the origin with scale factor ' + kStr + '. What is the area of the enlargement in square inches?', r1(w * h * kk * kk), [r1(w * h * kk), r1((w + h) * kk), r1(w * h * kk * kk) + 1], {
           b: t + 0.25,
           hint: 'Both dimensions change, so the area changes by (' + kStr + ')\u00B2.',
           explain: ['Image dimensions: ' + r1(w * kk) + ' in by ' + r1(h * kk) + ' in.',
@@ -81128,8 +81126,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 3) {   /* find the scale factor from a side pair */
       var side = R.int(rng, 2, 6), sf = R.int(rng, 2, 5);
-      return I_num('A segment 4 cm long becomes ' + r1(4 * sf) + ' cm long after a dilation. What is the scale factor?',
-        sf, {
+      return MC(rng, 'A segment 4 cm long becomes ' + r1(4 * sf) + ' cm long after a dilation. What is the scale factor?', sf, [sf * sf, r1(1 / sf), sf + 1], {
           b: t + 0.4,
           hint: 'Divide the image length by the original length.',
           explain: ['Scale factor = image length \u00F7 original length.',
@@ -81192,8 +81189,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {
       var smallSide = sides[0], bigSide = smallSide * m;
-      return I_num('A triangle has sides ' + sides.join(' cm, ') + ' cm. A similar triangle has its side corresponding to the ' + smallSide + ' cm side equal to ' + bigSide + ' cm. What is the perimeter of the larger triangle in cm?',
-        per * m, {
+      return MC(rng, 'A triangle has sides ' + sides.join(' cm, ') + ' cm. A similar triangle has its side corresponding to the ' + smallSide + ' cm side equal to ' + bigSide + ' cm. What is the perimeter of the larger triangle in cm?', per * m, [per * m * m, per * m + 1, per * m - 1], {
           b: t, unit: 'cm',
           hint: 'The scale factor is ' + bigSide + ' \u00F7 ' + smallSide + ' = ' + m + '.',
           explain: ['Scale factor: ' + bigSide + ' \u00F7 ' + smallSide + ' = ' + m + '.',
@@ -81205,8 +81201,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 1) {   /* find the scale factor from a corresponding pair */
       var a1 = R.int(rng, 3, 9), sf1 = R.int(rng, 2, 6);
-      return I_num('Two similar hexagons have corresponding sides ' + a1 + ' in and ' + a1 * sf1 + ' in. What is the scale factor from the smaller hexagon to the larger one?',
-        sf1, {
+      return MC(rng, 'Two similar hexagons have corresponding sides ' + a1 + ' in and ' + a1 * sf1 + ' in. What is the scale factor from the smaller hexagon to the larger one?', sf1, [sf1 * sf1, r1(1 / sf1), sf1 + 1], {
           b: t + 0.12,
           hint: 'Divide the larger side by the smaller side.',
           explain: ['Corresponding sides: ' + a1 + ' in and ' + (a1 * sf1) + ' in.',
@@ -81217,8 +81212,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 2) {   /* find a side from the two perimeters */
       var m2 = R.int(rng, 2, 4), pSmall = per, pBig = per * m2, side2 = sides[1];
-      return I_num('Two similar triangles have perimeters ' + pSmall + ' cm and ' + pBig + ' cm. A side of the smaller triangle is ' + side2 + ' cm. How long is the corresponding side of the larger triangle in cm?',
-        side2 * m2, {
+      return MC(rng, 'Two similar triangles have perimeters ' + pSmall + ' cm and ' + pBig + ' cm. A side of the smaller triangle is ' + side2 + ' cm. How long is the corresponding side of the larger triangle in cm?', side2 * m2, [side2 * m2 * m2, side2 * m2 + 1, side2 * m2 - 1], {
           b: t + 0.25, unit: 'cm',
           hint: pBig + ' \u00F7 ' + pSmall + ' is the ratio of every pair of sides.',
           explain: ['Ratio of perimeters: ' + pBig + ' \u00F7 ' + pSmall + ' = ' + m2 + '.',
@@ -81242,8 +81236,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 4) {   /* regular octagonal signs */
       var s4 = R.int(rng, 4, 9), s4b = s4 * m;
-      return I_num('Two regular octagonal signs are similar. The smaller has side ' + s4 + ' in and the larger has side ' + s4b + ' in. If the smaller perimeter is ' + 8 * s4 + ' in, what is the larger perimeter in inches?',
-        8 * s4b, {
+      return MC(rng, 'Two regular octagonal signs are similar. The smaller has side ' + s4 + ' in and the larger has side ' + s4b + ' in. If the smaller perimeter is ' + 8 * s4 + ' in, what is the larger perimeter in inches?', 8 * s4b, [s4b, 8 * s4b + 8, 8 * s4b - 8], {
           b: t + 0.55, unit: 'in',
           hint: 'A regular octagon has 8 equal sides: ' + 8 + ' \u00D7 ' + s4b + '.',
           explain: ['Check the smaller sign: 8 \u00D7 ' + s4 + ' = ' + 8 * s4 + ' in, which matches the printed perimeter.',
@@ -81301,8 +81294,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
 
     if (k === 1) {   /* area of the enlargement */
-      return I_num('Two similar ' + w + ' cm by ' + h + ' cm rectangles: the larger has sides ' + m + ' times as long. What is the area of the larger rectangle in square centimetres?',
-        w * h * m * m, {
+      return MC(rng, 'Two similar ' + w + ' cm by ' + h + ' cm rectangles: the larger has sides ' + m + ' times as long. What is the area of the larger rectangle in square centimetres?', w * h * m * m, [w * h * m, w * h * m * m + 1, w * h * m * m - 1], {
           b: t + 0.12,
           hint: 'Larger sides: ' + w * m + ' cm and ' + h * m + ' cm.',
           explain: ['Larger rectangle: ' + w + ' \u00D7 ' + m + ' = ' + w * m + ' cm and ' + h + ' \u00D7 ' + m + ' = ' + h * m + ' cm.',
@@ -81313,8 +81305,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 2) {   /* area of the smaller figure */
       var bigA = w * h * m * m;
-      return I_num('The larger of two similar rectangles has area ' + bigA + ' m\u00B2 and its sides are ' + m + ' times the sides of the smaller one. What is the area of the smaller rectangle in square metres?',
-        w * h, {
+      return MC(rng, 'The larger of two similar rectangles has area ' + bigA + ' m\u00B2 and its sides are ' + m + ' times the sides of the smaller one. What is the area of the smaller rectangle in square metres?', w * h, [w * h * m * m, w * h + 1, w * h - 1], {
           b: t + 0.25,
           hint: 'Divide by ' + m + '\u00B2 = ' + m * m + ', not by ' + m + '.',
           explain: ['The sides shrink by ' + m + ', so the area shrinks by ' + m + ' \u00D7 ' + m + ' = ' + m * m + '.',
@@ -81338,8 +81329,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 4) {   /* area from the perimeter ratio */
       var pSmall = 2 * (w + h), pBig = pSmall * m, bigArea = w * h * m * m;
-      return I_num('Two similar rectangles have perimeters ' + pSmall + ' in and ' + pBig + ' in. The larger one has area ' + bigArea + ' in\u00B2. What is the area of the smaller rectangle in square inches?',
-        w * h, {
+      return MC(rng, 'Two similar rectangles have perimeters ' + pSmall + ' in and ' + pBig + ' in. The larger one has area ' + bigArea + ' in\u00B2. What is the area of the smaller rectangle in square inches?', w * h, [w * h * m * m, w * h + 1, w * h - 1], {
           b: t + 0.55,
           hint: pBig + ' \u00F7 ' + pSmall + ' = the side ratio; square it for the area ratio.',
           explain: ['Side ratio from the perimeters: ' + pBig + ' \u00F7 ' + pSmall + ' = ' + m + '.',
@@ -81351,8 +81341,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 5) {   /* missing side from two areas */
       var d5 = R.pick(rng, [2, 3]), p5 = R.int(rng, 2, 5), q5 = p5 + R.int(rng, 1, 3);
       var A5 = d5 * p5 * p5, B5 = d5 * q5 * q5, sideGiven = R.int(rng, 2, 6);
-      return I_num('Two similar tiles have areas ' + A5 + ' cm\u00B2 and ' + B5 + ' cm\u00B2. A side of the smaller tile is ' + sideGiven + ' cm. How long is the corresponding side of the larger tile in centimetres?',
-        sideGiven * q5 / p5, {
+      return MC(rng, 'Two similar tiles have areas ' + A5 + ' cm\u00B2 and ' + B5 + ' cm\u00B2. A side of the smaller tile is ' + sideGiven + ' cm. How long is the corresponding side of the larger tile in centimetres?', sideGiven * q5 / p5, [sideGiven * q5 * q5 / p5, sideGiven, sideGiven * q5 / p5 + 1], {
           b: t + 0.7, unit: 'cm',
           hint: '\u221A(' + A5 + ') : \u221A(' + B5 + ') = ' + p5 + ' : ' + q5 + '.',
           explain: ['Area ratio ' + A5 + ' : ' + B5 + ' = ' + p5 * p5 + ' : ' + q5 * q5 + ', so the side ratio is ' + p5 + ' : ' + q5 + '.',
@@ -81386,8 +81375,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var per = 2 * (w + h), area = w * h;
 
     if (k === 0) {   /* perimeter after enlargement */
-      return I_num('A copy machine enlarges a ' + w + ' in by ' + h + ' in drawing with scale factor ' + sf + '. What is the perimeter of the enlargement in inches?',
-        per * sf, {
+      return MC(rng, 'A copy machine enlarges a ' + w + ' in by ' + h + ' in drawing with scale factor ' + sf + '. What is the perimeter of the enlargement in inches?', per * sf, [per * sf * sf, per * sf + 2, per * sf - 2], {
           b: t, unit: 'in',
           hint: 'Enlarged sides: ' + w * sf + ' in and ' + h * sf + ' in.',
           explain: ['Enlarged sides: ' + w + ' \u00D7 ' + sf + ' = ' + (w * sf) + ' in and ' + h + ' \u00D7 ' + sf + ' = ' + (h * sf) + ' in.',
@@ -81397,8 +81385,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
 
     if (k === 1) {   /* area after enlargement */
-      return I_num('The same ' + w + ' in by ' + h + ' in drawing is enlarged with scale factor ' + sf + '. What is the area of the enlargement in square inches?',
-        area * sf * sf, {
+      return MC(rng, 'The same ' + w + ' in by ' + h + ' in drawing is enlarged with scale factor ' + sf + '. What is the area of the enlargement in square inches?', area * sf * sf, [area * sf, area * sf * sf + 1, area * sf * sf - 1], {
           b: t + 0.12,
           hint: 'The area factor is ' + sf + ' \u00D7 ' + sf + ' = ' + sf * sf + '.',
           explain: ['Original area: ' + w + ' \u00D7 ' + h + ' = ' + area + ' in\u00B2.',
@@ -81421,8 +81408,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 3) {   /* reduction */
       var dn = R.pick(rng, [2, 3]), w4 = w * dn, h4 = h * dn;
-      return I_num('A photograph ' + w4 + ' mm by ' + h4 + ' mm is reduced with scale factor 1/' + dn + '. What is the area of the reduced photo in square millimetres?',
-        w4 * h4 / (dn * dn), {
+      return MC(rng, 'A photograph ' + w4 + ' mm by ' + h4 + ' mm is reduced with scale factor 1/' + dn + '. What is the area of the reduced photo in square millimetres?', w4 * h4 / (dn * dn), [w4 * h4 / dn, w4 * h4 / (dn * dn) + 1, w4 * h4 / (dn * dn) - 1], {
           b: t + 0.45,
           hint: 'Scale factor 1/' + dn + ' divides each side by ' + dn + '.',
           explain: ['Reduced sides: ' + w4 + ' \u00F7 ' + dn + ' = ' + w + ' mm and ' + h4 + ' \u00F7 ' + dn + ' = ' + h + ' mm.',
@@ -81445,8 +81431,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 5) {   /* find the scale factor from the two areas */
       var a5 = w * h, a5b = w * h * sf * sf;
-      return I_num('An enlargement of a rectangle has area ' + a5b + ' cm\u00B2 while the original area is ' + a5 + ' cm\u00B2. What scale factor was used?',
-        sf, {
+      return MC(rng, 'An enlargement of a rectangle has area ' + a5b + ' cm\u00B2 while the original area is ' + a5 + ' cm\u00B2. What scale factor was used?', sf, [a5b / a5, sf + 1, a5 / a5b], {
           b: t + 0.7,
           hint: '\u221A(' + a5b + ' \u00F7 ' + a5 + ') is the scale factor.',
           explain: ['Area factor: ' + a5b + ' \u00F7 ' + a5 + ' = ' + sf * sf + '.',
@@ -81478,8 +81463,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {   /* matching height from matching radii */
       var r2b = r * m;
-      return I_num('Two similar cylinders have radii ' + r + ' cm and ' + r2b + ' cm. The smaller cylinder is ' + hh + ' cm tall. How tall is the larger cylinder in centimetres?',
-        hh * m, {
+      return MC(rng, 'Two similar cylinders have radii ' + r + ' cm and ' + r2b + ' cm. The smaller cylinder is ' + hh + ' cm tall. How tall is the larger cylinder in centimetres?', hh * m, [hh * m * m, hh * m + 1, hh * m - 1], {
           b: t, unit: 'cm',
           hint: 'Scale factor: ' + r2b + ' \u00F7 ' + r + ' = ' + m + '.',
           explain: ['Scale factor from the radii: ' + r2b + ' \u00F7 ' + r + ' = ' + m + '.',
@@ -81513,8 +81497,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 3) {   /* volume of the smaller solid */
       var bigV = r * r * hh * m * m * m;
-      return I_num('A large cylinder has volume ' + bigV + ' cm\u00B2'.replace('cm\u00B2', 'cm\u00B3') + '. A similar cylinder is smaller by scale factor 1/' + m + '. What is the volume of the smaller cylinder in cubic centimetres?',
-        r * r * hh, {
+      return MC(rng, 'A large cylinder has volume ' + bigV + ' cm\u00B2'.replace('cm\u00B2', 'cm\u00B3') + '. A similar cylinder is smaller by scale factor 1/' + m + '. What is the volume of the smaller cylinder in cubic centimetres?', r * r * hh, [bigV / (m * m), r * r * hh + 1, r * r * hh - 1], {
           b: t + 0.4,
           hint: 'Divide by ' + m + ' \u00D7 ' + m + ' \u00D7 ' + m + '.',
           explain: ['The smaller solid shrinks each length by ' + m + ', so its volume shrinks by ' + m + ' \u00D7 ' + m + ' \u00D7 ' + m + ' = ' + m * m * m + '.',
@@ -81526,8 +81509,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {   /* missing length from the two surface areas */
       var p4 = R.int(rng, 2, 3), q4 = p4 + R.int(rng, 1, 2), d4 = R.pick(rng, [2, 3]);
       var A4 = d4 * p4 * p4, B4 = d4 * q4 * q4, radGiven = p4 * R.int(rng, 2, 4);
-      return I_num('Two similar cones have surface areas ' + A4 + ' cm\u00B2 and ' + B4 + ' cm\u00B2. The smaller cone has radius ' + radGiven + ' cm. What is the radius of the larger cone in centimetres?',
-        radGiven * q4 / p4, {
+      return MC(rng, 'Two similar cones have surface areas ' + A4 + ' cm\u00B2 and ' + B4 + ' cm\u00B2. The smaller cone has radius ' + radGiven + ' cm. What is the radius of the larger cone in centimetres?', radGiven * q4 / p4, [radGiven * q4 * q4 / p4, radGiven, radGiven * q4 / p4 + 1], {
           b: t + 0.55, unit: 'cm',
           hint: '\u221A(' + A4 + ') : \u221A(' + B4 + ') = ' + p4 + ' : ' + q4 + '.',
           explain: ['Areas ' + A4 + ' and ' + B4 + ' are ' + d4 + ' \u00D7 ' + p4 * p4 + ' and ' + d4 + ' \u00D7 ' + q4 * q4 + ', so lengths are in the ratio ' + p4 + ' : ' + q4 + '.',
@@ -81550,8 +81532,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     /* k === 6: model scale */
     var sc = R.pick(rng, [10, 20, 25]), realH = R.int(rng, 2, 12) * sc;
-    return I_num('A model building is made at scale 1 : ' + sc + '. The real building is ' + realH + ' ft tall. How tall is the model in feet?',
-      realH / sc, {
+    return MC(rng, 'A model building is made at scale 1 : ' + sc + '. The real building is ' + realH + ' ft tall. How tall is the model in feet?', realH / sc, [realH * sc, realH / sc + 1, realH / sc - 1], {
         b: t + 0.85, unit: 'ft',
         hint: 'Scale 1 : ' + sc + ' means divide by ' + sc + '.',
         explain: ['The model is the smaller similar solid, so its lengths are the real lengths divided by ' + sc + '.',
@@ -81607,8 +81588,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 3) {   /* reverse: find the factor from the volume */
       var back = R.pick(rng, [2, 3, 5]);
-      return I_num('The volume of a cylinder is multiplied by ' + back * back * back + ' when its radius and height are multiplied by the same number. What is that number?',
-        back, {
+      return MC(rng, 'The volume of a cylinder is multiplied by ' + back * back * back + ' when its radius and height are multiplied by the same number. What is that number?', back, [back * back * back, back * back, back + 1], {
           b: t + 0.45,
           hint: '\u221B' + back * back * back + '.',
           explain: ['Volumes change by the cube of the length factor.',
@@ -81667,8 +81647,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {   /* area of a rectangle from its four vertices */
       var P0 = [[ox, oy], [ox + w, oy], [ox + w, oy + h], [ox, oy + h]];
-      return I_num('Rectangle ABCD is shown by its vertices ' + vlist(['A', 'B', 'C', 'D'], P0) + '. What is its area in square units?',
-        w * h, {
+      return MC(rng, 'Rectangle ABCD is shown by its vertices ' + vlist(['A', 'B', 'C', 'D'], P0) + '. What is its area in square units?', w * h, [2 * (w + h), w * h + 1, w * h - 1], {
           b: t,
           hint: 'AB runs horizontally: ' + (ox + w) + ' \u2212 ' + sgn(ox) + ' = ' + w + ' units.',
           explain: ['Horizontal side: ' + (ox + w) + ' \u2212 (' + sgn(ox) + ') = ' + w + ' units.',
@@ -81680,8 +81659,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 1) {   /* perimeter from two opposite vertices */
       var d1 = Math.abs((ox + w) - ox), e1 = Math.abs((oy + h) - oy);
-      return I_num('A rectangle has opposite corners at (' + sgn(ox) + ', ' + sgn(oy) + ') and (' + sgn(ox + w) + ', ' + sgn(oy + h) + '). What is its perimeter in units?',
-        2 * (d1 + e1), {
+      return MC(rng, 'A rectangle has opposite corners at (' + sgn(ox) + ', ' + sgn(oy) + ') and (' + sgn(ox + w) + ', ' + sgn(oy + h) + '). What is its perimeter in units?', 2 * (d1 + e1), [d1 * e1, 2 * (d1 + e1) + 2, 2 * (d1 + e1) - 2], {
           b: t + 0.12, unit: 'units',
           hint: 'Width ' + d1 + ', height ' + e1 + ': perimeter = 2 \u00D7 (' + d1 + ' + ' + e1 + ').',
           explain: ['Width from the x-coordinates: ' + sgn(ox + w) + ' \u2212 ' + sgn(ox) + ' = ' + d1 + '.',
@@ -81694,8 +81672,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 2) {   /* area of a right triangle on the grid */
       var b2 = R.int(rng, 2, 9), h2 = R.int(rng, 1, 8);
       var P2 = [[ox, oy], [ox + b2, oy], [ox, oy + h2]];
-      return I_num('\u25B3ABC has vertices ' + vlist(['A', 'B', 'C'], P2) + '. What is its area in square units?',
-        b2 * h2 / 2, {
+      return MC(rng, '\u25B3ABC has vertices ' + vlist(['A', 'B', 'C'], P2) + '. What is its area in square units?', b2 * h2 / 2, [b2 * h2, b2 * h2 / 2 + 1, b2 * h2 / 2 - 1], {
           b: t + 0.25,
           hint: 'The legs are ' + b2 + ' and ' + h2 + ' units, so the area is half their product.',
           explain: ['Leg AB is horizontal with length ' + b2 + '; leg AC is vertical with length ' + h2 + '.',
@@ -81720,8 +81697,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {   /* find a vertex from the given area */
       var b4 = R.pick(rng, [3, 4, 5, 6]), area4 = R.int(rng, 2, 10) * b4 / 2;
       var y4 = oy + (2 * area4) / b4;
-      return I_num('\u25B3ABC has vertices A(' + sgn(ox) + ', ' + sgn(oy) + '), B(' + sgn(ox + b4) + ', ' + sgn(oy) + ') and C(' + sgn(ox) + ', y). Its area is ' + area4 + ' square units. What is y?',
-        y4, {
+      return MC(rng, '\u25B3ABC has vertices A(' + sgn(ox) + ', ' + sgn(oy) + '), B(' + sgn(ox + b4) + ', ' + sgn(oy) + ') and C(' + sgn(ox) + ', y). Its area is ' + area4 + ' square units. What is y?', y4, [oy + 2 * area4 / b4, y4 + 1, y4 - 1], {
           b: t + 0.55,
           hint: 'Base AB is ' + b4 + ' units, so the height must be 2 \u00D7 ' + area4 + ' \u00F7 ' + b4 + '.',
           explain: ['Base AB is horizontal: ' + b4 + ' units.',
@@ -81780,8 +81756,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 0) {   /* perimeter with the Distance Formula */
       var P0 = triSetup();
       var d0 = dist(P0[0], P0[1]), d1 = dist(P0[1], P0[2]), d2 = dist(P0[2], P0[0]);
-      return I_num('Find the perimeter of \u25B3ABC with vertices ' + vlist(['A', 'B', 'C'], P0) + ', rounded to the nearest tenth.',
-        r1(d0 + d1 + d2), {
+      return MC(rng, 'Find the perimeter of \u25B3ABC with vertices ' + vlist(['A', 'B', 'C'], P0) + ', rounded to the nearest tenth.', r1(d0 + d1 + d2), [d0 + d1 + d2, r1(d0 + d1 + d2) + 0.1, r1(d0 + d1 + d2) - 0.1], {
           b: t, unit: 'units',
           hint: 'Each side is \u221A(run\u00B2 + rise\u00B2): AB \u2248 ' + r1(d0) + ', BC \u2248 ' + r1(d1) + '.',
           explain: ['AB = \u221A(' + (P0[1][0] - P0[0][0]) + '\u00B2 + ' + (P0[1][1] - P0[0][1]) + '\u00B2) \u2248 ' + r1(d0) + '.',
@@ -81814,8 +81789,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var ox2 = R.int(rng, -5, 3), oy2 = R.int(rng, -5, 3);
       var run = R.pick(rng, [3, 4]), rise = run === 3 ? 4 : 3;
       var P2 = [[ox2, oy2], [ox2 + run, oy2 + rise]];
-      return I_num('How long is the segment with endpoints (' + sgn(P2[0][0]) + ', ' + sgn(P2[0][1]) + ') and (' + sgn(P2[1][0]) + ', ' + sgn(P2[1][1]) + ')? Give the exact length.',
-        Math.sqrt(run * run + rise * rise), {
+      return MC(rng, 'How long is the segment with endpoints (' + sgn(P2[0][0]) + ', ' + sgn(P2[0][1]) + ') and (' + sgn(P2[1][0]) + ', ' + sgn(P2[1][1]) + ')? Give the exact length.', Math.sqrt(run * run + rise * rise), [run + rise, Math.sqrt(run * run + rise * rise) + 1, Math.sqrt(run * run + rise * rise) - 1], {
           b: t + 0.25, unit: 'units',
           hint: 'Run ' + run + ' and rise ' + rise + ': \u221A(' + run * run + ' + ' + rise * rise + ').',
           explain: ['Run: ' + sgn(P2[1][0]) + ' \u2212 ' + sgn(P2[0][0]) + ' = ' + run + '; rise: ' + sgn(P2[1][1]) + ' \u2212 ' + sgn(P2[0][1]) + ' = ' + rise + '.',
@@ -81827,8 +81801,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 3) {   /* find a missing coordinate from the distance */
       var ax3 = R.int(rng, -4, 2), ay3 = R.int(rng, -4, 4);
       var run3 = R.pick(rng, [3, 4]), rise3 = run3 === 3 ? 4 : 3, d3 = 5;
-      return I_num('The distance between (' + sgn(ax3) + ', ' + sgn(ay3) + ') and (' + sgn(ax3 + run3) + ', y) is ' + d3 + ' units, and y is greater than ' + sgn(ay3) + '. What is y?',
-        ay3 + rise3, {
+      return MC(rng, 'The distance between (' + sgn(ax3) + ', ' + sgn(ay3) + ') and (' + sgn(ax3 + run3) + ', y) is ' + d3 + ' units, and y is greater than ' + sgn(ay3) + '. What is y?', ay3 + rise3, [ay3 + d3, ay3 + rise3 + 1, ay3 + rise3 - 1], {
           b: t + 0.4,
           hint: 'The run is ' + run3 + ', so the rise must satisfy ' + run3 + '\u00B2 + rise\u00B2 = ' + d3 * d3 + '.',
           explain: ['Run: ' + sgn(ax3 + run3) + ' \u2212 ' + sgn(ax3) + ' = ' + run3 + ' units.',
@@ -81896,8 +81869,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 0) {   /* find the density */
       var vol0 = R.int(rng, 4, 24), rho0 = R.pick(rng, [2, 3, 4, 5, 6, 7]);
-      return I_num('A block has mass ' + vol0 * rho0 + ' g and volume ' + vol0 + ' cm\u00B3. What is its density in grams per cubic centimetre?',
-        rho0, {
+      return MC(rng, 'A block has mass ' + vol0 * rho0 + ' g and volume ' + vol0 + ' cm\u00B3. What is its density in grams per cubic centimetre?', rho0, [vol0 * rho0, rho0 + 1, rho0 - 1], {
           b: t,
           hint: 'Density = mass \u00F7 volume: ' + (vol0 * rho0) + ' \u00F7 ' + vol0 + '.',
           explain: ['Density is mass divided by volume.',
@@ -81908,8 +81880,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 1) {   /* find the mass */
       var rho1 = R.pick(rng, [3, 4, 5, 8]), vol1 = R.int(rng, 3, 15);
-      return I_num('A metal has density ' + rho1 + ' g/cm\u00B3. What is the mass in grams of a piece of this metal with volume ' + vol1 + ' cm\u00B3?',
-        rho1 * vol1, {
+      return MC(rng, 'A metal has density ' + rho1 + ' g/cm\u00B3. What is the mass in grams of a piece of this metal with volume ' + vol1 + ' cm\u00B3?', rho1 * vol1, [rho1 + vol1, rho1 * vol1 + 1, rho1 * vol1 - 1], {
           b: t + 0.12, unit: 'g',
           hint: 'Mass = density \u00D7 volume.',
           explain: ['Each cubic centimetre holds ' + rho1 + ' g.',
@@ -81920,8 +81891,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 2) {   /* find the volume */
       var rho2 = R.pick(rng, [2, 4, 6]), m2 = rho2 * R.int(rng, 3, 12);
-      return I_num('A sample of density ' + rho2 + ' g/cm\u00B3 has mass ' + m2 + ' g. What is its volume in cubic centimetres?',
-        m2 / rho2, {
+      return MC(rng, 'A sample of density ' + rho2 + ' g/cm\u00B3 has mass ' + m2 + ' g. What is its volume in cubic centimetres?', m2 / rho2, [m2 * rho2, m2 / rho2 + 1, m2 / rho2 - 1], {
           b: t + 0.25,
           hint: 'Volume = mass \u00F7 density.',
           explain: ['Volume = mass \u00F7 density, the inverse of mass = density \u00D7 volume.',
@@ -81934,8 +81904,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var start3 = R.pick(rng, [20, 25, 30, 40]), added3 = R.int(rng, 5, 20), mass3 = 0;
       var vol3 = added3;
       mass3 = added3 * R.pick(rng, [2, 3, 4]);
-      return I_num('A solid is lowered into a cylinder holding ' + start3 + ' mL of water, and the level rises to ' + (start3 + added3) + ' mL. If the solid has mass ' + mass3 + ' g, what is its density in grams per cubic centimetre? (1 mL = 1 cm\u00B3)',
-        mass3 / vol3, {
+      return MC(rng, 'A solid is lowered into a cylinder holding ' + start3 + ' mL of water, and the level rises to ' + (start3 + added3) + ' mL. If the solid has mass ' + mass3 + ' g, what is its density in grams per cubic centimetre? (1 mL = 1 cm\u00B3)', mass3 / vol3, [mass3 / (start3 + added3), mass3 / vol3 + 1, mass3 / vol3 - 1], {
           b: t + 0.4,
           hint: 'The rise is the volume: ' + (start3 + added3) + ' \u2212 ' + start3 + ' = ' + vol3 + ' cm\u00B3.',
           explain: ['Volume by displacement: ' + (start3 + added3) + ' \u2212 ' + start3 + ' = ' + vol3 + ' cm\u00B3.',
@@ -82062,8 +82031,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
 
     if (k === 4) {   /* find the central angle from the sector area */
-      return I_num('The area of a sector of a circle of radius ' + r + ' cm is ' + numPi(areaN) + ' cm\u00B2. What is the central angle of that sector in degrees?',
-        th, {
+      return MC(rng, 'The area of a sector of a circle of radius ' + r + ' cm is ' + numPi(areaN) + ' cm\u00B2. What is the central angle of that sector in degrees?', th, [360 - th, th + 1, th - 1], {
           b: t + 0.55, unit: '\u00B0',
           hint: 'The sector is ' + fracStr2 + ' of ' + numPi(r * r) + ' cm\u00B2, so the angle is ' + fracStr2 + ' of 360\u00B0.',
           explain: ['Whole circle: \u03c0 \u00D7 ' + r + '\u00B2 = ' + numPi(r * r) + ' cm\u00B2.',
@@ -82139,8 +82107,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 1) {   /* decimal arc using the printed value of pi */
       var approx = R.chance(rng, 0.5) ? 3.14 : 3.1416;
-      return I_num('Use \u03c0 \u2248 ' + approx + '. A central angle of ' + th + '\u00B0 cuts an arc from a circle of radius ' + r + ' cm. What is the arc length in centimetres, rounded to the nearest hundredth?',
-        r2(c * approx), {
+      return MC(rng, 'Use \u03c0 \u2248 ' + approx + '. A central angle of ' + th + '\u00B0 cuts an arc from a circle of radius ' + r + ' cm. What is the arc length in centimetres, rounded to the nearest hundredth?', r2(c * approx), [c * approx, r2(c * approx) + 0.01, r2(c * approx) - 0.01], {
           b: t + 0.12, unit: 'cm',
           hint: 'The exact arc is ' + numPi(c) + ' cm, so multiply ' + c + ' by ' + approx + '.',
           explain: ['Exact arc: (' + th + '/360) \u00D7 2\u03c0\u00D7' + r + ' = ' + numPi(c) + ' cm.',
@@ -82150,8 +82117,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
 
     if (k === 2) {   /* find the central angle from the arc */
-      return I_num('An arc of ' + numPi(c) + ' cm is cut from a circle of radius ' + r + ' cm. What is the central angle in degrees?',
-        th, {
+      return MC(rng, 'An arc of ' + numPi(c) + ' cm is cut from a circle of radius ' + r + ' cm. What is the central angle in degrees?', th, [th * 2, th + 1, th - 1], {
           b: t + 0.25, unit: '\u00B0',
           hint: 'Circumference is ' + numPi(2 * r) + ' cm; the arc is ' + c + ' of those \u03c0 units.',
           explain: ['Circumference: 2\u03c0\u00D7' + r + ' = ' + numPi(2 * r) + ' cm.',
@@ -82163,8 +82129,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 3) {   /* find the radius from arc and angle */
       var rr = c * 360 / (2 * th);
-      return I_num('A central angle of ' + th + '\u00B0 cuts an arc of ' + numPi(c) + ' cm. What is the radius of the circle in centimetres?',
-        rr, {
+      return MC(rng, 'A central angle of ' + th + '\u00B0 cuts an arc of ' + numPi(c) + ' cm. What is the radius of the circle in centimetres?', rr, [rr * 2, rr + 1, rr - 1], {
           b: t + 0.4, unit: 'cm',
           hint: 'arc = (' + th + '/360) \u00D7 2\u03c0r, so solve for r.',
           explain: ['arc = (\u03B8/360) \u00D7 2\u03c0r with \u03B8 = ' + th + ' and arc = ' + numPi(c) + ' cm.',
@@ -82233,7 +82198,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
 
     if (k === 1) {   /* radians to degrees */
-      return I_num('What is ' + piF(n, d) + ' radians in degrees?', deg, {
+      return MC(rng, 'What is ' + piF(n, d) + ' radians in degrees?', deg, [deg * 2, deg + 90, deg - 90], {
         b: t + 0.12, unit: '\u00B0',
         hint: 'Multiply by 180/\u03c0: ' + n + '/' + d + ' \u00D7 180.',
         explain: ['\u03c0 radians is 180\u00B0, so multiply the coefficient by 180.',
@@ -82325,8 +82290,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var per = n * side;
 
     if (k === 0) {
-      return I_num('A circle of radius ' + rad + ' cm is inscribed in a regular ' + n + '-gon (each side is tangent to the circle). What is the perimeter of the polygon in centimetres, rounded to the nearest hundredth?',
-        r2(per), {
+      return MC(rng, 'A circle of radius ' + rad + ' cm is inscribed in a regular ' + n + '-gon (each side is tangent to the circle). What is the perimeter of the polygon in centimetres, rounded to the nearest hundredth?', r2(per), [per, r2(per) + 0.01, r2(per) - 0.01], {
           b: t, unit: 'cm',
           hint: 'Half the central angle is ' + r2(180 / n) + '\u00B0, so half a side is ' + rad + ' tan(' + r2(180 / n) + '\u00B0).',
           explain: ['The radius to a tangent point is perpendicular to the side, so it bisects a side and the central angle.',
@@ -82352,8 +82316,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var b2 = R.int(rng, 3, 9), d2 = R.int(rng, 3, 9);
       var a2 = R.int(rng, 3, b2 + d2 - 1);
       var c2 = b2 + d2 - a2;   /* at least 1 by construction */
-      return I_num('A quadrilateral circumscribes a circle, so every side is tangent to it. Its sides in order are ' + a2 + ' cm, ' + b2 + ' cm, ? cm and ' + d2 + ' cm. What is the missing side in centimetres?',
-        c2, {
+      return MC(rng, 'A quadrilateral circumscribes a circle, so every side is tangent to it. Its sides in order are ' + a2 + ' cm, ' + b2 + ' cm, ? cm and ' + d2 + ' cm. What is the missing side in centimetres?', c2, [b2 + d2, c2 + 1, c2 - 1], {
           b: t + 0.25, unit: 'cm',
           hint: 'Sums of opposite sides are equal: ' + a2 + ' + ? = ' + b2 + ' + ' + d2 + '.',
           explain: ['Two tangent segments from the same external point are equal, which makes the sums of opposite sides equal.',
@@ -82365,8 +82328,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
     if (k === 3) {   /* square: exact */
       var sq = R.int(rng, 2, 12);
-      return I_num('A circle of radius ' + sq + ' in is inscribed in a square. What is the perimeter of the square in inches?',
-        8 * sq, {
+      return MC(rng, 'A circle of radius ' + sq + ' in is inscribed in a square. What is the perimeter of the square in inches?', 8 * sq, [4 * sq, 8 * sq + 4, 8 * sq - 4], {
           b: t + 0.4, unit: 'in',
           hint: 'The diameter of the inscribed circle equals the side of the square.',
           explain: ['A circle inscribed in a square touches opposite sides, so the square\u2019s side equals the diameter: 2 \u00D7 ' + sq + ' = ' + 2 * sq + ' in.',
