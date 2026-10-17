@@ -911,15 +911,18 @@ function buildBooster(){
   engDisc.rotation.x=Math.PI/2; engDisc.position.y=0.0006; g.add(engDisc);
   /* nozzle rings */
   const nozz=new THREE.MeshStandardMaterial({color:0x30343a,metalness:0.8,roughness:0.4,emissive:0x000000});
-  const ring1=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.00045,0.0007,0.0011,8),nozz,18);
+  /* real Block 3 layout: 33 Raptors = 1 center + 12 inner + 20 outer (inner 13 are the landing-burn ring) */
+  const ring1=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0003,0.00045,0.0011,6),nozz,33);
   const mtx=new THREE.Matrix4();
-  for(let i=0;i<18;i++){const a=i/18*6.283; mtx.makeTranslation(Math.cos(a)*0.0028,0.0012,Math.sin(a)*0.0028); ring1.setMatrixAt(i,mtx);}
+  mtx.makeTranslation(0,0.0012,0); ring1.setMatrixAt(0,mtx);
+  for(let i=0;i<12;i++){const a=i/12*6.283; mtx.makeTranslation(Math.cos(a)*0.00145,0.0012,Math.sin(a)*0.00145); ring1.setMatrixAt(1+i,mtx);}
+  for(let i=0;i<20;i++){const a=i/20*6.283; mtx.makeTranslation(Math.cos(a)*0.00305,0.0012,Math.sin(a)*0.00305); ring1.setMatrixAt(13+i,mtx);}
   g.add(ring1); g.userData.nozz=nozz;
-  /* grid fins */
-  for(let i=0;i<4;i++){
+  /* grid fins — real Block 3: three fins (90°/90°/180°); they are the catch points for the tower arms */
+  [[0.0048,0.058,0],[0,0.058,0.0048],[-0.0048,0.058,0]].forEach(p=>{
     const f=new THREE.Mesh(new THREE.BoxGeometry(0.0012,0.0075,0.0052),darkM);
-    const a=i*1.5708+0.785; f.position.set(Math.cos(a)*0.0048,0.058,Math.sin(a)*0.0048); g.add(f);
-  }
+    f.position.set(p[0],p[1],p[2]); g.add(f);
+  });
   /* dark heat band near nose */
   const band=new THREE.Mesh(new THREE.CylinderGeometry(0.00455,0.00455,0.012,40,1,true),tileM);
   band.position.y=0.062; g.add(band);
@@ -947,6 +950,12 @@ function buildShip(){
   /* RLS ring */
   const rls=new THREE.Mesh(new THREE.TorusGeometry(0.0046,0.00025,6,40),darkM);
   rls.rotation.x=Math.PI/2; rls.position.y=0.040; g.add(rls);
+  /* landing legs — real: the ship lands on legs on bodies without an atmosphere (the Moon / Mars) */
+  const lg=[[0.0049,0.010,0,'z',1.15],[0,0.010,0.0049,'x',-1.15],[-0.0049,0.010,0,'z',-1.15]].map(p=>{
+    const pivot=new THREE.Group(); pivot.position.set(p[0],p[1],p[2]);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(0.0007,0.02,0.0016),darkM); m.position.y=-0.010;
+    pivot.add(m); pivot.userData.home=0; pivot.userData.out=[p[3],p[4]]; g.add(pivot); return pivot;});
+  g.userData.legs=lg;
   return g;
 }
 const boosterMesh=buildBooster();
@@ -1342,22 +1351,15 @@ function simStep(dt){
   const met=SIM.met;
   switch(SIM.phase){
   case 'PRELAUNCH':
-    /* LOX venting plume on the pad */
+    /* LOX venting plume on the pad — particles removed (pad ghosting) */
     ventT+=dt;
-    if(ventT>0.1){ ventT=0;
-      P_soft.emit({pos:{x:0.006,y:0.01,z:0},vel:{x:0,y:0.004,z:-0.006},size:0.006,grow:0.02,ttl:4,alpha:0.5,col:[0.9,0.92,0.95],drag:0.99});
-    }
     break;
   case 'COUNTDOWN':{
     const s=Math.ceil(met);
     if(met>-10.5&&s!==lastBeep&&s<=0){ lastBeep=s; beep(s<=5?1400:880,0.1); }
-    if(met>=-4&&!delugeOn){ delugeOn=true; startDeluge(); log('Water deluge system — flowing','good'); }
+    if(met>=-4&&!delugeOn){ delugeOn=true; log('Water deluge system — flowing','good'); }
     if(met>=-3&&!SIM.enginesOn){ SIM.enginesOn=true; SIM.throttle=0.55;
-      log('Engine start sequence — 3 center Raptors','good'); camShake(0.5,3);
-      for(let i=0;i<140;i++){ const a=Math.random()*6.283,s=0.02+Math.random()*0.045;
-        P_soft.emit({pos:{x:Math.cos(a)*0.05,y:0.006,z:Math.sin(a)*0.05},
-          vel:{x:Math.cos(a)*s,y:0.008,z:Math.sin(a)*s},
-          size:0.04,grow:0.13,ttl:11,alpha:0.7,col:[0.92,0.93,0.95],drag:0.986}); } }
+      log('Engine start sequence — 3 center Raptors','good'); camShake(0.5,3); }
     if(met>=-2){ SIM.throttle=1.0; }
     if(met>=0){ setPhase('ASCENT'); SIM.met=0; SIM.t=0; }
     plume.visible=SIM.enginesOn; plume2.visible=SIM.enginesOn;
@@ -1453,9 +1455,7 @@ function simStep(dt){
     SIM.vel=vmul(td,v);
     SIM.distTraveled+=vlen(vsub(SIM.pos,prev));
     SIM.vMax=Math.max(SIM.vMax,v);
-    if(u>0.3&&!SIM._mcc){ SIM._mcc=true; log('Mid-course correction performed','good');
-      for(let i=0;i<40;i++) P_glow.emit({pos:{...pos3(SIM.pos)},vel:{x:(Math.random()-0.5)*0.002,y:(Math.random()-0.5)*0.002,z:(Math.random()-0.5)*0.002},size:0.02,grow:0.04,ttl:3,alpha:0.8,col:[1,0.8,0.5]});
-    }
+    if(u>0.3&&!SIM._mcc){ SIM._mcc=true; log('Mid-course correction performed','good'); }
     if(u>0.9&&SIM.route==='moon'&&!SIM._apm){ SIM._apm=true; banner('LUNAR APPROACH','RANGE '+(MOON_DIST-vlen(SIM.pos)).toFixed(0)+' KM'); }
     if(u>0.97&&SIM.route==='mars'&&!SIM._apx){ SIM._apx=true; banner('MARS APPROACH','ENTRY INTERFACE INBOUND'); }
     burnAutoCheck();
@@ -1544,23 +1544,7 @@ function spawnEngineFX(dt,thr,moonDust){
   const nose=rocketUp();
   const exhaust=vmul(nose,-1);
   const spd=0.06+0.05*thr;
-  /* glow sparks */
-  const n=Math.min(14,Math.ceil(dt*60*thr*(alt<80?1:0.25)));
-  for(let i=0;i<n;i++){
-    P_glow.emit({pos:{x:r3.x+(Math.random()-0.5)*0.004,y:r3.y+(Math.random()-0.5)*0.004,z:r3.z+(Math.random()-0.5)*0.004},
-      vel:{x:exhaust.x*spd+(Math.random()-0.5)*0.008,y:exhaust.y*spd+(Math.random()-0.5)*0.008,z:exhaust.z*spd+(Math.random()-0.5)*0.008},
-      size:0.004,grow:0.006,ttl:0.5+Math.random()*0.5,alpha:0.9,col:[1,0.75,0.35],drag:0.96});
-  }
-  /* smoke trail through the atmosphere — visible against sky and against the planet */
-  if(alt<150){
-    const ns=Math.min(12,Math.ceil(dt*60*(moonDust?0:1)));
-    for(let i=0;i<ns;i++){
-      const col=moonDust?[0.75,0.6,0.45]:[0.8,0.8,0.82];
-      P_soft.emit({pos:{x:r3.x+(Math.random()-0.5)*0.012,y:r3.y+(Math.random()-0.5)*0.012,z:r3.z+(Math.random()-0.5)*0.012},
-        vel:{x:exhaust.x*0.03+(Math.random()-0.5)*0.006,y:exhaust.y*0.03+(Math.random()-0.5)*0.006+0.004,z:exhaust.z*0.03+(Math.random()-0.5)*0.006},
-        size:0.02,grow:0.05,ttl:12,alpha:0.5,col,drag:0.985});
-    }
-  }
+  /* per-frame sparks & smoke trails removed — particles left behind the moving rocket read as ghosting */
   /* landing dust */
   if(moonDust){
     for(let i=0;i<6;i++){
@@ -1686,12 +1670,7 @@ function padLiftoffFX(){
 function entryFX(dt,v){
   const r3=pos3(SIM.pos);
   const hot=v>1.2;
-  const n=hot?Math.ceil(dt*90):Math.ceil(dt*40);
-  for(let i=0;i<n;i++){
-    P_glow.emit({pos:{x:r3.x+(Math.random()-0.5)*0.02,y:r3.y+(Math.random()-0.5)*0.02,z:r3.z+(Math.random()-0.5)*0.02},
-      vel:{x:(Math.random()-0.5)*0.02,y:(Math.random()-0.5)*0.02,z:(Math.random()-0.5)*0.02},
-      size:0.012,grow:0.03,ttl:1.2,alpha:0.85,col:hot?[1,0.5,0.15]:[1,0.8,0.5],drag:0.97});
-  }
+  /* entry plasma particles removed — no ghost trail (the UI tint overlay stays) */
   document.getElementById('plasmaTint').style.opacity=hot?clamp((v-1.2)/5*0.8,0,0.8):0;
   const ck=document.getElementById('ckPlasma'); if(ck) ck.style.opacity=hot?clamp((v-1.2)/5,0,0.85):0;
 }
@@ -2104,16 +2083,16 @@ function sceneUpdate(rdt){
   /* stacked? */
   const stacked=SIM.stage===1;
   boosterMesh.visible=stacked; shipMesh.visible=true;
-  shipMesh.position.set(0,stacked?0.071:0,0);
+  shipMesh.position.set(0,0.071,0);   /* the ship always rides on top of the booster — no teleport at staging */
   /* plume */
   const thr=SIM.enginesOn?SIM.throttle:0;
   plume.visible=plume2.visible=thr>0;
   plume.scale.set(0.0045+0.0035*thr,0.02+0.045*thr,0.0045+0.0035*thr);
   plume2.scale.set((0.0045+0.0035*thr)*1.6,(0.02+0.045*thr)*1.25,(0.0045+0.0035*thr)*1.6);
-  plume.position.set(0,stacked?0.001:-0.001,0); plume2.position.copy(plume.position);
+  plume.position.set(0,stacked?0.001:0.071,0); plume2.position.copy(plume.position);
   plumeMat.uniforms.uT.value+=rdt; plumeMat.uniforms.uPow.value=0.35+thr*0.75;
   plumeMat.uniforms.uClip.value=(altE<6&&['PRELAUNCH','COUNTDOWN','ASCENT'].includes(SIM.phase))?1:0;
-  engLight.position.set(0,-0.003,0); engLight.intensity=thr*4;
+  engLight.position.set(0,stacked?-0.003:0.068,0); engLight.intensity=thr*4;
   padLight.position.set(0,0.012,0);
   padLight.intensity=(SIM.phase==='ASCENT'||SIM.phase==='COUNTDOWN')?thr*12*Math.exp(-altE/8):0;
   /* detached booster */
@@ -2130,16 +2109,21 @@ function sceneUpdate(rdt){
       burnOn=bb||lb;
       if(bb) booster.vel=vadd(booster.vel,vmul(vnorm(vsub(V2(0,R_E),booster.pos)),0.0035*lastSimDt));
       if(lb){ booster.vel=vmul(booster.vel,Math.pow(0.35,lastSimDt)); }
+      if(booster.t>397){
+        if(!booster.landen){ booster.landen=true;
+          log(SIM.route==='moon'?'SUPER HEAVY RECOVERED — CATCH IN MECHAZILLA TOWER':'SUPER HEAVY RECOVERED — SEA DRONE CATCH','good');
+          banner('BOOSTER RECOVERED','NOMINAL RETURN PATH'); }
+        if(booster.landen){ /* real recovery: the booster flies back and parks upright at the launch site */
+          const kl=1-Math.exp(-lastSimDt*0.5);
+          booster.pos=vadd(booster.pos,vmul(vsub(V2(0,R_E),booster.pos),kl)); }
+      }
     } else { booster.pos={...SIM.pos}; booster.vel={...SIM.vel}; }
     const bp=pos3(booster.pos);
     boosterFall.position.set(bp.x,bp.y,bp.z);
-    boosterFall.rotation.z=-Math.atan2(booster.pos.x,booster.pos.y)+Math.sin(booster.t*0.25)*0.4;
+    if(!booster.jettisoned) boosterFall.quaternion.copy(rocket.quaternion);  /* while attached, mirror the stack exactly */
+    else boosterFall.rotation.z=-Math.atan2(booster.pos.x,booster.pos.y)+(booster.landen?0:Math.sin(booster.t*0.25)*0.4);
     bfPlume.visible=burnOn; bfPlume.scale.set(0.006,0.05,0.006); bfPlume.position.set(0,0.001,0);
     bfLight.intensity=burnOn?5:0;
-    if(booster.t>397&&!booster.landen){ booster.landen=true;
-      log(SIM.route==='moon'?'SUPER HEAVY RECOVERED — CATCH IN MECHAZILLA TOWER':'SUPER HEAVY RECOVERED — SEA DRONE CATCH','good');
-      banner('BOOSTER RECOVERED','NOMINAL RETURN PATH'); }
-    if(booster.t>410) boosterFall.visible=false;
   }
   /* trail sampling */
   trailT+=lastSimDt;
@@ -2299,12 +2283,9 @@ function loop(){
     lastSimDt=Math.min(simDt,0.05);
   } else { lastSimDt=Math.min(simDt,3); simStep(SIM.phase==='PRELAUNCH'?rdt:simDt); }
   /* continuous pad FX */
-  if(SIM.phase==='COUNTDOWN'&&delugeOn) startDeluge();
-  if(SIM.phase==='ASCENT'&&SIM.met<12){ if((padFxAcc+=rdt)>0.05){ padFxAcc=0; padLiftoffFX(); } }
+  /* pad + trail FX calls removed — no lingering particles around the rocket */
   if(SIM.phase==='ASCENT'){
-    padSmoke(Math.min(lastSimDt,0.05));
-    ascentTrail(Math.min(lastSimDt,0.05));
-    rogersNose(Math.min(lastSimDt,0.05));
+    /* padSmoke / ascentTrail / rogersNose calls removed — particles lingered as ghost trails */
   }
   sceneUpdate(rdt);
   camUpdate(rdt);
