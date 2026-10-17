@@ -324,6 +324,21 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .viz .curve { fill: none; stroke: var(--accent); stroke-width: 2.2; }
 .viz .bar-r { fill: var(--accent); }
 .viz .box { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: var(--accent); }
+/* the Report doughnut: one colour per strand, click a colour for its stats */
+.legend { display: flex; flex-direction: column; gap: 8px; }
+.legend .lrow { display: flex; align-items: center; gap: 10px; }
+.legend .lrow.sel { background: var(--accent-soft); border-radius: 8px; }
+.legend .lsw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend .lname { font-size: 13.5px; font-weight: 600; }
+.legend .lnum { font-size: 12px; color: var(--ink-2); }
+.dpick { border-left: 3px solid var(--line); border-radius: 8px; padding-left: 12px; margin-top: 8px; }
+.dpick .num { font-size: 12.5px; color: var(--ink-2); }
+.dring { display: block; max-width: 240px; margin: 0 auto; }
+.dseg { cursor: pointer; fill-opacity: .85; stroke: var(--card); stroke-width: 1.5; }
+.dseg:hover { fill-opacity: .98 }
+.dseg.pick { stroke: var(--ink); stroke-width: 2.4; }
+.dlbl { font-size: 10.5px; font-weight: 600; fill: #fff; }
+.dctr { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
 
 /* --------------------------------------------------------------- footer -- */
 .foot { border-top: 1px solid var(--line); padding: 18px 16px 40px; }
@@ -369,7 +384,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-16 — 95 modules inlined:
+/* MathPath 2026-10-17 — 95 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -16013,9 +16028,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       /* read the model and match the fact */
       function () {
         var wrongs = [lhs(e) + ' = ' + (val(e) + 1), lhs(e) + ' = ' + (val(e) > 1 ? val(e) - 1 : val(e) + 2), lhs({ isSub: !e.isSub, a: e.a, b: e.b, c: e.c }) + ' = ' + (val(e) + 3)];
-        return MC(rng, 'Look at the model. Which sentence matches it?', full(e), wrongs, {
+        /* the words point at a model, so this branch only promises one when one is drawn */
+        var hasModel = !!vis;
+        return MC(rng, hasModel ? 'Look at the model. Which sentence matches it?' : 'Which sentence is true?',
+          full(e), wrongs, {
           visual: vis, b: 0.3,
-          explain: ['The model shows ' + (e.isSub ? e.c + ' counters with ' + e.b + ' crossed out' : e.a + ' and ' + e.b + ' counters'), 'That is ' + full(e) + '.', 'The sentence is <b>' + full(e) + '</b>.'],
+          explain: hasModel
+            ? ['The model shows ' + (e.isSub ? e.c + ' counters with ' + e.b + ' crossed out' : e.a + ' and ' + e.b + ' counters'), 'That is ' + full(e) + '.', 'The sentence is <b>' + full(e) + '</b>.']
+            : ['Solve each sentence.', 'Only one of them comes out right: ' + full(e) + '.', 'The sentence that is true is <b>' + full(e) + '</b>.'],
           teach: 'A crossed-out model is subtraction; two groups joined is addition.'
         });
       },
@@ -17086,7 +17106,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = s.op === 'sub'
           ? [s.c + ' counters with ' + s.a + ' crossed out', s.b + ' counters with ' + s.b + ' crossed out', s.c + ' counters and ' + s.b + ' more counters']
           : [s.a + ' counters with ' + s.b + ' crossed out', s.b + ' counters and ' + s.a + ' more counters', s.c + ' counters and ' + s.b + ' more counters'];
-        return MC(rng, 'Which model matches ' + sentence(s) + '?', right, wrongs, {
+        return MC(rng, 'Which description matches ' + sentence(s) + '?', right, wrongs, {
           b: 0.2,
           explain: [sentence(s) + ' starts from ' + (s.op === 'sub' ? s.c : s.a) + '.', s.op === 'sub' ? 'Then ' + s.b + ' are taken away, shown crossed out.' : 'Then ' + s.b + ' more are joined on.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Read the operation word first: "crossed out" means subtraction, "and more" means addition.'
@@ -85822,7 +85842,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   var E = null;
   var S = {
     view: 'practice', item: null, queue: [], attempts: 0, answered: false, revealed: false,
-    picked: null, notes: [], manual: null, lastRec: null, reteachDone: false, diagReport: null
+    picked: null, notes: [], manual: null, lastRec: null, reteachDone: false, diagReport: null,
+    strandPick: null                                      /* the doughnut slice the Report is showing stats for */
   };
 
   /* --------------------------------------------------------- visuals ------ */
@@ -87330,66 +87351,210 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     clear(view).appendChild(h('div', {}, rowsOut));
   }
 
-  function viewReport() {
-    var p = E.placement(), st = E.st, view = $('#view');
-    var tot = p.totals || { a: 0, c: 0, att: 0, mast: 0 };
-    var log = (st.log || []).slice(-40);
-    /* the trace is drawn against the hardest item this learner has met, not
-       against a fixed 0..110: a week of Pre-K counting was a flat line at the
-       bottom of a calculus-sized chart, which reads as "nothing happening" */
-    var top = 0;
-    (st.log || []).forEach(function (r) { if (r.b != null && r.b > top) top = r.b; });
-    var scale = Math.max(12, top);
-    var spark = h('div', { class: 'row', style: { gap: '3px', alignItems: 'flex-end', height: '46px' } });
-    log.forEach(function (r) {
-      spark.appendChild(h('div', {
-        title: (r.b != null ? 'difficulty ' + Math.round(r.b) : '') + (r.skip ? ' · skipped' : (r.ok ? ' · correct' : ' · wrong')),
-        style: { width: '7px', height: (8 + clamp((r.b == null ? 0 : r.b) / scale, 0, 1) * 34) + 'px', background: r.skip ? 'var(--line)' : (r.ok ? 'var(--good)' : 'var(--bad)'), borderRadius: '2px', opacity: .8 }
-      }));
+  /* ------------------------------------------------ the strand doughnut ---
+   * The Report is cut up into the twelve strands the learner asked for: the six
+   * K-5 strands (Counting & Cardinality, Geometry, Operations & Algebraic
+   * Thinking, Number and Operations in Base Ten, Number and Operations -
+   * Fractions, Measurement & Data) and then the six that start at grade 6
+   * (Geometry again, Ratios and Proportional Relationships, The Number System,
+   * Expressions and Equations, Functions, Statistics and Probability). Geometry
+   * appears twice on purpose — it is two runs of the same ladder (K.G-5.G and
+   * 6.G-8.G), and the learner asked for both. Nothing is split by grade: a
+   * slice is one strand across the whole ladder, and every answer counts into it.
+   *
+   * Slice size = that strand's share of every answer on the record (a skipped
+   * card is not an answer and never enters a slice). The ring is drawn clockwise
+   * from twelve o'clock starting with the strand with the HIGHEST wrong-answer
+   * rate, so the ring reads worst-first: the strand you are weakest at is the
+   * first colour you see, and it takes more of the ring the more you missed on
+   * it. Click a colour — or a legend row — and the statistics for that strand
+   * open under the chart; hovering a slice says the same thing in a tooltip.
+   *
+   * The (level, topic letter) -> strand table below is GENERATED by
+   * tools/_strandmap.js, which covers every topic in the catalogue and refuses
+   * to print when one has no strand. The catalogue rows carry no standard codes,
+   * so that file is the alignment, written topic by topic.
+   */
+  var STRAND_LABEL = [
+    'Counting & Cardinality',                    /* 1   K.CC                              */
+    'Geometry (K-5)',                            /* 2   K.G - 5.G                         */
+    'Operations & Algebraic Thinking',           /* 3   K.OA - 5.OA                       */
+    'Number and Operations in Base Ten',         /* 4   K.NBT - 5.NBT                     */
+    'Number and Operations - Fractions',         /* 5   3.NF - 5.NF                       */
+    'Measurement & Data',                        /* 6   K.MD - 5.MD                       */
+    'Geometry (6-12)',                           /* 7   6.G - 8.G                         */
+    'Ratios and Proportional Relationships',     /* 8   6.RP - 7.RP, HS ratios            */
+    'The Number System',                         /* 9   6.NS - 8.NS, HS number and quantity */
+    'Expressions and Equations',                 /* 10  6.EE - 8.EE, HS algebra           */
+    'Functions',                                 /* 11  8.F, HS functions (trig included) */
+    'Statistics and Probability'                 /* 12  6.SP - 8.SP, HS statistics        */
+  ];
+  var STRAND_COLOR = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444',
+    '#8b5cf6', '#14b8a6', '#f97316', '#2563b1', '#a3d94f', '#d973b1', '#8f6b5d'];
+  /* node tools/_strandmap.js — pasted literal, one "topic letter + strand"
+     run per level. Do not hand-edit: the generator checks coverage. */
+  var STRAND_MAP = {
+    PK: "A1B1C1D1E1F1G1H1I1J1K1L1M1N2O6P2Q2R2S2T6U6V3W3X3Y3",
+    K: "A1B1C1D1E1F1G1H1I1J1K1L1M1N3O3P3Q3R3S3T3U3V3W3X3Y3Z3AA3BB3CC3DD1EE1FF1GG1HH1II4JJ1KK1LL1MM1NN2OO6PP2QQ2RR2SS2TT5UU6VV6WW6XX6YY6ZZ6",
+    G1: "A4B4C4D4E3F3G3H3I3J3K3L3M3N3O3P3Q3R3S3T3U3V3W3X3Y3Z3AA4BB4CC4DD4EE6FF6GG6HH6II6JJ3KK2LL2MM6NN5OO6",
+    G2: "A4B4C4D4E4F3G3H3I3J3K3L4M4N4O4P4Q4R3S4T4U4V4W4X3Y3Z4AA6BB6CC6DD6EE6FF6GG6HH6II2JJ2KK6LL5MM6",
+    G3: "A4B4C4D4E4F4G4H4I4J4K3L3M4N3O3P3Q3R3S3T3U3V3W3X3Y3Z3AA3BB3CC3DD3EE3FF5GG5HH5II5JJ5KK5LL5MM5NN5OO6PP6QQ6RR2SS2TT2UU6VV6WW6XX6YY6ZZ6",
+    G4: "A4B4C4D4E4F4G4H4I3J4K4L4M4N3O6P3Q6R3S2T5U5V5W5X5Y5Z5AA5BB5CC5DD5EE6FF6GG6HH6II6JJ6KK6LL6MM2NN2OO2PP2QQ2RR6",
+    G5: "A4B4C4D4E4F4G4H3I3J5K5L5M5N5O5P5Q5R5S5T5U5V5W4X4Y5Z5AA4BB4CC4DD4EE4FF4GG4HH6II6JJ6KK3LL2MM3NN6OO6PP2QQ2RR2SS6TT6UU6VV6",
+    G6: "A9B9C9D9E9F9G9H9I9J9K9L9M9N9O9P9Q9R7S8T8U8V8W8X8Y10Z10AA10BB10CC10DD7EE7FF7GG7HH7II12JJ12KK12LL8",
+    G7: "A9B9C9D9E9F9G9H9I9J9K9L8M7N8O8P8Q8R10S10T10U10V10W10X10Y7Z7AA7BB7CC7DD7EE7FF7GG12HH12II12",
+    G8: "A9B9C9D9E9F9G8H8I8J8K10L10M10N10O7P7Q7R7S7T7U7V7W7X8Y8Z11AA10BB11CC11DD11EE11FF10GG10HH12II12JJ12KK12",
+    A1: "A9B10C10D7E10F10G10H10I7J8K11L10M11N11O10P10Q11R9S9T9U11V11W10X10Y11Z11AA11BB11CC11DD11EE9FF11GG10HH12II12JJ12KK12LL9",
+    GM: "A7B7C7D7E7F7G7H7I7J7K7L7M7N7O7P7Q11R11S7T7U7V7W7X7Y7Z7AA12BB9",
+    A2: "A11B10C10D11E10F10G10H11I11J9K9L10M10N11O10P10Q10R9S11T9U11V11W11X10Y8Z11AA11BB11CC10DD7EE7FF7GG7HH11II7JJ11KK11LL11MM11NN11OO11PP12QQ12RR12SS12TT12UU9",
+    PC: "A11B11C11D11E10F11G11H11I11J11K10L11M9N10O10P10Q9R11S11T11U7V9W9X9Y9Z9AA11BB11CC12DD12EE12FF12GG12HH11II11JJ11",
+    MA: "A11B11C11D11E11F11G11H11I11J11K11L11M11N11O11P11Q11R11S11T11U11V10W11"
+  };
+
+  var strandTableCache = null;
+  function strandTables() {
+    var tables = {}, level, letter, run, re, hit;
+    for (level in STRAND_MAP) {
+      if (!STRAND_MAP.hasOwnProperty(level)) continue;
+      letter = {};
+      re = /([A-Z]+)(\d+)/g;
+      run = STRAND_MAP[level];
+      while ((hit = re.exec(run))) letter[hit[1]] = parseInt(hit[2], 10);
+      tables[level] = letter;
+    }
+    strandTableCache = tables;
+    return strandTableCache;
+  }
+  /* one catalogue skill -> the strand its topic belongs to (0 = not classed) */
+  function strandOf(id) {
+    var sk = root.SKILL_BY_ID[id];
+    if (!sk && root.SKILL_ALIAS && root.SKILL_ALIAS[id]) sk = root.SKILL_BY_ID[root.SKILL_ALIAS[id]];
+    if (!sk) return 0;
+    var table = strandTables()[sk.grade], letter;
+    if (!table) return 0;
+    letter = String(sk.code || '').split('.')[0];
+    return (table[letter]) || 0;
+  }
+  /* one row per strand the learner has actually answered into, in the clockwise
+     drawing order: the worst wrong-answer rate starts at twelve o'clock */
+  function strandRows(log) {
+    var by = {}, rows = [], total = 0;
+    (log || []).forEach(function (r) {
+      if (!r || r.skip) return;                                    /* a skipped card is not an answer */
+      var i = strandOf(r.id);
+      if (!i) return;
+      var row = by[i] || (by[i] = { i: i, a: 0, c: 0, w: 0, skills: {} });
+      row.a++; row.skills[r.id || '?'] = 1;
+      if (r.ok) row.c++; else row.w++;
+      total++;
     });
-    /* Every number on this card is a rate over what the learner actually did in
-       THIS sitting. A skipped card is not an answer: it is counted on its own
-       pill, kept out of the accuracy denominator, and it neither breaks a
-       streak nor ages a skill. The counters belong to one sitting and reset
-       after two hours away (engine: openVisit). */
-    var sess = st.sess || {};
-    var answered = sess.asked || 0, right = sess.correct || 0, skipped = sess.skipped || 0;
-    var sessAcc = answered ? Math.round(right / answered * 100) : 0;
-    var allAcc = tot.a ? Math.round(tot.c / tot.a * 100) : 0;
-    var started = sess.started ? new Date(sess.started) : null;
-    var since = started ? started.getHours() + ':' + ('0' + started.getMinutes()).slice(-2) : null;
-    /* a closed sitting is kept, not thrown away: two hours away opens a new one,
-       the numbers of every old one stay on the record */
-    var hist = sess.hist || [], histAns = 0, histLast = 0;
-    hist.forEach(function (s) { histAns += (s.asked || 0); if (s.ended) histLast = s.ended; });
-    var histLine = hist.length ? ' · ' + hist.length + ' earlier sitting' + (hist.length === 1 ? '' : 's')
-      + ' kept (' + histAns + ' answers' + (histLast ? ', last closed ' + new Date(histLast).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '') + ')' : '';
+    for (var k in by) if (by.hasOwnProperty(k)) rows.push(by[k]);
+    rows.forEach(function (row) {
+      row.share = total ? Math.round(row.a / total * 100) : 0;
+      row.wrongRate = row.a ? Math.round(row.w / row.a * 100) : 0;
+      row.acc = row.a ? Math.round(row.c / row.a * 100) : 0;
+      var n = 0;
+      for (var s in row.skills) if (row.skills.hasOwnProperty(s)) n++;
+      row.skills = n;
+    });
+    rows.sort(function (x, y) {
+      if (y.wrongRate !== x.wrongRate) return y.wrongRate - x.wrongRate;
+      if (y.a !== x.a) return y.a - x.a;
+      return x.i - y.i;
+    });
+    return rows;
+  }
+  function strandTip(row) {
+    return STRAND_LABEL[row.i - 1] + ' · ' + row.a + ' answers (' + row.share + '% of every answer)'
+      + ' · ' + row.c + ' right · ' + row.w + ' wrong (' + row.wrongRate + '%)'
+      + ' · accuracy ' + row.acc + '% · ' + row.skills + ' skills';
+  }
+  function pickStrand(i) {
+    S.strandPick = (S.strandPick === i ? null : i);
+    render();
+  }
+  /* the ring: outer radius 100, hole 58, twelve o'clock at the top, clockwise */
+  var DC = 118, DR = 100, DIN = 58, TAU = Math.PI * 2;
+  function ringPoint(r, a) {
+    return (DC + r * Math.cos(a)).toFixed(1) + ' ' + (DC + r * Math.sin(a)).toFixed(1);
+  }
+  function wedgePath(a0, a1) {
+    var span = a1 - a0, big = span > Math.PI ? 1 : 0;
+    if (span >= TAU - 1e-9) {                          /* one strand owns the ring */
+      return ('M' + ringPoint(DR, 0) + 'A' + DR + ' ' + DR + ' 0 1 0 ' + ringPoint(DR, Math.PI)
+        + 'A' + DR + ' ' + DR + ' 0 1 0 ' + ringPoint(DR, 0) + 'Z'
+        + 'M' + ringPoint(DIN, 0) + 'A' + DIN + ' ' + DIN + ' 0 0 0 ' + ringPoint(DIN, Math.PI)
+        + 'A' + DIN + ' ' + DIN + ' 0 0 0 ' + ringPoint(DIN, 0) + 'Z');
+    }
+    return ('M' + ringPoint(DR, a0) + 'A' + DR + ' ' + DR + ' 0 ' + big + ' 1 ' + ringPoint(DR, a1)
+      + 'L' + ringPoint(DIN, a1) + 'A' + DIN + ' ' + DIN + ' 0 ' + big + ' 0 ' + ringPoint(DIN, a0) + 'Z');
+  }
+
+  function doughnutSVG(rows, total, pick) {
+    var svg = s('svg', { viewBox: '0 0 236 236', width: 236, height: 236, 'aria-label': 'answers by strand' }, [
+      s('title', null, 'Every answer on the record, by CCSSM strand — click a colour to see its statistics')
+    ]);
+    var a = -Math.PI / 2, labelR = (DR + DIN) / 2;
+    rows.forEach(function (row) {
+      var frac = row.a / total, a1 = a + frac * TAU, col = STRAND_COLOR[row.i - 1];
+      var attrs = { d: wedgePath(a, a1), fill: col, class: row.i === pick ? 'dseg pick' : 'dseg' };
+      var path = s('path', attrs, s('title', null, strandTip(row)));
+      path.addEventListener('click', function () { pickStrand(row.i); });
+      svg.appendChild(path);
+      if (frac >= .08) {
+        svg.appendChild(s('text', { x: ringPoint(labelR, (a + a1) / 2).split(' ')[0], y: ringPoint(labelR, (a + a1) / 2).split(' ')[1], class: 'dlbl', 'text-anchor': 'middle' }, Math.round(frac * 100) + '%'));
+      }
+      a = a1;
+    });
+    svg.appendChild(s('text', { x: DC, y: DC - 3, class: 'dctr', 'text-anchor': 'middle' }, String(total)));
+    svg.appendChild(s('text', { x: DC, y: DC + 13, class: 'dctr', 'text-anchor': 'middle' }, 'answers'));
+    return svg;
+  }
+  function strandLegend(rows, total, pick) {
+    var out = h('div', { class: 'legend' }, []);
+    rows.forEach(function (row) {
+      out.appendChild(h('div', { class: 'lrow' + (row.i === pick ? ' sel' : ''), style: { cursor: 'pointer' }, on: { click: function () { pickStrand(row.i); } } }, [
+        h('span', { class: 'lsw', style: { background: STRAND_COLOR[row.i - 1] } }),
+        h('span', { class: 'lname' }, STRAND_LABEL[row.i - 1]),
+        h('span', { class: 'lnum', text: row.a + ' answers · ' + row.share + '% of all · ' + row.wrongRate + '% wrong' })
+      ]));
+    });
+    return out;
+  }
+  function strandPanel(row) {
+    return h('div', { class: 'dpick', style: { borderLeft: '3px solid ' + STRAND_COLOR[row.i - 1], paddingLeft: '12px', marginLeft: '4px' } }, [
+      h('div', { class: 'tiny', text: 'Selected · ' + STRAND_LABEL[row.i - 1] }),
+      h('div', { class: 'row between' }, [
+        h('span', { class: 'lname', text: STRAND_LABEL[row.i - 1] }),
+        h('span', { class: 'lsw', style: { background: STRAND_COLOR[row.i - 1] } })
+      ]),
+      h('div', { class: 'stack', style: { marginTop: '8px' } }, [
+        h('div', { class: 'row between' }, [h('span', { text: 'answered' }), h('span', { class: 'num', text: row.a + ' · ' + row.share + '% of every answer' })]),
+        h('div', { class: 'row between' }, [h('span', { text: 'right' }), h('span', { class: 'num', text: row.c })]),
+        h('div', { class: 'row between' }, [h('span', { text: 'wrong' }), h('span', { class: 'num', text: row.w + ' · ' + row.wrongRate + '% of this strand' })]),
+        h('div', { class: 'row between' }, [h('span', { text: 'accuracy' }), h('span', { class: 'num', text: row.acc + '%' })]),
+        h('div', { class: 'row between' }, [h('span', { text: 'skills touched' }), h('span', { class: 'num', text: row.skills })])
+      ])
+    ]);
+  }
+
+  function viewReport() {
+    var st = E.st, view = $('#view');
+    var rows = strandRows(st.log || []);
+    var total = 0;
+    rows.forEach(function (r) { total += r.a; });
+    var pick = null;
+    rows.forEach(function (r) { if (r.i === S.strandPick) pick = r; });
+    if (!pick && S.strandPick) S.strandPick = null;      /* that strand has no answers on the record */
     clear(view).appendChild(h('div', {}, [
       h('div', { class: 'card' }, [
-        h('div', { class: 'row between' }, [
-          h('h2', { text: 'This session' }),
-          h('span', { class: 'pill', title: 'cards answered in this sitting', text: answered + ' answered' })
-        ]),
-        h('div', { class: 'row', style: { marginTop: '8px' } }, [
-          h('span', { class: 'pill good', title: right + ' of ' + answered + ' answered right', text: 'accuracy ' + sessAcc + '%' }),
-          h('span', { class: 'pill', title: 'right answers in a row, this sitting', text: 'streak ' + (sess.streak || 0) }),
-          h('span', { class: 'pill', title: 'best run of right answers this sitting', text: 'best ' + (sess.best || 0) }),
-          skipped ? h('span', { class: 'pill warn', title: 'put away without an answer: not counted as wrong', text: skipped + ' skipped' }) : null
-        ]),
-        h('div', { class: 'tiny', style: { marginTop: '8px' } },
-          answered || skipped
-            ? (since ? 'This sitting opened at ' + since + '. ' : '')
-            + 'Accuracy counts the ' + answered + ' cards answered — ' + right + ' right'
-            + (skipped ? ', and the ' + skipped + ' skipped card' + (skipped === 1 ? '' : 's') + ' are not counted as wrong' : '')
-            + '. Two hours away opens a new sitting.'
-            : 'Nothing answered yet — every count below starts when the first answer goes in.'),
-        h('div', { class: 'tiny', style: { marginTop: '4px' } },
-          tot.a ? 'All time: ' + tot.a + ' answers · ' + allAcc + '% right · best streak ' + (st.bestEver || st.sess.best || 0) + ' · ' + tot.mast + ' skills mastered'
-            + (st.diag && st.diag.done && st.diag.asked ? ' (the ' + st.diag.asked + ' placement-probe questions are counted here, not as a session)' : '')
-            + histLine
-            : ''),
-        h('h3', { text: 'Last ' + log.length + ' items (height = difficulty)' }),
-        log.length ? spark : h('div', { class: 'muted', text: 'Answer something to see your trace.' })
+        h('h2', { text: 'This session' }),
+        total ? doughnutSVG(rows, total, pick) : h('div', { class: 'dring' }, [s('circle', { cx: DC, cy: DC, r: (DR + DIN) / 2, fill: 'none', stroke: 'var(--line)', 'stroke-width': 34 })]),
+        h('div', { class: 'tiny', text: total
+          ? 'Every answer on the record · no grade split · clockwise from twelve o\'clock, weakest strand first'
+          : 'Nothing answered yet — the ring fills from the first answer, weakest strand first.' }),
+        pick ? strandPanel(pick) : null,
+        rows.length ? strandLegend(rows, total, pick) : null
       ]),
       h('div', { class: 'card' }, [
         h('h2', { text: 'Settings' }),
