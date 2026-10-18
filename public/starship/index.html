@@ -213,7 +213,7 @@
   </div>
   <select id="routeSel">
     <option value="moon">EARTH → MOON · 5 D</option>
-    <option value="mars">EARTH → MARS · 259 D</option>
+    <option value="mars">EARTH → MARS · 180 D</option>
   </select>
 </div>
 
@@ -305,7 +305,7 @@ const DRAG_CD=1.3;
 /* Mission timelines (s) — from real flight telemetry FT-11 & studies */
 const TL={ maxQ:62, meco:155, hotstg:157, jettison:238, seco:536 };
 const MOON_TLI_DV=3.68, MOON_COAST=5*DAY, LOI_DV=0.85, LOI_BURN=218;
-const MARS_TLI_DV=3.90, MARS_COAST=259*DAY, ENTRY_T=305, MARS_DESC_T=170;
+const MARS_TLI_DV=3.90, MARS_COAST=180*DAY, ENTRY_T=305, MARS_DESC_T=170;
 const LUN_DESC_T=430, DEORBIT_DV=0.04;
 
 /* ---------- math utils ---------- */
@@ -566,6 +566,101 @@ function tilesTex(){
   for(let k=0;k<40;k++){g.fillStyle=`rgba(${60+n.rnd()*40|0},${50+n.rnd()*30|0},40,0.5)`;g.fillRect(n.rnd()*S,n.rnd()*S,16,16);}
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
 }
+/* =====================================================================
+   REAL IMAGERY — NASA/CDN layers, loaded lazily; every procedural layer
+   stays as the offline fallback, so the scene never depends on network.
+   ===================================================================== */
+const SRC={
+  marble:'https://cdn.jsdelivr.net/npm/three-globe@2.45.6/example/img/earth-blue-marble.jpg',
+  night :'https://cdn.jsdelivr.net/npm/three-globe@2.45.6/example/img/earth-night.jpg',
+  water :'https://cdn.jsdelivr.net/npm/three-globe@2.45.6/example/img/earth-water.png',
+  clouds:'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r158/examples/textures/planets/earth_clouds_2048.png',
+  moon  :'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r158/examples/textures/planets/moon_1024.jpg',
+  sky   :'https://cdn.jsdelivr.net/npm/three-globe@2.45.6/example/img/night-sky.png',
+};
+function netTex(url,onload,srgb){
+  let done=false;
+  const t=new THREE.TextureLoader().load(url,(tx)=>{
+    if(done)return; done=true;
+    tx.colorSpace=(srgb===undefined||srgb)?THREE.SRGBColorSpace:THREE.NoColorSpace;
+    tx.wrapS=THREE.RepeatWrapping;
+    tx.anisotropy=renderer.capabilities.getMaxAnisotropy();
+    if(onload)onload(tx);
+  });
+  t.wrapS=THREE.RepeatWrapping;
+  return t;
+}
+/* soft blur so the water mask does not leave hard aliasing on the coast */
+function blurCanvas(cv,px){
+  const c=document.createElement('canvas');c.width=cv.width;c.height=cv.height;
+  const g=c.getContext('2d');
+  if('filter' in g) g.filter=`blur(${px}px)`;
+  g.drawImage(cv,0,0);
+  return c;
+}
+/* real watermask (white = water) + blue-marble luminance → the packed
+   G = roughness / B = metalness map that drives the ocean sun glint */
+function packRough(waterCv,blueCv){
+  const W=2048,H=1024;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  g.drawImage(blurCanvas(waterCv,2.5),0,0,W,H);
+  const wd=g.getImageData(0,0,W,H).data;
+  g.drawImage(blueCv,0,0,W,H);
+  const bd=g.getImageData(0,0,W,H).data;
+  const img=g.createImageData(W,H),d=img.data;
+  for(let y=0;y<H;y++){
+    const latd=Math.abs((0.5-y/H)*180);
+    for(let x=0;x<W;x++){
+      const i=(y*W+x)*4;
+      const w=wd[i], br=bd[i], bg=bd[i+1], bb=bd[i+2], lum=(br+bg+bb)/3;
+      let G,B;
+      if(latd>66.5){ G=118;B=70; }                        /* pack ice + ice sheets */
+      else if(w>140){ G=20;B=236; }                       /* open ocean — full glint */
+      else if(w>90){ G=70;B=170; }                        /* soft coast blend       */
+      else if(lum>205){ G=110;B=60; }                     /* snow / desert highlands */
+      else { G=238;B=8; }                                 /* land stays matte       */
+      d[i]=G;d[i+1]=G;d[i+2]=B;d[i+3]=255;
+    }
+  }
+  g.putImageData(img,0,0);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.NoColorSpace;
+  t.wrapS=THREE.RepeatWrapping;t.wrapT=THREE.ClampToEdgeWrapping;
+  t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;
+}
+/* sea-surface normal — scrolling ripples for the gulf */
+function waveNormalTex(){
+  const S=256,n=mkNoise(401);
+  const c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+  const img=g.createImageData(S,S),d=img.data;
+  const h=(x,y)=>{ let v=0,a=1,f=3;
+    for(let o=0;o<4;o++){ v+=a*n.noise(x*f,y*f,o*31+5); f*=2.1; a*=0.5; } return v/1.9375; };
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const s=3.4;
+    const hx=(h((x+1)%S,y)-h((x-1+S)%S,y))*s, hy=(h(x,(y+1)%S)-h(x,(y-1+S)%S))*s;
+    const nx=-hx,ny=-hy,nz=1;const l=Math.hypot(nx,ny,nz);
+    const i=(y*S+x)*4;
+    d[i]=(nx/l*0.5+0.5)*255;d[i+1]=(ny/l*0.5+0.5)*255;d[i+2]=(nz/l)*255;d[i+3]=255;
+  }
+  g.putImageData(img,0,0);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.NoColorSpace;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(48,48);
+  t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;
+}
+/* cloud puffs for the low sky deck above Starbase (until the real map lands) */
+function puffTex(){
+  const S=128,n=mkNoise(711);
+  const c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+  g.clearRect(0,0,S,S);
+  const rnd=n.rnd;
+  for(let k=0;k<26;k++){
+    const x=rnd()*S,y=rnd()*S,r=4+rnd()*16;
+    const gr=g.createRadialGradient(x,y,0,x,y,r);
+    gr.addColorStop(0,'rgba(255,255,255,0.55)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,6.283); g.fill();
+  }
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
+}
 </script>
 <script>
 /* =====================================================================
@@ -600,24 +695,73 @@ const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({
 sunSprite.scale.set(0.16,0.16,1);
 scene.add(sunSprite);
 
-/* starfield */
+/* starfield — camera-anchored so the sky stays populated inside every far plane.
+   Per-star size + twinkle phase; the texture shell behind them paints the
+   Milky Way band the moment the real equirect sky map lands (p1 loaders). */
+const starShell=new THREE.Mesh(new THREE.SphereGeometry(1400,48,32),
+  new THREE.MeshBasicMaterial({side:THREE.BackSide,depthWrite:false,transparent:true,opacity:0.0,visible:false}));
+starShell.renderOrder=-4; camera.add(starShell);
 (function(){
-  const N=7200, M=5200, pos=new Float32Array((N+M)*3), col=new Float32Array((N+M)*3), rad=4.2e6;
+  const N=IS_TOUCH?3400:7200, M=IS_TOUCH?2600:5200,
+        pos=new Float32Array((N+M)*3), col=new Float32Array((N+M)*3),
+        sz=new Float32Array(N+M), tw=new Float32Array(N+M), rad=1150;
   let i=0;
-  for(let k=0;k<N;k++){ const v=new THREE.Vector3().randomDirection().multiplyScalar(rad);
+  for(let k=0;k<N;k++){ const v=new THREE.Vector3().randomDirection().multiplyScalar(rad*(0.72+Math.random()*0.28));
     pos[i*3]=v.x;pos[i*3+1]=v.y;pos[i*3+2]=v.z;
-    const w=0.55+Math.random()*0.45; col[i*3]=w;col[i*3+1]=w;col[i*3+2]=w*(0.9+Math.random()*0.1); i++; }
+    const bright=Math.pow(Math.random(),2.2);          /* few brights, many faints */
+    const w=0.35+0.65*bright; col[i*3]=w;col[i*3+1]=w;col[i*3+2]=w*(0.9+Math.random()*0.1);
+    sz[i]=bright>0.92?2.6:bright>0.7?1.8:1.0; tw[i]=Math.random()<0.24?1.0:0.0; i++; }
   const axis=new THREE.Vector3(0.3,0.55,-0.75).normalize();
   for(let k=0;k<M;k++){ const v=new THREE.Vector3().randomDirection();
     const d=Math.abs(v.dot(axis)); if(d>0.14){k--;continue;}
-    v.multiplyScalar(rad); pos[i*3]=v.x;pos[i*3+1]=v.y;pos[i*3+2]=v.z;
-    const w=0.25+Math.random()*0.3; col[i*3]=w*0.9;col[i*3+1]=w*0.95;col[i*3+2]=w; i++; }
+    v.multiplyScalar(rad*(0.72+Math.random()*0.28)); pos[i*3]=v.x;pos[i*3+1]=v.y;pos[i*3+2]=v.z;
+    const w=0.20+0.22*Math.random(); col[i*3]=w*0.9;col[i*3+1]=w*0.95;col[i*3+2]=w;
+    sz[i]=0.8; tw[i]=0; i++; }
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
-  const stars=new THREE.Points(geo,new THREE.PointsMaterial({size:1.6,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:0.95,depthWrite:false}));
-  stars.renderOrder=-2; scene.add(stars);
+  geo.setAttribute('aCol',new THREE.BufferAttribute(col,3));
+  geo.setAttribute('aSz',new THREE.BufferAttribute(sz,1));
+  geo.setAttribute('aTw',new THREE.BufferAttribute(tw,1));
+  const starMat=new THREE.ShaderMaterial({
+    uniforms:{uT:{value:0}},
+    vertexShader:`attribute vec3 aCol; attribute float aSz; attribute float aTw;
+      varying vec3 vC; varying float vT; uniform float uT;
+      void main(){ vC=aCol; vT=aTw*(0.6+0.4*sin(uT*2.1+aSz*17.0));
+        gl_PointSize=max(1.0,aSz*(1.0+vT*0.6));
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`varying vec3 vC; varying float vT;
+      void main(){ float r=length(gl_PointCoord-vec2(0.5))*2.0;
+        float a=smoothstep(1.1,0.0,r)*(0.85+vT*0.35);
+        gl_FragColor=vec4(vC*(1.0+vT*0.5),a); }`,
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  const stars=new THREE.Points(geo,starMat); stars.renderOrder=-3; camera.add(stars);
+  window.__starMat=starMat;                                   /* twinkle clock — p4 drives uT */
 })();
+netTex(SRC.sky,(t)=>{ starShell.material.map=t; starShell.material.needsUpdate=true;
+  starShell.material.opacity=0.9; starShell.visible=true; });
+/* broad sun corona — sits on the existing disk sprite, screen-locked */
+const sunCorona=new THREE.Sprite(new THREE.SpriteMaterial({
+  map:radialTex('rgba(255,250,232,0.6)','rgba(255,150,60,0)',256,
+    [[0,'rgba(255,250,232,0.55)'],[0.18,'rgba(255,222,160,0.3)'],[0.5,'rgba(255,180,90,0.1)'],[1,'rgba(255,150,60,0)']]),
+  sizeAttenuation:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending}));
+sunCorona.scale.set(0.52,0.52,1); sunCorona.position.copy(sunSprite.position); scene.add(sunCorona);
+/* lens flare ghosts — chained along the sun axis through frame centre (p4 drives) */
+const flareGhosts=(function(){
+  const g=new THREE.Group(); camera.add(g); g.renderOrder=9;
+  const spec=[[-0.62,0.030,'rgba(120,200,255,0.42)','rgba(60,140,255,0)'],
+              [-0.34,0.017,'rgba(200,235,255,0.36)','rgba(120,180,255,0)'],
+              [ 0.10,0.024,'rgba(180,255,205,0.32)','rgba(80,220,160,0)'],
+              [ 0.46,0.014,'rgba(255,210,140,0.36)','rgba(255,150,60,0)'],
+              [ 0.78,0.036,'rgba(150,215,255,0.26)','rgba(60,120,255,0)'],
+              [ 1.18,0.012,'rgba(255,190,120,0.30)','rgba(255,120,60,0)']];
+  const out=[];
+  spec.forEach(s=>{ const sp=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:radialTex(s[2],s[3],64),depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,
+      sizeAttenuation:true,opacity:0}));
+    sp.scale.set(s[1],s[1],1); sp.position.set(0,0,-800); sp.userData={k:s[0],f:s[1]}; g.add(sp); out.push(sp); });
+  g.userData={ghosts:out}; return g;
+})();
+window.__flareGhosts=flareGhosts;
 
 /* =====================================================================
    PARTICLE POOLS (GPU points, per-particle size/alpha/color)
@@ -676,25 +820,37 @@ const P_glow=makePool(IS_TOUCH?700:1200,true);     // sparks / plasma / embers
 
 /* =====================================================================
    SKY DOME SHADER (Earth + Mars variants)
+   Rayleigh gradient + Mie sun lobe + horizon haze, all sun-aware.
    ===================================================================== */
-function skyDome(radius,horiz,zenith,horiz2){
+function skyDome(radius,horiz,zenith,horiz2,o){
+  o=o||{};
   const mat=new THREE.ShaderMaterial({
-    uniforms:{ uOpacity:{value:1}, uSun:{value:sunDir}, uCam:{value:new THREE.Vector3(0,0,0)}, uH:{value:new THREE.Color(horiz)}, uZ:{value:new THREE.Color(zenith)}, uH2:{value:new THREE.Color(horiz2||horiz)} },
+    uniforms:{ uOpacity:{value:1}, uSun:{value:sunDir}, uCam:{value:new THREE.Vector3(0,0,0)},
+      uH:{value:new THREE.Color(horiz)}, uZ:{value:new THREE.Color(zenith)}, uH2:{value:new THREE.Color(horiz2||horiz)},
+      uExp:{value:o.exp||0.75}, uMie:{value:o.mie===undefined?0.6:o.mie}, uHaze:{value:o.haze||0.3},
+      uCool:{value:new THREE.Color(o.cool||horiz)} },
     side:THREE.BackSide, transparent:true, depthWrite:false,
     vertexShader:`varying vec3 vP; uniform vec3 uCam; void main(){ vP=normalize(position-uCam); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader:`varying vec3 vP; uniform float uOpacity; uniform vec3 uSun,uH,uZ,uH2;
+    fragmentShader:`varying vec3 vP; uniform float uOpacity,uExp,uMie,uHaze; uniform vec3 uSun,uH,uZ,uH2,uCool;
       void main(){ float up=clamp(vP.y*0.5+0.5,0.0,1.0);
-        float sunT=pow(max(dot(vP,uSun),0.0),6.0);
+        float sd=dot(vP,normalize(uSun));
+        /* dawn light stays on the horizon; the zenith deepens through a Rayleigh-ish ramp */
         vec3 h=mix(uH,uH2,clamp(-vP.z*0.5+0.3,0.0,1.0));
-        vec3 c=mix(h,uZ,pow(up,0.75));
-        c+=uSun*sunT*0.55;
+        vec3 c=mix(h,uZ,pow(clamp(up,0.0,1.0),uExp));
+        /* broad Mie lobe around the sun — warm, the low-sky part of real scattering */
+        float mie=pow(max(sd,0.0),2.2)*uMie;
+        c=mix(c,mix(uCool,vec3(1.0,0.68,0.36),0.72),mie*0.62);
+        c+=vec3(1.0,0.88,0.66)*pow(max(sd,0.0),26.0)*uMie*0.8;
+        /* haze band hugging the horizon, thickest at the dawn end */
+        float hz=exp(-max(vP.y,0.0)*9.0)*uHaze*clamp(-vP.z*0.5+0.55,0.3,1.0);
+        c=mix(c,h*1.06,clamp(hz,0.0,1.0)*0.8);
         gl_FragColor=vec4(c,uOpacity*(1.0-pow(up,2.2)*0.25)); }`
   });
   const m=new THREE.Mesh(new THREE.SphereGeometry(radius,48,32),mat);
   m.renderOrder=-1; scene.add(m); return m;
 }
-const earthDome=skyDome(R_E*1.021,0xffb477,0x0a2a52,0xff8d55);
-const marsDome  =skyDome(R_MA*1.075,0xd8a37e,0x2a1a14,0xc08b62); earthDome.visible=true;
+const earthDome=skyDome(R_E*1.021,0xffb477,0x082447,0xff8d55,{exp:0.60,mie:0.85,haze:0.5,cool:0x2f6fd8});
+const marsDome  =skyDome(R_MA*1.075,0xd8a37e,0x2a1a14,0xc08b62,{exp:0.75,mie:0.45,haze:0.32}); earthDome.visible=true;
 earthDome.material.uniforms.uOpacity.value=1;
 marsDome.visible=false;
 
@@ -705,6 +861,20 @@ const earthTex=earthTextures();
 /* G = roughness, B = metalness → ocean carries a sun glint, land stays matte */
 const earthMat=new THREE.MeshStandardMaterial({map:earthTex.map,roughnessMap:earthTex.rough,
   metalnessMap:earthTex.rough,roughness:1.0,metalness:0.42});
+/* cloud shadows painted onto the surface — weather drifting over the land it covers */
+earthMat.userData.cloudTex=earthTex.clouds;
+earthMat.onBeforeCompile=(sh)=>{
+  sh.uniforms.uClouds={value:earthMat.userData.cloudTex};
+  sh.uniforms.uCloudShift={value:new THREE.Vector2(0,0)};
+  earthMat.userData.shader=sh;   /* p4 drives uCloudShift every frame */
+  sh.fragmentShader=sh.fragmentShader
+    .replace('#include <common>','#include <common>\nuniform sampler2D uClouds;uniform vec2 uCloudShift;')
+    .replace('#include <map_fragment>',
+      '#include <map_fragment>\n#ifdef USE_MAP\n{ float ca=texture2D(uClouds,vUv+uCloudShift).a;'+
+      ' float sm=smoothstep(0.12,0.85,ca);'+
+      ' diffuseColor.rgb*=(1.0-sm*0.20);'+
+      ' diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.86,0.90,1.05),sm*0.6);}\n#endif');
+};
 const earthMesh=new THREE.Mesh(new THREE.SphereGeometry(R_E,HI?128:96,HI?80:64),earthMat);
 /* cloud / mist shell — sunlit, translucent, drifting slightly ahead of the surface */
 const cloudMesh=new THREE.Mesh(new THREE.SphereGeometry(R_E*1.006,HI?112:80,HI?72:48),
@@ -730,8 +900,26 @@ const earthNight=new THREE.Mesh(new THREE.SphereGeometry(R_E*1.0015,HI?128:96,HI
 const earthTilt=new THREE.Group(); earthTilt.rotation.z=-0.4091; scene.add(earthTilt);
 earthTilt.add(earthMesh, cloudMesh, cirrusMesh, earthNight);
 cloudMesh.renderOrder=1; earthNight.renderOrder=1; cirrusMesh.renderOrder=2;
-/* atmosphere halo — tight limb rim + broad outer glow, brightest along the terminator */
-function halo(radius,color,pw,amp){
+/* aurora ovals — the polar crowns, alive only on the dark side */
+const aurora=new THREE.Mesh(new THREE.SphereGeometry(R_E*1.008,HI?96:64,HI?64:40),new THREE.ShaderMaterial({
+  uniforms:{uSun:{value:sunDir},uT:{value:0}},
+  vertexShader:`varying vec2 vUv; varying float vNdl; uniform vec3 uSun;
+    void main(){ vUv=uv; vNdl=dot(normalize(normal),normalize(uSun));
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader:`varying vec2 vUv; varying float vNdl; uniform vec3 uSun; uniform float uT;
+    void main(){ float lat=abs((0.5-vUv.y)*180.0);
+      float band=smoothstep(60.0,68.0,lat)*(1.0-smoothstep(77.0,84.0,lat));
+      float night=1.0-smoothstep(0.12,-0.06,vNdl);            /* dark side only */
+      float fl=0.5+0.5*sin(vUv.x*46.0+uT*1.8)+0.35*sin(vUv.x*113.0-uT*2.6+lat*2.0);
+      fl=clamp(fl,0.0,1.2);
+      float curtain=0.6+0.4*smoothstep(0.0,1.0,1.0-abs(fract(vUv.x*17.0+uT*0.15)-0.5)*2.0);
+      float a=band*fl*curtain*night*0.38;
+      vec3 col=mix(vec3(0.20,1.0,0.62),vec3(0.45,0.32,0.95),clamp((lat-68.0)/14.0,0.0,1.0));
+      gl_FragColor=vec4(col*a*3.2,a); }`,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+earthTilt.add(aurora); aurora.renderOrder=3;
+/* atmosphere — tight Rayleigh rim + broad Mie halo, sun-modulated, gold on the terminator */
+function halo(radius,color,pw,amp){   /* legacy shell, still driving Mars */
   const m=new THREE.Mesh(new THREE.SphereGeometry(radius,64,48),new THREE.ShaderMaterial({
     uniforms:{uC:{value:new THREE.Color(color)},uP:{value:pw},uA:{value:amp===undefined?1:amp},uSun:{value:sunDir}},
     vertexShader:`varying vec3 vN; varying vec3 vW; void main(){ vN=normalize(normalMatrix*normal);
@@ -745,8 +933,31 @@ function halo(radius,color,pw,amp){
     transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.FrontSide}));
   scene.add(m); return m;
 }
-const earthHalo=halo(R_E*1.026,0x4f93ff,3.4,1.0);
-const earthGlow=halo(R_E*1.088,0x2f74d8,2.15,0.5);
+function atmoShell(radius,pw,amp,cRay,cMie,mieAmt){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(radius,64,48),new THREE.ShaderMaterial({
+    uniforms:{uCR:{value:new THREE.Color(cRay)},uCM:{value:new THREE.Color(cMie)},
+      uP:{value:pw},uA:{value:amp},uMieAmt:{value:mieAmt},uSun:{value:sunDir}},
+    vertexShader:`varying vec3 vR; varying float vNdl; varying vec3 vV;
+      void main(){ vR=normalize(normal);
+        vNdl=dot(normalize(normal),normalize(uSun));
+        vec4 w=modelMatrix*vec4(position,1.0);
+        vV=normalize(cameraPosition-w.xyz);
+        gl_Position=projectionMatrix*viewMatrix*w; }`,
+    fragmentShader:`varying vec3 vR; varying float vNdl; varying vec3 vV;
+      uniform vec3 uCR,uCM; uniform float uP,uA,uMieAmt; uniform vec3 uSun;
+      void main(){ float f=pow(1.0-abs(dot(vR,vV)),uP);
+        float lit=smoothstep(-0.10,0.55,vNdl);
+        /* the path length through the air peaks at the terminator — golden on the lit limb */
+        float term=pow(1.0-abs(vNdl),3.2);
+        float mie=uMieAmt*(0.35+term*1.5);
+        vec3 col=mix(uCR,uCM,clamp(mie,0.0,1.0));
+        float a=f*uA*lit*(1.0+term*0.85);
+        gl_FragColor=vec4(col*a*2.2,a); }`,
+    transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.FrontSide}));
+  scene.add(m); return m;
+}
+const earthHalo=atmoShell(R_E*1.004,4.2,1.0,0x56aaff,0xffb877,0.16);
+const earthGlow=atmoShell(R_E*1.026,2.1,0.5,0x3f8fe0,0xffa06a,0.55);
 const marsHalo =halo(R_MA*1.02,0xd07a48,3.6,1.0); marsHalo.visible=false;
 
 const moonTex=moonTexture();
@@ -763,31 +974,52 @@ function planetSprite(tex,rM,refDist){
   const mat=new THREE.SpriteMaterial({map:tex,depthWrite:false,sizeAttenuation:true,transparent:true});
   const sp=new THREE.Sprite(mat); sp.scale.set(rM*2.2,rM*2.2,1); sp.userData={rM,refDist}; return sp;
 }
-const moonCanvas=(()=>{ // small rendered moon face for distant sprite
+function rebuildMoonSprite(){ // small rendered moon face for distant sprite
+  const src=moonTex.image; if(!src||!src.width) return;
   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
-  g.drawImage(moonTex.image,0,0,256,128,0,20,256,128);
+  g.drawImage(src,0,0,src.width,src.height>>1,0,20,256,128);
   g.globalCompositeOperation='destination-in'; g.beginPath();g.arc(128,128,118,0,6.283);g.fill();
-  return new THREE.CanvasTexture(c);
-})();
-const earthCanvas=(()=>{                       // distant Earth sprite: surface + weather + limb
+  const old=moonSprite.material.map; moonSprite.material.map=new THREE.CanvasTexture(c);
+  moonSprite.material.needsUpdate=true; if(old&&old!==moonSprite.material.map)old.dispose();
+}
+function rebuildEarthSprite(){  // distant Earth sprite: surface + weather + limb
+  const im=earthTex.map.image; if(!im||!im.width) return;
+  const cmin=document.createElement('canvas');
   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
-  const im=earthTex.map.image, sw=im.width;
+  const cw=earthTex.clouds.image;
   g.save(); g.beginPath(); g.arc(128,128,118,0,6.283); g.clip();
-  g.drawImage(im,sw*0.25,im.height*0.19,sw*0.125,im.height*0.125,0,20,256,128);
-  g.globalAlpha=0.85;
-  g.drawImage(earthTex.clouds.image,sw*0.25,earthTex.clouds.image.height*0.19,sw*0.125,
-              earthTex.clouds.image.height*0.125,0,20,256,128);
-  g.globalAlpha=1; g.restore();
+  g.drawImage(im,im.width*0.25,im.height*0.19,im.width*0.125,im.height*0.125,0,20,256,128);
+  if(cw&&cw.width){ g.globalAlpha=0.85;
+    g.drawImage(cw,cw.width*0.25,cw.height*0.19,cw.width*0.125,cw.height*0.125,0,20,256,128);
+    g.globalAlpha=1; }
+  g.restore();
   g.globalCompositeOperation='lighter';
   const gr=g.createRadialGradient(128,128,86,128,128,126);      // atmospheric limb
   gr.addColorStop(0,'rgba(40,110,220,0)'); gr.addColorStop(0.72,'rgba(60,130,235,0.30)');
   gr.addColorStop(1,'rgba(120,180,255,0)');
   g.fillStyle=gr; g.beginPath(); g.arc(128,128,126,0,6.283); g.fill();
   g.globalCompositeOperation='source-over';
-  return new THREE.CanvasTexture(c);
-})();
-const earthSprite=planetSprite(earthCanvas,R_E), moonSprite=planetSprite(moonCanvas,R_M);
+  const old=earthSprite.material.map; earthSprite.material.map=new THREE.CanvasTexture(c);
+  earthSprite.material.needsUpdate=true; if(old&&old!==earthSprite.material.map)old.dispose();
+}
+const earthSprite=planetSprite(null,R_E), moonSprite=planetSprite(null,R_M);
+rebuildEarthSprite(); rebuildMoonSprite();
 scene.add(earthSprite); scene.add(moonSprite);
+/* the real NASA layers land a beat after boot; procedural paint is the fallback floor */
+netTex(SRC.marble,(t)=>{ earthTex.map=t; earthMat.map=t; earthMat.needsUpdate=true;
+  netTex(SRC.water,(tw)=>{ earthMat.userData.pack=packRough(tw.image,t.image);
+    earthMat.roughnessMap=earthMat.userData.pack; earthMat.metalnessMap=earthMat.userData.pack;
+    earthMat.needsUpdate=true; rebuildEarthSprite(); });
+  rebuildEarthSprite(); },true);
+netTex(SRC.night,(t)=>{ earthNight.material.uniforms.uLights.value=t; },true);
+netTex(SRC.clouds,(t)=>{ earthTex.clouds=t;
+  cloudMesh.material.map=t; cloudMesh.material.needsUpdate=true;
+  cirrusMesh.material.map=t; cirrusMesh.material.needsUpdate=true;
+  earthMat.userData.cloudTex=t; if(earthMat.userData.shader)earthMat.userData.shader.uniforms.uClouds.value=t;
+  if(window.__groundCloudsMat){ window.__groundCloudsMat.map=t; window.__groundCloudsMat.needsUpdate=true; }
+  rebuildEarthSprite(); },true);
+netTex(SRC.moon,(t)=>{ moonTex.image=t.image; moonMesh.material.map=t; moonMesh.material.needsUpdate=true;
+  rebuildMoonSprite(); },true);
 
 /* =====================================================================
    PAD TERRAIN — STARBASE OLP-2
@@ -801,8 +1033,15 @@ function groundTex(){
     const marsh=n.fbm(u*9,v*9,5,3), dry=n.fbm(u*3+7,v*3+2,4,11);
     let r=78+52*marsh, gg=96+42*marsh, b=58+22*marsh;
     if(dry>0.62){ r=150;gg=138;b=104; }                                   // sandy scrub
+    const grass=n.fbm(u*23+4,v*23+9,3,17);                                /* finer grass patchwork */
+    r=lerp(r,70+38*grass,0.30); gg=lerp(gg,92+44*grass,0.30); b=lerp(b,48+26*grass,0.22);
     const dist=Math.hypot(u-0.5,v-0.5);
     if(u>0.545){ r=32;gg=52;b=64; }                                        // gulf
+    if(u>0.545){ const dp=n.fbm(u*7+2,v*7+5,3,29);                        /* depth mottling + plankton */
+      r=lerp(r,14,dp*0.45); gg=lerp(gg,66,dp*0.5); b=lerp(b,86,dp*0.4); }
+    if(u>0.545&&u<0.556){ const f=n.fbm(u*90,v*90,2,41);                  /* surf line foam */
+      const t=clamp((f-0.44)*2.2,0,1)*(u-0.545)/0.011;
+      r=lerp(r,222,t*0.72); gg=lerp(gg,228,t*0.72); b=lerp(b,214,t*0.72); }
     if(Math.abs(v-0.5)<0.012&&u>0.60&&u<0.98){ r=30;gg=50;b=62; }          // intracoastal lagoon
     if(dist<0.10){ const t=smoothstep(0.06,0.10,dist); r=lerp(96,r,t);gg=lerp(98,gg,t);b=lerp(92,b,t);} // pad apron
     if(Math.abs(u-0.47)<0.004&&v<0.52){ r=120;gg=120;b=118; }              // access road
@@ -818,9 +1057,11 @@ const padGroup=new THREE.Group(); scene.add(padGroup);
   const ground=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:groundTex(),roughness:1,metalness:0}));
   ground.name='ground';
   padGroup.add(ground);
-  /* gulf water */
+  /* gulf water — scrolling ripple normal so the sun drags a glitter path on it */
   const ocean=new THREE.Mesh(new THREE.PlaneGeometry(900,900),
-    new THREE.MeshStandardMaterial({color:0x1b3a52,roughness:0.22,metalness:0.5,transparent:true,opacity:0.96}));
+    new THREE.MeshStandardMaterial({color:0x1b3a52,roughness:0.16,metalness:0.55,transparent:true,opacity:0.96,
+      normalMap:waveNormalTex(),normalScale:new THREE.Vector2(0.9,0.9)}));
+  window.__oceanMat=ocean.material;
   ocean.rotation.x=-Math.PI/2; ocean.position.set(458,0.004,0); padGroup.add(ocean);
   const lagoon=new THREE.Mesh(new THREE.PlaneGeometry(1.6,4.2),
     new THREE.MeshStandardMaterial({color:0x1e3748,roughness:0.3,metalness:0.4}));
@@ -889,6 +1130,34 @@ const padGroup=new THREE.Group(); scene.add(padGroup);
     tr.setMatrixAt(i,mtx);
   }
   padGroup.add(tr);
+  /* shrubs — marsh scrub dots between the trees */
+  const shrubGeo=new THREE.SphereGeometry(0.0036,6,4);
+  const shrubMat=new THREE.MeshStandardMaterial({color:0x36522d,roughness:1});
+  const bushN=IS_TOUCH?210:380;
+  const bush=new THREE.InstancedMesh(shrubGeo,shrubMat,bushN);
+  const rnd2=mkNoise(211).rnd, mtx2=new THREE.Matrix4();
+  for(let i=0;i<bushN;i++){
+    const a=rnd2()*6.283,r=0.55+rnd2()*3.1;
+    const x=Math.cos(a)*r-0.9,z=Math.sin(a)*r;
+    const s=0.55+rnd2()*1.6; mtx2.makeScale(s,s*0.7,s); mtx2.setPosition(x,0.004,z);
+    bush.setMatrixAt(i,mtx2);
+  }
+  padGroup.add(bush);
+  /* low cloud deck — dawn scattered cumulus over the marsh, real map when it lands */
+  const deckMat=new THREE.MeshStandardMaterial({map:puffTex(),transparent:true,opacity:0.34,
+    depthWrite:false,roughness:1,metalness:0,side:THREE.DoubleSide});
+  const deck=new THREE.Mesh(new THREE.PlaneGeometry(520,520),deckMat);
+  deck.rotation.x=-Math.PI/2; deck.position.set(60,8.6,-140); padGroup.add(deck);
+  deck.renderOrder=-0.5;
+  window.__deck=deck; window.__groundCloudsMat=deckMat;   /* p1 loader + p4 drift use these */
+  /* dawn flock — speck drift across the marsh sky (p4 drives) */
+  const bN=IS_TOUCH?24:60, bp=new Float32Array(bN*3), brnd=mkNoise(807).rnd;
+  for(let i=0;i<bN;i++){ bp[i*3]=-220+brnd()*440; bp[i*3+1]=1.5+brnd()*9; bp[i*3+2]=-160+brnd()*320; }
+  const bgeo=new THREE.BufferGeometry(); bgeo.setAttribute('position',new THREE.BufferAttribute(bp,3));
+  const birds=new THREE.Points(bgeo,new THREE.PointsMaterial({color:0x161c24,size:3.2,
+    sizeAttenuation:false,transparent:true,opacity:0.85,depthWrite:false}));
+  birds.renderOrder=6; padGroup.add(birds);
+  window.__birds={pts:birds,geo:bgeo};
 })();
 
 /* =====================================================================
@@ -1116,6 +1385,7 @@ const SIM={
   countdownStarted:false, beeps:{},
 };
 let booster=null;   // detached booster visual script
+let hotHold=false;  // real hot-staging hold: inner 5 Raptors burn until the ship lights, then release
 
 function resetSim(){
   Object.assign(SIM,{phase:'PRELAUNCH',met:-10,pos:V2(0,R_E),vel:V2(0,0),tilt:0,roll:0,
@@ -1136,7 +1406,8 @@ function resetSim(){
   plume.visible=false; plume2.visible=false; engLight.intensity=0;
   SIM._mcc=SIM._apm=SIM._apx=SIM._loiAuto=SIM._entryAuto=SIM._maxqDone=SIM._polled=SIM._polled2=false;
   SIM.cutoffReq=false; SIM.secoAt=0; SIM.mecoAt=0; SIM.orbEndAt=0; SIM._cornershot=false; SIM._raiseT=false; SIM.altL=0; SIM.altA=0; SIM.relR=0; SIM.orbitW=0;
-  delugeOn=false; lastBeep=-99; warnQ=[]; if(warnEl)warnEl.innerHTML='';
+  delugeOn=false; hotHold=false; delugeAcc=0; liftoffFired=false;
+  lastBeep=-99; warnQ=[]; if(warnEl)warnEl.innerHTML='';
   document.getElementById('plasmaTint').style.opacity=0;
   trailPos.length=0; if(trailLine){scene.remove(trailLine);trailLine=null;} if(routeLine){scene.remove(routeLine);routeLine=null;}
   document.getElementById('summary').classList.add('hidden');
@@ -1276,7 +1547,7 @@ function onPhase(p){
       break;
     case 'TLI': log(SIM.route==='moon'?'TLI — trans-lunar injection burn started':'TMI — trans-Mars injection burn started','good'); break;
     case 'TRANSFER':
-      banner(SIM.route==='moon'?'TRANS-LUNAR INJECTION':'TRANS-MARS INJECTION', SIM.route==='moon'?'ETA 5.0 DAYS TO THE MOON':'ETA 259 DAYS TO MARS');
+      banner(SIM.route==='moon'?'TRANS-LUNAR INJECTION':'TRANS-MARS INJECTION', SIM.route==='moon'?'ETA 5.0 DAYS TO THE MOON':'ETA 180 DAYS TO MARS');
       buildCurve(); SIM.met0=SIM.met; SIM.coastDur=SIM.route==='moon'?MOON_COAST:MARS_COAST; SIM.tilt=90;
       const r=vlen(SIM.pos),v=vlen(SIM.vel); SIM.vInf2=Math.max(v*v-2*MU_E/r, SIM.route==='moon'?12:11);
       bBtn.disabled=true;
@@ -1288,7 +1559,7 @@ function onPhase(p){
     case 'LUN_DESCENT': SIM.tilt=0; banner('POWERED DESCENT','LANDING BURN — SHACKLETON RIDGE SITE');
       log('Landing burn — throttling for soft touchdown','good'); break;
     case 'MOON_LANDED': onLanded('moon'); break;
-    case 'ENTRY': SIM.tilt=82; banner('MARS ENTRY INTERFACE','125 KM — PEAK HEATING · COMMS BLACKOUT');
+    case 'ENTRY': SIM.tilt=60; banner('MARS ENTRY INTERFACE','125 KM — PEAK HEATING · COMMS BLACKOUT');
       log('Entry interface — plasma forming, signal loss expected','crit'); break;
     case 'MARS_DESCENT': SIM.tilt=0; banner('SUPERSONIC RETROPROPULSION','LANDING BURN — ARCADIA PLANITIA'); break;
     case 'MARS_LANDED': onLanded('mars'); break;
@@ -1383,13 +1654,14 @@ function simStep(dt){
     if((SIM.propS<=0||SIM.cutoffReq)&&SIM.stage===1){
       SIM.propS=0; SIM.stage=2; SIM.mecoAt=t;
       SIM.m=ST.dry+PAYLOAD+SIM.propT;
-      log('MECO-1 — Super Heavy engine cutoff','good');
+      log('MECO-1 — 28 of 33 engines shut down, inner 5 hold','good');
       log('Hot-staging — Starship ignition','good');
       banner('MECO / HOT STAGING','STAGE SEPARATION');
       /* detached booster script */
       SIM.cutoffReq=false;
       booster={pos:{...SIM.pos},vel:{...SIM.vel},tilt:SIM.tilt,t:0,jettisoned:false,landen:false};
       boosterFall.visible=true;
+      hotHold=true;   /* the 5 inner Raptors keep burning until the ship lights — then release */
       /* keep plume on ship */
     }
     if(SIM.stage===2){
@@ -2095,35 +2367,61 @@ function sceneUpdate(rdt){
   engLight.position.set(0,stacked?-0.003:0.068,0); engLight.intensity=thr*4;
   padLight.position.set(0,0.012,0);
   padLight.intensity=(SIM.phase==='ASCENT'||SIM.phase==='COUNTDOWN')?thr*12*Math.exp(-altE/8):0;
-  /* detached booster */
+  /* real control surfaces: Mars entry flies belly-first on deployed flaps; legs out for the landing */
+  {
+    const fl=shipMesh.userData.flaps, lg=shipMesh.userData.legs;
+    const flapOut=(SIM.phase==='ENTRY');
+    const fTgt=[1.57,-1.57,0.87,-0.87];   /* aft flaps flat, forward flaps at the Block-2 140° station */
+    fl.forEach((p,i)=>{ const w=flapOut?fTgt[i]:0; p.rotation.z+=(w-p.rotation.z)*Math.min(1,rdt*2.5); });
+    const legOut=['LUN_DESCENT','MOON_LANDED','MARS_DESCENT','MARS_LANDED'].includes(SIM.phase);
+    lg.forEach(p=>{ const ax=p.userData.out[0], w=legOut?p.userData.out[1]:0;
+      p.rotation[ax]+=(w-p.rotation[ax])*Math.min(1,rdt*2.5); });
+  }
+  /* detached booster — real return choreography: hold, flip, boost-back, glide, landing burn, tower catch */
   if(booster){
     booster.t+=lastSimDt;
-    const g=398600/Math.pow(vlen(booster.pos),2)*0.55;
+    const g=398600/Math.pow(vlen(booster.pos),2);
     const rd=vmul(vnorm(booster.pos),-g);
-    let burnOn=false;
-    if(booster.t>83){
+    let burnOn=false, smallJet=false;
+    if(hotHold){
+      /* hot-staging hold: 28 engines dark, the inner 5 Raptors burn until the ship lights — then release */
+      booster.pos={...SIM.pos}; booster.vel={...SIM.vel};
+      smallJet=true;
+      if(booster.t>8){ hotHold=false; booster.jettisoned=true;
+        log('Hot-stage jettison — Super Heavy separates','good'); }
+    } else {
       booster.vel=vadd(booster.vel,vmul(rd,lastSimDt));
-      if(!booster.jettisoned){ booster.jettisoned=true; log('Hot-stage jettison — Super Heavy separates','good'); }
       booster.pos=vadd(booster.pos,vmul(booster.vel,lastSimDt));
-      const bb=booster.t>94&&booster.t<143, lb=booster.t>380&&booster.t<397;
+      const bb=booster.t>30&&booster.t<105, lb=booster.t>225&&booster.t<242;
+      if(bb&&!booster._bb){ booster._bb=true; log('Booster boost-back burn — 28 engines','good'); }
+      if(lb&&!booster._lb){ booster._lb=true; log('Booster landing burn — inner 13 down to 5','good'); }
       burnOn=bb||lb;
       if(bb) booster.vel=vadd(booster.vel,vmul(vnorm(vsub(V2(0,R_E),booster.pos)),0.0035*lastSimDt));
       if(lb){ booster.vel=vmul(booster.vel,Math.pow(0.35,lastSimDt)); }
-      if(booster.t>397){
+      if(booster.t>242){
         if(!booster.landen){ booster.landen=true;
-          log(SIM.route==='moon'?'SUPER HEAVY RECOVERED — CATCH IN MECHAZILLA TOWER':'SUPER HEAVY RECOVERED — SEA DRONE CATCH','good');
-          banner('BOOSTER RECOVERED','NOMINAL RETURN PATH'); }
-        if(booster.landen){ /* real recovery: the booster flies back and parks upright at the launch site */
+          log('SUPER HEAVY RECOVERED — CAUGHT ON THE TOWER ARMS','good');
+          banner('BOOSTER RECOVERED','GRID-FIN CATCH · MECHAZILLA'); }
+        if(booster.landen){ /* real recovery: the booster flies back and parks upright on the launch mount */
           const kl=1-Math.exp(-lastSimDt*0.5);
           booster.pos=vadd(booster.pos,vmul(vsub(V2(0,R_E),booster.pos),kl)); }
       }
-    } else { booster.pos={...SIM.pos}; booster.vel={...SIM.vel}; }
+    }
     const bp=pos3(booster.pos);
     boosterFall.position.set(bp.x,bp.y,bp.z);
-    if(!booster.jettisoned) boosterFall.quaternion.copy(rocket.quaternion);  /* while attached, mirror the stack exactly */
-    else boosterFall.rotation.z=-Math.atan2(booster.pos.x,booster.pos.y)+(booster.landen?0:Math.sin(booster.t*0.25)*0.4);
-    bfPlume.visible=burnOn; bfPlume.scale.set(0.006,0.05,0.006); bfPlume.position.set(0,0.001,0);
-    bfLight.intensity=burnOn?5:0;
+    if(!booster.jettisoned){
+      boosterFall.quaternion.copy(rocket.quaternion);  /* attached through the hold — mirror the stack exactly */
+    } else {
+      /* real attitudes: nose-down for the flip and boost-back, engine-down for the landing burn and the catch */
+      const hdg=-Math.atan2(booster.pos.x,booster.pos.y);
+      const want=(booster.landen||booster.t>225)?0:Math.PI;
+      booster.att=(booster.att===undefined?0:booster.att+(want-booster.att)*Math.min(1,lastSimDt*0.8));
+      boosterFall.rotation.z=hdg+booster.att+(booster.landen?0:Math.sin(booster.t*0.3)*0.06);
+    }
+    bfPlume.visible=burnOn||smallJet;
+    if(smallJet) bfPlume.scale.set(0.0014,0.016,0.0014); else bfPlume.scale.set(0.006,0.05,0.006);
+    bfPlume.position.set(0,0.001,0);
+    bfLight.intensity=burnOn?5:(smallJet?1.5:0);
   }
   /* trail sampling */
   trailT+=lastSimDt;
@@ -2270,6 +2568,7 @@ function hudUpdate(){
    MAIN LOOP
    ===================================================================== */
 let lastT=performance.now(), lastSimDt=0, padFxAcc=0;
+let delugeAcc=0, liftoffFired=false;
 function loop(){
   requestAnimationFrame(loop);
   const now=performance.now();
@@ -2282,13 +2581,15 @@ function loop(){
     while(rem>1e-9&&n<90){ const s=Math.min(rem,0.02); lastSimDt=s; simStep(s); rem-=s; n++; }
     lastSimDt=Math.min(simDt,0.05);
   } else { lastSimDt=Math.min(simDt,3); simStep(SIM.phase==='PRELAUNCH'?rdt:simDt); }
-  /* continuous pad FX */
-  /* pad + trail FX calls removed — no lingering particles around the rocket */
+  /* pad FX — pad-anchored only (rocket-trail particles ghosted and stay removed) */
+  if(SIM.phase==='COUNTDOWN'&&delugeOn&&(delugeAcc+=rdt)>0.45){ delugeAcc=0; startDeluge(); }
+  if(SIM.phase==='ASCENT'&&SIM.met<10&&!liftoffFired){ liftoffFired=true; padLiftoffFX(); }
   if(SIM.phase==='ASCENT'){
     /* padSmoke / ascentTrail / rogersNose calls removed — particles lingered as ghost trails */
   }
   sceneUpdate(rdt);
   camUpdate(rdt);
+  envUpdate(rdt);
   updateShipTag();
   /* engine audio */
   let inten=0;
@@ -2306,8 +2607,62 @@ addEventListener('resize',()=>{
   camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
+/* =====================================================================
+   ENVIRONMENT HOOKS — the added Earth/sky layers driven every frame
+   ===================================================================== */
+const _sunNdc=new THREE.Vector3(), _fwd=new THREE.Vector3();
+function envUpdate(rdt){
+  /* twinkle clock for the camera-anchored starfield */
+  if(window.__starMat) window.__starMat.uniforms.uT.value+=rdt;
+  /* cloud shadows on the surface track the faster weather deck */
+  const sh=earthMat.userData&&earthMat.userData.shader;
+  if(sh){ let d=(earthSpin*0.08)/6.2831853; d=d-Math.floor(d+0.5);
+    sh.uniforms.uCloudShift.value.set(d,0); }
+  /* aurora curtain clock + visibility follows the planet */
+  aurora.material.uniforms.uT.value+=rdt; aurora.visible=earthMesh.visible;
+  /* corona rides the sun sprite; lens ghosts chain through frame centre */
+  sunCorona.position.copy(sunSprite.position);
+  const fg=window.__flareGhosts;
+  if(fg&&!IS_TOUCH){
+    const R=Math.max(camera.far*0.3,1e4);
+    _sunNdc.copy(camera.position).addScaledVector(sunDir,R).project(camera);
+    _fwd.set(0,0,-1).applyQuaternion(camera.quaternion);
+    const inframe=_sunNdc.z>-1&&_sunNdc.z<1&&Math.abs(_sunNdc.x)<1.05&&Math.abs(_sunNdc.y)<1.05;
+    const s=Math.max(0,Math.min(1,_fwd.dot(sunDir)-0.02))*(inframe?1:0);
+    const z=-600, Hh=2*Math.abs(z)*Math.tan(cam.fov*Math.PI/360);
+    for(const g of fg.children){
+      if(s<=0.02){ g.material.opacity=0; continue; }
+      g.position.set(_sunNdc.x*g.userData.k*Hh*camera.aspect/2, _sunNdc.y*g.userData.k*Hh/2, z);
+      g.scale.set(g.userData.f*Hh, g.userData.f*Hh, 1);   /* f = fraction of screen height */
+      g.material.opacity=s;
+    }
+  } else if(fg&&IS_TOUCH){ for(const g of fg.children) g.material.opacity=0; }
+  /* gulf ripple scroll — the sun glitter path has to move */
+  if(window.__oceanMat&&window.__oceanMat.normalMap){
+    window.__oceanMat.normalMap.offset.x=(window.__oceanMat.normalMap.offset.x+rdt*0.011)%1;
+    window.__oceanMat.normalMap.offset.y=(window.__oceanMat.normalMap.offset.y+rdt*0.004)%1;
+  }
+  /* low cloud deck drift */
+  if(window.__deck){ window.__deck.position.x-=rdt*1.4;
+    if(window.__deck.position.x<-300) window.__deck.position.x+=600; }
+  /* dawn flock */
+  if(window.__birds){ const geo=window.__birds.geo, a=geo.attributes.position.array, n=a.length/3;
+    for(let i=0;i<n;i++){ a[i*3]+=rdt*(3+(i*7)%5);
+      if(a[i*3]>220){ a[i*3]=-220; a[i*3+2]=-160+(i*37)%320; } }
+    geo.attributes.position.needsUpdate=true;
+    window.__birds.pts.visible=padGroup.visible; }
+}
+
 resetSim();
 $('loadMsg').textContent='FLIGHT DYNAMICS READY';
+/* headless verification hook — #orbit jumps straight to the LEO cruise view */
+function __testView(v){
+  if(v!=='orbit')return;
+  Object.assign(SIM,{phase:'ORBIT',met:210,auto:false,enginesOn:false,stage:2,propT:1500,throttle:0,
+    pos:V2(0,R_E+140),vel:V2(0,7.7),m:4000});
+  cam.dist=1.6; CAM_SNAP=true;
+}
+setTimeout(()=>{ const h=location.hash.slice(1); if(h==='orbit'){ __testView(h); } },2600);
 setTimeout(()=>{ document.getElementById('loader').style.display='none'; launchBtn.disabled=false; },900);
 loop();
 </script>
