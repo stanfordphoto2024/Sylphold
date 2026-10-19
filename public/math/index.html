@@ -12817,6 +12817,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (m === 'tenframe') return V.tenframe(c, { frames: c > 10 ? 2 : 1, label: t.join(' and ') + ' counters' });
     if (m === 'models' && c < 1000) { var h = Math.floor(c / 100), te = Math.floor(c / 10) % 10, on = c % 10; return V.blocks(h, te, on, { label: 'base-ten blocks for ' + t.join(' + ') }); }
     if (m === 'cubes' || m === 'pictures') {
+      if (one > 12 || two > 12 || c === 0) return null;   /* the grid cannot draw these numbers — the words carry them */
       var cols = cap(one + two, 1, 12), r1 = [], r2 = [], i;
       for (i = 0; i < cols; i++) { r1.push(i < one ? '●' : ''); }
       if (two > 0) { for (i = 0; i < cols; i++) { r2.push(i < two ? '○' : ''); }
@@ -15865,6 +15866,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var m = p.model || 'none', n = e.c;
     if (m === 'models') return V.blocks(Math.floor(n / 100), Math.floor(n / 10) % 10, n % 10, { label: 'base-ten blocks for ' + n });
     if (m === 'cubes' || m === 'pictures') {
+      if (n > 14 || n === 0) return null;   /* the grid cannot show zero or this many — the label would lie about the picture */
       var cols = cap(n, 1, 14), r = [], i;
       for (i = 0; i < cols; i++) r.push(e.isSub && i >= e.a ? '✕' : '●');
       return V.grid({ rows: 1, cols: cols, cells: [r], label: e.isSub ? n + ' counters, ' + e.b + ' crossed out' : n + ' counters' });
@@ -16448,11 +16450,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       function () {
         if (lim <= 20) return null;
-        return I_str('Write the number name for ' + n + '.', [wordName(n), String(n)], {
-          answerText: wordName(n), b: 0.4,
-          explain: ['The numeral ' + n + ' names a quantity.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
-          teach: 'A number name spells the number with letters instead of digits.'
-        });
+        return MC(rng, 'Which name spells ' + n + '?', wordName(n),
+          [wordName(n + 1), wordName(n - 1), wordName(n + 2), wordName(n - 2)], {
+            answerText: wordName(n), b: 0.4,
+            explain: ['The numeral ' + n + ' names a quantity.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
+            teach: 'A number name spells the number with letters instead of digits.'
+          });
       },
       /* ordinal position */
       function () {
@@ -17108,7 +17111,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   }
   function sentence(s) { return s.op === 'sub' ? s.c + ' − ' + s.b + ' = ' + s.a : s.a + ' + ' + s.b + ' = ' + s.c; }
   function modelOf(rng, s) {
-    var cols = cap(s.op === 'sub' ? s.c : s.a + s.b, 1, 14), r1 = [], r2 = [], i, first = s.op === 'sub' ? s.a : s.a, second = s.op === 'sub' ? s.b : s.b;
+    if (s.op === 'sub' && s.c > 12) return null;   /* the grid cannot draw this many — the label would lie */
+    if (s.op === 'add' && (s.a > 12 || s.b > 12)) return null;
+    var cols = cap(s.op === 'sub' ? s.c : s.a + s.b, 1, 12), r1 = [], r2 = [], i, first = s.op === 'sub' ? s.a : s.a, second = s.op === 'sub' ? s.b : s.b;
     for (i = 0; i < cols; i++) r1.push(i < first ? '●' : (s.op === 'sub' && i < first + second ? '✕' : ''));
     if (s.op === 'add' && second > 0) { for (i = 0; i < cols; i++) r2.push(i < second ? '○' : ''); return V.grid({ rows: 2, cols: cols, cells: [r1, r2], rowLabels: ['and', 'more'], label: s.a + ' and ' + s.b }); }
     return V.grid({ rows: 1, cols: cols, cells: [r1], label: s.op === 'sub' ? s.c + ' counters, ' + s.b + ' crossed out' : s.a + ' counters' });
@@ -17914,6 +17919,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (m === 'tenframe') return V.tenframe(f.a, { frames: f.a > 10 ? 2 : 1, label: f.a + ' counters, take ' + f.b });
     if (m === 'models' && f.a < 1000) { var h = Math.floor(f.a / 100), te = Math.floor(f.a / 10) % 10, on = f.a % 10; return V.blocks(h, te, on, { label: 'base-ten blocks for ' + f.a }); }
     if (m === 'cubes' || m === 'pictures') {
+      if (f.a > 14) return null;   /* the grid cannot show this many — the label would lie about the picture */
       for (i = 0; i < cols; i++) row.push(i < keep ? '●' : (i < keep + gone ? '✕' : ''));
       return V.grid({ rows: 1, cols: cols, cells: [row], label: f.a + ' counters, ' + f.b + ' taken away' });
     }
@@ -20826,7 +20832,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () { var m = R.chance(rng, 0.5) ? n : pick(rng, near(rng, n, 1, maxN)); return I_bool('Does "' + wordName(m) + '" name the number ' + n + '?', m === n, { b: 0.4, explain: ['Write ' + n + ' in words: ' + wordName(n) + '.', 'The card says "' + wordName(m) + '".', (m === n ? 'They match' : 'They do not match') + ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return I_num('Write with digits: ' + wordName(t) + ' written as a number', t, { b: 0.3, explain: ['The words name ' + t + '.', 'Digits for that number are ' + t + '.', 'So the answer is <b>' + t + '</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return MC(rng, 'Which number is this: ' + wordName(t) + '?', String(t), near(rng, t, 1, maxN).map(String), { b: 0.5, explain: ['Listen to the word name.', 'It ends in the ones place ' + (t % 10) + '.', 'So the answer is <b>' + t + '</b>.'], teach: teach }); },
-        function () { var t = R.int(rng, 10, maxN); return I_str('Write the number ' + t + ' in words.', [wordName(t), String(t)], { answerText: wordName(t), b: 0.6, explain: ['Say ' + t + ' out loud.', 'In words that is ' + wordName(t) + '.', 'So the answer is <b>' + wordName(t) + '</b>.'], teach: 'A number name says the tens and then the ones.' }); },
+        function () { var t = R.int(rng, 10, maxN); return MC(rng, 'Which of these is the number ' + t + ' in words?', wordName(t), near(rng, t, 1, maxN).map(wordName), { answerText: wordName(t), b: 0.6, explain: ['Say ' + t + ' out loud.', 'In words that is ' + wordName(t) + '.', 'So the answer is <b>' + wordName(t) + '</b>.'], teach: 'A number name says the tens and then the ones.' }); },
         function () { var t = R.int(rng, 1, maxN); return I_bool('Is ' + t + ' written as "' + wordName(t + 1 <= maxN ? t + 1 : t - 1) + '"?', false, { b: 0.7, explain: ['Write ' + t + ' in words: ' + wordName(t) + '.', 'The card gives a different name.', 'So the answer is <b>No</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN), u = t % 10; return MC(rng, 'Which digit is in the ones place of the number ' + wordName(t) + '?', String(u), near(rng, u, 0, 9).map(String), { b: 1.0, explain: ['Write the number in digits: ' + t + '.', 'The last digit is the ones place: ' + u + '.', 'So the answer is <b>' + u + '</b>.'], teach: 'The rightmost digit is always the ones.' }); }
       ], lvl);
@@ -20838,7 +20844,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var teach = 'A number name is the number spoken with words instead of digits.';
       return six(rng, [
         function () { var w = near(rng, n, 1, maxN).map(wordName); return MC(rng, 'Which word name matches ' + n + '?', wordName(n), w, { b: lo, explain: ['Say the number: ' + n + '.', 'In words that is ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'], teach: teach }); },
-        function () { return I_str('Write the number name for ' + n + '.', [wordName(n), String(n)], { answerText: wordName(n), b: lo + 0.2, explain: ['Break ' + n + ' into tens and ones.', 'Spoken, it is ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'], teach: teach }); },
+        function () { return MC(rng, 'Which name is the number ' + n + '?', wordName(n), near(rng, n, 1, maxN).map(wordName), { answerText: wordName(n), b: lo + 0.2, explain: ['Break ' + n + ' into tens and ones.', 'Spoken, it is ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'], teach: teach }); },
         function () { var m = R.chance(rng, 0.5) ? n : pick(rng, near(rng, n, 1, maxN)); return I_bool('Is ' + n + ' written in words as "' + wordName(m) + '"?', m === n, { b: 0.4, explain: ['Say ' + n + ' in words: ' + wordName(n) + '.', 'The card says "' + wordName(m) + '".', (m === n ? 'They match' : 'They do not match') + ', so the answer is <b>' + (m === n ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return MC(rng, 'Which one says ' + t + ' in words?', wordName(t), near(rng, t, 1, maxN).map(wordName), { b: 0.3, explain: ['Look for the name that ends in the same ones.', wordName(t) + ' is that name.', 'So the answer is <b>' + wordName(t) + '</b>.'], teach: teach }); },
         function () { var t = R.int(rng, 1, maxN); return I_num('How many is "' + wordName(t) + '"?', t, { b: 0.5, explain: ['Count up to the name given.', 'The digits are ' + t + '.', 'So the answer is <b>' + t + '</b>.'], teach: teach }); },
@@ -20869,7 +20875,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () { var m = R.chance(rng, 0.5) ? r : pick(rng, others()); return I_bool('Does ' + m + ' stand for the number ' + v + '?', m === r, { b: 0.4, explain: ['Write ' + v + ' as a Roman numeral: ' + r + '.', 'The card says ' + m + '.', (m === r ? 'They match' : 'They do not match') + ', so the answer is <b>' + (m === r ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
       function () { var j = R.int(rng, 0, 9), r2 = ROM[j][0]; return MC(rng, 'Which is greater, ' + r + ' or ' + r2 + '?', v >= ROM[j][1] ? r : r2, [v >= ROM[j][1] ? r2 : r, 'they are equal'], { b: 0.5, explain: ['Convert both: ' + r + ' = ' + v + ', ' + r2 + ' = ' + ROM[j][1] + '.', 'The greater number is ' + Math.max(v, ROM[j][1]) + '.', 'So the answer is <b>' + (v >= ROM[j][1] ? r : r2) + '</b>.'], teach: 'Compare Roman numerals by converting them to numbers first.' }); },
       function () { return MC(rng, 'Which numeral means five?', 'V', ['I', 'X', 'VI'], { b: 0.2, explain: ['I = 1, V = 5, X = 10.', 'Five is written V.', 'So the answer is <b>V</b>.'], teach: teach }); },
-      function () { var t = R.int(rng, 1, 8); return I_str('Write ' + t + ' as a Roman numeral.', [ROM[t - 1][0], String(t)], { answerText: ROM[t - 1][0], b: 0.6, explain: ['Count the I strokes up to ' + t + '.', t + ' is written ' + ROM[t - 1][0] + '.', 'So the answer is <b>' + ROM[t - 1][0] + '</b>.'], teach: teach }); },
+      function () { var t = R.int(rng, 1, 8); return MC(rng, 'Which Roman numeral is ' + t + '?', ROM[t - 1][0], ROM.filter(function (q) { return q[1] !== t; }).map(function (q) { return q[0]; }), { answerText: ROM[t - 1][0], b: 0.6, explain: ['Count the I strokes up to ' + t + '.', t + ' is written ' + ROM[t - 1][0] + '.', 'So the answer is <b>' + ROM[t - 1][0] + '</b>.'], teach: teach }); },
       function () { return I_bool('Is ' + r + ' the Roman numeral for ' + v + '?', true, { b: -0.3, explain: ['Read ' + r + ': it stands for ' + v + '.', 'That is what the card says.', 'So the answer is <b>Yes</b>.'], teach: teach }); },
       function () { var t = cap(v + 1, 1, 10); return MC(rng, r + ' plus one more unit is which numeral?', ROM[t - 1][0], others().concat([ROM[cap(v - 2, 0, 9)][0]]), { b: 1.0, explain: [r + ' stands for ' + v + '.', 'One more is ' + t + ', written ' + ROM[t - 1][0] + '.', 'So the answer is <b>' + ROM[t - 1][0] + '</b>.'], teach: 'Adding in Roman numerals works by counting the units.' }); }
     ], lvl);
@@ -21410,10 +21416,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
      card whose caption prints "3 and 4" has answered its own question, so these
      cards get no caption at all and the child has to match or count the rows. */
   function twoRows(rng, a, b, label) {
+    if (a > 12 || b > 12) return null;   /* too many dots to draw honestly — the words carry both numbers */
     var cols = cap(Math.max(a, b), 1, 12);
     var model = { rows: 2, cols: cols, cells: [dots(a, '●'), dots(b, '○')], rowLabels: ['top', 'bottom'] };
-    /* the key is left OUT rather than set to null: an item's data must stay
-       clean JSON, and a literal null in a model trips the content gate */
     if (label !== '') model.label = label || 'two groups';
     return V.grid(model);
   }
@@ -46892,31 +46897,37 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       /* ---- vocabulary ----------------------------------------------------- */
       function () {
         if (!vocab) return null;
-        var card = BC.pick(rng, [
-          { q: 'the place where you keep money safe and can save it', a: ['bank', 'a bank', 'bank account', 'a bank account'] },
-          { q: 'money you put INTO an account', a: ['deposit', 'a deposit', 'depositing', 'to deposit'] },
-          { q: 'the extra money you pay for borrowing money', a: ['interest', 'interest charges', 'an interest charge'] },
-          { q: 'a regular payment for a service, like phone or internet', a: ['bill', 'a bill', 'monthly bill', 'a monthly bill'] },
-          { q: 'a card that takes money straight out of your account', a: ['debit card', 'a debit card', 'debit'] },
-          { q: 'money you borrow and promise to pay back', a: ['loan', 'a loan', 'to loan', 'lend'] }
-        ]);
-        return I_STR('Financial vocabulary: what do you call ' + card.q + '?', card.a, {
-          answerText: card.a[0], b: 0.1,
-          explain: ['The word for “' + card.q + '” is ' + card.a[0] + '.', 'It is the everyday word for that money action.'],
+        var pool = [
+          { q: 'the place where you keep money safe and can save it', a: 'bank' },
+          { q: 'money you put INTO an account', a: 'deposit' },
+          { q: 'the extra money you pay for borrowing money', a: 'interest' },
+          { q: 'a regular payment for a service, like phone or internet', a: 'bill' },
+          { q: 'a card that takes money straight out of your account', a: 'debit card' },
+          { q: 'money you borrow and promise to pay back', a: 'loan' }
+        ];
+        var card = BC.pick(rng, pool);
+        var others = [];
+        pool.forEach(function (c) { if (c.a !== card.a) others.push(c.a); });
+        return choose(rng, 'Financial vocabulary: what do you call ' + card.q + '?', card.a, others, {
+          b: 0.2,
+          explain: ['The word for “' + card.q + '” is ' + card.a + '.', 'It is the everyday word for that money action.'],
           teach: 'Money talk uses a few key words — bank, deposit, loan, interest, bill, budget.'
         });
       },
       function () {
         if (!vocab) return null;
-        var card = BC.pick(rng, [
-          { q: 'a plan for how you will spend and save your money', a: ['budget', 'a budget', 'budgeting'] },
-          { q: 'money you earn or receive', a: ['income', 'income money', 'an income'] },
-          { q: 'money that goes out when you buy things', a: ['expense', 'an expense', 'expenses', 'spending'] },
-          { q: 'money you keep aside for later', a: ['savings', 'save', 'saving', 'savings money'] }
-        ]);
-        return I_STR('Financial vocabulary: what do you call ' + card.q + '?', card.a, {
-          answerText: card.a[0], b: 0.3,
-          explain: ['“' + card.q + '” names ' + card.a[0] + '.', 'Use it whenever you plan money.'],
+        var pool = [
+          { q: 'a plan for how you will spend and save your money', a: 'budget' },
+          { q: 'money you earn or receive', a: 'income' },
+          { q: 'money that goes out when you buy things', a: 'expense' },
+          { q: 'money you keep aside for later', a: 'savings' }
+        ];
+        var card = BC.pick(rng, pool);
+        var others = [];
+        pool.forEach(function (c) { if (c.a !== card.a) others.push(c.a); });
+        return choose(rng, 'Financial vocabulary: what do you call ' + card.q + '?', card.a, others, {
+          b: 0.3,
+          explain: ['“' + card.q + '” names ' + card.a + '.', 'Use it whenever you plan money.'],
           teach: 'Income in, expenses out, savings for later, budget for the plan.'
         });
       },
@@ -70949,7 +70960,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var t = (lvl - 3) * 0.35;
     var k = R.int(rng, 0, 7);
 
-    if (k === 0) {   /* put each value in the correct pile */
+    if (k === 0) {   /* pick the pile for one value — the learner selects, not types */
       var pool = [['−0.25', 'rational', 'a terminating decimal — it ends at the hundredths place, and −0.25 = −1/4.'],
         ['√5', 'irrational', '5 is not a perfect square, so √5 never ends or repeats.'],
         ['√16', 'rational', '√16 = 4 exactly, and 4 = 4/1.'],
@@ -70959,24 +70970,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         ['π/2', 'irrational', 'half of π never ends, so no fraction equals it.'],
         ['√81', 'rational', '√81 = 9 exactly.']]
       ;
-      var chosen = [];
-      while (chosen.length < 4) {
-        var c = R.pick(rng, pool);
-        if (chosen.indexOf(c) < 0) chosen.push(c);
-      }
-      var labels = [], specs = [], why = [];
-      for (var i = 0; i < 4; i++) {
-        labels.push(chosen[i][0]);
-        specs.push({ k: 'str', pats: [chosen[i][1]], show: chosen[i][1] });
-        why.push(chosen[i][0] + ' is ' + chosen[i][1] + ' because ' + chosen[i][2]);
-      }
-      return I_parts('Sort each value into the correct pile.', labels, specs, {
-        b: t,
-        hint: 'A value that ends exactly, or repeats a fixed block, is a fraction: rational.',
-        explain: [why[0] + ' ' + why[1], why[2] + '; ' + why[3] + '.',
-          'So each value is written into the <b>rational or irrational pile</b> above.'],
-        teach: 'Sorting hinges only on whether a decimal terminates or repeats a fixed pattern.'
-      });
+      var c = R.pick(rng, pool);
+      return MC(rng, 'Which pile does ' + c[0] + ' belong in?', c[1],
+        [c[1] === 'rational' ? 'irrational' : 'rational'], {
+          b: t,
+          hint: 'A value that ends exactly, or repeats a fixed block, is a fraction: rational.',
+          explain: [c[0] + ' is ' + c[1] + ' because ' + c[2] + '.',
+            'So it goes in the <b>' + c[1] + '</b> pile.'],
+          teach: 'Sorting hinges only on whether a decimal terminates or repeats a fixed pattern.'
+        });
     }
     if (k === 1) {   /* odd one out */
       var sq = R.pick(rng, [9, 16, 25, 36, 49]), ns = R.pick(rng, [3, 5, 7, 11]);
