@@ -384,7 +384,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-17 — 95 modules inlined:
+/* MathPath 2026-10-19 — 95 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -13257,6 +13257,23 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var showModel = p.model === 'squares' || (p.model === 'none' && lvl <= 2);
     var hard = lvl >= 4 ? 0.5 : lvl === 3 ? 0.1 : -0.4;
 
+    /* the family asks for the squares model on this row, so the picture IS the
+       given: draw the figure as unit squares, or print the four figures as the
+       table the card points at */
+    function plainCells(w2, h2) {
+      var cs = [], i2, j2, row;
+      for (i2 = 0; i2 < h2; i2++) { row = []; for (j2 = 0; j2 < w2; j2++) row.push('■'); cs.push(row); }
+      return cs;
+    }
+    function gridOf(w2, h2, label2) {
+      if (!showModel) return null;
+      return V.grid({ rows: h2, cols: w2, cells: plainCells(w2, h2), label: label2 || ('each cell is 1 ' + u.sq) });
+    }
+    function figTable(list) {
+      if (!showModel) return null;
+      return V.table(['rectangle', 'side lengths'], list.map(function (f2) { return [f2.l, f2.t]; }));
+    }
+
     switch (p.ask) {
 
       /* ------------------------------------------------ AREA of a rectangle */
@@ -13759,6 +13776,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             return I_choice('Which TWO of these rectangles have the same area?',
               sh2, sh2.indexOf(answer), {
               sub: 'Rectangles: ' + figs.map(function (f) { return f.l + ': ' + f.t; }).join(' · '),
+              visual: figTable(figs),
               b: 0.3 + hard * 0.4,
               explain: ['Multiply each pair of sides.',
                 'A is ' + base.w + ' × ' + base.h + ' = ' + base.area + ' and B is ' + same2[0] + ' × ' + same2[1] + ' = ' + base.area + '.',
@@ -13768,6 +13786,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           },
           function () {
             return I_bool('Do rectangle A (' + base.w + ' × ' + base.h + ') and rectangle B (' + same2[0] + ' × ' + same2[1] + ') have the same area?', true, {
+              visual: figTable(figs),
               b: 0.2 + hard * 0.4,
               explain: [base.w + ' × ' + base.h + ' = ' + base.area + '.',
                 same2[0] + ' × ' + same2[1] + ' = ' + base.area + '.',
@@ -13778,6 +13797,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           function () {
             return MC(rng, 'Which rectangle has the same area as A (' + base.w + ' × ' + base.h + ')?',
               same2[0] + ' × ' + same2[1], [d1[0] + ' × ' + d1[1], d2[0] + ' × ' + d2[1], base.w + ' × ' + (base.h + 1)], {
+              visual: gridOf(base.w, base.h, 'A: ' + base.w + ' × ' + base.h),
               b: 0.3 + hard * 0.4,
               explain: ['A covers ' + base.w + ' × ' + base.h + ' = ' + base.area + ' squares.',
                 same2[0] + ' × ' + same2[1] + ' = ' + base.area + ' too.',
@@ -13787,6 +13807,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           },
           function () {
             return I_num('A rectangle has the same area as ' + base.w + ' × ' + base.h + ' but is ' + same2[0] + ' ' + u.linP + ' wide. How long is it?', same2[1], {
+              visual: gridOf(base.w, base.h, 'A: ' + base.w + ' × ' + base.h),
               b: 0.6 + hard * 0.3,
               explain: ['The area to match is ' + base.area + '.',
                 base.area + ' ÷ ' + same2[0] + ' = ' + same2[1] + '.',
@@ -13798,6 +13819,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             return MC(rng, 'Which pair of rectangles both cover ' + base.area + ' ' + u.sqP + '?',
               'A and B', ['A and C', 'B and C', 'C and D'], {
               sub: 'Rectangles: ' + figs.map(function (f) { return f.l + ': ' + f.t; }).join(' · '),
+              visual: figTable(figs),
               b: 0.4 + hard * 0.4,
               explain: ['Multiply both sides of each rectangle.',
                 'A: ' + base.area + ', B: ' + base.area + '; C and D are different.',
@@ -13808,6 +13830,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           function () {
             return I_cmp('Which is greater, the area of A (' + base.w + ' × ' + base.h + ') or the area of C (' + d1[0] + ' × ' + d1[1] + ')?',
               base.area, d1[0] * d1[1], {
+              visual: gridOf(base.w, base.h, 'A: ' + base.w + ' × ' + base.h),
               b: 0.4 + hard * 0.4,
               explain: ['A: ' + base.w + ' × ' + base.h + ' = ' + base.area + '.',
                 'C: ' + d1[0] + ' × ' + d1[1] + ' = ' + (d1[0] * d1[1]) + '.',
@@ -13818,6 +13841,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           function () {
             return I_bool('Rectangle A (' + base.w + ' × ' + base.h + ') and rectangle C (' + d1[0] + ' × ' + d1[1] + ') have the same area.',
               base.area === d1[0] * d1[1], {
+              visual: gridOf(base.w, base.h, 'A: ' + base.w + ' × ' + base.h),
               b: 0.3 + hard * 0.4,
               explain: ['A: ' + base.w + ' × ' + base.h + ' = ' + base.area + '.',
                 'C: ' + d1[0] + ' × ' + d1[1] + ' = ' + (d1[0] * d1[1]) + '.',
@@ -15234,7 +15258,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   function model(rng, p, s, blank) {
     var ask = p.ask || 'forward';
     if (ask === 'chart') {
-      var cols = 10, rows = cap(Math.ceil((s.L + 1) / cols), 1, 10), lo = Math.max(0, Math.floor(s.near / cols) * cols - cols);
+      var cols = 10;
+      /* the window must contain the numbers the WORDS name (the start the card
+         gives and the blank the learner fills); an unrelated window is a picture
+         of a different problem, so when it cannot fit them the card draws none */
+      var anchor = Math.max(blank, (s && s.start != null) ? s.start : blank, (s && s.land != null) ? s.land : blank);
+      var rows = cap(Math.ceil((s.L + 1) / cols), 1, 10), lo = Math.max(0, Math.floor(anchor / cols) * cols - cols);
       var cells = [], hiRow = Math.min(rows, 4), r, c, v, row;
       for (r = 0; r < hiRow; r++) {
         row = [];
@@ -15244,6 +15273,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         }
         cells.push(row);
       }
+      var covers = function (n) { return n >= lo + 1 && n <= lo + hiRow * cols; };
+      if (!covers(blank)) return null;
+      if (s && s.start != null && !covers(s.start)) return null;
       return V.grid({ rows: hiRow, cols: cols, cells: cells, label: 'part of a hundred chart' });
     }
     if (ask === 'numberline' || ask === 'skip' || ask === 'forward' || ask === 'backward' || ask === 'both') {
@@ -30484,6 +30516,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     return out.join(' × ');
   }
   function isPrime(n) { return n > 1 && primeFactors(n).length === 1; }
+  function countIn(list, q) { var n = 0, i; for (i = 0; i < list.length; i++) if (list[i] === q) n++; return n; }
+  function productOf(list) { var out = 1, i; for (i = 0; i < list.length; i++) out *= list[i]; return out; }
 
   var FACTS_BANDS = ['G6', 'G7'];
 
@@ -30687,6 +30721,38 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           explain: ['' + a + ' × ' + b + ' = ' + a * b + '.', 'GCF × LCM = product, so LCM = ' + a * b + ' ÷ ' + g + ' = <b>' + l + '</b>.'],
           teach: 'For two numbers, GCF × LCM equals the product of the numbers.', b: 0.8
         });
+      },
+      /* ---- both numbers given prime by prime; build the product ---- */
+      function () {
+        var a = R.int(rng, 3, 9) * R.int(rng, 2, 3), b = R.int(rng, 3, 9) * R.int(rng, 2, 3);
+        if (a === b) return null;
+        var pa = primeFactors(a).sort(function (x, y) { return x - y; });
+        var pb = primeFactors(b).sort(function (x, y) { return x - y; });
+        if (pa.length < 2 || pb.length < 2) return null;
+        var shared = [], keep = pa.slice(0), i, j;
+        for (i = 0; i < pb.length; i++) { j = keep.indexOf(pb[i]); if (j >= 0) { shared.push(pb[i]); keep.splice(j, 1); } }
+        if (shared.length < 2) return null;   /* the card needs a real shared-prime list */
+        var top = [], primes = [], j2, k;
+        for (i = 0; i < pa.length; i++) if (primes.indexOf(pa[i]) < 0) primes.push(pa[i]);
+        for (i = 0; i < pb.length; i++) if (primes.indexOf(pb[i]) < 0) primes.push(pb[i]);
+        for (i = 0; i < primes.length; i++) {
+          j = countIn(pa, primes[i]); j2 = countIn(pb, primes[i]);
+          for (k = 0; k < (j > j2 ? j : j2); k++) top.push(primes[i]);
+        }
+        var g = gcd(a, b), l = lcm(a, b), ans = wantLCM ? l : g;
+        if (ans > 240 || ans === a || ans === b) return null;
+        if (wantLCM && productOf(top) !== ans) return null;
+        if (!wantLCM && productOf(shared) !== ans) return null;
+        var wrong = wantLCM
+          ? [g, a > b ? b : a, ans * 2]
+          : [l, productOf(top), shared.length > 1 ? shared[0] : ans * 3];
+        return choose(rng, 'Both numbers are written prime by prime: ' + a + ' = ' + pa.join(' × ') + ' and ' + b + ' = ' + pb.join(' × ') + '. Which number do you get by ' + (wantLCM ? 'taking each prime the most times either number shows it' : 'multiplying only the primes BOTH lists share') + '?', ans, wrong, {
+          steps: [wantLCM
+            ? 'Take each prime the most times either number shows it: ' + top.join(' × ') + '.'
+            : 'Only the primes BOTH lists share, one copy each: ' + shared.join(' × ') + '.',
+            'Multiply them out: <b>' + ans + '</b>, which is ' + (wantLCM ? 'the least common multiple' : 'the greatest common factor') + ' of ' + a + ' and ' + b + '.'],
+          teach: wantLCM ? 'The LCM takes each prime the most times it appears in either number.' : 'The GCF is the product of the primes both numbers share.',
+          b: wantLCM ? 0.4 : 0.3 });
       },
       /* ---- judge: is this the GCF/LCM ---- */
       function () {
@@ -31269,27 +31335,26 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var sample = R.int(rng, 4, 10) * 10, hit = R.int(rng, 2, 9) * 5;
         var town = R.int(rng, 4, 20) * 100;
         var est = Math.round(town * hit / sample);
-        var mode = R.int(rng, 1, 3);
-        if (mode === 1) {
+        var shape = R.int(rng, 0, 5);   /* six equal-weight shapes, reachable at every level */
+        if (shape === 0) {
           return ask('A survey of ' + sample + ' residents found ' + hit + ' walk to school. Estimate how many of ' + town + ' townspeople walk.', est, {
             explain: ['Sample rate: ' + hit + ' ÷ ' + sample + ' = ' + (hit / sample).toFixed(2) + '.',
               town + ' × ' + (hit / sample).toFixed(2) + ' ≈ <b>' + est + '</b> people.'],
             teach: 'A representative sample’s rate applies to the whole population.', b: 0.5 });
         }
-        if (mode === 2) {
+        if (shape === 1) {
           return UP.judge('A survey found ' + hit + ' of ' + sample + ' students carry a backpack. It is reasonable to estimate that about ' + est + ' of ' + town + ' students carry one.', true, {
             steps: ['Rate ' + hit + '/' + sample + ' = ' + (hit / sample).toFixed(2) + '.',
               town + ' × ' + (hit / sample).toFixed(2) + ' ≈ ' + est + ', so the estimate follows from the sample.'],
             teach: 'Scaling the sample rate gives a reasonable population estimate.', b: 0.6 });
         }
-        if (R.chance(rng, 0.3)) {
+        if (shape === 2) {
           return UP.judge('Surveying only the basketball team is a fair way to estimate how many students in the whole school own a bike.', false, {
             steps: ['A good estimate needs a sample like the whole school.',
               'Basketball players are not a fair picture of all students, so the estimate would be biased.'],
             teach: 'Only a representative sample supports a population estimate.', b: 0.5 });
         }
-        var mode2 = R.int(rng, 4, 6);
-        if (mode2 === 4) {
+        if (shape === 3) {
           return choose(rng, 'Which proportion can estimate the town from a ' + hit + ' of ' + sample + ' sample?',
             'x / ' + town + ' = ' + hit + ' / ' + sample,
             ['x / ' + hit + ' = ' + town + ' / ' + sample, 'x · ' + hit + ' = ' + sample + ' · ' + town, 'x + ' + town + ' = ' + hit + ' · ' + sample], {
@@ -31297,7 +31362,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
               'sample/sample-size = town/x: <b>x/' + town + ' = ' + hit + '/' + sample + '</b>.'],
             teach: 'A population estimate is one proportion with the unknown whole.' });
         }
-        if (mode2 === 5) {
+        if (shape === 4) {
           var small = R.int(rng, 2, 9) * 10;
           var rateHit = R.int(rng, 1, 8) * 2;
           var estSmall = Math.round(small * hit / sample);
@@ -31305,16 +31370,6 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             explain: ['Rate ' + hit + ' ÷ ' + sample + ' = ' + (hit / sample).toFixed(2) + '.',
               small + ' × ' + (hit / sample).toFixed(2) + ' ≈ <b>' + estSmall + '</b>.'],
             teach: 'The same rate works for any group size.', b: 0.3 });
-        }
-        if (story && R.chance(rng, 0.4)) {
-          var c1 = R.int(rng, 2, 5), c2 = R.int(rng, 2, 5);
-          var need = c2 * R.int(rng, 2, 6);
-          var ans = c1 * need / c2;
-          if (ans !== Math.round(ans)) return null;
-          return choose(rng, 'A drink mixes ' + c1 + ' parts syrup with ' + c2 + ' parts water. How many parts of syrup for ' + need + ' parts of water?',
-            String(Math.round(ans)), [String(Math.round(ans) + c1), String(Math.round(ans) + c2), String(Math.round(ans) * 2)], {
-            steps: ['Cross-multiply: syrup = ' + c1 + ' × ' + need + ' ÷ ' + c2 + '.', 'That is <b>' + Math.round(ans) + '</b> parts.'],
-            teach: 'Mixing ratios scale by the same factor.' });
         }
         var wrong = [est + town / 10, Math.round(est * 1.5), Math.round(est / 2)];
         return choose(rng, 'A sample of ' + sample + ' showed ' + hit + ' with the trait. Which is the best estimate for ' + town + ' people?',
@@ -34987,7 +35042,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
        the no_simplify standard's answer stays over the common denominator —
        renaming it into lowest terms answers a different standard. */
     var noSimplify = /no_simplify|no simplify/i.test(String(sk.id || '') + ' ' + t);
-    var models = p.model === 'models' || p.model === 'pictures';
+    /* the model may be asked by the family params OR by the title itself —
+       a title that says "using models" is the standard, so it draws the bars */
+    var models = p.model === 'models' || p.model === 'pictures' || /using models/.test(t);
     function modelOf(q, overL) {
       if (!models) return undefined;
       var L2 = lcm(q.a.d, q.b.d);
@@ -43702,6 +43759,19 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       visual: V.grid({ rows: H, cols: W, cells: cells }) };
   }
 
+  /* the picture for "area between two rectangles": the smaller rectangle drawn
+     INSIDE the larger one, so the learner can see both and take the difference.
+     Cells carry no numbers — the dimensions are the words' job. */
+  function gridOfTwo(big, small, u) {
+    var cells = [], r, c, row;
+    for (r = 0; r < big.h; r++) {
+      row = [];
+      for (c = 0; c < big.w; c++) row.push((r < small.h && c < small.w) ? '▨' : '□');
+      cells.push(row);
+    }
+    return V.grid({ rows: big.h, cols: big.w, cells: cells, label: 'the shaded block is the smaller rectangle' });
+  }
+
   /* ================================================================ */
   /* 1 · AREA OF RECTANGLES                                          */
   /* ================================================================ */
@@ -43809,7 +43879,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             'Small rectangle: ' + small.w + ' × ' + small.h + ' = ' + small.area + '.',
             'Between them: ' + big.area + ' − ' + small.area + ' = ' + diff + '.'],
           wrongs: UP.slips(diff, [big.area, small.area, diff + big.w]),
-          visual: V.grid({rows:1,cols:big.w,cells:[Array(big.w).fill('●')],label:'the larger rectangle'}),
+          visual: gridOfTwo(big, small, u),
           teach: 'The area between two figures is the difference of their areas.',
           qs: ['A ' + small.w + ' ' + u + ' by ' + small.h + ' ' + u + ' rectangle sits inside a ' + big.w + ' ' + u + ' by ' + big.h + ' ' + u + ' rectangle. What is the area between them?'],
           mcQ: 'What is the area between the rectangles?',
@@ -47722,6 +47792,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   function dval(d) { return d.n / dpow(d.p); }
   function deq(a, b) { return a.n * dpow(b.p) === b.n * dpow(a.p); }
   function dstr2(n, p) { return dstr(D(n, p)); }
+  /* the fixed-place form, KEEPING the trailing zero — used only where the card's
+     whole point is the extra zeros, so 0.70 must not collapse into 0.7 */
+  function dshow(d) {
+    var v = d.n, p = d.p, neg = v < 0; if (neg) v = -v;
+    return (neg ? '-' : '') + (v / dpow(p)).toFixed(p);
+  }
   function dslips(d, extra) {                 /* nearby wrong placements */
     var out = [], seen = {}, i;
     var base = dstr(d);
@@ -47766,6 +47842,25 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var cells = [], r, c, idx = 0, row;
     for (r = 0; r < 10; r++) { row = []; for (c = 0; c < 10; c++) row.push(idx++ < n ? '●' : ''); cells.push(row); }
     return V.grid({ rows: 10, cols: 10, cells: cells, label: 'the whole square is 1' });
+  }
+  /* the picture for a rounding card: the number sits BETWEEN the two answers it
+     could round to, so the learner sees which tick it is closer to. Only the
+     given is written; the learner names the rounding. */
+  function numberLineFor(d, ans) {
+    var v = dval(d), a = dval(ans);
+    var lo = Math.min(v, a), hi = Math.max(v, a);
+    if (hi - lo < 0.05) return null;
+    var marks = [{ x: v, label: dstr(d) }];
+    return V.numline(lo, hi, marks, { label: 'the number sits between the two ticks' });
+  }
+  /* the picture for an equivalence card: the two amounts drawn to scale, each
+     labelled with the exact string the card prints, so the learner can see the
+     two things being compared */
+  function twoAmountBars(aStr, bStr) {
+    var pv = function (s) { return Number(String(s).replace('.', '')) / dpow((String(s).split('.')[1] || '').length); };
+    var a = pv(aStr), b = pv(bStr);
+    if (!(a > 0) || !(b > 0)) return null;
+    return V.bar([{ v: a, label: aStr }, { v: b, label: bStr }], { label: 'the two amounts, drawn to scale' });
   }
   function tenthsBars(n) {                    /* n tenths as shaded strips */
     var parts = [], i;
@@ -47889,12 +47984,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var units = Math.round((c / scale) * 1) ;
         var ans = units * scale;
         if (ans / dpow(2) >= 10000) return null;
-        var wrongs = dslips(D(ans, to), [D(c + scale, 2), D(Math.floor(c / scale) * scale, to)]);
+        var wrongs = dslips(D(ans, 2), [D(c + scale, 2), D(Math.floor(c / scale) * scale, 2)]);
         if (wrongs.length < 2) return null;
         return choose(rng, lead(rng, ['Round ' + dstr(d) + ' to ' + (to === 0 ? 'the nearest whole number' : to === 1 ? 'the nearest tenth' : 'the nearest hundredth') + '.',
           (to === 0 ? 'What is ' + dstr(d) + ' rounded to the ones place?' : 'Write ' + dstr(d) + ' rounded to ' + (to === 1 ? 'tenths' : 'hundredths')) + '.']),
-          dstr(D(ans, to)), wrongs, {
-          visual: hundredthsGrid(c % 100 === 0 ? 100 : (c % 100)),
+          dstr(D(ans, 2)), wrongs, {
+          visual: numberLineFor(d, D(ans, 2)),
           steps: ['The digit in the ' + (to === 0 ? 'tenths' : to === 1 ? 'hundredths' : 'thousandths') + ' place decides.',
             dstr(d) + ' rounded to ' + (to === 0 ? 'ones' : to === 1 ? 'tenths' : 'hundredths') + ' is ' + dstr(D(ans, to)) + '.'],
           teach: 'Rounding looks at the next digit right of the place: 4 or less stays, 5 or more goes up one.',
@@ -47904,13 +47999,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {                       /* equivalent decimal */
         var n = BC.int(rng, 1, 9), p = 1;
         var extra = BC.pick(rng, [1, 2]);
-        var ans = dstr(D(n * dpow(extra), p + extra));
-        var wrongs = [dstr(D(n, p)), dstr(D(n * dpow(extra) + dpow(p), p + extra)), dstr(D(n * 10, p))];
-        return choose(rng, lead(rng, ['Which decimal is equivalent to ' + dstr(D(n, p)) + '?',
-          'Which number names the same amount as ' + dstr(D(n, p)) + '?']),
-          ans, wrongs.filter(function (s, i, a) { return s !== ans && s !== dstr(D(n, p)) && a.indexOf(s) === i; }), {
-          visual: tenthsBars(n * dpow(extra) / dpow(extra)),
-          steps: [dstr(D(n, p)) + ' is ' + n + ' tenth' + (n > 1 ? 's' : '') + '.',
+        var ans = dshow(D(n * dpow(extra), p + extra));
+        var wrongs = [dshow(D(n, p)), dshow(D(n * dpow(extra) + dpow(p), p + extra)), dshow(D(n * 10, p))];
+        return choose(rng, lead(rng, ['Which decimal is equivalent to ' + dshow(D(n, p)) + '?',
+          'Which number names the same amount as ' + dshow(D(n, p)) + '?']),
+          ans, wrongs.filter(function (s, i, a) { return s !== ans && s !== dshow(D(n, p)) && a.indexOf(s) === i; }), {
+          visual: twoAmountBars(dshow(D(n, p)), ans),
+          steps: [dshow(D(n, p)) + ' is ' + n + ' tenth' + (n > 1 ? 's' : '') + '.',
             'Writing it in ' + (p + extra) + ' places: ' + n + ' × ' + dpow(extra) + ' = ' + (n * dpow(extra)) + ' thousandths… → ' + ans + '.',
             'Same amount, more digits: <b>' + ans + '</b>.'],
           teach: 'Adding zeros to the END of a decimal keeps the value; changing a digit does not.',
@@ -47919,13 +48014,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       function () {                       /* which is NOT equivalent */
         var n = BC.int(rng, 2, 9);
-        var keep = dstr(D(n, 1));
-        var wrong = dstr(D(n * 10 + n, 2));           /* looks similar, differs */
-        var others = [dstr(D(n * 10, 2)), dstr(D(n * 100, 3))];
+        var keep = dshow(D(n, 1));
+        var wrong = dshow(D(n * 10 + n, 2));           /* looks similar, differs */
+        var others = [dshow(D(n * 10, 2)), dshow(D(n * 100, 3))];
         return choose(rng, lead(rng, ['Which decimal does NOT equal ' + keep + '?', 'One of these is different. Which one?']),
-          wrong, others.concat([dstr(D(n * 5, 2))]).filter(function (s, i, a) { return s !== wrong && a.indexOf(s) === i; }), {
-          steps: [keep + ' = ' + dstr(D(n * 10, 2)) + ' = ' + dstr(D(n * 100, 3)) + '.',
-            wrong + ' is ' + dstr(D(n * 10 + n - n, 2)) + ' of a tenth — a different amount.'],
+          wrong, others.concat([dshow(D(n * 5, 2))]).filter(function (s, i, a) { return s !== wrong && a.indexOf(s) === i; }), {
+          visual: twoAmountBars(keep, wrong),
+          steps: [keep + ' = ' + dshow(D(n * 10, 2)) + ' = ' + dshow(D(n * 100, 3)) + '.',
+            wrong + ' is ' + dshow(D(n * 10, 2)) + ' plus ' + dshow(D(n, 2)) + ' more — a different amount.'],
           teach: 'Equivalent decimals name the same point on the number line.',
           b: 0.5
         });
@@ -47933,9 +48029,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {                       /* judge equivalence */
         var n = BC.int(rng, 2, 9), add = BC.pick(rng, [1, 2]);
         var truth = R.chance(rng, 0.6);
-        var left = dstr(D(n, 1)), right = truth ? dstr(D(n * dpow(add), 1 + add)) : dstr(D(n * dpow(add) + dpow(add), 1 + add));
+        var left = dshow(D(n, 1)), right = truth ? dshow(D(n * dpow(add), 1 + add)) : dshow(D(n * dpow(add) + dpow(add), 1 + add));
         return UP.judge(lead(rng, ['Does ' + left + ' = ' + right + '?', 'Are ' + left + ' and ' + right + ' the same amount?']), truth, {
-          visual: tenthsBars(n),
+          visual: twoAmountBars(left, right),
           steps: [left + ' is ' + n + ' tenths.', right + ' is ' + Number(String(right).replace('.', '')) + ' of its units.',
             'So the statement is <b>' + (truth ? 'true' : 'false') + '</b>.'],
           teach: 'Trailing zeros are harmless; a changed digit is not.',
@@ -53853,7 +53949,37 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
 
   /* a fraction bar model: n/d shaded of one whole, never labelled with the value */
   function barFrac(n, d) { return V.frac([{ n: n, d: d }]); }
-  function areaFrac(n1, d1, n2, d2) { return V.area(d1, d2, { label: '' }); }
+  function areaFrac(n1, d1, n2, d2) {
+    if (!(d1 > 0) || !(d2 > 0) || n1 == null || n2 == null) return null;
+    /* the grid IS the area model: d1 rows by d2 columns, and the product's own
+       cells — n1 of those rows crossed with n2 of those columns — carry the
+       shading, so the picture shows what the multiplication claims */
+    var cells = [], r, c, row;
+    for (r = 0; r < d1; r++) {
+      row = [];
+      for (c = 0; c < d2; c++) row.push((r < n1 && c < n2) ? '■' : '·');
+      cells.push(row);
+    }
+    return V.grid({ rows: d1, cols: d2, cells: cells, label: 'each row is 1/' + d1 + ', each column is 1/' + d2 });
+  }
+  /* the grid of a unit × unit product: d1 columns × d2 rows, the single cell
+     that IS the product shaded, nothing written on the card */
+  function areaUnit(d1, d2) {
+    if (!(d1 > 0) || !(d2 > 0)) return null;
+    var cells = [], r, c, row;
+    for (r = 0; r < d2; r++) {
+      row = [];
+      for (c = 0; c < d1; c++) row.push((r === 0 && c === 0) ? '■' : '·');
+      cells.push(row);
+    }
+    return V.grid({ rows: d2, cols: d1, cells: cells, label: 'the shaded cell is the product' });
+  }
+  /* the tape for a whole × fraction: the whole drawn full, the fraction drawn
+     to scale under it, the product left for the learner to work out */
+  function tapeFrac(whole, n, d) {
+    return V.bar([{ v: whole, label: String(whole) }, { v: n / d, label: n + '/' + d }],
+      { label: 'the two factors to scale — their product is the rectangle' });
+  }
 
   /* ======================================================================= */
   /* ======  O  FRACTION DIVISION  ========================================== */
@@ -54505,7 +54631,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var n2 = BC.int(rng, 1, 5), d2 = BC.pick(rng, [3, 4, 5, 6]);
         var mm = BC.fracMul(n1, d1, n2, d2);
         return frac('Scale ' + n1 + '/' + d1 + ' by ' + n2 + '/' + d2 + '.', mm.r.n, mm.r.d, {
-          simplest: simplestIfProper(mm.r), visual: areaFrac(d1, d2),
+          simplest: simplestIfProper(mm.r), visual: areaUnit(d1, d2),
           explain: ['Multiply across: ' + (n1 * n2) + '/' + (d1 * d2) + '.',
             'In lowest terms: <b>' + txt(mm.r) + '</b>.'],
           teach: 'Scaling a fraction by a fraction is the same multiplication.', b: 0.5
@@ -54687,7 +54813,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var m = mixed(), k = BC.int(rng, 2, hard ? 6 : 4);
         var pr = BC.fracMul(m.n, m.d, k, 1);
         return frac(k + ' × ' + mixedStr(m.n, m.d) + ' — what is the product?', pr.r.n, pr.r.d, {
-          visual: models ? V.area(m.w + 1, k, { label: '' }) : undefined,
+          visual: models ? tapeFrac(k, m.n, m.d) : undefined,
           explain: ['Rewrite ' + mixedStr(m.n, m.d) + ' as ' + m.n + '/' + m.d + '.',
             'Multiply: ' + (m.n * k) + '/' + m.d + ' = <b>' + mixedStr(pr.r.n, pr.r.d) + '</b>.'],
           teach: 'Mixed numbers multiply after being rewritten as improper fractions.', b: 0
@@ -54706,7 +54832,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var a = mixed(), b = mixed();
         var pr = BC.fracMul(a.n, a.d, b.n, b.d);
         return frac(mixedStr(a.n, a.d) + ' × ' + mixedStr(b.n, b.d) + ' =', pr.r.n, pr.r.d, {
-          visual: area ? V.area(a.w + 1, b.w + 1, { label: '' }) : undefined,
+          visual: area ? V.area(a.n, b.n, { label: '', noTotal: true }) : undefined,
           explain: ['Improper forms: ' + a.n + '/' + a.d + ' and ' + b.n + '/' + b.d + '.',
             'Product ' + (a.n * b.n) + '/' + (a.d * b.d) + ' = <b>' + mixedStr(pr.r.n, pr.r.d) + '</b>.'],
           teach: 'Two mixed numbers multiply by turning both into improper fractions.', b: 0.5
@@ -59731,6 +59857,17 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
               steps: ['Test each value.', 'Only one fails the equation.'],
               teach: 'Every solution must satisfy the equation exactly.', b: 0.9
             });
+        },
+        function () {
+          /* evaluate the left side at the value the card gives */
+          var e = mulEq(rng, hard, hard);
+          if (e.x < 0 || e.a < 0) return null;
+          var want = e.a * e.x;
+          if (want < 2 || want === e.a || want === e.x) return null;
+          return ask('The equation is ' + e.a + ' × x = ? and the card says x = ' + e.x + '. What number belongs in the ?.', want, {
+            explain: ['Put ' + e.x + ' where x is: ' + e.a + ' × ' + e.x + ' = <b>' + want + '</b>.',
+              'So ' + e.a + ' × ' + e.x + ' = ' + want + ' makes both sides of ' + e.a + ' × x = ' + want + ' match.'],
+            teach: 'Substituting means doing the arithmetic the equation shows, then comparing both sides.', b: 0.4 });
         }
       ]);
     }
@@ -68524,7 +68661,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   'use strict';
   var GLOB = (typeof window !== 'undefined') ? window : globalThis;
   var SK = GLOB.SKILLS || [], GEN = GLOB.SKILL_GEN || {};
-  var G = GLOB.G, I_choice = GLOB.I_choice;
+  var G = GLOB.G, I_choice = GLOB.I_choice, V = GLOB.V;
   if (!G || !I_choice) return;
 
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
@@ -68565,7 +68702,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       'Find the result in this ' + sk.name + ' situation. '
     ]);
   }
-  function card(rng, sk, question, answer, wrongs, method, concept, b) {
+  function card(rng, sk, question, answer, wrongs, method, concept, b, visual) {
     if (GLOB.DP && GLOB.DP.mergeMis) wrongs = GLOB.DP.mergeMis(sk, answer, wrongs);
     var prefix = lead(rng, sk), opts = options(rng, answer, wrongs), shown = String(answer);
     /* The completion bank used to rotate only `prefix`, leaving one immutable
@@ -68587,6 +68724,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var form = (GLOB.TM ? GLOB.TM.hashPick(sk, [0, 1, 2, 3, 4, 5, 6]) : pick(rng, [0, 1, 2, 3, 4, 5, 6]));
     form = forms[form];
     return I_choice(prefix + form, opts, opts.indexOf(shown), {
+      visual: visual || null,
       explain: [
         concept || ('Identify the rule that applies to this ' + sk.name + ' example.'),
         method,
@@ -69282,10 +69420,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (/mixed|models/.test(title)) {
       var mN = int(rng, 2, 6), mD = int(rng, 2, 5), mS = int(rng, 2, 4);
       var mAns = redFrac(mN * mD * mS, 1);
+      /* the title names the model, so the tape IS the given: the whole and the divisor */
+      var mVis = V && /models/.test(title) ? V.bar([
+        { v: mN, label: String(mN) },
+        { v: mS / mD, label: mS + '/' + mD }
+      ], { label: 'how many of the second fit into the first?' }) : null;
       return card(rng, sk, 'What is ' + mN + ' ÷ ' + mS + '/' + mD + '?', String(mN * mD / mS % 1 === 0 ? mN * mD / mS : redFrac(mN * mD, mS)),
         [String(mN * mS / mD), redFrac(mN * mS, mD), String(mN * mD * mS)],
         'Rewrite as ' + mN + ' × ' + mD + '/' + mS + ' = ' + redFrac(mN * mD, mS) + '.',
-        'Dividing by a fraction is multiplying by its reciprocal.', bFor(lvl));
+        'Dividing by a fraction is multiplying by its reciprocal.', bFor(lvl), mVis);
     }
     if (/word problems/.test(title)) {
       var wB = int(rng, 2, 6), wC = int(rng, 2, 5);
@@ -74330,9 +74473,22 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var big = W * H, area = big - s * s, P = 2 * (W + H);
     var w = R.pick(rng, WHO);
     var k = R.int(rng, 0, 6);
+    var showGrid = R.chance(rng, 0.6);   /* the standard is area/perimeter OF A DRAWN figure */
+    function gridOf(wc, hc, cut, label) {
+      var cells = [], r2, c2, row;
+      for (r2 = 0; r2 < hc; r2++) {
+        row = [];
+        for (c2 = 0; c2 < wc; c2++) {
+          row.push((r2 < cut && c2 >= wc - cut) ? '' : '■');
+        }
+        cells.push(row);
+      }
+      return V.grid({ rows: hc, cols: wc, cells: cells, label: label });
+    }
 
     if (k === 0) {   /* area by big − notch */
       return I_num('A garden measures ' + W + ' m by ' + H + ' m with a ' + s + ' m by ' + s + ' m patio cut out of one corner. How many square meters are left for grass?', area, {
+        visual: showGrid ? gridOf(W, H, s, 'each cell is 1 square metre; the empty corner is the patio') : null,
         b: t,
         explain: ['Area the whole rectangle first: ' + W + ' × ' + H + ' = ' + big + '.',
           'The patio covers ' + s + ' × ' + s + ' = ' + (s * s) + '.', 'Grass: ' + big + ' − ' + (s * s) + ' = ' + area + ' square meters.',
@@ -74351,6 +74507,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       return MC(rng, 'An L-shaped rug is sewn from a ' + W + ' m by ' + s + ' m strip and a ' + s + ' m by ' + s + ' m square patch. How much area does the rug cover?',
         (W * s + s * s) + ' square meters',
         [(W * s - s * s) + ' square meters', (W + s) + ' meters', (W * s + s * s + s) + ' square meters'], { b: t + 0.2,
+          visual: showGrid ? gridOf(W, s, 0, 'the strip: ' + W + ' cells by ' + s + ' rows, each cell 1 square metre') : null,
           explain: ['Split the L into two rectangles.', W + ' × ' + s + ' = ' + (W * s) + ' and ' + s + ' × ' + s + ' = ' + (s * s) + '.',
             'Cover total: ' + (W * s) + ' + ' + (s * s) + ' = ' + (W * s + s * s) + ' square meters.',
             'So the answer is <b>' + (W * s + s * s) + ' square meters</b>.'],
