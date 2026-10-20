@@ -18787,6 +18787,96 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var kind = p.kind || 'leftMiddleRight', P = POS[kind] || POS.leftMiddleRight;
     var items = R.sample(rng, SHAPE.concat(COLOR), 3), w = pick(rng, WHO), ct = pick(rng, CTX);
     var lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
+    /* A GRID is named by a row and a column. The toy templates below answer with
+       left / middle / right words and read a single row across, so they cannot
+       describe a grid, and a grid drawn beside their wording would read the
+       wrong way round. The grid kind gets its own cards: the same picture,
+       asked from either coordinate, plus the card that names the whole cell.
+       The grid grows with the level — 3×3 early, 3×4 at level 3, 4×5 for the
+       level 4-5 stretch — so a level is a different picture, not just a
+       different star. */
+    if (kind === 'grid') {
+      var rows = lvl <= 2 ? 3 : lvl === 3 ? 3 : 4;
+      var cols = lvl <= 2 ? 3 : lvl === 3 ? 4 : 5;
+      var tr = R.int(rng, 0, rows - 1), tc = R.int(rng, 0, cols - 1);
+      var rNames = [], cNames = [], cells = [], r0, c0, i0;
+      for (r0 = 0; r0 < rows; r0++) {
+        rNames.push('row ' + (r0 + 1));
+        var line = [];
+        for (c0 = 0; c0 < cols; c0++) line.push(r0 === tr && c0 === tc ? '⭐' : '⬜');
+        cells.push(line);
+      }
+      for (i0 = 1; i0 <= cols; i0++) cNames.push('column ' + i0);
+      var cellAt = function (r, c) { return 'row ' + (r + 1) + ', column ' + (c + 1); };
+      var gridPicture = function (o) {
+        var opts = { rows: rows, cols: cols, cells: cells, label: 'a grid with one star' };
+        if (o.rowLabels) opts.rowLabels = o.rowLabels;
+        if (o.colLabels) opts.colLabels = o.colLabels;
+        return V.grid(opts);
+      };
+      var otherCells = [];
+      for (r0 = 0; r0 < rows; r0++) { for (c0 = 0; c0 < cols; c0++) { if (r0 !== tr || c0 !== tc) otherCells.push(cellAt(r0, c0)); } }
+      var gteach = 'A grid position needs two numbers: the row and the column.';
+      var gCol = function () {
+        return I_num('The star is in ' + rNames[tr] + '. Which column is it in? Number the columns from the left.', tc + 1, {
+          visual: gridPicture({ rowLabels: rNames }), b: lo,
+          explain: ['Find ' + rNames[tr] + ' and follow it across to the star.',
+            'Count the columns from the left: the star is in ' + cNames[tc] + '.',
+            'So the answer is <b>' + (tc + 1) + '</b>.'],
+          teach: gteach
+        });
+      };
+      var gRow = function () {
+        return I_num('The star is in ' + cNames[tc] + '. Which row is it in? Number the rows from the top.', tr + 1, {
+          visual: gridPicture({ colLabels: cNames }), b: lo + 0.1,
+          explain: ['Find ' + cNames[tc] + ' and follow it down to the star.',
+            'Count the rows from the top: the star is in ' + rNames[tr] + '.',
+            'So the answer is <b>' + (tr + 1) + '</b>.'],
+          teach: gteach
+        });
+      };
+      var gCell = function () {
+        return MC(rng, 'Which cell holds the star?', cellAt(tr, tc), R.shuffle(rng, otherCells), {
+          visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo + 0.2,
+          explain: ['Say the row the star is in: ' + rNames[tr] + '.',
+            'Then say the column it is in: ' + cNames[tc] + '.',
+            'So the answer is <b>' + cellAt(tr, tc) + '</b>.'],
+          teach: 'Name a grid cell by both numbers: the row first, then the column.'
+        });
+      };
+      var gClaim = function () {
+        var claim = R.chance(rng, 0.5) ? cellAt(tr, tc) : pick(rng, otherCells);
+        var truth = claim === cellAt(tr, tc);
+        return I_bool(ct + ', is the star in ' + claim + '?', truth, {
+          visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo,
+          explain: ['Find the star first: it sits in ' + rNames[tr] + ' and ' + cNames[tc] + '.',
+            'That is ' + (truth ? 'the cell the sentence names' : claim + ', and the star is not there') + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          teach: gteach
+        });
+      };
+      var gBoth = function () {
+        return I_parts('Look at the grid and fill in both numbers for the star.', ['column', 'row'],
+          [{ k: 'n', v: tc + 1 }, { k: 'n', v: tr + 1 }], {
+          visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo + 0.2,
+          explain: ['Count the columns from the left: the star is in column ' + (tc + 1) + '.',
+            'Count the rows from the top: it is in row ' + (tr + 1) + '.',
+            'So fill in <b>column ' + (tc + 1) + '</b> and <b>row ' + (tr + 1) + '</b>.'],
+          teach: gteach
+        });
+      };
+      var gPair = function () {
+        return I_point('Give the position of the star as (column, row).', [tc + 1, tr + 1], {
+          visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo + 0.3,
+          explain: ['The first number counts the columns from the left: ' + (tc + 1) + '.',
+            'The second counts the rows from the top: ' + (tr + 1) + '.',
+            'So the answer is <b>(' + (tc + 1) + ', ' + (tr + 1) + ')</b>.'],
+          teach: 'A grid position needs two numbers: the row and the column.'
+        });
+      };
+      return build(rng, [gCol, gRow, gCell, gClaim, gBoth, gPair],
+        lvl <= 2 ? [3, 3, 2, 2, 1, 1] : lvl === 3 ? [3, 3, 2, 2, 2, 1] : [2, 2, 3, 2, 3, 3]);
+    }
     /* inside/outside cards draw the position first, then answer from the
        picture they drew: one framed cell = the box all the way around the toy,
        two cells = the box beside the toy. */
