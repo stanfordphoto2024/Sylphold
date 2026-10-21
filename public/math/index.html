@@ -87918,8 +87918,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         h('h2', { text: 'Settings' }),
         h('div', { class: 'stack', style: { marginTop: '10px' } }, [
           toggle('Auto-advance after each item', 'autoNext'),
-          toggle('Read questions and solutions aloud', 'speech'),
-          h('div', { class: 'muted', style: { marginTop: '8px' }, text: voiceStatus() })
+          toggle('Read questions and solutions aloud', 'speech')
+          /* Nothing is said about the voice itself: which one is reading, and how
+             far the download has got, is a thing the tools ask about
+             (MathPathUI.voiceStatus), not something a learner is shown. */
         ]),
         h('hr', { class: 'sep' }),
         h('div', { class: 'row' }, [
