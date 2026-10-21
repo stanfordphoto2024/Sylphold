@@ -245,10 +245,15 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 /* ------------------------------------------------------- visual models ---- */
 .viz { color: var(--ink); font-size: 14px; }
 .viz .cap { text-align: center; color: var(--ink-3); font-size: 12px; margin-top: 6px; }
-.tf { display: inline-flex; gap: 10px; }
+.tf { display: inline-flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 100%; }
 .tf .frame { display: grid; grid-template-columns: repeat(5, 26px); grid-auto-rows: 26px; gap: 3px; padding: 4px; border: 2px solid var(--ink-3); border-radius: 7px; }
 .tf .cell { border-radius: 4px; background: color-mix(in srgb, var(--ink-3) 12%, transparent); }
 .tf .cell.on { background: var(--accent); }
+/* many frames (count-to-100 cards) shrink so every picture stays on screen */
+.tf.dense .frame { grid-template-columns: repeat(5, 18px); grid-auto-rows: 18px; gap: 2px; padding: 3px; }
+.tf.dense .obj { width: 15px; height: 15px; }
+.tf.dense .obj.em { font-size: 14px; }
+.tf.dense .obj .obj-dot { width: 11px; height: 11px; }
 .dots { display: grid; gap: 5px; }
 .dots .d { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); }
 .dots .d.hollow { background: transparent; border: 1.5px solid var(--ink-3); }
@@ -264,6 +269,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .obj .obj-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); display: inline-block; }
 .obj .obj-dot.hollow { background: transparent; border: 2px solid var(--ink-3); }
 .ringbox { position: relative; width: 190px; height: 190px; margin: 4px auto; border-radius: 50%; border: 1.5px dashed color-mix(in srgb, var(--ink-3) 55%, transparent); }
+/* inside/outside position cards need a real box: thick walls with a heavier
+   lip, so a toy framed inside it and a toy standing beside an empty one are
+   unmistakable before a pre-K learner reads a single word. */
+.boxdraw { width: 62px; height: 46px; border: 3px solid var(--ink-3); border-top-width: 6px; border-radius: 4px 4px 8px 8px; background: color-mix(in srgb, var(--accent) 9%, transparent); display: grid; place-items: center; }
 .vtable.objgrid td { padding: 4px 6px; }
 .vtable.objgrid td:empty { background: color-mix(in srgb, var(--ink-3) 7%, transparent); }
 /* tally marks: upright strokes with the fifth laid across them */
@@ -384,7 +393,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-20 — 95 modules inlined:
+/* MathPath 2026-10-21 — 95 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -18773,10 +18782,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   /* ================================ position ============================== */
   var POS = {
     frontBehind: { words: ['in front of', 'behind'], scene: function (a, b) { return [a.g, b.g]; }, label: 'two toys in a line, facing left' },
-    /* The renderer cannot draw an object inside a cell, so the single framed
-       cell IS the box around the toy and the two-cell layout shows the toy
-       outside the box. The card draws the picture first and answers from it:
-       every claim the family makes is the picture's own truth. */
+    /* The box is drawn, not implied: the single-cell scene tells the renderer
+       to frame the toy inside a real box, the two-cell scene draws an empty
+       box beside the loose toy. The card draws the picture first and answers
+       from it: every claim the family makes is the picture's own truth. */
     insideOutside: { words: ['inside', 'outside'], scene: function (a, b, c, pos) { return pos === 'inside' ? [[ '●' ]] : [ '📦', '●' ]; }, label: 'a box with a toy' },
     leftMiddleRight: { words: ['left', 'middle', 'right'], scene: function (a, b, c) { return [a.g, b.g, c.g]; }, label: 'three toys in a row' },
     topMiddleBottom: { words: ['top', 'middle', 'bottom'], scene: function (a, b, c) { return [[a.g], [b.g], [c.g]]; }, label: 'three toys stacked' },
@@ -18885,8 +18894,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var flat = [], i;
     for (i = 0; i < scene.length; i++) { if (typeof scene[i] === 'string') flat.push(scene[i]); else flat = flat.concat(scene[i]); }
     var vis = typeof scene[0] === 'string'
-      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], noun: kind === 'insideOutside' ? 'toys' : undefined, label: P.label })
-      : V.grid({ rows: scene.length, cols: 1, cells: scene, noun: kind === 'insideOutside' ? 'toys' : undefined, label: P.label });
+      ? V.grid({ rows: 1, cols: scene.length, cells: [scene], noun: kind === 'insideOutside' ? 'toys' : undefined, box: kind === 'insideOutside' || undefined, label: P.label })
+      : V.grid({ rows: scene.length, cols: 1, cells: scene, noun: kind === 'insideOutside' ? 'toys' : undefined, box: kind === 'insideOutside' || undefined, label: P.label });
     var teach = 'Position words describe where something is compared with something else; say which one you start from.';
     var nameOf = function (g) { var m = SHAPE.concat(COLOR).filter(function (t) { return t.g === g; })[0]; return m ? m.w : (g === '⬜' ? 'the empty box' : g === '📦' ? 'the box' : 'toy'); };
     /* What the picture actually shows, in the order it is read. Every answer
@@ -86302,9 +86311,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       /* A frame may count anything: "5 apples on the frame" draws apples, not
          generic counters, so the picture agrees with the words on the card. */
       var named = o.noun || o.shape || o.kind || o.em;
-      var frames = clamp(v.frames || Math.max(1, Math.ceil((v.n || 0) / 10)), 1, 4);
+      /* A "count to 100" card really means it: up to ten frames, every picture
+         on screen. The old cap of four frames silently hid 60 of 100 objects,
+         so the model contradicted its own answer. Frames wrap onto new rows
+         and shrink when there are many, so all of them stay visible. */
+      var frames = clamp(v.frames || Math.max(1, Math.ceil((v.n || 0) / 10)), 1, 10);
       var left = Math.max(0, Math.min(v.n || 0, frames * 10));
-      var wrap = h('div', { class: 'tf' });
+      var wrap = h('div', { class: 'tf' + (frames >= 5 ? ' dense' : '') });
       for (var f = 0; f < frames; f++) {
         var fr = h('div', { class: 'frame' });
         for (var i = 0; i < 10; i++) {
@@ -86799,6 +86812,21 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         for (var c = 0; c < cols; c++) {
           var val = cells ? (cells[r] ? cells[r][c] : '') : (o.rowLabels && o.rowLabels[r] != null && o.colLabels && o.colLabels[c] != null ? (+o.rowLabels[r] * +o.colLabels[c]) : '');
           var mark = String(val == null ? '' : val).trim();
+          /* inside/outside position cards: a pale table cell is not a box —
+             pre-K judges by the picture, so a box card draws the box itself.
+             One framed cell holding the toy = toy INSIDE the box; an empty box
+             frame beside a loose toy = toy OUTSIDE the box. */
+          if (o.box) {
+            var btd = h('td');
+            if (mark === '📦') btd.appendChild(h('div', { class: 'boxdraw' }));
+            else if (mark === '●' || mark === '○') {
+              var toy = objectNode({ noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed, hollow: mark === '○' });
+              if (rows === 1 && cols === 1) btd.appendChild(h('div', { class: 'boxdraw' }, [toy]));
+              else btd.appendChild(toy);
+            } else if (mark) btd.appendChild(h('span', { class: 'obj em', text: mark }));
+            tr.appendChild(btd);
+            continue;
+          }
           if (art && (mark === '●' || mark === '○')) {
             var td = h('td');
             td.appendChild(objectNode({ noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed, hollow: mark === '○' }));
