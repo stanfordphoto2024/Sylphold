@@ -86046,7 +86046,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 /* =============================================================================
  * 20-ui.js — MathPath browser UI. Renders items, models, feedback, plan,
  * ladder, report and the placement probe. Depends on 00-core, 01-skills,
- * 02-engine (window.MathPath) and the generators. No dependencies, no network.
+ * 02-engine (window.MathPath) and the generators. No dependencies, no build
+ * step, and the whole app runs from file:// with the network off.
+ *
+ * The one exception is deliberate and optional: reading aloud. The voice is
+ * Kokoro-82M (Apache-2.0), an open model that runs on the learner's own machine
+ * over WebGPU/WASM, fetched once and cached by the browser; until it arrives, or
+ * if it never can, the browser's own voice reads every card in the same feeling.
+ * Nothing is uploaded either way. See the speech section below, and "Reading
+ * aloud" in the README.
  * ============================================================================= */
 (function (root) {
   'use strict';
@@ -87104,7 +87112,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* only a hardware-keyboard device gets the auto-focus: focusing a box on a
      * phone is precisely what raises the system keyboard over the question */
     if (inp && !S.answered && !TOUCH) setTimeout(function () { try { inp.focus(); } catch (e) { } }, 30);
-    if (!S.answered) { var stxt = speechText(item); setTimeout(function () { speak(stxt); }, 60); }
+    if (!S.answered) {
+      var stxt = speechText(item);
+      /* a reteach card is the same skill made smaller, so it is read the way a
+       * teacher starts something new — patiently, one notch slower. */
+      var mood = (item.retry || item.role === 'example') ? 'hint' : 'read';
+      setTimeout(function () { speak(stxt, mood); }, 60);
+    }
     else stopSpeech();
     /* A fresh question opens on the question itself — see showTop. */
     if (!S.answered) setTimeout(showTop, TOUCH ? 10 : 0);
@@ -87132,7 +87146,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       box.appendChild(h('div', { class: 'grow' }));
       box.appendChild(h('button', {
         class: 'btn ghost', type: 'button', title: 'read the question again',
-        on: { click: function () { if (!speechOn()) { toast('Reading aloud is switched off in Report → Settings'); return; } speak(speechText(S.item)); } }
+        on: { click: function () { if (!speechOn()) { toast('Reading aloud is switched off in Report → Settings'); return; } speak(speechText(S.item), 'read'); } }
       }, '🔊'));
     } else {
       var wrong = S.lastRec && !S.lastRec.ok;
@@ -87295,6 +87309,22 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* the probe counter is live state: redraw it here or it freezes on whatever
      * number the view happened to render last */
     if (S.item.diag) renderProbeProgress();
+    /* ------------------------------------------------ the voice answers the answer
+     * A missed card is read out in full — every step, the answer, the reason — in
+     * the comfort voice, slower and lower, because the panel that just appeared is
+     * the whole lesson and a learner who cannot read it must still get it.
+     * A card answered right gets no solution: the working is said out loud only to
+     * the learner who needs it, and one who just got it right is already reaching
+     * for the next card. They get two words of praise instead, which is what a
+     * person would actually say. The probe stays silent either way: it is
+     * measuring, and a spoken solution after every question would slow it down and
+     * hand the next answer away. */
+    if (S.item.diag) return;
+    if (ok) speak(PRAISE[Math.floor(Math.random() * PRAISE.length)], 'praise');
+    else {
+      var sit = S.item;
+      setTimeout(function () { if (S.item === sit) speak(solutionText(sit), 'comfort'); }, 350);
+    }
   }
 
   /* The answer as the learner must read it. answerTextFor() reads the answer
@@ -87888,12 +87918,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         h('h2', { text: 'Settings' }),
         h('div', { class: 'stack', style: { marginTop: '10px' } }, [
           toggle('Auto-advance after each item', 'autoNext'),
-          toggle('Read every question aloud', 'speech')
+          toggle('Read questions and solutions aloud', 'speech'),
+          h('div', { class: 'muted', style: { marginTop: '8px' }, text: voiceStatus() })
         ]),
         h('hr', { class: 'sep' }),
         h('div', { class: 'row' }, [
-          h('button', { class: 'btn small', type: 'button', on: { click: exportData } }, 'Export progress'),
-          h('button', { class: 'btn small', type: 'button', on: { click: importData } }, 'Import progress'),
+          h('button', { class: 'btn small', type: 'button', on: { click: exportData } }, 'Save learning progress'),
+          h('button', { class: 'btn small', type: 'button', on: { click: importData } }, 'Load learning progress'),
           h('div', { class: 'grow' }),
           h('button', { class: 'btn small danger', type: 'button', on: { click: resetAll } }, 'Reset everything')
         ])
@@ -87905,7 +87936,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return h('button', {
       class: 'opt', type: 'button', on: {
         click: function () {
-          E.st.settings[key] = !on; E.save(); render();
+          E.st.settings[key] = !on; E.save();
+          /* switching reading back on is the moment the voice is wanted again: a
+             learner who turned it off earlier has not paid for the download yet. */
+          if (key === 'speech' && E.st.settings.speech) loadNeural();
+          render();
         }
       }
     }, [h('span', { class: 'grow', text: label }), h('span', { class: 'pill ' + (on ? 'good' : ''), text: on ? 'on' : 'off' })]);
@@ -87924,8 +87959,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       a.download = 'mathpath-progress.json';
       doc.body.appendChild(a); a.click();
       setTimeout(function () { doc.body.removeChild(a); }, 200);
-      toast('Progress downloaded');
-    } catch (e) { toast('Export failed'); }
+      toast('Learning progress saved');
+    } catch (e) { toast('Could not save your progress'); }
   }
   function importData() {
     var inp = doc.createElement('input');
@@ -87939,11 +87974,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           /* an empty file is not allowed to erase this device behind the
              learner's back: the engine refuses it and asks first */
           if (E.importJSON(txt) === 'confirm') {
-            if (!win.confirm('That file has no progress on it. Replace the progress saved on this device with an empty record?')) { toast('Import cancelled — your progress is untouched'); return; }
+            if (!win.confirm('That file has no progress on it. Replace the progress saved on this device with an empty record?')) { toast('Load cancelled — your progress is untouched'); return; }
             E.importJSON(txt, true);
           }
-          E.save(); toast('Progress imported'); location.reload();
-        } catch (e) { toast('Could not read that file'); }
+          E.save(); toast('Learning progress loaded'); location.reload();
+        } catch (e) { toast('Could not load that file'); }
       };
       fr.readAsText(f);
     };
@@ -88146,24 +88181,92 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
   /* -------------------------------------------------------------- speech -- */
   /* The question is spoken the moment it appears — a card a learner cannot read
-     is not a question. Browsers only allow speech after a gesture, so the first
+     is not a question. Browsers only allow sound after a gesture, so the first
      card may need the 🔊 button; from then on it is automatic.
 
-     Sounding like a person is three separate jobs, and one flat utterance gets
-     none of them:
-       1. the VOICE. The browser's first en-US entry is usually the most
-          robotic one it ships; the natural/neural/premium voices are further
-          down the list, so they are scored rather than taken in order.
+     TWO VOICES do this job and the learner never has to choose between them:
+
+       1. the NEURAL one — Kokoro-82M, an open 82-million-parameter model
+          (Apache-2.0, github.com/hexgrad/kokoro) that runs entirely on this
+          machine through kokoro-js and onnxruntime: WebGPU when the browser can
+          see a GPU, WASM when it cannot. Nothing is uploaded and nothing is
+          installed; the voice is fetched once and the browser keeps it, so the
+          second visit reads aloud with no network at all.
+       2. the browser's OWN voice, which carries every card while the neural one
+          is still arriving (it is a ~160 MB download, paid once) and takes over
+          for good when the neural one cannot load at all — offline on a first
+          visit, no WebGPU, no WASM. `speechEngine()` reports which is talking.
+
+     What makes either of them a voice rather than a read-aloud machine is the
+     FEELING behind the line, and that is chosen per moment instead of sitting
+     in a menu: a question is read clearly, a right answer is met with warmth, a
+     missed one is slowed down and softened while the solution is walked
+     through out loud. `EMOTION` holds those readings and `speak(text, emotion)`
+     is the only place that picks one. The model is given the speed; the pitch
+     and level are shaped on the way to the speaker, because a person who is
+     pleased talks a little faster and a little brighter, and one who is being
+     gentle does the opposite.
+
+     Sounding like a person is still three separate jobs, and one flat
+     utterance gets none of them:
+       1. the VOICE. For the fallback the browser's first en-US entry is usually
+          the most robotic one it ships, so the natural/neural/premium voices
+          are scored rather than taken in order.
        2. the WORDS. Some strings are correct on paper and wrong out loud. The
           one that gave this app away: an option read out as "No." is the numero
           sign, and every engine on the market says "number". Symbols like "<"
           are simply skipped. So the spoken text is written for the ear, not
-          copied from the card.
-       3. the SHAPE. A person says one breath group at a time, and the pitch
-          eases downward as a sentence runs on and lifts on a question. That is
-          done here by speaking a card group by group with a small pause and a
-          contour per group — which also dodges the Chromium bug that truncates
-          a single utterance past a few hundred characters. */
+          copied from the card — for both voices.
+       3. the SHAPE. The neural voice is handed the whole card in one piece so
+          its own prosody carries the sentence. The browser voice cannot hold
+          that much: it is spoken one breath group at a time with a small pause
+          and a contour per group, which also dodges the Chromium bug that
+          truncates a single utterance past a few hundred characters. */
+
+  var KOKORO = {
+    /* the package is tried in this order: jsDelivr first, esm.sh if that host is
+       unreachable. Both ship the same Apache-2.0 build of kokoro-js. */
+    pkgs: [
+      'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm',
+      'https://esm.sh/kokoro-js@1.2.1'
+    ],
+    repo: 'onnx-community/Kokoro-82M-v1.0-ONNX',
+    voice: 'af_heart'                     // warm and unhurried: the one the card grades best
+  };
+
+  /* how a person would say this moment of the lesson */
+  var EMOTION = {
+    /* `speed` and `pitch` belong to the browser voice, which is built to take
+       them. The neural voice takes only `gain` and `gap`, because asking it for
+       a tempo is how it breaks: measured on this machine, a build of Kokoro
+       handed speed 1.08 returned samples that were not numbers at all. So the
+       moment is carried the way a person carries it — how loud, and how long
+       the breath is — and the model is left alone at the tempo it was trained
+       at. Comfort waits longer between thoughts, and says them more softly. */
+    read: { speed: 1.02, pitch: 1.00, gain: 1.00, gap: 120 },
+    praise: { speed: 1.08, pitch: 1.04, gain: 1.00, gap: 90 },
+    comfort: { speed: 0.94, pitch: 0.96, gain: 0.88, gap: 240 },
+    hint: { speed: 1.00, pitch: 1.01, gain: 0.96, gap: 170 }
+  };
+  /* short on purpose: with auto-advance the next question is already on its way,
+     and a praise the learner never finishes hearing is worse than none. */
+  var PRAISE = ['That is right.', 'Yes — exactly right.', 'Well done.', 'That is it. Nice work.'];
+
+  var NEURAL = { st: 'off', why: '', pct: 0, errs: 0, tts: null, dev: '', dtype: '' };  // off|loading|ready|failed
+  /* What the learner actually heard, counted rather than remembered: a build like
+     this one is only believed when something reports it. `speechStats()` says how
+     many breaths each voice said, how long the model took, and how much audio it
+     produced — which is what tools/ttsprobe.js asserts in a real browser. */
+  var STATS = {
+    cards: 0, neural: 0, browser: 0, ms: 0, samples: 0, last: '', audio: 'none',
+    /* the health of the last buffer, measured on the samples about to be heard:
+       a sample at full scale clips, a sample that is not a number is a hole in
+       the audio, and an isolated impulse is the click people call 破音 */
+    peak: 0, clipped: 0, bad: 0, spikes: 0, build: ''
+  };
+  var AC = null, PLAYER = null;                                     // audio context, live buffer
+  var IMPORTER = null;
+  try { IMPORTER = new Function('u', 'return import(u)'); } catch (e) { IMPORTER = null; }
 
   var VOICE = null;                     // resolved lazily: getVoices() is async
   var SAY_TOKEN = 0;                    // a cancel or a new card kills the chain
@@ -88179,9 +88282,218 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   var SAYNUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
   function speechOn() { return !(E && E.st && E.st.settings && E.st.settings.speech === false); }
-  function stopSpeech() {
-    SAY_TOKEN++;                          // the queued groups must not follow
+
+  /* which voice is talking right now — reported in Settings and asserted by the
+     tools, because "is the neural voice actually on?" is the first question
+     anyone asks of a build like this and it must never be answered by listening. */
+  function speechEngine() {
+    if (!speechOn()) return 'off';
+    if (NEURAL.st === 'ready' && NEURAL.tts) return 'kokoro';
+    return (win.speechSynthesis && typeof win.SpeechSynthesisUtterance === 'function') ? 'browser' : 'none';
+  }
+  function neuralState() { return NEURAL.st; }
+  function speechStats() {
+    return {
+      cards: STATS.cards, neural: STATS.neural, browser: STATS.browser, ms: STATS.ms,
+      samples: STATS.samples, last: STATS.last, state: NEURAL.st,
+      /* still talking? PLAYER is nulled the moment a buffer ends, so this is the
+         card being finished rather than the card having started */
+      playing: !!PLAYER,
+      /* clean audio in numbers, which is the only kind a tool can insist on:
+         `bad` samples are not numbers, `clipped` sit at full scale, `spikes` are
+         lone impulses. All three zero is what "no 破音" means. */
+      peak: STATS.peak, clipped: STATS.clipped, bad: STATS.bad, spikes: STATS.spikes,
+      build: NEURAL.dev ? NEURAL.dev + '/' + NEURAL.dtype : '',
+      /* whether sound is actually allowed to leave the tab: every browser holds
+         it behind a gesture, and a tool cannot tell 'silent' from 'blocked' */
+      audio: (AC && AC.state) || 'none'
+    };
+  }
+  function voiceStatus() {
+    if (!speechOn()) return 'Reading aloud is off';
+    if (NEURAL.st === 'ready') {
+      return 'Neural voice ready — Kokoro-82M (' + NEURAL.dev + '/' + NEURAL.dtype + '), on this device';
+    }
+    if (NEURAL.st === 'loading') return 'Downloading the neural voice… ' + NEURAL.pct + '%';
+    if (NEURAL.st === 'failed') return 'Neural voice unavailable (' + (NEURAL.why || 'unsupported') + ') — using the browser voice';
+    return 'Starting the neural voice…';
+  }
+
+  /* silence whatever is making sound, without touching the token: a new
+     utterance kills the old one and stays itself, while stopSpeech() also
+     forbids everything queued behind it. */
+  function hush() {
+    try { if (PLAYER) { PLAYER.stop(); PLAYER.disconnect(); } } catch (e) { }
+    PLAYER = null;
     try { if (win.speechSynthesis) win.speechSynthesis.cancel(); } catch (e) { }
+  }
+  function stopSpeech() { SAY_TOKEN++; hush(); }
+
+  /* ------------------------------------------------- the neural voice ------ */
+  /* Kokoro-82M through kokoro-js. Device combinations are tried in order — GPU
+     first, then the smaller CPU build — because one broken WebGPU driver must
+     not be the reason a learner has no voice at all. */
+  function audioCtx() {
+    if (AC) return AC;
+    var C = win.AudioContext || win.webkitAudioContext;
+    if (!C) return null;
+    try { AC = new C(); } catch (e) { AC = null; }
+    return AC;
+  }
+  /* Which builds of the model are worth trying, and in what order — all of it
+   * decided by tools/ttsdump.js on this machine, not by taste.
+   *
+   * Not fp16 and not q4f16, at any device. The WebGPU fp16 build handed back
+   * samples that were not numbers: 68 discontinuities and half the expected
+   * level across a 21 second solution, which is exactly the crackle a learner
+   * calls 破音. A quantised fp16 build is the same arithmetic, so it is out too.
+   *
+   * q8 measured as clean as the full build — same noise floor, nothing at full
+   * scale, no bad samples — and it is a third of the download, but it runs at
+   * 1.4× the length of the speech it makes, so a long solution is said with a
+   * hesitation between thoughts. Full precision on the GPU runs at 0.1×: the
+   * next breath is ready before the one being heard has ended. So fp32 on the
+   * GPU is the voice, and the small clean builds are what a machine without one
+   * settles for. */
+  var NEURAL_TRIES = [['webgpu', 'fp32'], ['webgpu', 'q8'], ['wasm', 'q8'], ['wasm', 'fp32']];
+  function loadNeural() {
+    if (!IMPORTER || NEURAL.st === 'loading' || NEURAL.st === 'ready' || NEURAL.st === 'failed') return;
+    if (!speechOn()) return;                       // never spend a learner's bandwidth on a voice they switched off
+    NEURAL.st = 'loading'; NEURAL.pct = 0; NEURAL.why = '';
+    /* ?tts=wasm forces the CPU build and ?tts=off declines the neural voice
+       outright — the two switches anyone needs when the GPU path is the suspect. */
+    var tries = NEURAL_TRIES;
+    try {
+      var q = String((win.location && win.location.search) || '');
+      if (/tts=(off|none)/i.test(q)) { NEURAL.st = 'off'; NEURAL.why = 'declined with ?tts=off'; return; }
+      if (/tts=wasm/i.test(q)) tries = [['wasm', 'q8'], ['wasm', 'fp32']];
+      if (/tts=fp32/i.test(q)) tries = [['webgpu', 'fp32'], ['wasm', 'fp32']];
+      if (/tts=q8/i.test(q)) tries = [['webgpu', 'q8'], ['wasm', 'q8']];
+    } catch (e) { }
+    var attempts = [];
+    function one(i) {
+      if (i >= tries.length) {
+        NEURAL.st = 'failed';
+        NEURAL.why = attempts.length ? attempts[attempts.length - 1] : 'no way to load it';
+        if (win.console && console.warn) console.warn('MathPath: the neural voice will not run here —', NEURAL.why);
+        return;
+      }
+      var dev = tries[i][0], dtype = tries[i][1], pkg = 0;
+      function pick() {
+        if (pkg >= KOKORO.pkgs.length) { i++; one(i); return; }
+        var url = KOKORO.pkgs[pkg++];
+        IMPORTER(url).then(function (mod) {
+          if (!mod || !mod.KokoroTTS) throw new Error('kokoro-js has no KokoroTTS export');
+          return mod.KokoroTTS.from_pretrained(KOKORO.repo, {
+            device: dev, dtype: dtype,
+            progress_callback: function (p) {
+              if (p && p.status === 'progress' && p.total) NEURAL.pct = Math.max(NEURAL.pct, Math.min(99, Math.round(p.loaded / p.total * 100)));
+            }
+          });
+        }).then(function (tts) {
+          if (!tts || !tts.generate) throw new Error('the voice never initialised');
+          NEURAL.tts = tts; NEURAL.st = 'ready'; NEURAL.pct = 100; NEURAL.why = ''; NEURAL.errs = 0;
+          NEURAL.dev = dev; NEURAL.dtype = dtype; STATS.build = dev + '/' + dtype;
+          /* No toast, and no banner of any kind: a voice changing hands in the
+             middle of a lesson is a thing that happens, not news. The one place
+             that talks about it is Report → Settings, and only if it is open. */
+          if (S && S.view === 'report') render();
+        }).catch(function (e) {
+          attempts.push(dev + '/' + dtype + ': ' + (e && e.message ? e.message : String(e)).slice(0, 160));
+          pick();                                  // next host, then next device
+        });
+      }
+      pick();
+    }
+    one(0);
+  }
+
+  /* The repair every buffer gets before it reaches a speaker, and the test that
+   * decides whether it reaches one at all.
+   *
+   * A neural chunk does not begin at silence: it starts part-way up the wave and
+   * a little off centre, and two of them back to back make a step — and a step is
+   * heard as a click, which is what 破音 usually is. Loudness is the other half:
+   * peaks sitting at full scale clip the moment the browser resamples 24 kHz to
+   * the sound card's rate. So the DC comes out, the loudest point is pulled to a
+   * level that cannot clip, and the first and last milliseconds are brought to
+   * silence so a boundary is a breath and not a pop.
+   *
+   * And if the model handed back samples that are not numbers — which a WebGPU
+   * build here did — nothing is played. A broken build loses its voice to the
+   * browser one, quietly, rather than buzzing in a child's ear. */
+  var TIDY_LEVEL = 0.80;                       // the loudest anything is allowed to be, in full scale
+  function tidy(f, sr) {
+    var n = f.length, i, sum = 0, peak = 0, bad = 0;
+    for (i = 0; i < n; i++) { var v = f[i]; if (v !== v || v === Infinity || v === -Infinity) { bad++; f[i] = 0; } else sum += f[i]; }
+    var mean = n ? sum / (n - bad) : 0;
+    for (i = 0; i < n; i++) { var c = f[i] - mean; f[i] = c; var ac2 = c < 0 ? -c : c; if (ac2 > peak) peak = ac2; }
+    /* a quiet take is lifted, but never shouted at: twice is the ceiling */
+    var gain = peak > 0.001 ? Math.min(TIDY_LEVEL / peak, 2) : 1;
+    var pad = Math.max(1, Math.round(sr * 0.004)), fade = Math.max(1, Math.round(sr * 0.014));
+    var edge = Math.min(pad + fade, Math.floor(n / 2)), win = new Float32Array(edge);
+    for (i = 0; i < edge; i++) win[i] = i < pad ? 0 : 0.5 - 0.5 * Math.cos(Math.PI * (i - pad) / fade);
+    var top = 0, pinned = 0, spikes = 0;
+    for (i = 0; i < n; i++) {
+      var k = i < edge ? i : (n - 1 - i);
+      var out = f[i] * gain * ((k >= 0 && k < edge) ? win[k] : 1);
+      f[i] = out;
+      var ao = out < 0 ? -out : out;
+      if (ao > top) top = ao;
+      if (ao >= 0.995) pinned++;
+      /* an isolated impulse: a sample far from what both its neighbours are doing.
+         Ordinary speech — a plosive, a stop — moves together, so it does not
+         register here; a click is a lone sample and it does. */
+      if (i > 0 && i < n - 1) {
+        var d = 2 * out - f[i - 1] - f[i + 1];
+        var ad = d < 0 ? -d : d;
+        if (ad > 0.9) spikes++;
+      }
+    }
+    STATS.peak = +top.toFixed(3); STATS.clipped = pinned; STATS.bad = bad; STATS.spikes = spikes;
+    return { peak: top, bad: bad };
+  }
+
+  /* Put the buffer the model produced on the speaker. Nothing here changes its
+     speed or its pitch: a playbackRate other than 1 makes the browser resample
+     the take, and resampling is an artefact of its own. The feeling of the
+     moment is carried by loudness, and by the breath between the groups. */
+  function playNeural(raw, emo) {
+    var data = raw && (raw.audio || raw.data || raw.waveform);
+    var ac = audioCtx();
+    if (!data || !data.length || !ac) return false;
+    /* kokoro-js returns a transformers.js RawAudio, whose rate sits under
+       `sampling_rate`; every spelling is read because the library has renamed
+       it, and Kokoro itself is always 24 kHz. */
+    var sr = (raw && (raw.sampleRate || raw.sampling_rate || raw.sample_rate)) || 24000;
+    STATS.last = 'kokoro';
+    var f = new Float32Array(data.length), i;
+    for (i = 0; i < data.length; i++) f[i] = Number(data[i]);
+    var health = tidy(f, sr);
+    /* more than one sample in two hundred that is not a number, or a take with
+       no level at all, is a broken build — not audio with a flaw in it */
+    if (health.bad > data.length / 200 || health.peak < 0.01) {
+      NEURAL.why = (NEURAL.dev || 'neural') + '/' + (NEURAL.dtype || '?') + ' returned ' +
+        (health.bad ? health.bad + ' unusable samples' : 'silence');
+      return false;
+    }
+    var buf = null, src = null;
+    try {
+      buf = ac.createBuffer(1, f.length, sr);
+      buf.getChannelData(0).set(f);
+      src = ac.createBufferSource();
+      src.buffer = buf;
+      var g = ac.createGain();
+      g.gain.value = clamp(emo.gain, 0, 1);
+      src.connect(g); g.connect(ac.destination);
+    } catch (e) { return false; }
+    if (ac.state === 'suspended') { try { ac.resume(); } catch (e) { } }
+    STATS.neural++;
+    STATS.samples += f.length;                 // cumulative audio, not the last buffer only
+    PLAYER = src;
+    src.onended = function () { if (PLAYER === src) PLAYER = null; };
+    try { src.start(0); } catch (e) { return false; }
+    return true;
   }
 
   /* ------------------------------------------------- choosing a voice ----- */
@@ -88289,29 +88601,129 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (g.split(/\s+/).length <= 2 && fine.length) fine[fine.length - 1] += ' ' + g;
       else fine.push(g);
     }
-    return fine;
+    /* Nothing may be asked of one breath more than the voices can carry: Chromium
+       truncates a long utterance, and Kokoro stops reading past its window — so a
+       group with no comma in it is cut at a word boundary instead. The cut looks
+       for a place that leaves three words or more on both sides, because a
+       one-or-two-word breath in the middle of a card is a stutter, not a pause. */
+    var roomy = [];
+    for (j = 0; j < fine.length; j++) {
+      var w = fine[j];
+      while (w.length > 160) {
+        var cut = -1, at;
+        for (at = 150; at >= 80; at -= 10) {
+          var c = w.lastIndexOf(' ', at);
+          if (c < 40) continue;
+          var head = w.slice(0, c).trim().split(/\s+/).length;
+          var tail = w.slice(c + 1).trim().split(/\s+/).length;
+          if (head >= 3 && tail >= 3) { cut = c; break; }
+        }
+        if (cut < 0) break;                              // one enormous word: leave it whole
+        roomy.push(w.slice(0, cut).trim());
+        w = w.slice(cut + 1).trim();
+      }
+      if (w) roomy.push(w.trim());
+    }
+    return roomy;
   }
 
   /* the contour: a question lifts, a sentence settles, and nothing is spoken
      twice at exactly the same speed — the one thing that makes a repeated
-     prompt sound like a machine. */
-  function prosody(u, txt, idx, n, speed) {
+     prompt sound like a machine. The feeling of the moment rides on top of it,
+     so a praise is bright and quick and a solution read out after a miss is
+     slow and low — on the browser voice exactly as on the neural one. */
+  function prosody(u, txt, idx, n, emo) {
     var spread = n > 1 ? idx / (n - 1) : 0;
     var jit = Math.random() * 0.03 - 0.015;
-    u.rate = clamp(speed * (1 + spread * 0.04) + jit * 0.6, 0.55, 1.7);
-    u.pitch = clamp((/\?/.test(txt) ? 1.06 : 1.02) - spread * 0.10 + jit, 0.4, 1.6);
-    u.volume = 1;
+    u.rate = clamp((emo.speed || 1) * (1 + spread * 0.04) + jit * 0.6, 0.55, 1.7);
+    u.pitch = clamp(((/\?/.test(txt) ? 1.06 : 1.02) - spread * 0.10 + jit) * (emo.pitch || 1), 0.4, 1.6);
+    u.volume = clamp(emo.gain == null ? 1 : emo.gain, 0, 1);
   }
 
-  function speak(txt) {
+  /* The one place that decides who speaks. The neural voice owns the lesson once
+     it has arrived; until then — and for good if it never does — the browser
+     voice reads the same words in the same feeling. */
+  function speak(txt, emotion) {
     if (!speechOn() || !txt) return;
+    var emo = EMOTION[emotion] || EMOTION.read;
+    var words = humanWords(txt);
+    if (!words) return;
+    var token = ++SAY_TOKEN;                        // from now only this utterance may make a sound
+    STATS.cards++;
+    hush();
+    if (NEURAL.st === 'ready' && NEURAL.tts) speakNeural(words, emo, token);
+    else {
+      if (NEURAL.st === 'off') loadNeural();        // a card is being read: the voice is wanted now
+      speakBrowser(words, emo, token);
+    }
+  }
+
+  /* Kokoro speaks about 500 characters at a time and silently drops the rest of
+     the input, so a card is said one breath group at a time — the same groups the
+     browser voice uses. The next group is synthesised while the current one is
+     still being heard, so the pause a learner hears is the breath in the
+     sentence, not the model thinking. */
+  function speakNeural(words, emo, token) {
+    var groups = breathGroups(words);
+    if (!groups.length) { speakBrowser(words, emo, token); return; }
+    var i = 0, next = null;
+
+    /* One breath group through the model, timed on the way: how long the voice
+       takes to think is the number that decides whether it is usable at all, so
+       it is recorded here rather than guessed at later. */
+    function synth(g) {
+      var p = null;
+      var clock = (win.performance && win.performance.now) ? win.performance : Date;
+      var t0 = clock.now();
+      /* speed 1, always — see EMOTION above: the model is reliable at the tempo
+         it was trained at, and the moment is said with level and with pauses. */
+      try { p = NEURAL.tts.generate(g, { voice: KOKORO.voice, speed: 1 }); }
+      catch (e) { return Promise.reject(e); }
+      if (!p || typeof p.then !== 'function') return Promise.reject(new Error('the voice never answered'));
+      return p.then(function (raw) { STATS.ms = Math.max(0, Math.round(clock.now() - t0)); return raw; });
+    }
+    /* Say what is left with the browser voice: the neural one has failed, and the
+       learner still has to hear the rest of the card. */
+    function rest() { if (token === SAY_TOKEN) speakBrowser(groups.slice(i).join('  '), emo, token); }
+    function onError(e) {
+      NEURAL.errs++;
+      NEURAL.why = (e && e.message ? e.message : String(e)).slice(0, 160);
+      /* three misses in a row and the model has plainly lost this machine: stop
+         paying its latency and leave the reading to the browser voice. */
+      if (NEURAL.errs >= 3) NEURAL.st = 'failed';
+      rest();
+    }
+    function play(raw) {
+      if (token !== SAY_TOKEN) return;
+      var p;
+      try { p = (i + 1 < groups.length) ? synth(groups[i + 1]) : null; } catch (e) { p = null; }
+      if (p) p.catch(function () { });                 // taken up where it is awaited, or dropped
+      next = p;
+      i++;
+      if (!playNeural(raw, emo)) { rest(); return; }
+      if (PLAYER) PLAYER.onended = function () {
+        PLAYER = null;
+        if (token !== SAY_TOKEN) return;
+        setTimeout(take, emo.gap || 120);              // the breath between breath groups
+      };
+    }
+    function take() {
+      if (token !== SAY_TOKEN || i >= groups.length) return;
+      var p = next || synth(groups[i]);
+      next = null;
+      p.then(play, onError);
+    }
+    synth(groups[0]).then(play, onError);
+  }
+
+  function speakBrowser(words, emo, token) {
     var T = win.speechSynthesis;
+    STATS.last = 'browser';
     if (!T || typeof win.SpeechSynthesisUtterance !== 'function') return;
-    var groups = breathGroups(humanWords(txt));
+    var groups = breathGroups(words);
     if (!groups.length) return;
     var voice = needVoice();
-    var speed = 1;                      // the natural pace: no speed control is offered
-    var token = ++SAY_TOKEN, i = 0;
+    var i = 0;
     try { T.cancel(); } catch (e) { }
 
     function next() {
@@ -88328,11 +88740,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       try { u = new win.SpeechSynthesisUtterance(g); } catch (e) { return; }
       u.lang = (voice && voice.lang) || 'en-US';
       if (voice) u.voice = voice;
-      prosody(u, g, i - 1, groups.length, speed);
+      prosody(u, g, i - 1, groups.length, emo);
       u.onend = advance; u.onerror = advance;
       /* Safari and Chromium both drop onend now and then; without this the rest
          of the question would simply never be said. Generous on purpose. */
       timer = setTimeout(advance, 1200 + g.length * 110);
+      STATS.browser++;
       try { T.speak(u); } catch (e) { advance(); }
     }
     next();
@@ -88368,6 +88781,30 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       }[(item.spec && item.spec.k) || ''] || 'Type your answer.');
     }
     return humanWords(t);
+  }
+  /* The worked solution, spoken. A card that was missed gets the whole of it out
+     loud — every step in order, then the answer, then the reason — because a
+     learner who cannot read the panel cannot learn from it, and a screenreader
+     handed this panel cold reads "Answer: 12" before any of the working. So the
+     order here is the order a teacher would sit beside them and say it: steps,
+     answer, why. It is said in the comfort voice, which is slower and lower. */
+  function solutionText(item) {
+    if (!item) return '';
+    var parts = [];
+    var steps = (item.explain || []).map(function (s) { return String(s == null ? '' : s).trim(); })
+      .filter(function (s) { return s !== ''; });
+    var notes = (S && S.notes ? S.notes : []).filter(function (n) { return String(n || '').trim() !== ''; });
+    var why = item.teach || item.hint || '';
+    var at = shownAnswer(item);
+
+    /* Step 1 … Step N, in the words a person counts them in, then the answer as
+       a sentence rather than a label, then the misconception note that explains
+       why this particular card is tricky. */
+    steps.forEach(function (s, k) { parts.push('Step ' + (SAYNUM[k + 1] || (k + 1)) + '. ' + s); });
+    if (at) parts.push('The answer is ' + at + (item.unit ? ' ' + item.unit : '') + '.');
+    notes.forEach(function (n) { parts.push(String(n).trim()); });
+    if (why) parts.push(String(why).trim());
+    return humanWords(parts.join('  '));
   }
   /* -------------------------------------------------------------- header -- */
   function renderHeader() {
@@ -88473,6 +88910,17 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (!E.st.settings) E.st.settings = { autoNext: true, speech: true, reviewShare: 0.22 };
     if (E.st.settings.speech === undefined) E.st.settings.speech = true;   // read aloud unless switched off
     watchVoices();                            // getVoices() is async in Chromium
+    /* The neural voice is a one-time download, so it starts beside the first card
+     * rather than behind it: the browser voice reads card one and the neural voice
+     * takes card two. Sound itself is gated behind a gesture, so the first touch
+     * or key presses also wakes the audio context. */
+    if (speechOn()) loadNeural();
+    var wake = function () {
+      var ac = audioCtx();
+      if (ac && ac.state === 'suspended') { try { ac.resume(); } catch (e) { } }
+      if (NEURAL.st === 'off' && speechOn()) loadNeural();
+    };
+    try { ['pointerdown', 'keydown'].forEach(function (ev) { doc.addEventListener(ev, wake, { once: true, passive: true }); }); } catch (e) { }
     if (!E.st.settings.mode) E.st.settings.mode = 'climb';
     win.addEventListener('hashchange', route);
     doc.addEventListener('keydown', keys);
@@ -88485,7 +88933,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* the voice is part of the product, so the tools can assert on it: what a
        card sounds like, how it is broken into breaths, and which voice won */
     speechText: speechText, speechGroups: breathGroups, spokenWords: humanWords,
-    speechVoices: englishVoices, speak: speak
+    speechVoices: englishVoices, speak: speak, stopSpeech: stopSpeech,
+    /* which voice is talking, which feeling each moment gets, and what a missed
+       card actually sounds like — all of it assertable, none of it guessable */
+    solutionText: solutionText, speechEngine: speechEngine, neuralState: neuralState,
+    speechStats: speechStats,
+    voiceStatus: voiceStatus, speechEmotions: function () { return EMOTION; },
+    speechPraise: function () { return PRAISE; },
+    loadNeural: loadNeural
   };
 
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', boot);
