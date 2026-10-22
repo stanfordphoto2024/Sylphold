@@ -7574,11 +7574,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
  * 30-tex.js — ONE notation for every formula the app shows.
  *
  * Generators write maths the way people type it: `3/4`, `(-3)³`, `√244`, `90°`,
- * `20%`, `2x^4`, `f'(x)`, `pi/3`, `12 : 11`. This module turns those strings
- * into standard LaTeX on the way to the screen — `\frac{3}{4}`,
- * `\left(-3\right)^{3}`, `\sqrt{244}`, `90^\circ`, `20\%`, `2x^{4}`, `f'(x)`,
- * `\frac{\pi}{3}`, `12 : 11` — and typesets the result with the vendored KaTeX
- * build (vendor/katex/, inlined by tools/build.js).
+ * `20%`, `2x^4`, `f'(x)`, `pi/3`, `12 : 11`, `(1, 4)`, `[[2, 1], [0, 3]]`,
+ * `|−7| = 7`, `2 · 3`, `5, 6, …`. This module turns those strings into standard
+ * LaTeX on the way to the screen — `\frac{3}{4}`, `\left(-3\right)^{3}`,
+ * `\sqrt{244}`, `90^\circ`, `20\%`, `2x^{4}`, `f'(x)`, `\frac{\pi}{3}`,
+ * `12 : 11`, `\left(1,\ 4\right)`,
+ * `\begin{bmatrix}2 & 1\\0 & 3\end{bmatrix}`, `\left|-7\right| = 7`,
+ * `2 \cdot 3`, `5,\ 6,\ \ldots` — and typesets the result with the vendored
+ * KaTeX build (vendor/katex/, inlined by tools/build.js).
+ *
+ * The rule the whole module works to is ONE formula, ONE appearance: a card
+ * that typesets `3 × 4` must not leave `(1, 4)` or `[[2, 1], [0, 3]]` as raw
+ * text beside it, because half-typeset arithmetic reads as a different kind of
+ * thing. tools/_texresidue.js counts the strings where maths is still plain.
  *
  * Nothing here rewrites a generator: the conversion happens at display time
  * only, so the grader, the answer specs and the stored statistics are
@@ -7600,11 +7608,26 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   /* ------------------------------------------------------------ tables ---- */
   var OPS = {
     '×': '\\times', '÷': '\\div', '−': '-', '-': '-', '–': '-', '*': '\\times',
+    /* a middle dot is the product sign the matrix cards use ("A · B"); where a
+       sub line uses it to separate options, the run breaks on the words anyway */
+    '·': '\\cdot', '⋅': '\\cdot',
     '≈': '\\approx', '≤': '\\le', '≥': '\\ge', '≠': '\\ne', '±': '\\pm',
     '→': '\\to', '⇒': '\\Rightarrow', '∝': '\\propto', '∞': '\\infty',
     '∘': '\\circ', '⊥': '\\perp', '∥': '\\parallel', '△': '\\triangle',
-    '∠': '\\angle', '°': '^\\circ'
+    '∠': '\\angle', '°': '^\\circ', '⟨': '\\langle', '⟩': '\\rangle',
+    '≡': '\\equiv', '≅': '\\cong', '∼': '\\sim', '∣': '\\mid',
+    '∪': '\\cup', '∩': '\\cap', '∅': '\\emptyset',
+    '∈': '\\in', '∉': '\\notin', '⊂': '\\subset', '⊆': '\\subseteq',
+    '⊃': '\\supset', '⊇': '\\supseteq',
+    '⊕': '\\oplus', '⊗': '\\otimes', '∑': '\\sum', '∏': '\\prod',
+    '∫': '\\int', '∂': '\\partial', '∇': '\\nabla'
   };
+  /* blackboard bold letters: ℝ, ℤ, ℕ, ℚ, ℂ — a number system named in a sentence
+     is maths, and plain text makes it read as a typo for an ordinary R or N */
+  var BB = { 'ℝ': '\\mathbb{R}', 'ℤ': '\\mathbb{Z}', 'ℕ': '\\mathbb{N}', 'ℚ': '\\mathbb{Q}', 'ℂ': '\\mathbb{C}' };
+  /* anything here is a formula signal on its own, so it may start or hold up a
+     run even when the words around it stay prose */
+  var MOREOPS = '∈∉⊂⊆⊃⊇∪∩∅∑∏∫∂∇⋅·≡≅∼⊕⊗⟨⟩≠';
   var SUPCH = '⁰¹²³⁴⁵⁶⁷⁸⁹⁰⁻';
   var SUPD = '01234567890-';
   function supDigits(s) {
@@ -7647,12 +7670,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var ND = '\\d+(?:,\\d{3})*(?:\\.\\d+)?';                    /* 12  3.5  1,000 */
   var SIGNED = '[-+]?' + ND;
   var FR = '(?:\\(\\s*' + SIGNED + '\\s*\\)|' + SIGNED + '|[a-z]|\\d*pi)';   /* a fraction side */
+  /* |−7| and |A|: the bars have to hug one value, because "green | other" is a
+     separator in an answer string and must stay words */
+  var AVAL = '(?:[-+]?\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+)?|pi|[a-zA-Z])';
+  var ABS = '\\|(?=\\s*[-+\\d(|[a-zA-Z])(?!\\s*[A-Za-z]{2})\\s*[-+\\da-zA-Z.,\\s^{}()/[\\]*√π]{1,24}?\\s*\\|';
   var PATS = [
     ['[-+]?\\d+\\s+\\d+\\s*\\/\\s*\\d+(?![\\d.])', 'mixed'],            /* 2 1/4 */
     ['' + FR + '\\s*\\/\\s*' + FR + '(?![\\w])', 'frac'],            /* 3/4  -3/8  (-3)/4  n/1  pi/3  2pi/3 */
     ['√\\s*(?:' + ND + '|\\([^()]{1,24}\\)|[a-z](?![a-z]))', 'root'],           /* √36 √(a+b) √a */
     ['∛\\s*(?:' + ND + '|\\([^()]{1,24}\\)|[a-z](?![a-z]))', 'croot'],
-    ['\\^\\s*(?:[-+]?\\d+|[a-z])(?![\\w])', 'pow'],                 /* x^2  10^6  y^n */
+    ['' + ABS, 'abs'],                          /* |−7|, |x| — absolute value */
+    ['…|⋯|\\.{3,}', 'dots'],                  /* 5, 6, … and a trailing 1, 2, 3, …. */
+    ['\\^\\s*(?:[-+]?\\d+|[a-zA-Z]|\\([^()]{1,16}\\))(?![\\w])', 'pow'],   /* x^2  10^6  y^n  S^(n-1) */
     ['(?:' + UNITS + ')[²³⁴⁵]', 'unitpow'],               /* m² cm³ in² */
     ['' + ND + '\\s*[' + SUPCH + ']+', 'sup'],       /* 10⁴  5⁻² */
     ['[' + SUPCH + ']+', 'supx'],                    /* ³ after a bracket: (-3)³ */
@@ -7666,26 +7695,37 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     ['[a-z](?![a-z\'"⁻])', 'var'],                           /* x y n r … */
     ['[A-Z](?![a-z])', 'varuc'],                          /* A B (point names) */
     ['\\(', 'open'], ['\\)', 'close'], ['\\[', 'bopen'], ['\\]', 'bclose'],
+    ['⟨', 'gopen'], ['⟩', 'gclose'],
     [',', 'comma'],
     ['\\s:\\s(?=[-\\d(])', 'colon'],                        /* 12 : 11, a spaced ratio */
     ['○|◯', 'blank'],                             /* the ○ a compare card asks to fill */
-    ['[+*=<>×÷−–≈≤≥≠±→⇒∝∞∘⊥∥△∠]', 'op'],
+    ['[+*=<>×÷−–≈≤≥≠±→⇒∝∞∘⊥∥△∠' + MOREOPS + ']', 'op'],
+    ['_\\{?(?:\\d{1,3}|[a-z])\\}?', 'sub'],   /* B_2 — a subscripted name */
     ['-', 'dash'],                                  /* 5 - 2 yes, K-8 no, (-3) yes */
     ['π|θ|α|β|γ|δ|ε|λ|μ|ρ|σ|τ|φ|ω|χ|ψ|ζ|η|ι|κ|ν', 'greekuc'],
+    ['[ℝℤℕℚℂ]', 'bb'],                          /* ℝ ℤ ℕ ℚ ℂ — the number systems */
     ['[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]', 'vulgar']
   ].map(function (p) { return [sticky(new RegExp(p[0])), p[1]]; });
 
-  var SELF = { mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1, sup: 1, deg: 1, pct: 1, blank: 1, vulgar: 1, greekuc: 1, call: 1 };
-  var VALUE = { num: 1, var: 1, varuc: 1, pi: 1, greek: 1, call: 1, mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1, sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1 };
+  var SELF = {
+    mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1, sup: 1, deg: 1, pct: 1, blank: 1,
+    vulgar: 1, greekuc: 1, call: 1, matrix: 1, abs: 1, bb: 1, point: 1, sub: 1
+  };
+  var VALUE = {
+    num: 1, var: 1, varuc: 1, pi: 1, greek: 1, call: 1, mixed: 1, frac: 1, root: 1, croot: 1,
+    pow: 1, unitpow: 1, sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1, matrix: 1, abs: 1, bb: 1, point: 1
+  };
   var ATOM = {
     num: 1, var: 1, varuc: 1, pi: 1, greek: 1, call: 1, open: 1, close: 1, bopen: 1, bclose: 1,
     comma: 1, colon: 1, op: 1, blank: 1, mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1,
-    sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1
+    sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1, matrix: 1, abs: 1, dots: 1, bb: 1,
+    point: 1, sub: 1, gopen: 1, gclose: 1
   };
   /* whitespace is only allowed inside a run; these pairs stay tight */
   function tight(a, b) {
-    if (a === 'open' || a === 'bopen' || a === 'close' || a === 'bclose' || a === 'comma') return true;
-    if (b === 'close' || b === 'bclose' || b === 'comma' || b === 'pow' || b === 'supx') return true;
+    if (a === 'open' || a === 'bopen' || a === 'gopen') return true;
+    if (a === 'close' || a === 'bclose' || a === 'gclose' || a === 'comma') return true;
+    if (b === 'close' || b === 'bclose' || b === 'gclose' || b === 'comma' || b === 'pow' || b === 'supx' || b === 'sub') return true;
     return false;
   }
   /* A lone letter may sit across a space inside a run only when it touches an
@@ -7695,13 +7735,143 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var okPrev = !gapPrev || prevKind === 'op' || prevKind === 'open' || prevKind === 'comma' || prevKind === 'colon';
     var okNext = !gapNext || nextKind === 'op' || nextKind === 'close' || nextKind === 'comma' ||
       nextKind === 'colon' || nextKind === 'pow' || nextKind === 'supx';
+    /* R^n, S^(n-1), A^2: the letter IS the base of the power, so it is inside
+       the formula even where a space ended the word before it. Letting it stay
+       text and typesetting only `^n` is exactly the half-converted look. */
+    if (gapPrev && !gapNext && (nextKind === 'pow' || nextKind === 'supx' || nextKind === 'sub')) okPrev = true;
     return okPrev && okNext;
+  }
+
+  /* --------------------------------------------------------- matrices ----- */
+  /* `[[−8, −7], [−6, 3]]` has to survive the run finder as ONE atom: taken
+     token by token it is brackets and commas and minus signs, which come out as
+     `\left[\left[−8,−7\right]…\right]` — nested brackets, not a matrix. So a
+     literal matrix is parsed here and drawn as bmatrix.
+     The matrix generators also wrap the whole thing in a second pair of
+     brackets (`[[[2, 1], [0, 3]]]`), a leftover of printing rows as lists, so a
+     one-row-of-one nesting is peeled off before drawing. */
+  var MVAL = /^[-+]?(?:\d+(?:\.\d+)?(?:\s*\/\s*\d+)?|pi|[a-z])$/;
+  function matchBracket(src, i) {
+    var depth = 0, j = i;
+    for (; j < src.length; j++) {
+      if (j - i > 160) return -1;                      /* no matrix is that wide */
+      if (src.charAt(j) === '[') depth++;
+      else if (src.charAt(j) === ']') { depth--; if (!depth) return j + 1; }
+    }
+    return -1;
+  }
+  function splitTop(body) {
+    var out = [], depth = 0, start = 0, i;
+    for (i = 0; i < body.length; i++) {
+      var c = body.charAt(i);
+      if (c === '[') depth++;
+      else if (c === ']') { depth--; if (depth < 0) return null; }
+      else if (c === ',' && depth === 0) { out.push(body.slice(start, i)); start = i + 1; }
+    }
+    out.push(body.slice(start));
+    return out;
+  }
+  function parseList(s) {
+    s = String(s == null ? '' : s).trim();
+    if (s.charAt(0) !== '[' || s.charAt(s.length - 1) !== ']') return null;
+    var parts = splitTop(s.slice(1, -1).trim());
+    if (!parts || !parts.length || parts.length > 8) return null;
+    var out = [], i, p, sub;
+    for (i = 0; i < parts.length; i++) {
+      p = parts[i].trim();
+      if (!p) return null;
+      if (p.charAt(0) === '[') {
+        sub = parseList(p);
+        if (!sub) return null;
+        out.push(sub);
+      } else if (MVAL.test(p)) out.push(p);
+      else return null;                               /* prose in brackets: not maths */
+    }
+    return out;
+  }
+  function isGrid(x) {
+    if (!x || !x.length) return false;
+    var n = -1, i, j;
+    for (i = 0; i < x.length; i++) {
+      if (!Array.isArray(x[i]) || !x[i].length) return false;
+      if (n < 0) n = x[i].length;
+      if (x[i].length !== n) return false;            /* a ragged row is prose */
+      for (j = 0; j < x[i].length; j++) if (Array.isArray(x[i][j])) return false;
+    }
+    return x.length * n <= 36;
+  }
+  function matrixAt(src, i) {
+    var end = matchBracket(src, i);
+    if (end < 0) return null;
+    var x = parseList(src.slice(i, end));
+    if (!x) return null;
+    while (x.length === 1 && Array.isArray(x[0]) && Array.isArray(x[0][0])) x = x[0];
+    if (!isGrid(x) || x.length < 2) return null;      /* one row is a list, not a matrix */
+    return { rows: x, end: end };
+  }
+  /* (1, 4), (x, y), [0, 1) and ⟨3, 1, 4⟩ — a short list of values between
+     brackets is ONE atom too. Coordinates, intervals and vectors sit inside
+     running prose, and a list taken token by token is only commas and brackets,
+     which no acceptance rule can defend. A grid of rows is checked first, so
+     [[a, b], [c, d]] stays a matrix and never becomes a list of lists. */
+  var PTOPEN = { '(': ')', '[': ']', '⟨': '⟩' };
+  var PTTEX = {
+    '(': '\\left(', '[': '\\left[', '⟨': '\\left\\langle',
+    ')': '\\right)', ']': '\\right]', '⟩': '\\right\\rangle'
+  };
+  var PTEXT = '[-+]?(?:\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+)?|pi|[a-z])';
+  function tupleAt(src, i) {
+    var open = src.charAt(i), want = PTOPEN[open];
+    if (!want) return null;
+    var j = i + 1, parts = [], start = j, depth = 0, c, k;
+    for (; j < src.length && j - i < 120; j++) {
+      c = src.charAt(j);
+      if (c === '(' || c === '[' || c === '⟨') depth++;
+      else if (c === ')' || c === ']' || c === '⟩') {
+        if (!depth) { parts.push(src.slice(start, j)); break; }   /* [0, 1) closes early */
+        depth--;
+      } else if (c === ',' && !depth) { parts.push(src.slice(start, j)); start = j + 1; }
+    }
+    if (depth || !parts.length || parts.length > 8) return null;
+    if (src.charAt(j) !== ')' && src.charAt(j) !== ']' && src.charAt(j) !== '⟩') return null;
+    var one = new RegExp('^\\s*' + PTEXT + '\\s*$');
+    var body = [];
+    for (k = 0; k < parts.length; k++) {
+      if (!one.test(parts[k])) return null;             /* prose between brackets */
+      body.push(parts[k].trim());
+    }
+    return { end: j + 1, open: open, close: src.charAt(j), body: body };
+  }
+
+  function matrixTex(rows) {
+    var out = [], i, j, line;
+    for (i = 0; i < rows.length; i++) {
+      line = [];
+      for (j = 0; j < rows[i].length; j++) line.push(innerTex(rows[i][j]));
+      out.push(line.join(' & '));
+    }
+    return '\\begin{bmatrix}' + out.join(' \\\\ ') + '\\end{bmatrix}';
   }
 
   function scan(src) {
     var out = [], i = 0, n = src.length;
     while (i < n) {
       var hit = null, p, m;
+      if (src.charAt(i) === '[') {
+        var mx = matrixAt(src, i);
+        if (mx) {
+          out.push({ kind: 'matrix', s: src.slice(i, mx.end), at: i, rows: mx.rows });
+          i = mx.end; continue;
+        }
+      }
+      var pt = tupleAt(src, i);
+      if (pt) {
+        out.push({
+          kind: 'point', s: src.slice(i, pt.end), at: i,
+          open: pt.open, close: pt.close, body: pt.body
+        });
+        i = pt.end; continue;
+      }
       for (p = 0; p < PATS.length; p++) {
         PATS[p][0].lastIndex = i;
         m = PATS[p][0].exec(src);
@@ -7726,6 +7896,12 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             /[-+\u00d7\u00f7=<>\u2248\u2264\u2265\u2260\u00b1*]/.test(pd) || /\s/.test(nd) ||
             (unary && /\d|[a-z]/.test(nd))) ? 'op' : 'txt';
         }
+        /* "of (1, 4)" is prose plus a coordinate pair, not the function f of
+           (1, 4): a call letter has to stand free on its left. */
+        if (hit.kind === 'call') {
+          var cb = i > 0 ? src.charAt(i - 1) : '';
+          if (/[A-Za-z']/.test(cb)) hit = { kind: 'txt', s: hit.s, at: i };
+        }
         if (hit.kind === 'txt') { out.push(hit); i++; continue; }
         out.push(hit); i += hit.s.length; continue;
       }
@@ -7738,7 +7914,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function innerIsMath(inner) {
     if (!inner || inner.length > 10) return false;
     var toks = scan(inner), i;
-    for (i = 0; i < toks.length; i++) if (!ATOM[toks[i].kind]) return false;
+    for (i = 0; i < toks.length; i++) {
+      if (toks[i].kind === 'sp') continue;           /* "f(1, 4)" has a space */
+      if (!ATOM[toks[i].kind]) return false;
+    }
     return true;
   }
 
@@ -7763,6 +7942,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (t.kind === 'op') { parts.push(OPS[s] == null ? s : OPS[s]); continue; }
       if (t.kind === 'blank') { parts.push('\\mathbin{\\bigcirc}'); continue; }
       if (t.kind === 'vulgar') { parts.push(VULGAR[s] || s); continue; }
+      if (t.kind === 'matrix') { parts.push(matrixTex(t.rows || [])); continue; }
+      if (t.kind === 'abs') { parts.push('\\left|' + innerTex(s.slice(1, -1)) + '\\right|'); continue; }
+      if (t.kind === 'dots') { parts.push('\\ldots'); continue; }
+      if (t.kind === 'bb') { parts.push(BB[s] || s); continue; }
+      if (t.kind === 'point') {
+        parts.push((PTTEX[t.open] || '\\left(') + t.body.map(innerTex).join(', ') +
+          (PTTEX[t.close] || '\\right)'));
+        continue;
+      }
+      if (t.kind === 'sub') { parts.push('_{' + s.replace(/^_\{?/, '').replace(/\}$/, '') + '}'); continue; }
+      if (t.kind === 'gopen') { parts.push('\\left\\langle'); continue; }
+      if (t.kind === 'gclose') { parts.push('\\right\\rangle'); continue; }
       if (t.kind === 'open') { parts.push('\\left('); continue; }
       if (t.kind === 'close') { parts.push('\\right)'); continue; }
       if (t.kind === 'bopen') { parts.push('\\left['); continue; }
@@ -7782,7 +7973,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         if (/^\(.+\)$/.test(body)) body = body.slice(1, -1);
         parts.push(t.kind === 'croot' ? '\\sqrt[3]{' + body + '}' : '\\sqrt{' + body + '}'); continue;
       }
-      if (t.kind === 'pow') { parts.push('^{' + s.replace(/^\^\s*/, '').trim() + '}'); continue; }
+      if (t.kind === 'pow') {
+        var pw = s.replace(/^\^\s*/, '').trim();
+        if (/^\(.+\)$/.test(pw)) pw = pw.slice(1, -1);      /* S^(n-1) → S^{n-1} */
+        parts.push('^{' + pw + '}'); continue;
+      }
       if (t.kind === 'sup') {
         m = s.match(/^(\d+(?:,\d{3})*(?:\.\d+)?)\s*([' + SUPCH + ']+)$/) || [null, '', ''];
         parts.push(numTex(m[1]) + '^{' + supDigits(m[2]) + '}'); continue;
@@ -7825,8 +8020,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var depth = 0, i;
     for (i = 0; i < run.length; i++) {
       var k = run[i].kind;
-      if (k === 'open' || k === 'bopen') depth++;
-      else if (k === 'close' || k === 'bclose') { depth--; if (depth < 0) return false; }
+      if (k === 'open' || k === 'bopen' || k === 'gopen') depth++;
+      else if (k === 'close' || k === 'bclose' || k === 'gclose') { depth--; if (depth < 0) return false; }
     }
     return depth === 0;
   }
@@ -7841,25 +8036,56 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
   function trim(run) {
     var a = 0, b = run.length, i, d;
-    while (a < b && (run[a].kind === 'comma' || (run[a].kind === 'op' && !(isUnaryLead(run, a, b))))) a++;
+    /* a leading "…" is the tail of the sentence before it, not part of the
+       formula that starts here; a trailing one means "and so on" and stays */
+    while (a < b && (run[a].kind === 'comma' || run[a].kind === 'dots' ||
+      (run[a].kind === 'op' && !(isUnaryLead(run, a, b))))) a++;
     while (b > a && (run[b - 1].kind === 'op' || run[b - 1].kind === 'comma')) b--;
     /* drop brackets that a word or that trim cut in half */
     d = 0;
     for (i = a; i < b; i++) {
       var k = run[i].kind;
-      if (k === 'open' || k === 'bopen') d++;
-      else if (k === 'close' || k === 'bclose') { if (d === 0) a = i + 1; else d--; }
+      if (k === 'open' || k === 'bopen' || k === 'gopen') d++;
+      else if (k === 'close' || k === 'bclose' || k === 'gclose') { if (d === 0) a = i + 1; else d--; }
     }
     d = 0;
     for (i = b - 1; i >= a; i--) {
       var k2 = run[i].kind;
-      if (k2 === 'close' || k2 === 'bclose') d++;
-      else if (k2 === 'open' || k2 === 'bopen') { if (d === 0) { b = i; break; } d--; }
+      if (k2 === 'close' || k2 === 'bclose' || k2 === 'gclose') d++;
+      else if (k2 === 'open' || k2 === 'bopen' || k2 === 'gopen') { if (d === 0) { b = i; break; } d--; }
     }
     return run.slice(a, b);
   }
+  /* (1, 4), (x, y), [a, b] and 0, 1, 25, … — an ordered list of values carries
+     no operator, yet it is maths: coordinates and sequences are two of the
+     commonest things in the app, and printing them as raw text beside a
+     typeset `3 × 4` makes one card hold two notations.
+     A bare list counts only when it says "and so on", so the answer format a
+     learner types ("0, -6 ; -15, 5") is left exactly as it is typed. */
+  function valueList(run) {
+    var i, k, last = run.length - 1;
+    /* a trailing ○ is the hole the learner fills, not part of the pair before it */
+    while (last >= 0 && run[last].kind === 'blank') last--;
+    var brackets = last >= 3 &&
+      /^(open|bopen|gopen)$/.test(run[0].kind) &&
+      /^(close|bclose|gclose)$/.test(run[last].kind) ? 1 : 0;
+    var a = brackets ? 1 : 0, b = last - (brackets ? 1 : 0);
+    var commas = 0, vals = 0, tight = true;
+    for (i = a; i <= b; i++) {
+      k = run[i].kind;
+      if (k === 'comma') { commas++; continue; }
+      if (k === 'dots') continue;
+      if (!VALUE[k]) return false;
+      if (vals && run[i].at !== run[i - 1].at + run[i - 1].s.length) tight = false;
+      vals++;
+    }
+    if (commas < 1 || vals < 2) return false;
+    if (brackets) return true;                          /* (1, 4) — coordinates */
+    if (run[b] && run[b].kind === 'dots') return true;   /* 15, 16 … 31 */
+    return tight && vals >= 3;                          /* 3,4,3 — a Schläfli symbol */
+  }
   function acceptable(run) {
-    var self = 0, op = 0, val = 0, colon = 0, supx = 0, br = 0, i;
+    var self = 0, op = 0, val = 0, colon = 0, supx = 0, br = 0, dots = 0, i;
     for (i = 0; i < run.length; i++) {
       var t = run[i];
       if (SELF[t.kind]) self++;
@@ -7867,6 +8093,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (VALUE[t.kind]) val++;
       if (t.kind === 'colon') colon++;
       if (t.kind === 'supx') supx++;
+      if (t.kind === 'dots') dots++;
       if (t.kind === 'bopen' || t.kind === 'bclose') br++;
     }
     if (!run.length || !balanced(run)) return false;
@@ -7875,6 +8102,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (colon >= 1 && val >= 2) return true;          /* 12 : 11 */
     if (supx >= 1 && val >= 1) return true;           /* (-3)³ */
     if (br >= 2 && val >= 2) return true;             /* [[2, 1], [0, 3]] */
+    if (dots >= 1 && val >= 1) return true;           /* 15, 16 … 31 */
+    if (valueList(run)) return true;                  /* (1, 4) — coordinates */
     return false;
   }
   function findRuns(src) {
@@ -7892,12 +8121,21 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         atoms.push({ kind: 'break' }); continue;
       }
       if (!ATOM[t.kind]) { atoms.push({ kind: 'break' }); pendingGap = false; continue; }
+      /* a subscript needs a name in front of it: B_2 is a name with an index,
+         while a1_1 is a cell address a learner types, and 1_1 is nobody. */
+      if (t.kind === 'sub' && !(i > 0 && toks[i - 1] && /^(var|varuc|greek|greekuc|close|bclose)$/.test(toks[i - 1].kind))) {
+        atoms.push({ kind: 'break' }); pendingGap = false; continue;
+      }
       atoms.push({ t: t, gap: pendingGap });
       pendingGap = false;
     }
     for (i = 0; i < atoms.length; i++) {
       var a = atoms[i];
       if (!a.t || (a.t.kind !== 'var' && a.t.kind !== 'varuc')) continue;
+      /* "A: 4 × 5 · B: 2 × 10" — a letter that runs straight into a colon is a
+         label, not a factor, so it never joins the maths that came before it. */
+      var afterCh = src.charAt(a.t.at + a.t.s.length);
+      if (afterCh === ':' || afterCh === ';') { atoms[i] = { kind: 'break' }; continue; }
       var prev = i > 0 ? atoms[i - 1] : null;
       var next = i + 1 < atoms.length ? atoms[i + 1] : null;
       var prevKind = prev && prev.t ? prev.t.kind : null;
@@ -29050,7 +29288,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
 
   function fmt(v) { return HS.exact(v); }
   function M(rows) {
-    return '[[' + rows.map(function (r) { return '[' + r.map(fmt).join(', ') + ']'; }).join(', ') + ']]';
+    /* one bracket level: rows of entries, and 30-tex.js draws that as a matrix.
+       A second wrapper level around the whole thing is bookkeeping from the
+       answer side, and it reads as a typo in the question. */
+    return '[' + rows.map(function (r) { return '[' + r.map(fmt).join(', ') + ']'; }).join(', ') + ']';
   }
   function inline(rows) { return rows.map(function (r) { return r.map(fmt).join(' '); }).join(' ; '); }
   function add(A, B) { return A.map(function (r, i) { return r.map(function (v, j) { return v + B[i][j]; }); }); }
@@ -86267,9 +86508,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 </script>
 <script>
 /* =============================================================================
- * 99-gen-zzzz-mathworld-flagship.js — hand-written cards for the concepts the
- * October 2026 MathWorld list puts in Geometry, written by hand rather than
- * generated, because a definition is only half of what these objects teach.
+ * 99-gen-zzzz-mathworld-flagship.js — hand-written cards for the geometry and
+ * graph-theory concepts the 2026 MathWorld monthly lists put on these rungs,
+ * written by hand rather than generated, because a definition is only half of
+ * what these objects teach.
  *
  * The generated table (src/99-gen-zzzz-mathworld.js) asks what MathWorld says
  * about an entry. These cards ask what follows from it: the 16-cell's f-vector
@@ -86279,8 +86521,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
  * and the working shows the computation, so the card teaches the object and
  * not only the sentence about it.
  *
- * Loads after the generated file, so the hand-written cards sit on top of the
- * MathWorld hook, which in turn falls back to the skill's own items.
+ * build.js assembles this file ahead of the generated one, so the source line
+ * above is resolved when a card is built, not at load; both files wrap the same
+ * hook and either falls back to the skill's own items.
  * ============================================================================= */
 (function () {
   'use strict';
@@ -86288,7 +86531,37 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   var SKILL_GEN = GLOB.SKILL_GEN, R = GLOB.R, I_num = GLOB.I_num, LEAK = GLOB.leaksAnswer;
   if (!SKILL_GEN || !R || !I_num) return;
 
-  var SRC = 'New in MathWorld (October 2026)';
+  /* The same source line a generated card carries — the month whose MathWorld
+     list announced the entry, and the topic that entry was filed under — read
+     back out of the generated table by entry name, so a hand-written card can
+     never claim a month the table contradicts. The lookup runs when a card is
+     built rather than here, because build.js assembles this file ahead of the
+     generated one and MW does not exist yet at this point in the script. */
+  var SRC_CACHE = {};
+  function mwRow(name) {
+    var MW = GLOB.MW, i, r, want = String(name).toLowerCase();
+    if (!MW || !MW.ROW) return null;
+    for (i = 0; i < MW.ROW.length; i++) {
+      r = MW.ROW[i];
+      if (String(r[0]).toLowerCase() !== want) continue;
+      var g = (MW.GP && MW.GP[r[3]]) || [];
+      return { month: (MW.MTH && MW.MTH[r[10]]) || 'October 2026',
+        topic: (MW.LAB && MW.LAB[g[1]]) || 'Mathematics' };
+    }
+    return null;
+  }
+  function SRC(name, standIn) {
+    var key = String(name) + ' ' + String(standIn || '');
+    if (!SRC_CACHE[key]) {
+      /* an entry the generated table dropped (the 3-tree) borrows the
+         provenance of the entry it is built beside, so the source line never
+         loses the month or the topic */
+      var hit = mwRow(name) || (standIn && mwRow(standIn)) ||
+        { month: 'October 2026', topic: 'Mathematics' };
+      SRC_CACHE[key] = 'New in MathWorld (' + hit.month + '), topic: ' + hit.topic;
+    }
+    return SRC_CACHE[key];
+  }
   function bump(lvl) { return (lvl - 3) * 0.2; }
 
   /* ---------------------------------------------------------------- 16-cell --
@@ -86299,7 +86572,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       '(0, 1, 0, 0), (0, -1, 0, 0), (0, 0, 1, 0), (0, 0, -1, 0), (0, 0, 0, 1) and (0, 0, 0, -1). ' +
       'How many vertices does the 16-cell have?';
     return I_num(p, 8, {
-      sub: SRC + ' · 16-cell (four-dimensional cross polytope).',
+      sub: SRC('16-Cell') + ' · 16-cell (four-dimensional cross polytope).',
       explain: [
         'The 16-cell puts one pair of vertices on each coordinate axis of four-dimensional space.',
         'Four axes, two ends each: 4 × 2 = 8 points.',
@@ -86313,7 +86586,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'Two vertices of the 16-cell are joined when they do not lie on the same coordinate axis. ' +
       'With 8 vertices, every vertex is therefore joined to 6 of the others. How many edges does the 16-cell have?';
     return I_num(p, 24, {
-      sub: SRC + ' · 16-cell. Enter the number of edges.',
+      sub: SRC('16-Cell') + ' · 16-cell. Enter the number of edges.',
       explain: [
         'Each of the 8 vertices joins the 6 vertices that are not itself or its opposite end of an axis.',
         'Counting at the vertices counts every edge twice, so divide by 2: 8 × 6 ÷ 2 = 24.',
@@ -86328,7 +86601,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       'The 8 vertices give 56 sets of 3, and 24 of those sets take both ends of an axis. ' +
       'How many triangular faces does the 16-cell have?';
     return I_num(p, 32, {
-      sub: SRC + ' · 16-cell. Enter the number of faces.',
+      sub: SRC('16-Cell') + ' · 16-cell. Enter the number of faces.',
       explain: [
         'Choose any 3 of the 8 vertices: that gives 56 triples.',
         'A triple holding one of the 4 opposite pairs can be finished by any of the remaining 6 vertices, so 4 × 6 = 24 triples are not faces.',
@@ -86342,7 +86615,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function v16FacesFromCells(rng, lvl) {
     var p = 'The 16-cell is made of 16 tetrahedra, with 4 of them meeting at every edge. Each tetrahedron has 4 faces, and every face is shared by exactly 2 tetrahedra. How many faces does the 16-cell have?';
     return I_num(p, 32, {
-      sub: SRC + ' · 16-cell (built from 16 tetrahedral cells).',
+      sub: SRC('16-Cell') + ' · 16-cell (built from 16 tetrahedral cells).',
       explain: [
         'The 16 tetrahedra bring 16 × 4 = 64 faces between them.',
         'Each face is counted twice, once for each tetrahedron that owns it, so 64 ÷ 2 = 32.',
@@ -86356,7 +86629,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'The 16-cell has 8 vertices, 24 edges and 32 triangular faces, and it is built from 16 tetrahedral cells. ' +
       'For the boundary of a four-dimensional polytope the Euler characteristic is V − E + F − C. What is it for the 16-cell?';
     return I_num(p, 0, {
-      sub: SRC + ' · 16-cell. Enter the value as a number.',
+      sub: SRC('16-Cell') + ' · 16-cell. Enter the value as a number.',
       explain: [
         'Start with the vertices and subtract the edges: 8 − 24 = -16.',
         'Add the faces, then subtract the cells: -16 + 32 − 16 = 0.',
@@ -86374,7 +86647,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       'A generating point strictly inside that triangle gets one image for every symmetry of the group, and those images form a regular polygon. ' +
       'How many vertices does that polygon have?';
     return I_num(p, 6, {
-      sub: SRC + ' · Wythoff construction (mirror-group orbit).',
+      sub: SRC('Wythoff Construction') + ' · Wythoff construction (mirror-group orbit).',
       explain: [
         'The triangle group has 6 symmetries: 3 rotations and 3 reflections in the mirrors.',
         'A point strictly inside the fundamental triangle is left fixed by none of them, so it has 6 different images.',
@@ -86389,7 +86662,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'The same Wythoff construction now starts with the generating point on exactly one of the three mirrors, and no vertex of the fundamental triangle. ' +
       'Half of the group symmetries now bring it back to itself. How many points are in its orbit?';
     return I_num(p, 3, {
-      sub: SRC + ' · Wythoff construction (a rectified form).',
+      sub: SRC('Wythoff Construction') + ' · Wythoff construction (a rectified form).',
       explain: [
         'The point still sees all 6 symmetries, but the reflection in the mirror it lies on fixes it.',
         'So the 6 symmetries fall into pairs with the same image: 6 ÷ 2 = 3.',
@@ -86405,7 +86678,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       'The omnitruncated tetrahedron therefore gets one hexagonal face from every face of the tetrahedron, one from every vertex, and one square face from every edge. ' +
       'How many faces does the omnitruncated tetrahedron have?';
     return I_num(p, 14, {
-      sub: SRC + ' · Wythoff construction (omnitruncated tetrahedron).',
+      sub: SRC('Wythoff Construction') + ' · Wythoff construction (omnitruncated tetrahedron).',
       explain: [
         'A tetrahedron has 4 faces and 4 vertices, so it contributes 4 + 4 = 8 hexagonal faces.',
         'It also has 6 edges, each contributing a square face.',
@@ -86426,7 +86699,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'A 2-tree is built from a single edge: every new vertex is joined to both ends of one edge that is already there. ' +
       'How many edges does a 2-tree on ' + n + ' vertices have?';
     return I_num(p, edges, {
-      sub: SRC + ' · 2-tree. Enter the number of edges.',
+      sub: SRC('2-Tree') + ' · 2-tree. Enter the number of edges.',
       explain: [
         'The construction starts with 2 vertices and 1 edge.',
         'It then adds ' + n + ' − 2 = ' + added + ' vertices, and each one adds 2 edges.',
@@ -86442,7 +86715,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'In a 2-tree every new vertex is joined to both ends of an existing edge, which closes exactly one new triangle. ' +
       'How many triangles are in a 2-tree on ' + n + ' vertices?';
     return I_num(p, tr, {
-      sub: SRC + ' · 2-tree. Enter the number of triangles.',
+      sub: SRC('2-Tree') + ' · 2-tree. Enter the number of triangles.',
       explain: [
         'The starting edge is not a triangle, so the construction begins with 0 of them.',
         'After those first 2 vertices, ' + n + ' − 2 = ' + tr + ' vertices are added, and each closes exactly one triangle.',
@@ -86456,7 +86729,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var n = R.int(rng, 6, 11), edges = 2 * n - 3;
     var p = 'A 2-tree on n vertices has 2n − 3 edges. For a 2-tree with ' + edges + ' edges, how many vertices does it have?';
     return I_num(p, n, {
-      sub: SRC + ' · 2-tree. Enter the number of vertices.',
+      sub: SRC('2-Tree') + ' · 2-tree. Enter the number of vertices.',
       explain: [
         'Solve 2n − 3 = ' + edges + ': add 3 to both sides, giving 2n = ' + (edges + 3) + '.',
         'Divide by 2: n = ' + (edges + 3) + ' ÷ 2 = ' + n + '.',
@@ -86476,7 +86749,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'A 3-tree starts from a triangle with a fourth vertex joined to all three of them; every new vertex is joined to all three vertices of one triangular face. ' +
       'How many edges does a 3-tree on ' + n + ' vertices have?';
     return I_num(p, edges, {
-      sub: SRC + ' · 3-tree. Enter the number of edges.',
+      sub: SRC('3-Tree', '2-Tree') + ' · 3-tree. Enter the number of edges.',
       explain: [
         'The starting four vertices and their edges form a tetrahedron: 6 edges.',
         'That leaves ' + n + ' − 4 = ' + added + ' vertices to add, and each one caps a face with 3 new edges.',
@@ -86492,7 +86765,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'A 3-tree on n vertices is a maximal planar graph, so its ' + (3 * n - 6) + ' edges cut the sphere into faces. ' +
       'How many faces, counting the outside one, does a 3-tree on ' + n + ' vertices have?';
     return I_num(p, faces, {
-      sub: SRC + ' · 3-tree. Enter the number of faces.',
+      sub: SRC('3-Tree', '2-Tree') + ' · 3-tree. Enter the number of faces.',
       explain: [
         'Euler\'s formula for a planar graph is V − E + F = 2.',
         'A 3-tree has n = ' + n + ' vertices and 3n − 6 = ' + (3 * n - 6) + ' edges, so ' + n + ' − ' + (3 * n - 6) + ' + F = 2.',
@@ -86508,7 +86781,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = 'A 3-tree begins with a tetrahedron, whose 4 triangular faces are already there; every new vertex caps one face and creates 3 more triangles. ' +
       'How many triangles are in a 3-tree on ' + n + ' vertices?';
     return I_num(p, tr, {
-      sub: SRC + ' · 3-tree. Enter the number of triangles.',
+      sub: SRC('3-Tree', '2-Tree') + ' · 3-tree. Enter the number of triangles.',
       explain: [
         'The starting tetrahedron contributes 4 triangles.',
         'It is followed by ' + n + ' − 4 = ' + (n - 4) + ' vertices, each capping one triangle and adding 3: a net gain of 2 triangles each.',
@@ -86555,11 +86828,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 /* =============================================================================
  * 99-gen-zzzz-mathworld.js — MathWorld enrichment, generated.
  *
- * 5473 concepts from "New in MathWorld -- October 2026" (3,173 pages read,
+ * 5473 concepts from the ten monthly lists of new and revised MathWorld
+ * entries, January 2026 through October 2026 (3,173 pages read,
  * 27 without a usable definition), filed onto 644 catalogue rungs by the topic each MathWorld page declares for itself.
  * Every concept carries the definition MathWorld prints for it, plus any plain
  * number that page states about that object, so a card's correct answer is always
  * the source's own. Regenerate with:  node tools/mathworld.js emit
+ * A card names its provenance once, in the sub line — "New in MathWorld (May 2026),
+ * topic: Graph Theory" — where the month index picks the list and the group picks
+ * the topic. The question itself never mentions the source.
  * Data shape:  ROW [name, definition, name-free definition, group, typeBits,
  *              wordMask, sequence, counts, decimal, group order, month index]
  *              MTH  the month list each concept was announced in
@@ -92053,8 +92330,9 @@ var MW = {
  * MathWorld enrichment cards — the runtime half (tools/mw-runtime.js is pasted
  * under the data by `node tools/mathworld.js emit`; edit the data in the tool).
  *
- * Ten monthly lists of new and revised MathWorld entries (January to
- * filed under its own MathWorld topic. `tools/mathworld.js` reads that topic
+ * Ten monthly lists of new and revised MathWorld entries (January to October
+ * 2026), each filed under its own MathWorld topic and stamped with the month
+ * whose list announced it. `tools/mathworld.js` reads that topic
  * from each page's DC.Subject meta and hangs the concept on the catalogue rung
  * whose title is its nearest neighbour: polytopes onto Geometry's
  * three-dimensional-figure vocabulary, constants onto "classify rational and
@@ -92066,6 +92344,12 @@ var MW = {
  * vertices, 24 edges and 32 faces", a decimal expansion). Cards are built from
  * those facts only, so the correct answer is always the source's own; the
  * working shows the definition, which is the point of the card.
+ *
+ * The source is stated once per card, and never inside the question: the sub
+ * line reads "New in MathWorld (May 2026), topic: Graph Theory", carrying the
+ * month that entry was announced in and the topic it was filed under. The
+ * question itself names the concept and asks about it, so a learner reads a
+ * math question first and the provenance second.
  *
  * A host skill keeps its own items: the MathWorld card is offered with a small
  * probability that shrinks as the host's pool grows, and every failure to build
@@ -92205,12 +92489,13 @@ var MW = {
     for (k = 0; k < rest.length; k++) names.push(ROW[rest[k]][0]);
     var sh = R.shuffle(rng, names), ci = sh.indexOf(row[0]);
     var stems = [
-      'A MathWorld entry reads as follows. Which entry is it?',
-      'This description has had its name removed. Which MathWorld entry does it define?',
+      'The description below has had its name removed. Which entry is it?',
+      'Which of these is defined by the following description?',
       'Which of these is described by the following?'
     ];
     var prompt = stems[Math.floor(rng() * stems.length)];
-    var sub = '"' + alt + '"  (topic: ' + label(rowIdx) + ')';
+    var sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) +
+      '. "' + alt + '"';
     var wrong = [];
     for (k = 0; k < rest.length; k++) wrong.push(ROW[rest[k]][0]);
     var ex = [
@@ -92241,7 +92526,7 @@ var MW = {
     var gaps = [];
     for (i = 1; i < shown.length; i++) gaps.push(shown[i] - shown[i - 1]);
     var listTxt = shown.join(', ');
-    var prompt = 'The MathWorld entry "' + row[0] + '" lists a sequence that begins ' + listTxt +
+    var prompt = '"' + row[0] + '" is associated with a sequence that begins ' + listTxt +
       ', ... What number comes next?';
     var sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) + '. The entry prints the answer.';
     var ex = [
