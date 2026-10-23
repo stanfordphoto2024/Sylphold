@@ -243,7 +243,7 @@ kbd { font-family: ui-monospace, Menlo, monospace; font-size: 11px; border: 1px 
 hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 
 /* ------------------------------------------------------- visual models ---- */
-.viz { color: var(--ink); font-size: 14px; }
+.viz { color: var(--ink); font-size: 14px; max-width: 100%; }
 .viz .cap { text-align: center; color: var(--ink-3); font-size: 12px; margin-top: 6px; }
 .tf { display: inline-flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 100%; }
 .tf .frame { display: grid; grid-template-columns: repeat(5, 26px); grid-auto-rows: 26px; gap: 3px; padding: 4px; border: 2px solid var(--ink-3); border-radius: 7px; }
@@ -316,6 +316,12 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .coins .coin { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; margin: 0 auto 3px; border: 1.5px solid rgba(0, 0, 0, .25); }
 .coins .cnt { font-size: 12px; color: var(--ink-2); }
 .vtable { border-collapse: collapse; font-size: 14px; }
+/* Wide models — a 12-cube train, a two-strip comparison, an 11-column area
+   figure — must stay inside the card. The columns share the width that is
+   there, so every cube is on screen and can be counted. */
+.vtable.wide { table-layout: fixed; width: 100%; max-width: 100%; }
+.vtable.wide th, .vtable.wide td { padding: 4px 3px; font-size: 13px; overflow: hidden; }
+.vtable.wide { word-break: break-all; }
 .vtable th, .vtable td { border: 1px solid var(--line); padding: 6px 12px; text-align: center; }
 .vtable th { background: var(--accent-soft); font-weight: 700; }
 .bond { display: inline-flex; align-items: center; gap: 22px; }
@@ -13617,7 +13623,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           exprSteps: ['Perimeter adds all the sides once around.',
             sideList.join(' + ') + ' = ' + sumCheck + '.',
             'So the perimeter is <b>' + sumCheck + ' ' + u.linP + '</b>.'],
-          cmpQ: 'Which is greater, the perimeter of this figure or its area as a number?',
+          /* "this figure" is only a real pointer when the figure is drawn: with
+             no model on the card the learner cannot know which shape is meant. */
+          cmpQ: 'Which is greater, the perimeter of ' + (vis2 ? (fig ? 'this figure' : 'this ' + sh) : 'a ' + sh + ' that is ' + lin(u, r.w) + ' by ' + lin(u, r.h)) + ' or its area as a number?',
           cmpV: fig ? fig.area : r.area,
           cmpSteps: ['Perimeter: ' + sideList.join(' + ') + ' = ' + sumCheck + '.',
             'Area of the matching rectangle: ' + (fig ? fig.area : r.area) + '.',
@@ -87072,7 +87080,17 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   /* a word answer, same treatment */
   function askStr(rng, sk, prompt, right, wrongs, o) {
     var pats = [].concat(right);
-    if (pats.length === 1 && typeof pats[0] === 'string' && !/[\^\[\]|\\]/.test(pats[0])) right = variants(pats[0]);
+    if (pats.length === 1 && typeof pats[0] === 'string' && !/[^[\]|\\]/.test(pats[0])) right = variants(pats[0]);
+    /* A young learner is shown the answers to tap. Being asked to type "the
+       hundreds place" tests spelling, not the standard, so at these grades the
+       card becomes a choice card built from the same right answer and its own
+       near-misses. */
+    var opts = [String([].concat(right)[0])].concat([].concat(wrongs || []).map(String));
+    if (rank(sk) <= 5 && typeof I_choice === 'function') {
+      var uniq = [], i2;
+      for (i2 = 0; i2 < opts.length && uniq.length < 4; i2++) if (opts[i2] && uniq.indexOf(opts[i2]) < 0) uniq.push(opts[i2]);
+      if (uniq.length >= 3) { var sh = R.shuffle(rng, uniq); return I_choice(prompt, sh, sh.indexOf(uniq[0]), o || {}); }
+    }
     return DP.mcStr(rng, sk, prompt, right, wrongs, o || {});
   }
   function lastB(step) { return step; }
@@ -87110,30 +87128,50 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* A1 and up: the topic needs its own content, not an arithmetic re-reading.
        tools/smoke.js and tools/rigorcheck.js both report these as still to write. */
     if (rank(sk) >= 14 && SENIOR_TOPIC.test(t)) return null;
+    /* "Subtraction up to three digits: fill in the missing digits" is about the
+       subtraction, not about place value, whatever the word "digits" suggests. */
+    if (/missing (the )?digits?|select the missing numbers|fill in the missing/.test(t) &&
+        /add|subtract|subtraction|multiply|multiplication|division|divide/.test(t)) return 'operations';
     for (i = 0; i < FAMILY_OF.length; i++) if (FAMILY_OF[i][1].test(t)) return FAMILY_OF[i][0];
     return null;
   }
   /* numbers the title itself promises: "addition facts up to 20", "up to 1000" */
+  var WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
   function boundOf(sk, fb) {
     var t = String(sk.name || '').toLowerCase(), m = t.match(/up to (\d{1,7})|through (\d{1,7})/);
     if (m) return +(m[1] || m[2]);
+    /* "up to three digits", "up to one hundred" — the title states the ceiling in
+       words, and a card that prints 2,986 for a three-digit skill is off-standard. */
+    m = t.match(/(\w+)\s+digits?\b/);
+    if (m && WORDNUM[m[1]]) { var k = WORDNUM[m[1]]; if (k >= 1 && k <= 7) return Math.pow(10, k) - 1; }
+    m = t.match(/up to (one|hundred|thousand|ten|twenty|fifty)\b/);
+    if (m) { var W = { one: 1, ten: 10, twenty: 20, fifty: 50, hundred: 100, thousand: 1000 }; if (W[m[1]]) return W[m[1]]; }
     return fb;
   }
   function opOf(sk) {
     var t = String(sk.name || '').toLowerCase();
-    if (/divis|divide|quotient|remainder/.test(t)) return '/';
+    if (/divis|divide|quotient|remainder/.test(t)) return '÷';
     if (/multipl|product|array|skip count|times as/.test(t)) return '×';
     if (/subtract|difference|fewer|take away|minus/.test(t)) return '−';
     if (/add|sum|join|more than|put together/.test(t)) return '+';
     return ['+', '−'][h32(String(sk && sk.id || t)) % 2];
   }
-  var OPSYM = { '+': '+', '−': '−', '×': '×', '/': '÷' };
-  var OPWORD = { '+': 'sum', '−': 'difference', '×': 'product', '/': 'quotient' };
+  var OPSYM = { '+': '+', '−': '−', '×': '×', '÷': '÷', '/': '÷' };
+  var OPWORD = { '+': 'sum', '−': 'difference', '×': 'product', '÷': 'quotient', '/': 'quotient' };
 
   function calc(a, op, b) { return op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : a / b; }
+  /* every number that reaches the screen goes through here: a quotient like
+     7/4 must read 1.75, never 1.7500000000000002 or 0.6666666666666666. */
+  function fmt(x) {
+    if (typeof x !== 'number' || !isFinite(x)) return String(x);
+    if (x === Math.round(x)) return String(x);
+    var r = Math.round(x * 1000) / 1000;
+    return String(r === Math.round(r) ? Math.round(r) : r);
+  }
   /* draw a,b so that a op b is a whole number inside the skill's own ceiling */
   function pair(rng, sk, op, lvl, cap) {
     var top = Math.min(cap, DP.maxNum ? DP.maxNum(sk) : cap), i, a, b, k;
+    op = op === '/' ? '÷' : op;
     if (op === '÷') {
       b = Math.max(2, Math.min(top > 40 ? int(rng, 2, 12) : int(rng, 2, 5), 12));
       k = Math.max(2, Math.min(Math.floor(top / b), op === '÷' && lvl >= 3 ? 12 : 10));
@@ -87155,14 +87193,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     b = Math.abs(Math.round(DP.mag(rng, sk, lvl, 1, Math.round(top * 0.4))));
     if (a + b > top) b = Math.max(1, top - a);
     return [a, b];
+    /* unreachable: every operation has its own branch above */
   }
   /* names the rigor gate also recognises as a person (tools/rigorcheck.js PERSON) */
   var NAMES = ['Maya', 'Diego', 'Priya', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli', 'Kai', 'Zoe'];
   var THINGS = {
     '+': [['marbles', 'put together'], ['stickers', 'in all'], ['books', 'in all'], ['shells', 'collected']],
     '−': [['marbles', 'left'], ['stickers', 'left'], ['pretzels', 'left'], ['pages', 'left to read']],
-    '×': [['rows of stickers', 'in all'], ['packs of pencils', 'in all'], ['trays of eggs', 'in all'], ['baskets of apples', 'in all']],
-    '÷': [['stickers shared equally', 'each'], ['granola bars shared equally', 'each'], ['seats in equal rows', 'each'], ['cups of juice poured', 'each']]
+    '×': [['pencils', 'in all'], ['granola bars', 'in all'], ['muffins', 'in all'], ['stickers', 'in all']],
+    '÷': [['granola bars', 'each'], ['stickers', 'each'], ['marbles', 'each'], ['cups of juice', 'each']]
   };
 
   /* ============================================================ the decks === */
@@ -87178,60 +87217,84 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var ov = calc(a, other, b);
     var b2 = int(rng, 2, Math.max(3, Math.min(b, 9)));
     var v2 = calc(a, op, b2);
-    var nm = pick(rng, NAMES), th = pick(rng, THINGS[op === '/' ? '÷' : op] || THINGS['+']) || ['items', 'in all'];
+    var nm = pick(rng, NAMES), th = pick(rng, THINGS[op] || THINGS['+']) || ['items', 'in all'];
     var who = voice(sk, 'who', NAMES);
+    /* A title that says "word problems" is a story standard: a bare "8 ÷ 2 =" or
+       a true/false sentence does not assess it. Those shapes are kept for the
+       other titles and the deck answers with stories instead. */
+    var STORY = /word problem|story|stories/.test(ttl);
+    var PICT = rank(sk) <= 5;
 
     return [
       /* 1 the calculation itself */
       function () {
-        return ask(rng, sk, voice(sk, 'calc', [a + ' ' + op + ' ' + b + ' =', 'What is ' + a + ' ' + op + ' ' + b + '?', 'Find ' + a + ' ' + op + ' ' + b + '.', a + ' ' + op + ' ' + b + ' =']), v,
+        if (STORY) return null;
+        return ask(rng, sk, voice(sk, 'calc', [fmt(a) + ' ' + op + ' ' + fmt(b) + ' =', 'What is ' + fmt(a) + ' ' + op + ' ' + fmt(b) + '?', 'Find ' + fmt(a) + ' ' + op + ' ' + fmt(b) + '.', fmt(a) + ' ' + op + ' ' + fmt(b) + ' =']), v,
           [1, -1, b, -b], {
             lim: Math.max(cap, v * 2),
-            teach: 'For ' + a + ' ' + op + ' ' + b + ', work the ' + p + ' one place at a time.',
-            explain: explainOk(['Start with ' + a + ' ' + op + ' ' + b + '.', 'The ' + p + ' is <b>' + v + '</b>.'], v),
+            teach: 'For ' + fmt(a) + ' ' + op + ' ' + fmt(b) + ', work the ' + p + ' one place at a time.',
+            explain: explainOk(['Start with ' + fmt(a) + ' ' + op + ' ' + fmt(b) + '.', 'The ' + p + ' is <b>' + fmt(v) + '</b>.'], v),
             visual: rank(sk) <= 4 && op === '+' ? V.array(Math.min(a, 10), Math.min(b, 10), { label: a + ' and ' + b }) : null
           });
       },
       /* 2 a missing number in the same sentence */
       function () {
-        var miss = R.chance(rng, 0.5) ? 'b' : 'r';
-        var q = miss === 'b' ? a + ' ' + op + ' ___ = ' + v : v + ' ' + (op === '+' ? '−' : op === '−' ? '+' : op) + ' ' + a + ' = ___';
-        var ans = miss === 'b' ? b : (op === '+' ? v - a : v + a);
-        if (miss === 'b' && op !== '+') return null;
+        /* The blank may hide the second number, the first number, or the answer.
+           Whichever it hides, the sentence printed on the card is a TRUE sentence
+           with one number removed, and the undo is the inverse of THIS operation
+           (÷ is undone by ×, not by +). */
+        var miss = pick(rng, ['b', 'a', 'r']);
+        var q, ans;
+        if (miss === 'b') { q = fmt(a) + ' ' + op + ' ___ = ' + fmt(v); ans = b; }
+        else if (miss === 'a') { q = '___ ' + op + ' ' + fmt(b) + ' = ' + fmt(v); ans = a; }
+        else { q = fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ___'; ans = v; }
+        var back = op === '+' ? '−' : op === '−' ? '+' : op === '×' ? '÷' : '×';
+        var how = miss === 'b'
+          ? (op === '+' ? fmt(v) + ' − ' + fmt(a) : op === '−' ? fmt(a) + ' − ' + fmt(v) : op === '×' ? fmt(v) + ' ÷ ' + fmt(a) : fmt(a) + ' ÷ ' + fmt(v))
+          : miss === 'a'
+            ? (op === '+' ? fmt(v) + ' − ' + fmt(b) : op === '−' ? fmt(v) + ' + ' + fmt(b) : op === '×' ? fmt(v) + ' ÷ ' + fmt(b) : fmt(v) + ' × ' + fmt(b))
+            : fmt(a) + ' ' + op + ' ' + fmt(b);
         return ask(rng, sk, voice(sk, 'missing', ['Find the missing number.', 'Which number makes the sentence true?', 'Fill in the blank.']) + ' ' + q, ans,
-          [1, -1, 2], { lim: Math.max(cap, ans * 2, v), teach: 'Undo the operation to recover the missing number.',
-            explain: explainOk([q.replace('___', 'the missing number') + ' is the sentence.', 'Undo ' + op + ': the missing number is <b>' + ans + '</b>.'], ans) });
+          [1, -1, 2, b], { lim: Math.max(cap, ans * 2, v),
+            teach: 'Undo the operation with its inverse to recover the missing number.',
+            explain: explainOk(['The sentence is ' + q.replace('___', '□') + '.', 'Undo ' + op + ': ' + how + ' = ' + fmt(ans) + '.', 'The missing number is <b>' + fmt(ans) + '</b>.'], ans),
+            visual: rank(sk) <= 5 && op === '÷' ? V.array(Math.min(b, 12), Math.min(v, 12), { label: fmt(a) + ' shared in ' + fmt(b) + ' equal rows' }) : null });
       },
       /* 3 judge a sentence */
       function () {
-        var claim = R.chance(rng, 0.5) ? v : v + (R.chance(rng, 0.5) ? int(rng, 1, 3) : -int(rng, 1, Math.min(3, v)));
+        if (STORY) return null;
+        var step2 = int(rng, 1, Math.max(2, Math.min(4, Math.abs(v) || 2)));
+        var claim = R.chance(rng, 0.5) ? v : (R.chance(rng, 0.5) ? v + step2 : v - step2);
         var truth = claim === v;
-        return I_bool(voice(sk, 'tf', ['Decide whether the equation is true or false.', 'Is the equation true or false?']) + ' ' + a + ' ' + op + ' ' + b + ' = ' + claim + '.', truth, {
-          teach: 'Compute the left side before judging the equation.',
-          explain: explainOk(['Work out ' + a + ' ' + op + ' ' + b + ': it equals ' + v + '.', 'The sentence claims ' + claim + ', so it is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false')
+        return I_bool(voice(sk, 'tf', ['Decide whether the equation is true or false.', 'Is the equation true or false?']) + ' ' + fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(claim) + '.', truth, {
+          teach: 'Work out the left side before judging the equation.',
+          explain: explainOk(['Work out ' + fmt(a) + ' ' + op + ' ' + fmt(b) + ': it equals ' + fmt(v) + '.', 'The sentence claims ' + fmt(claim) + ', so it is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false')
         });
       },
       /* 4 compare two results */
       function () {
+        if (STORY) return null;
         var c = pair(rng, sk, op, lvl, cap), v2b = calc(c[0], op, c[1]);
-        return I_cmp(voice(sk, 'cmp', ['Compare the two expressions using >, <, or =.', 'Fill in ○ with >, <, or =.']) + ' ' + a + ' ' + op + ' ' + b + ' ○ ' + c[0] + ' ' + op + ' ' + c[1], v, v2b, {
+        return I_cmp(voice(sk, 'cmp', ['Compare the two expressions using >, <, or =.', 'Fill in ○ with >, <, or =.']) + ' ' + fmt(a) + ' ' + op + ' ' + fmt(b) + ' ○ ' + fmt(c[0]) + ' ' + op + ' ' + fmt(c[1]), v, v2b, {
           teach: 'Find the value of each expression before comparing.',
-          explain: explainOk([a + ' ' + op + ' ' + b + ' = ' + v + '.', c[0] + ' ' + op + ' ' + c[1] + ' = ' + v2b + '.', 'So ' + v + (v > v2b ? ' > ' : v < v2b ? ' < ' : ' = ') + v2b + ': the symbol is <b>' + (v > v2b ? '&gt;' : v < v2b ? '&lt;' : '=') + '</b>.'], v2b)
+          explain: explainOk([fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v) + '.', fmt(c[0]) + ' ' + op + ' ' + fmt(c[1]) + ' = ' + fmt(v2b) + '.', 'So ' + fmt(v) + (v > v2b ? ' > ' : v < v2b ? ' < ' : ' = ') + fmt(v2b) + ': the symbol is <b>' + (v > v2b ? '&gt;' : v < v2b ? '&lt;' : '=') + '</b>.'], v2b)
         });
       },
       /* 5 order three values */
       function () {
+        if (STORY) return null;
         var c = pair(rng, sk, op, lvl, cap), d = pair(rng, sk, op, lvl, cap);
         var vs = [v, calc(c[0], op, c[1]), calc(d[0], op, d[1])];
         var sorted = vs.slice().sort(function (x, y) { return x - y; });
-        if (sorted[0] === sorted[2]) return null;
+        if (sorted[0] === sorted[1] || sorted[1] === sorted[2]) return null;
         var askTxt = voice(sk, 'order', ['Put the expressions in order from least to greatest.', 'Which list shows the expressions from least to greatest?']);
         var labels = [a + ' ' + op + ' ' + b, c[0] + ' ' + op + ' ' + c[1], d[0] + ' ' + op + ' ' + d[1]];
         var byVal = labels.slice().sort(function (x, y) { return vs[labels.indexOf(x)] - vs[labels.indexOf(y)]; });
+        if (new Set ? false : byVal.length !== 3) return null;
         var txt = byVal.join(' < ');
         var bad = [byVal.slice().reverse().join(' < '), [byVal[1], byVal[0], byVal[2]].join(' < ')];
         return askStr(rng, sk, askTxt, [txt], bad, { teach: 'Evaluate each expression, then compare the three values.',
-          explain: explainOk(['The three values are ' + vs.join(', ') + '.', 'From least to greatest that is <b>' + txt + '</b>.'], txt) });
+          explain: explainOk(['The three values are ' + vs.map(fmt).join(', ') + '.', 'From least to greatest that is <b>' + esc(txt) + '</b>.'], txt) });
       },
       /* 6 a word problem that needs this operation */
       function () {
@@ -87242,7 +87305,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           });
         }
         if (op === '×') {
-          return ask(rng, sk, th[0].charAt(0).toUpperCase() + th[0].slice(1).replace(/s$/, '') + ' there are ' + a + ' rows of ' + b + '. How many are there ' + th[1] + '?'.replace('there are ', ''), v, [a + b, v - b, v + b], {
+          return ask(rng, sk, nm + ' sets out ' + fmt(a) + ' rows of ' + fmt(b) + ' ' + th[0] + '. How many ' + th[0] + ' are there ' + th[1] + '?', v, [a + b, v - b, v + b], {
             lim: Math.max(cap, v * 2), teach: 'Equal rows are multiplied: ' + a + ' × ' + b + '.',
             explain: explainOk(['There are ' + a + ' rows with ' + b + ' in each row.', 'Multiply: ' + a + ' × ' + b + ' = <b>' + v + '</b> in all.'], v)
           });
@@ -87268,14 +87331,24 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['The fact family uses ' + a + ', ' + b + ' and ' + v + '.', 'The matching fact is <b>' + right + '</b>.'], right)
           });
         }
-        var right2 = v + ' ÷ ' + b + ' = ' + a;
-        return askStr(rng, sk, 'Which division sentence belongs to the same fact family as ' + a + ' × ' + b + ' = ' + v + '?', [right2], [v + ' ÷ ' + a + ' = ' + b + ' ' + b, a + ' ÷ ' + b + ' = ' + v], {
+        if (STORY) return null;
+        if (op === '÷') {
+          /* a ÷ b = v belongs to v × b = a and to a ÷ v = b */
+          var rightD = fmt(v) + ' × ' + fmt(b) + ' = ' + fmt(a);
+          return askStr(rng, sk, voice(sk, 'family', ['Which multiplication sentence belongs to the same fact family?', 'Choose the sentence that shows the related fact.']) + ' ' + fmt(a) + ' ÷ ' + fmt(b) + ' = ' + fmt(v) + '?',
+            [rightD], [fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(v), fmt(v) + ' × ' + fmt(a) + ' = ' + fmt(b)], {
+              teach: 'A division fact undoes a multiplication fact with the same three numbers.',
+              explain: explainOk(['The family uses ' + fmt(v) + ', ' + fmt(b) + ' and ' + fmt(a) + '.', 'Multiplying the quotient by the divisor gives the dividend: ' + fmt(v) + ' × ' + fmt(b) + ' = ' + fmt(a) + '.', 'The matching fact is <b>' + rightD + '</b>.'], rightD) });
+        }
+        var right2 = fmt(v) + ' ÷ ' + fmt(b) + ' = ' + fmt(a);
+        return askStr(rng, sk, 'Which division sentence belongs to the same fact family as ' + fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(v) + '?', [right2], [fmt(v) + ' ÷ ' + fmt(a) + ' = ' + fmt(b), fmt(a) + ' ÷ ' + fmt(b) + ' = ' + fmt(v)], {
           teach: 'A multiplication fact always has a matching division fact.',
-          explain: explainOk(['The family uses ' + a + ', ' + b + ' and ' + v + '.', 'Dividing the product by one factor gives the other: <b>' + right2 + '</b>.'], right2)
+          explain: explainOk(['The family uses ' + fmt(a) + ', ' + fmt(b) + ' and ' + fmt(v) + '.', 'Dividing the product by one factor gives the other: <b>' + right2 + '</b>.'], right2)
         });
       },
       /* 8 which expression has the greater/lesser value */
       function () {
+        if (STORY) return null;
         var cd = pair(rng, sk, op === '×' ? '+' : '×', lvl, cap);
         var vcd = calc(cd[0], op === '×' ? '+' : '×', cd[1]);
         var wantGreater = R.chance(rng, 0.5);
@@ -87285,7 +87358,157 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           [(wantGreater ? (v > vcd ? a + ' ' + op + ' ' + b : cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1]) : (v < vcd ? a + ' ' + op + ' ' + b : cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1]))],
           [a + ' ' + op + ' ' + b === answer ? cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1] : answer, a + ' ' + other + ' ' + b],
           { teach: 'Value each expression first; the words only choose which one to report.',
-            explain: explainOk([a + ' ' + op + ' ' + b + ' = ' + v + ' and the other expression = ' + vcd + '.', 'The ' + (wantGreater ? 'greater' : 'lesser') + ' value is <b>' + answer + '</b>.'], answer) });
+            explain: explainOk([fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v) + ' and the other expression = ' + fmt(vcd) + '.', 'The ' + (wantGreater ? 'greater' : 'lesser') + ' value is <b>' + answer + '</b>.'], answer) });
+      },
+      /* 9 the other kind of story — for '÷' this is measuring out groups of b,
+         which is a different idea from sharing a among b friends (form 6) */
+      function () {
+        if (op === '÷') {
+          if (b < 2 || v < 1) return null;
+          return ask(rng, sk, nm + ' has ' + fmt(a) + ' ' + th[0] + ' and makes groups of ' + fmt(b) + '. How many groups can ' + nm + ' make?', v,
+            [a - b, a + b, v + 1], { lim: Math.max(cap, a),
+              teach: 'Counting out equal groups is division: ' + fmt(a) + ' ÷ ' + fmt(b) + '.',
+              explain: explainOk([nm + ' starts with ' + fmt(a) + ' and counts off groups of ' + fmt(b) + '.', fmt(a) + ' ÷ ' + fmt(b) + ' = ' + fmt(v) + ' groups.', 'So ' + nm + ' can make <b>' + fmt(v) + '</b> groups.'], v),
+              visual: PICT ? V.array(Math.min(b, 12), Math.min(Math.max(v, 1), 12), { label: fmt(a) + ' counted out in groups of ' + fmt(b) }) : null });
+        }
+        if (op === '×') {
+          return ask(rng, sk, 'Each of ' + fmt(a) + ' boxes holds ' + fmt(b) + ' ' + th[0] + '. How many ' + th[0] + ' are there in all?', v,
+            [a + b, v - a, v + b], { lim: Math.max(cap, v * 2),
+              teach: 'Equal groups of equal size are multiplied: ' + fmt(a) + ' × ' + fmt(b) + '.',
+              explain: explainOk(['There are ' + fmt(a) + ' boxes with ' + fmt(b) + ' in each.', fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(v) + '.', 'Altogether there are <b>' + fmt(v) + '</b>.'], v),
+              visual: PICT ? V.array(Math.min(a, 12), Math.min(b, 12), { label: fmt(a) + ' boxes of ' + fmt(b) }) : null });
+        }
+        if (op === '−') {
+          return ask(rng, sk, nm + ' has ' + fmt(a) + ' ' + th[0] + ' and a friend has ' + fmt(b) + '. How many more does ' + nm + ' have?', v,
+            [a + b, v + 1, b], { lim: Math.max(cap, a),
+              teach: 'Comparing two amounts means subtracting the smaller from the larger.',
+              explain: explainOk([nm + ': ' + fmt(a) + '. The friend: ' + fmt(b) + '.', fmt(a) + ' − ' + fmt(b) + ' = ' + fmt(v) + '.', nm + ' has <b>' + fmt(v) + '</b> more.'], v) });
+        }
+        return ask(rng, sk, nm + ' collects ' + fmt(a) + ' ' + th[0] + ' in the morning and ' + fmt(b) + ' more in the afternoon. How many ' + th[0] + ' are there in all?', v,
+          [a, v - 1, a - b], { lim: Math.max(cap, v * 2),
+            teach: 'Joining two groups is addition: ' + fmt(a) + ' + ' + fmt(b) + '.',
+            explain: explainOk(['Morning: ' + fmt(a) + '. Afternoon: ' + fmt(b) + '.', fmt(a) + ' + ' + fmt(b) + ' = ' + fmt(v) + '.', 'Altogether: <b>' + fmt(v) + '</b>.'], v) });
+      },
+      /* 10 work backwards: the story ends and the card asks how it started */
+      function () {
+        if (op === '÷') {
+          if (b < 2 || v < 1 || b === v) return null;   /* equal shares and an equal
+                                                           number of friends make the
+                                                           card look like a trick */
+          return ask(rng, sk, nm + ' shares ' + fmt(a) + ' ' + th[0] + ' equally and each friend gets ' + fmt(v) + '. How many friends shared?', b,
+            [a, v, b + 1], { lim: Math.max(cap, a),
+              teach: 'The number of shares is the dividend divided by the amount each one gets.',
+              explain: explainOk([nm + ' starts with ' + fmt(a) + ' and each friend ends with ' + fmt(v) + '.', fmt(a) + ' ÷ ' + fmt(v) + ' = ' + fmt(b) + '.', 'So <b>' + fmt(b) + '</b> friends shared.'], b) });
+        }
+        if (op === '−') {
+          return ask(rng, sk, nm + ' gives away ' + fmt(b) + ' ' + th[0] + ' and has ' + fmt(v) + ' left. How many did ' + nm + ' have at first?', a,
+            [v, v - b, a + b], { lim: Math.max(cap, a * 2),
+              teach: 'To find the starting amount, put back what was given away.',
+              explain: explainOk([nm + ' has ' + fmt(v) + ' left after giving away ' + fmt(b) + '.', 'Put the ' + fmt(b) + ' back: ' + fmt(v) + ' + ' + fmt(b) + ' = ' + fmt(a) + '.', 'At first ' + nm + ' had <b>' + fmt(a) + '</b>.'], a) });
+        }
+        if (op === '×') {
+          return ask(rng, sk, 'The markers are packed in rows of ' + fmt(b) + ' each and make ' + fmt(a) + ' rows. How many markers are packed?', v,
+            [a + b, v - b, v + 1], { lim: Math.max(cap, v * 2),
+              teach: 'Rows of equal size are multiplied.',
+              explain: explainOk([fmt(a) + ' rows with ' + fmt(b) + ' markers in each.', fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(v) + '.', 'There are <b>' + fmt(v) + '</b> markers.'], v),
+              visual: PICT ? V.array(Math.min(a, 12), Math.min(b, 12), { label: fmt(a) + ' rows of ' + fmt(b) }) : null });
+        }
+        return ask(rng, sk, 'After collecting ' + fmt(b) + ' more ' + th[0] + ', ' + nm + ' has ' + fmt(v) + ' in all. How many did ' + nm + ' have before?', a,
+          [v, v + b, a + 1], { lim: Math.max(cap, v * 2),
+            teach: 'To find the amount before more were added, take the added amount away.',
+            explain: explainOk([nm + ' ends with ' + fmt(v) + ' after adding ' + fmt(b) + '.', fmt(v) + ' − ' + fmt(b) + ' = ' + fmt(a) + '.', 'Before, ' + nm + ' had <b>' + fmt(a) + '</b>.'], a) });
+      },
+      /* 11 the picture carries the information: rows and columns are shown, one
+         number is asked for, so the learner can point at the array */
+      function () {
+        if (op !== '×' && op !== '÷') return null;
+        if (op === '×') {
+          return ask(rng, sk, 'The picture shows ' + fmt(a) + ' rows of ' + fmt(b) + '. How many are there in all?', v,
+            [a + b, v - a, v + b], { lim: Math.max(cap, v * 2),
+              teach: 'An array is equal rows: multiply the number of rows by the number in each row.',
+              explain: explainOk(['There are ' + fmt(a) + ' rows with ' + fmt(b) + ' in each row.', fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(v) + '.', 'In all that is <b>' + fmt(v) + '</b>.'], v),
+              visual: PICT ? V.array(Math.min(a, 12), Math.min(b, 12), { label: fmt(a) + ' rows of ' + fmt(b) }) : null });
+        }
+        return ask(rng, sk, 'The picture shows ' + fmt(a) + ' counters in ' + fmt(b) + ' equal rows. How many counters are in each row?', v,
+          [b, a - b, v + 1], { lim: Math.max(cap, a),
+            teach: 'Equal rows in a picture are division: the total divided by the number of rows.',
+            explain: explainOk([fmt(a) + ' counters stand in ' + fmt(b) + ' equal rows.', fmt(a) + ' ÷ ' + fmt(b) + ' = ' + fmt(v) + '.', 'Each row has <b>' + fmt(v) + '</b> counters.'], v),
+            visual: PICT ? V.array(Math.min(b, 12), Math.min(v, 12), { label: fmt(a) + ' counters in ' + fmt(b) + ' rows' }) : null });
+      },
+      /* 12 two steps in one story, so the answer is not one calculation away */
+      function () {
+        if (op === '÷') return null;   /* a two-step sharing story needs a second
+                                          operation the title never mentions */
+        var c = int(rng, 1, Math.max(2, Math.min(9, cap)));
+        var first = op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : (b ? v : 0);
+        var wantMinus = R.chance(rng, 0.6);
+        var ans = wantMinus ? first - c : first + c;
+        if (ans < 0 || first > cap * 4) return null;
+        var story = op === '×'
+          ? nm + ' buys ' + fmt(a) + ' packs of ' + fmt(b) + ' ' + th[0] + ' and then ' + (wantMinus ? 'gives ' + fmt(c) + ' away' : 'finds ' + fmt(c) + ' more') + '.'
+          : nm + ' has ' + fmt(op === '+' ? a : a) + ' ' + th[0] + ', ' + (op === '−' ? 'gives away ' + fmt(b) : 'gets ' + fmt(b) + ' more') + ', and then ' + (wantMinus ? 'gives ' + fmt(c) + ' away' : 'finds ' + fmt(c) + ' more') + '.';
+        return ask(rng, sk, story + ' How many ' + th[0] + ' are there now?', ans,
+          [first, ans + 1, ans - 1], { lim: Math.max(cap, ans * 2, first),
+            teach: 'Work the story in order: the first change, then the second.',
+            explain: explainOk([story, 'First: ' + fmt(first) + ' ' + th[0] + '.', (wantMinus ? 'Then take away ' + fmt(c) + ': ' : 'Then add ' + fmt(c) + ': ') + fmt(first) + (wantMinus ? ' − ' : ' + ') + fmt(c) + ' = <b>' + fmt(ans) + '</b>.'], ans) });
+      },
+      /* 13 the sentence is given and the learner chooses the story it matches */
+      function () {
+        var sen = fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v);
+        var right = op === '÷'
+          ? nm + ' shares ' + fmt(a) + ' ' + th[0] + ' equally among ' + fmt(b) + ' friends and each gets ' + fmt(v) + '.'
+          : op === '×' ? nm + ' lines up ' + fmt(a) + ' rows of ' + fmt(b) + ' ' + th[0] + ' and has ' + fmt(v) + ' in all.'
+            : op === '−' ? nm + ' had ' + fmt(a) + ' and gave ' + fmt(b) + ' away, leaving ' + fmt(v) + '.'
+              : nm + ' had ' + fmt(a) + ' and got ' + fmt(b) + ' more, making ' + fmt(v) + ' in all.';
+        var wrong = op === '÷'
+          ? nm + ' had ' + fmt(a) + ' and got ' + fmt(b) + ' more, making ' + fmt(v) + ' in all.'
+          : op === '×' ? nm + ' shares ' + fmt(a) + ' ' + th[0] + ' equally among ' + fmt(b) + ' friends and each gets ' + fmt(v) + '.'
+            : nm + ' lines up ' + fmt(a) + ' rows of ' + fmt(b) + ' ' + th[0] + ' and has ' + fmt(v) + ' in all.';
+        var wrong2 = op === '÷'
+          ? nm + ' lines up ' + fmt(a) + ' rows of ' + fmt(b) + ' ' + th[0] + ' and has ' + fmt(v) + ' in all.'
+          : nm + ' had ' + fmt(a) + ' and gave ' + fmt(b) + ' away, leaving ' + fmt(v) + '.';
+        return askStr(rng, sk, voice(sk, 'whichstory', ['Which story matches this sentence?', 'Choose the story that the sentence describes.']) + ' ' + sen,
+          [right], [wrong, wrong2], {
+            teach: 'Read the story for what happens: joining, taking away, equal rows, or sharing equally.',
+            explain: explainOk([sen + ' comes from ' + (op === '÷' ? 'sharing a total into equal groups' : op === '×' ? 'equal rows' : op === '−' ? 'taking away' : 'joining two groups') + '.', 'The matching story is <b>' + right.replace(/\.$/, '') + '</b>.'], right) });
+      },
+      /* 15 the story is told and the learner chooses the number sentence that
+         solves it — reading the operation, not computing it twice */
+      function () {
+        var story = op === '÷'
+          ? nm + ' shares ' + fmt(a) + ' ' + th[0] + ' equally among ' + fmt(b) + ' friends. How many does each friend get?'
+          : op === '×' ? nm + ' sets out ' + fmt(a) + ' rows of ' + fmt(b) + ' ' + th[0] + '. How many ' + th[0] + ' are there in all?'
+            : op === '−' ? nm + ' had ' + fmt(a) + ' ' + th[0] + ' and gave ' + fmt(b) + ' away. How many are left?'
+              : nm + ' has ' + fmt(a) + ' ' + th[0] + ' and gets ' + fmt(b) + ' more. How many are there in all?';
+        var rightS = fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v);
+        var bad1 = fmt(a) + ' ' + other + ' ' + fmt(b) + ' = ' + fmt(ov);
+        var bad2 = fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v === a ? v + 1 : a);
+        var opts = [], i4;
+        var cand = [rightS, bad1, bad2];
+        for (i4 = 0; i4 < cand.length && opts.length < 3; i4++) if (opts.indexOf(cand[i4]) < 0) opts.push(cand[i4]);
+        if (opts.length < 3) return null;
+        var sh2 = R.shuffle(rng, opts);
+        return I_choice(story, sh2, sh2.indexOf(rightS), {
+          teach: 'Choose the operation the story performs, then match the numbers in order.',
+          explain: explainOk([story, 'The story ' + (op === '÷' ? 'splits ' + fmt(a) + ' into ' + fmt(b) + ' equal shares' : op === '×' ? 'has ' + fmt(a) + ' groups of ' + fmt(b) : op === '−' ? 'takes ' + fmt(b) + ' away from ' + fmt(a) : 'joins ' + fmt(a) + ' and ' + fmt(b)) + ' and the answer is ' + fmt(v) + '.', 'The sentence that matches is <b>' + esc(rightS) + '</b>.'], rightS) });
+      },
+      /* 14 one digit is covered: the learner undoes the sentence to find it */
+      function () {
+        if (!/missing (the )?digits?|missing numbers|fill in the missing/.test(ttl)) return null;
+        var sa = String(a), pos, hd;
+        if (sa.length < 2) return null;
+        pos = int(rng, 0, sa.length - 1);
+        hd = sa.charAt(pos);
+        var shown = sa.slice(0, pos) + '▢' + sa.slice(pos + 1);
+        var sen = shown + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v);
+        var digs = [], d;
+        for (d = 0; d <= 9 && digs.length < 3; d++) { var ds = String(d); if (ds !== hd && digs.indexOf(ds) < 0) digs.push(ds); }
+        if (digs.length < 3) return null;
+        var opts = R.shuffle(rng, [hd].concat(digs));
+        return I_choice(sen + ' Which digit is hidden?', opts, opts.indexOf(hd), {
+          teach: 'Work out the sentence with the covered digit, or undo it to recover that digit.',
+          explain: explainOk(['The sentence with the covered number reads ' + sa + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v) + '.',  'Undo it: ' + fmt(v) + ' ' + (op === '÷' ? '× ' + fmt(b) : op === '×' ? '÷ ' + fmt(b) : op === '+' ? '− ' + fmt(b) : '+ ' + fmt(b)) + ' = ' + sa + ', so the covered number is ' + sa + '.', 'That makes the hidden digit <b>' + hd + '</b>.'], hd)
+        });
       }
     ];
   }
@@ -95372,7 +95595,10 @@ var MW = {
       var rows = v.rows || (v.opts && v.opts.rows) || 0, cols = v.cols || (v.opts && v.opts.cols) || 0, o = v.opts || {};
       var cells = o.cells || null;
       var art = (o.noun || o.shape || o.kind) ? o : null;
-      var t = h('table', { class: 'vtable' + (art ? ' objgrid' : '') });
+      /* A cube train longer than the card is the bug a reviewer sees: 12 cubes
+         drawn, 11 counted. A wide table shares the width it is given instead of
+         pushing the last cells off the screen. */
+      var t = h('table', { class: 'vtable' + (art ? ' objgrid' : '') + (cols >= 9 ? ' wide' : '') });
       for (var r = 0; r < rows; r++) {
         var tr = h('tr');
         if (o.rowLabels && o.rowLabels[r] != null) tr.appendChild(h('th', { text: String(o.rowLabels[r]) }));
