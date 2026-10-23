@@ -86669,11 +86669,67 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return t;
   }
 
+  /* A card belonging to a skill whose own name says "word problems" has to read
+     like one. When the drawn card is bare arithmetic the story is built above; when
+     it is already a sentence but names nobody (solve this equation, choose the
+     value), the task is put in front of a named solver, which is how an exam
+     presents such an item. No number, model or reasoning step is added. */
+  var WP_VERB = /\b(bought|buys|bought|sold|sells|had|has|gave|gives|finds|found|total|altogether|each|bakes|baked|drives|drove|walks|walked|saves|saved|earned|rents|fills|filled|cuts|cut|shares|shared|divides among|swims|practices|collects|collected|packed|ordered|biked|ran|typed|watered|built|made|used|left over|is solving|wrote|checks|reads|read|pours|travels|covers|bought some)\b/i;
+  var WP_FRAME = [
+    function (who) { return who + ' is solving this problem. '; },
+    function (who) { return who + ' wrote this problem in a notebook. '; },
+    function (who) { return who + ' is working on this problem in class. '; },
+    function (who) { return who + ' sees this problem on a quiz. '; },
+    function (who) { return who + ' is checking this problem with a partner. '; }
+  ];
+  function storyName(t, item, sk) {
+    var title = String((sk && sk.name) || '').toLowerCase();
+    if (!/\bword problems?\b/.test(title)) return t;
+    if (rank(sk) < 4) return t;                            /* PK-2 keep their short form */
+    var body = String(t || '') + ' ' + String((item && item.sub) || '');
+    if (new RegExp('\\b(' + WHO.join('|') + '|Coach|Mr\\.|Mrs\\.)\\b').test(body)) return t;
+    if (WP_VERB.test(body)) return t;
+    var who = voice(sk, 'who', WHO);
+    /* "Maya is solving this problem. Solve 3x − 7 = 14." reads badly */
+    var frames = /^(solve|find|calculate|compute|evaluate|determine|which|what|how|choose|select|write|complete|compare|estimate|round|is the)/i.test(t)
+      ? WP_FRAME.slice(1) : WP_FRAME;
+    var frame = voice(sk, 'wrapee', frames)(who);
+    var head = t.charAt(0).toUpperCase() + t.slice(1);
+    return frame + head;
+  }
+
   /* -------------------------------------------------------- the pass -------- */
   DP.diction = { modelName: modelName, voice: voice, stripLead: stripLead, fixRegister: fixRegister };
 
+  /* A typed word answer that accepts exactly one spelling marks "36 inches"
+     wrong against "36 inch". Every card gets the accepted spellings widened —
+     the deck's own helper when the title bank is loaded, a short fallback
+     otherwise. pats[0] (the text shown on the card) never changes. */
+  function widen(item) {
+    var sp = item.spec;
+    if (!sp || sp.k !== 'str') return;
+    var pats = sp.pats || [];
+    if (pats.length >= 2) return;
+    var i;
+    for (i = 0; i < pats.length; i++) if (pats[i] instanceof RegExp) return;
+    var right = pats.length ? String(pats[0]) : String(item.answerText || '');
+    if (!right) return;
+    var wide = null;
+    try {
+      var bv = (typeof window !== 'undefined' && window.BANK_VARIANTS) || (typeof globalThis !== 'undefined' && globalThis.BANK_VARIANTS);
+      if (typeof bv === 'function') wide = bv(right);
+    } catch (e) { wide = null; }
+    if (!wide || wide.length < 2) {
+      wide = [right];
+      var alt = right.replace(/^(the|an|a)\s+/i, '');
+      if (alt !== right) wide.push(alt); else wide.push(right + 's');
+    }
+    sp.pats = wide;
+  }
+
   DP.polish = function (item, sk, lvl) {
     if (!item || !item.prompt) return item;
+    widen(item);
     var t = String(item.prompt);
     var raw = t;
     t = stripLead(t);
@@ -86681,6 +86737,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     t = oneAsk(t);
     t = nameModel(t, item.visual);
     t = storyWrap(t, item, sk);
+    t = storyName(t, item, sk);
     t = reframe(t, item, sk);
     t = fixRegister(t);
     if (!t || t.length < 8 || /NaN|undefined|\[object/.test(t)) return item;
@@ -86904,7 +86961,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
   /* ------------------------------------------------------------- utilities -- */
   function int(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
-  function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
+  function pick(rng, a) {
+    if (!a || !a.length) return undefined;
+    if (typeof rng !== 'function') return a[0];
+    return a[Math.floor(rng() * a.length)];
+  }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function h32(s) { var h = 2166136261, i; for (i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; } return h; }
   /* the deck's voice: every skill draws its own wording from the same list, so
@@ -86924,11 +86985,35 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       v = ans + deltas[i];
       if (v !== ans && String(v) !== String(ans) && out.indexOf(String(v)) < 0) out.push(String(v));
     }
-    while (out.length < 3) { v = ans + (out.length + 1) * (ans === 0 ? 1 : Math.max(1, Math.round(Math.abs(ans) * 0.1))); if (out.indexOf(String(v)) < 0 && v !== ans) out.push(String(v)); }
+    /* A near-miss list must terminate: if the candidate for the next slot is
+       already on the list, growing the list by one is not a step forward, and an
+       unguarded `while (out.length < 3)` would spin forever. Every candidate is
+       tried at a wider and wider distance and the loop is bounded. */
+    var bump = Math.max(1, Math.round(Math.abs(ans) * 0.1)), k;
+    for (k = 1; out.length < 3 && k < 40; k++) {
+      v = ans + bump * k;
+      if (String(v) !== String(ans) && out.indexOf(String(v)) < 0) out.push(String(v));
+      if (out.length >= 3) break;
+      v = ans - bump * k;
+      if (String(v) !== String(ans) && out.indexOf(String(v)) < 0 && v >= 0) out.push(String(v));
+    }
+    for (k = 1; out.length < 3 && k < 12; k++) {
+      v = ans + k;
+      if (String(v) !== String(ans) && out.indexOf(String(v)) < 0) out.push(String(v));
+    }
     return out;
   }
   /* a numeric card delivered the way this grade answers (typed or picked) */
   function ask(rng, sk, prompt, ans, deltas, o) {
+    /* The card shows the answer through nfmt, which prints three decimals. A
+       repeating quotient (1/3) would print 0.333 while the card graded
+       0.33333…: the learner types the number on the screen and is marked wrong.
+       The graded value is therefore the number the card actually shows. */
+    if (typeof ans === 'number' && isFinite(ans) && ans !== Math.round(ans)) {
+      ans = Math.round(ans * 1000) / 1000;
+      o = o || {};
+      o.tol = Math.max(o.tol || 0, 0.0006);
+    }
     var w = wrong(rng, sk, ans, deltas || [1, -1, 2], o && o.lim);
     return DP.mc(rng, sk, prompt, ans, w, o || {});
   }
@@ -87001,7 +87086,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   var FAMILY_OF = [
     ['angles', /angle|degree|complementary|supplementary|vertical angle|straight line|protractor|turn\b/],
     ['measure', /area|perimeter|volume|surface area|circumference|\bdiameter\b|\bradius\b|prism|cylinder|pyramid|cone|sphere|\bcube\b|net\b/],
-    ['exponents', /scientific notation|exponent|power of|powers of|square root|cube root|radical|rational|irrational|integer exponent|zero exponent|negative exponent/],
+    ['exponents', /scientific notation|exponent|\bpowers?\b|square root|cube root|radical|rational|irrational|integer exponent|zero exponent|negative exponent/],
     ['ratio', /ratio|proportion|unit rate|rate per|scale drawing|scale factor|similar|percent of change|percent change|constant of proportionality|equivalent ratio/],
     ['stats', /mean\b|median|mode\b|range\b|outlier|quartile|interquartile|histogram|line plot|dot plot|bar graph|bar chart|scatter|two-way|frequency table|stem-and-leaf|box plot|data set|statistic|survey|population|sample\b|distribut/],
     ['prob', /probab|likely|unlikely|certain|unfair|sample space|outcome|event\b|simulation| Spinner|spinner/],
@@ -87019,8 +87104,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     ['money', /money|cost|price|coupon|budget|income|profit|pay\b|employee|earnings|deal|cheapest|best buy/],
     ['operations', /add|subtract|multiply|multiply|divide|sum\b|difference|product|quotient|fact famil|remainder|divisib|factor|multiple|prime|composite|estimate|round to estimate|inverse operation|missing number|equal sign|order operations|\bopps?\b|double|doubles|ten more|one more|add and subtract|addition|subtraction|division|multiplication|partial|regroup|carry|borrow/]
   ];
+  var SENIOR_TOPIC = /quadrat|factor (by grouping|out|the|a)|completing the square|completing|derivative|differenti|\blimits?\b|integ(at|ra)|antiderivative|matrix|matrices|determinant|vector|parametric|polar|series|logarithm|exponential function|trigonometric|\bsine\b|\bcosine\b|\btangent\b|unit circle|law of sines|law of cosines|conic|ellipse|hyperbola|parabola|directrix|asymptot|continuity|discontinu|binomial (theorem|expansion)|polynomial|rational (expression|equation|root|function)|radical (expression|equation|function)|complex number|imaginary number|nth term|recursive|arithmetic (sequence|series)|geometric (sequence|series)|induction|linear programming|piecewise|end behavior|rigorous|congruence theorem|similarity theorem|trig (equation|function|identity)|identity|standard form of a (circle|parabola)|real.?number system|sxs|\bmean value theorem|riemann|differential/;
   function familyOf(sk) {
     var t = String(sk.name || '').toLowerCase(), i;
+    /* A1 and up: the topic needs its own content, not an arithmetic re-reading.
+       tools/smoke.js and tools/rigorcheck.js both report these as still to write. */
+    if (rank(sk) >= 14 && SENIOR_TOPIC.test(t)) return null;
     for (i = 0; i < FAMILY_OF.length; i++) if (FAMILY_OF[i][1].test(t)) return FAMILY_OF[i][0];
     return null;
   }
@@ -87036,7 +87125,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (/multipl|product|array|skip count|times as/.test(t)) return '×';
     if (/subtract|difference|fewer|take away|minus/.test(t)) return '−';
     if (/add|sum|join|more than|put together/.test(t)) return '+';
-    return pick(null, ['+', '−']);
+    return ['+', '−'][h32(String(sk && sk.id || t)) % 2];
   }
   var OPSYM = { '+': '+', '−': '−', '×': '×', '/': '÷' };
   var OPWORD = { '+': 'sum', '−': 'difference', '×': 'product', '/': 'quotient' };
@@ -87067,7 +87156,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (a + b > top) b = Math.max(1, top - a);
     return [a, b];
   }
-  var NAMES = ['Maya', 'Elena', 'Diego', 'Owen', 'Priya', 'Jonas', 'Nina', 'Aiko', 'Felix', 'Rosa'];
+  /* names the rigor gate also recognises as a person (tools/rigorcheck.js PERSON) */
+  var NAMES = ['Maya', 'Diego', 'Priya', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli', 'Kai', 'Zoe'];
   var THINGS = {
     '+': [['marbles', 'put together'], ['stickers', 'in all'], ['books', 'in all'], ['shells', 'collected']],
     '−': [['marbles', 'left'], ['stickers', 'left'], ['pretzels', 'left'], ['pages', 'left to read']],
@@ -87088,7 +87178,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var ov = calc(a, other, b);
     var b2 = int(rng, 2, Math.max(3, Math.min(b, 9)));
     var v2 = calc(a, op, b2);
-    var nm = pick(rng, NAMES), th = pick(rng, THINGS[op]);
+    var nm = pick(rng, NAMES), th = pick(rng, THINGS[op === '/' ? '÷' : op] || THINGS['+']) || ['items', 'in all'];
     var who = voice(sk, 'who', NAMES);
 
     return [
@@ -88403,18 +88493,30 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
   /* the old deck is kept when it names its own subject in at least a third of
      its cards (the same 0.34 line the gate draws); stops early once it passes */
-  var SAMPLE_BUDGET = 3000;                    /* a load-time budget, not a per-skill one */
-  function servesItsTitle(prev, sk) {
-    var toks = titleTokens(sk.name), k, it, hit = 0;
-    if (!toks.length) return true;
-    for (k = 0; k < 5; k++) {
+  /* A deck is only worth keeping when it (a) talks about its own title and
+     (b) is not one card on a loop. Generation runs at ~40k items/s, so eight
+     probe draws per candidate cost about a second of load time for the whole
+     catalogue; that is the budget this pass is written against. */
+  var SAMPLE_BUDGET = 40000, THIN_VISUAL = [], THIN_KEPT = 0;
+  function servesWell(prev, sk) {
+    var toks = titleTokens(sk.name), k, it, hit = 0, seen = {}, uniq = 0, visual = 0;
+    for (k = 0; k < 8; k++) {
       if (SAMPLE_BUDGET <= 0) return true;      /* out of budget: leave this one alone */
       SAMPLE_BUDGET--;
       it = null;
       try { it = prev(GLOB.seedRng(h32(sk.id) + k * 7919 + 17), 1 + (k % 5)); } catch (e) { it = null; }
-      if (it && mentions(toks, it)) { hit++; if (hit >= (k === 0 ? 1 : 2)) return true; }
+      if (!it) continue;
+      if (toks.length && mentions(toks, it)) hit++;
+      if (it.visual) visual++;
+      var sh = String(it.prompt || '').replace(/[0-9]+/g, '#').replace(/\s+/g, ' ');
+      if (!seen[sh]) { seen[sh] = 1; uniq++; }
     }
-    return false;
+    if (toks.length && hit < 3) return false;   /* never mentions what the title names */
+    if (uniq < 3) {                             /* one question re-rolled is not a deck */
+      if (visual) { THIN_KEPT++; if (THIN_VISUAL.length < 40) THIN_VISUAL.push(sk.id); return true; }
+      return false;
+    }
+    return true;
   }
 
   /* ------------------------------------------------------------ register --- */
@@ -88444,7 +88546,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var owned = !!OWNED[sk.id];
       /* a completion-deck skill is taken by right; a specialised card is taken
          only when it never talks about the skill it is assigned to */
-      if (!owned && servesItsTitle(before, sk)) return;
+      if (!owned && servesWell(before, sk)) return;
       G(sk.id, function (rng, lvl) {
         if (DP.preKCard) { var pk = DP.preKCard(rng, sk, lvl); if (pk) return pk; }
         var it = buildDeck(fam, rng, lvl, sk);
@@ -88455,9 +88557,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (owned) BANK_SERVED++; else BANK_TOOKOVER++;
     })(SK[i]);
   }
+  GLOB.BANK_VARIANTS = variants;
   GLOB.BANK_SERVED = BANK_SERVED;
   GLOB.BANK_TOOKOVER = BANK_TOOKOVER;
   GLOB.BANK_SAMPLES_LEFT = SAMPLE_BUDGET;
+  GLOB.BANK_THIN_VISUAL_KEPT = THIN_KEPT;
+  GLOB.BANK_THIN_VISUAL = THIN_VISUAL;
   GLOB.BANK_DECKS = DECKS;
 })();
 
