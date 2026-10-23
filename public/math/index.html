@@ -62581,15 +62581,18 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {
           var whole = BC.pick(rng, [40, 60, 80, 200]), p1 = BC.pick(rng, [10, 20, 25, 50]);
           var part = fix2(p1 / 100 * whole);
-          return ask(part + ' is some percent of ' + whole + '. What percent?', p1, {
-            explain: ['Divide the part by the whole: ' + nfmt(part / whole) + '.', 'Times 100 gives <b>' + p1 + '</b> percent.'],
+          return choose(rng, part + ' is what percent of ' + whole + '?', pc(p1), [pc(p1 * 10), pc(p1 / 10), pc(fix2(100 - p1))], {
+            explain: ['Divide the part by the whole: ' + nfmt(part / whole) + '.', 'Times 100 gives <b>' + pc(p1) + '</b>.'],
             teach: 'A missing percent is part ÷ whole × 100.', b: 0.4
           });
         },
         function () {
           var whole = BC.pick(rng, [100, 200, 400]), p1 = BC.pick(rng, [20, 25, 60]);
-          return ask('A table pairs wholes with parts at one percent. What part goes with ' + whole + '?', fix2(p1 / 100 * whole), {
-            visual: V.table({ header: ['Whole', 'Part'], rows: [['100', String(p1)], [String(whole), '?']] }),
+          /* a table that repeats one whole proves nothing: the second whole has
+             to be a different multiple so the constant percent is what is used */
+          if (whole === 100) whole = BC.pick(rng, [200, 400, 50, 250]);
+          return choose(rng, 'The same percent pairs every whole with its part. ' + p1 + ' out of 100 pairs with ' + whole + '. What part goes with ' + whole + '?', pc(fix2(p1 / 100 * whole)), [pc(fix2(p1 / 10 * whole)), pc(fix2(p1 * whole)), pc(fix2(p1 / 1000 * whole))], {
+            visual: V.table({ header: ['Whole', 'Part'], rows: [['100', pc(p1)], [String(whole), '?']] }),
             explain: ['The percent is ' + p1 + '%.', whole + ' × ' + nfmt(p1 / 100) + BC.rel(p1 / 100 * whole, fix2(p1 / 100 * whole)) + '<b>' + nfmt(fix2(p1 / 100 * whole)) + '</b>.'],
             teach: 'A percent table multiplies each whole by the same decimal.', b: 0.5
           });
@@ -62769,9 +62772,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         },
         function () {
           var p1 = BC.pick(rng, [20, 25, 40, 75]);
-          return ask('A grid model shades ' + p1 + ' of 100 squares. Write that as a percent.', p1, {
+          return choose(rng, 'A grid model shades ' + p1 + ' of 100 squares. Write the shaded part as a percent.', pc(p1), [pc(p1 / 10), pc(p1 * 10), pc(p1 + 10)], {
             visual: grid100(p1),
-            explain: ['Percent means out of 100.', p1 + ' out of 100 is <b>' + pc(p1) + '</b> as a percent value: <b>' + p1 + '</b>.'],
+            explain: ['Percent means out of 100.', p1 + ' of 100 squares is <b>' + pc(p1) + '</b>.'],
             teach: 'The count out of 100 is the percent.', b: 0.6
           });
         },
@@ -63097,9 +63100,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       function () {
         var dv = BC.pick(rng, [0.1, 0.2, 0.25, 0.5, 0.4, 0.75]);
-        return ask('Write ' + nfmt(dv) + ' as a percent.', dv * 100, {
-          answerText: nfmt(dv * 100),
-          explain: ['Multiply the decimal by 100.', nfmt(dv) + ' × 100 = <b>' + nfmt(dv * 100) + '</b> percent.'],
+        return choose(rng, 'Write ' + nfmt(dv) + ' as a percent.', pc(dv * 100), [pc(dv), pc(dv * 10), pc(dv * 1000)], {
+          answerText: pc(dv * 100),
+          explain: ['Multiply the decimal by 100.', nfmt(dv) + ' × 100 = <b>' + pc(dv * 100) + '</b>.'],
           teach: 'Multiplying by 100 moves a decimal into percent form.', b: 0.3
         });
       },
@@ -86331,6 +86334,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var opts = buildOptions(answer, it.mis, pol.options);
         if (opts.length >= 2) {
           var sh = R.shuffle(rng, opts);
+          /* the option list folds away choices that are the SAME number as the
+             answer ("1" and "5/5"), and when the fold lands on the answer itself
+             the card would grade nothing: put the printed answer back in the
+             slot the twin occupied, so the key is a choice the learner can see */
+          if (sh.indexOf(answer) < 0) sh[0] = answer;
           it = { type: 'choice', prompt: it.prompt, sub: it.sub, visual: it.visual,
             choices: sh, spec: { k: 'choice', i: sh.indexOf(answer), text: answer, opts: sh },
             answerText: answer, explain: it.explain, teach: it.teach, hint: it.hint, b: it.b, mis: it.mis };
@@ -86414,9 +86422,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
   /* one framing per (skill, purpose): deterministic, so a skill always sounds
      like itself and a sibling skill never sounds identical */
-  function voice(sk, purpose, frames) {
+  function voice(sk, purpose, frames, salt) {
     if (!frames || !frames.length) return '';
-    return frames[hash((sk && sk.id ? sk.id : '') + '|' + purpose) % frames.length];
+    /* a skill keeps its own voice, but the SAME framing sentence on every card
+       of a deck reads like a broken record, so the framing is hashed with the
+       card while the person stays put */
+    return frames[hash((sk && sk.id ? sk.id : '') + '|' + purpose + (salt ? '|' + String(salt).slice(0, 60) : '')) % frames.length];
   }
   function up1(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function sents(t) {
@@ -86701,7 +86712,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* "Maya is solving this problem. Solve 3x − 7 = 14." reads badly */
     var frames = /^(solve|find|calculate|compute|evaluate|determine|which|what|how|choose|select|write|complete|compare|estimate|round|is the)/i.test(t)
       ? WP_FRAME.slice(1) : WP_FRAME;
-    var frame = voice(sk, 'wrapee', frames)(who);
+    var frame = voice(sk, 'wrapee', frames, t)(who);
     var head = t.charAt(0).toUpperCase() + t.slice(1);
     return frame + head;
   }
@@ -86735,6 +86746,145 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     sp.pats = wide;
   }
 
+  /* ───────────── answers a learner cannot type, or cannot be graded fairly ──
+   *
+   * Three families of cards asked the learner to produce something the answer
+   * box cannot honestly accept:
+   *   1. a symbolic answer — 2n, n − 9, 13x, 4⁵, √2 — where typing a superscript
+   *      or a variable is a keyboard puzzle, not mathematics;
+   *   2. a one-word judgement — likely / unlikely / certain / impossible,
+   *      increase / decrease, always / sometimes / never — where the learner has
+   *      to guess the exact wording the card happens to store;
+   *   3. a percent — the card asks for the percent and then accepts a bare
+   *      number, so "50" and "50%" cannot be told apart.
+   * Each is turned into a tapped choice card built from the item's own answer
+   * and its own near misses, so the mathematics is untouched and the response
+   * form matches the words of the question.
+   * ------------------------------------------------------------------------ */
+  var LEX = [
+    ['impossible', 'unlikely', 'likely', 'certain'],
+    ['always', 'sometimes', 'never'],
+    ['greater', 'less', 'equal'],
+    ['increase', 'decrease', 'stay the same'],
+    ['positive', 'negative', 'zero'],
+    ['the mean', 'the median', 'the mode', 'the range'],
+    ['independent', 'dependent'],
+    ['a proportional relationship', 'not a proportional relationship'],
+    ['the slope', 'the y-intercept', 'the origin'],
+    ['rational', 'irrational'],
+    ['a function', 'not a function'],
+    ['more', 'less', 'the same']
+  ];
+  function cleanAns(item) {
+    var txt = item.answerText == null ? '' : String(item.answerText);
+    return txt.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  }
+  function lexChoices(ans) {
+    var low = ans.toLowerCase(), i, j, group = null;
+    for (i = 0; i < LEX.length; i++) {
+      for (j = 0; j < LEX[i].length; j++) if (LEX[i][j] === low) { group = LEX[i]; break }
+      if (group) break;
+    }
+    if (!group || group.length < 3) return null;
+    return { right: ans, wrongs: group.filter(function (x) { return x !== low }) };
+  }
+  function symbolChoices(ans) {
+    var t = ans.replace(/\s+/g, ' ').trim();
+    if (!t || /[0-9]/.test(t) === false && !/[a-z√π]/.test(t)) return null;
+    var out = [], i, v;
+    var m = t.match(/^([0-9]+)\s*([a-z])$/);                       /* 2n, 13x */
+    if (m) {
+      var k = +m[1], letter = m[2];
+      out = [letter + ' + ' + k, k + ' − ' + letter, (k + 1) + letter, letter + ' ÷ ' + k];
+      if (k > 1) out.push(letter + '' + letter);
+    }
+    var m2 = t.match(/^([a-z])\s*([+−-])\s*([0-9]+)$/);              /* n − 9 */
+    if (m2) out = [m2[1] + ' + ' + m2[3], m2[3] + ' − ' + m2[1], m2[1] + ' × ' + m2[3], m2[1] + ' − ' + (+m2[3] + 1)];
+    var m3 = t.match(/^([0-9]+[a-z]?)\s*([+×−])\s*([0-9]+[a-z]?)$/);  /* n + 4, 4 × (2 + 3) */
+    if (m3 && !out.length) out = [m3[1] + ' ' + (m3[2] === '+' ? '−' : '+') + ' ' + m3[3], m3[3] + ' ' + m3[2] + ' ' + m3[1], '(' + m3[1] + ' ' + m3[2] + ' ' + m3[3] + ') × 2'];
+    var m4 = t.match(/^([0-9]+)(?:\s*[×*]\s*10)?[⁰¹²³⁴⁵⁶⁷⁸⁹]/);      /* 4⁵, 3 × 10⁶ */
+    if (m4) {
+      var sup = '⁰¹²³⁴⁵⁶⁷⁸⁹', base = m4[1];
+      var expChar = (t.match(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/) || ['⁰'])[0];
+      var e = sup.indexOf(expChar);
+      var put = function (n) { var o = '', q; for (q = 0; q < n; q++) o += sup.charAt(n % 10); return o; };
+      out = [base + sup.charAt(Math.max(0, e - 1)), base + sup.charAt(Math.min(9, e + 1)), (+base + 1) + expChar, (base * (+e || 2)) + ''];
+      if (/[√π]/.test(t)) out = [];
+    }
+    for (i = 0; i < out.length && out.length < 4; i++) {
+      v = String(out[i]).replace(/\s+/g, ' ').trim();
+      if (v && v !== t && out.indexOf(v) === i) continue;
+    }
+    var uniq = [], seen = {};
+    for (i = 0; i < out.length; i++) { v = String(out[i]).replace(/\s+/g, ' ').trim(); if (v && v !== t && !seen[v]) { seen[v] = 1; uniq.push(v) } }
+    if (uniq.length < 3) return null;
+    return { right: t, wrongs: uniq.slice(0, 3) };
+  }
+  function percentChoices(item) {
+    var sp = item.spec;
+    if (!sp || (sp.k !== 'n' && sp.k !== 'num' && sp.k !== 'number')) return null;
+    var v = +sp.v;
+    if (!isFinite(v) || v <= 0 || v > 100000) return null;
+    if (Math.abs(v - Math.round(v * 10) / 10) > 1e-9) return null;
+    var t = String(item.prompt || '');
+    if (!/as a percent|what percent|as a percent value|as a percent\?/i.test(t)) return null;
+    var fmtP = function (x) { return (Math.round(x * 100) / 100) + '%'; };
+    var cand = [fmtP(v * 10), fmtP(v / 10), fmtP(v * 100), fmtP(Math.abs(v - 100)), fmtP(v + 10)];
+    var uniq = [], i;
+    for (i = 0; i < cand.length && uniq.length < 3; i++) {
+      var w = +String(cand[i]).replace('%', '');
+      if (!(w > 0) || w === v || uniq.indexOf(cand[i]) >= 0) continue;
+      uniq.push(cand[i]);
+    }
+    if (uniq.length < 2) return null;
+    return { right: fmtP(v), wrongs: uniq };
+  }
+  function answerForm(item, sk) {
+    var sp = item.spec;
+    if (!sp) return;
+    var t = String(item.prompt || '');
+    if (sp.k === 'bool') {
+      /* "true or false" on the card, "Yes" in the answer box — the box must
+         speak the language of the question */
+      if (/\btrue or false\b|\bis the statement true\b|\btrue\/false\b|true or false\?/i.test(t)) {
+        item.answerText = (sp.v === false || sp.v === 'false' || sp.v === 0) ? 'False' : 'True';
+      } else if (/^(yes|no)\?/.test(t) || /\byes or no\b/i.test(t)) {
+        item.answerText = (sp.v === false || sp.v === 'false' || sp.v === 0) ? 'No' : 'Yes';
+      }
+      return;
+    }
+    if (sp.k === 'choice' || sp.k === 'cmp') return;
+    var ans = cleanAns(item);
+    if (!ans) return;
+    var make = null;
+    if ((sp.k === 'n' || sp.k === 'num' || sp.k === 'number')) make = percentChoices(item);
+    if (!make && sp.k === 'str') {
+      if (/^[a-z][a-z '’\-]*$/i.test(ans) && ans.length <= 22) make = lexChoices(ans);
+      if (!make) make = symbolChoices(ans);
+    }
+    if (!make && /[⁰¹²³⁴⁵⁶⁷⁸⁹√π]/.test(ans)) make = symbolChoices(ans);
+    if (!make) return;
+    var I_choice = GLOB.I_choice;
+    if (typeof I_choice !== 'function') return;
+    var opts = [make.right].concat(make.wrongs);
+    /* a deterministic riffle: the same card always shows the same order, and
+       two different cards do not both park the right answer in slot 1 */
+    var sh = [], pool = opts.slice(), h = hash(String(sk && sk.id || '') + '|' + t + '|opts'), guard = 0;
+    while (pool.length && guard++ < 60) {
+      h = (h * 1103515245 + 12345) >>> 0;
+      sh.push(pool.splice(h % pool.length, 1)[0]);
+    }
+    var right = sh.indexOf(make.right);
+    if (right < 0) return;
+    item.prompt = t.replace(/[?？]\s*$/, '?');
+    item.options = sh;
+    item.answerText = make.right;
+    /* the same choice spec the factories build, so the grader and the gates read
+       one shape rather than two */
+    item.spec = { k: 'choice', i: right, text: sh[right], opts: sh };
+    if (item.sub != null) item.sub = null;
+  }
+
   DP.polish = function (item, sk, lvl) {
     if (!item || !item.prompt) return item;
     widen(item);
@@ -86750,6 +86900,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     t = fixRegister(t);
     if (!t || t.length < 8 || /NaN|undefined|\[object/.test(t)) return item;
     item.prompt = t;
+    answerForm(item, sk);
     if (item.sub) {
       var s = fixRegister(String(item.sub).replace(/\s{2,}/g, ' ').trim());
       if (s && !/NaN|undefined|\[object/.test(s)) item.sub = s;
@@ -86975,6 +87126,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return a[Math.floor(rng() * a.length)];
   }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  /* "1 orange marbles" and "a orange marble" are the two ways a counted noun
+     goes wrong on a card; both are fixed where the number is already known */
+  function count(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+  function an(word) {
+    var w = String(word).trim();
+    return (/^[aeiou]/i.test(w) ? 'an ' : 'a ') + w;
+  }
   function h32(s) { var h = 2166136261, i; for (i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; } return h; }
   /* the deck's voice: every skill draws its own wording from the same list, so
      two skills served by one family never print the same sentence */
@@ -87104,8 +87262,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   var FAMILY_OF = [
     ['angles', /angle|degree|complementary|supplementary|vertical angle|straight line|protractor|turn\b/],
     ['measure', /area|perimeter|volume|surface area|circumference|\bdiameter\b|\bradius\b|prism|cylinder|pyramid|cone|sphere|\bcube\b|net\b/],
-    ['exponents', /scientific notation|exponent|\bpowers?\b|square root|cube root|radical|rational|irrational|integer exponent|zero exponent|negative exponent/],
-    ['ratio', /ratio|proportion|unit rate|rate per|scale drawing|scale factor|similar|percent of change|percent change|constant of proportionality|equivalent ratio/],
+    ['exponents', /scientific notation|exponent|\bpowers?\b|square root|cube root|radical|integer exponent|zero exponent|negative exponent/],
+    ['ratio', /\bratios?\b|\bproportion\b|unit rate|rate per|\bscale\b|scale factor|similar figures|percent of change|percent change|constant of proportionality|equivalent ratio/],
     ['stats', /mean\b|median|mode\b|range\b|outlier|quartile|interquartile|histogram|line plot|dot plot|bar graph|bar chart|scatter|two-way|frequency table|stem-and-leaf|box plot|data set|statistic|survey|population|sample\b|distribut/],
     ['prob', /probab|likely|unlikely|certain|unfair|sample space|outcome|event\b|simulation| Spinner|spinner/],
     ['coordinate', /coordinate|quadrant|ordered pair|plot the point|plot a point|distance between two|midpoint|slope|y-intercept|x-intercept|line of best|graph the line|reflect|rotation|rotation|translat|dilation|dilate|congruen|similar figures on the/],
@@ -87113,14 +87271,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     ['functions', /function|input.{0,12}output|independent|dependent|domain|range of|relation\b|rule for|next term|term rule|equation of the line|linear equation|table of values|graph a relationship/],
     ['equations', /equation|inequalit|solve|solution of|system of|variable on both|isolate|checking solutions/],
     ['expressions', /expression|simplify|evaluate|like terms|distributive|coefficient|monomial|binomial|trinom|polynomial|factor (out|the|an)|greatest common factor|least common multiple|order of operations|property of|properties of|parentheses|term\b/],
-    ['percent', /percent|%|discount|sale price|tax|tip|interest|commission|mark.?up|original price|part and (whole|percent)/],
+    ['percent', /percent|%|\bdiscount\b|sale price|\btax\b|\btip\b|interest|commission|mark.?up|original price|part and (whole|percent)/],
     ['decimals', /decimal|tenths|hundredths|thousandths|decimal place|decimal point/],
     ['fractions', /fraction|numerator|denominator|equivalent fraction|mixed number|improper|simplify.{0,14}fraction|common denominator|unit fraction|benchmark/],
-    ['places', /place value|digit|standard form|expanded form|word name|word form|round|compare and order|which number is|greatest number|least number|ordering|ascending|descending|whole number|count up to|skip count|number lines?\b|value of the|times as much|place/],
+    ['places', /place value|\bdigits?\b|standard form|expanded form|word name|word form|\bround\b|rounding|compare and order|which number is|greatest number|least number|ordering|ascending|descending|whole number|count up to|skip count|number lines?\b|value of the|times as much|\bplace\b/],
     ['shapes', /shape|polygon|quadrilateral|triangle|rectangle|square\b|parallelogram|rhombus|trapezoid|pentagon|hexagon|octagon|circle|attribute|sides and|vertices|faces|edges|classify|sort.{0,14}shapes|identify.{0,20}(shape|triangle|quadrilateral)|solid figure|three.dimensional|two.dimensional|\bline\b|ray\b|line segment|parallel|perpendicular/],
-    ['units', /unit|customary|metric|convert|measure|celsius|fahrenheit|capacity|liquid|mass|weight|temperature|length|height|\btime\b|elapsed|a\.m\.|p\.m\.|clock|money|coin|change\b/],
-    ['money', /money|cost|price|coupon|budget|income|profit|pay\b|employee|earnings|deal|cheapest|best buy/],
-    ['operations', /add|subtract|multiply|multiply|divide|sum\b|difference|product|quotient|fact famil|remainder|divisib|factor|multiple|prime|composite|estimate|round to estimate|inverse operation|missing number|equal sign|order operations|\bopps?\b|double|doubles|ten more|one more|add and subtract|addition|subtraction|division|multiplication|partial|regroup|carry|borrow/]
+    ['units', /\bunits?\b|customary|\bmetric\b|convert|measure|celsius|fahrenheit|capacity|liquid|\bmass\b|weight|temperature|\blengths?\b|\bheights?\b|\bcentimeters?\b|\bcm\b|\bmillimeters?\b|\bmeters?\b|\bkilometers?\b|\bgrams?\b|\bkilograms?\b|\bliters?\b|\blitres?\b|\bmilliliters?\b|\bgallons?\b|\bquarts?\b|\bpints?\b|\bcups?\b|\bounces?\b|\bpounds?\b|\brulers?\b|\bmeasurement\b|\bmeasures\b|\bestimate\b.*\b(length|mass|weight|capacity|volume|measure)\b|height|\btime\b|elapsed|a\.m\.|p\.m\.|clock|money|coin|change\b/],
+    ['money', /money|\bcost\b|\bprices?\b|coupon|budget|income|profit|\bpay\b|\bsalar\b|earnings|\bdeals?\b|cheapest|best buy|checking|bank ?account|debit|credit|register|interest rate/],
+    ['operations', /add|subtract|multiply|divide|sum\b|difference|product|quotient|fact famil|remainder|divisib|factor|multiple|prime|composite|estimat\w* (?:sum|difference|product|quotient|numbers?|result)|estimate to solve|inverse operation|missing number|equal sign|order operations|\bopps?\b|double|doubles|ten more|one more|add and subtract|addition|subtraction|division|multiplication|partial|regroup|carry|borrow/]
   ];
   var SENIOR_TOPIC = /quadrat|factor (by grouping|out|the|a)|completing the square|completing|derivative|differenti|\blimits?\b|integ(at|ra)|antiderivative|matrix|matrices|determinant|vector|parametric|polar|series|logarithm|exponential function|trigonometric|\bsine\b|\bcosine\b|\btangent\b|unit circle|law of sines|law of cosines|conic|ellipse|hyperbola|parabola|directrix|asymptot|continuity|discontinu|binomial (theorem|expansion)|polynomial|rational (expression|equation|root|function)|radical (expression|equation|function)|complex number|imaginary number|nth term|recursive|arithmetic (sequence|series)|geometric (sequence|series)|induction|linear programming|piecewise|end behavior|rigorous|congruence theorem|similarity theorem|trig (equation|function|identity)|identity|standard form of a (circle|parabola)|real.?number system|sxs|\bmean value theorem|riemann|differential/;
   function familyOf(sk) {
@@ -87132,6 +87290,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        subtraction, not about place value, whatever the word "digits" suggests. */
     if (/missing (the )?digits?|select the missing numbers|fill in the missing/.test(t) &&
         /add|subtract|subtraction|multiply|multiplication|division|divide/.test(t)) return 'operations';
+    /* topic words that outrank the keyword tables: a "cube root" is not a cube
+       to count, a "proportional relationship" is not a table to read, and a bag
+       of marbles is a probability question before it is a statistics one */
+    if (/\b(?:square|cube) roots?\b|perfect (?:square|cube)|estimate (?:the )?roots?/.test(t)) return 'exponents';
+    if (/\bproportional\b|constant of proportionality|proportional relationship/.test(t)) return 'ratio';
+    if (/arithmetic sequence|geometric sequence|\bsequences?\b|common (?:difference|ratio)|nth term|recursive|explicit rule/.test(t)) return 'functions';
+    if (/lines? of best fit|scatter|two-way table|categorical data|numerical data|statistical question|representative|biased sample|\boutliers?\b|association|frequency table|dot plot|box plot|mean absolute deviation|interquartile/.test(t)) return 'stats';
+    if (/counting principle|sample space|compound event|make predictions|predict with|experimental probability|theoretical probability|\bfair\b|\bunfair\b|how likely|\bcertain\b|impossible|probability/.test(t) && !/\barea\b|\bperimeter\b|geometric probability/.test(t)) return 'prob';
+    if (/checking account|bank account|\bregister\b|debit card|credit card|credit report|paying for college|tuition|scholarship|interest rate|\bloan\b|\bbudget\b|monthly fee/.test(t)) return 'money';
     for (i = 0; i < FAMILY_OF.length; i++) if (FAMILY_OF[i][1].test(t)) return FAMILY_OF[i][0];
     return null;
   }
@@ -87955,6 +88122,200 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             tol: 0.05, lim: Math.max(500, ans * 3),
             teach: which ? 'The diameter is twice the radius.' : 'Area of a circle is πr².',
             explain: explainOk(which ? ['The radius is ' + r + ' ' + unit + ', and the diameter spans twice that.', 'So the diameter is <b>' + (2 * r) + '</b> ' + unit + '.'] : ['Square the radius: ' + r + '² = ' + (r * r) + '.', 'Multiply by 3.14: <b>' + nfmt(+(3.14 * r * r).toFixed(2)) + '</b> square ' + unit + '.'], which ? 2 * r : nfmt(+(3.14 * r * r).toFixed(2))) });
+      },
+      /* ── parallelograms ──────────────────────────────────────────────── */
+      function () {
+        if (!/parallelogram/.test(t)) return null;
+        var b = int(rng, 3, 16), hh = int(rng, 2, 12), slant = hh + int(rng, 1, 4);
+        return ask(rng, sk, 'A parallelogram has base ' + b + ' ' + unit + ' and height ' + hh + ' ' + unit + '. What is its area, in square ' + unit + '?', b * hh,
+          [2 * (b + hh), b * slant, b + hh], { lim: Math.max(600, b * hh * 3),
+            teach: 'A parallelogram can be cut and moved to become a rectangle with the same base and height.',
+            explain: explainOk(['Cut off the right triangle and slide it across: the shape becomes a ' + b + ' by ' + hh + ' rectangle.', 'Area = base × height = ' + b + ' × ' + hh + ' = <b>' + (b * hh) + '</b> square ' + unit + '.'], b * hh),
+            visual: rank(sk) <= 6 ? V.area(b, hh, { label: 'same base and height as the parallelogram' }) : null });
+      },
+      function () {
+        if (!/parallelogram/.test(t)) return null;
+        var bb = int(rng, 3, 12), a2 = bb * int(rng, 2, 9);
+        return ask(rng, sk, 'A parallelogram has area ' + a2 + ' square ' + unit + ' and a base of ' + bb + ' ' + unit + '. What is the matching height, in ' + unit + '?', a2 / bb,
+          [a2 - bb, a2 + bb, bb], { lim: Math.max(400, a2 * 2),
+            teach: 'Undo the area formula: height = area ÷ base.',
+            explain: explainOk(['Area = base × height, so height = ' + a2 + ' ÷ ' + bb + '.', 'The height is <b>' + nfmt(a2 / bb) + '</b> ' + unit + '.'], nfmt(a2 / bb)) });
+      },
+      /* ── trapezoids ──────────────────────────────────────────────────── */
+      function () {
+        if (!/trapezoid/.test(t)) return null;
+        var a = int(rng, 2, 8) * 2, b3 = int(rng, 1, 7) * 2, hh = int(rng, 2, 10);
+        if (a === b3) b3 = a + 2;
+        var ar = (a + b3) * hh / 2;
+        return ask(rng, sk, 'A trapezoid has parallel sides of ' + a + ' ' + unit + ' and ' + b3 + ' ' + unit + ' and a height of ' + hh + ' ' + unit + '. What is its area, in square ' + unit + '?', ar,
+          [(a + b3) * hh, (a + b3 + 2 * hh) , a * b3], { lim: Math.max(600, ar * 3),
+            teach: 'Trapezoid area is the average of the parallel sides times the height: (a + b) × h ÷ 2.',
+            explain: explainOk(['Add the parallel sides: ' + a + ' + ' + b3 + ' = ' + (a + b3) + '.', 'Multiply by the height and halve: ' + (a + b3) + ' × ' + hh + ' ÷ 2 = <b>' + ar + '</b> square ' + unit + '.'], ar) });
+      },
+      function () {
+        if (!/trapezoid/.test(t)) return null;
+        var a4 = int(rng, 1, 6) * 2, b4 = int(rng, 1, 6) * 2, hh2 = int(rng, 2, 9);
+        if (a4 === b4) b4 = a4 + 2;
+        var ar2 = (a4 + b4) * hh2 / 2;
+        return askStr(rng, sk, 'Which equation finds the area of a trapezoid with parallel sides ' + a4 + ' and ' + b4 + ' and height ' + hh2 + '?',
+          ['(' + a4 + ' + ' + b4 + ') × ' + hh2 + ' ÷ 2 = ' + ar2], [a4 + ' × ' + b4 + ' × ' + hh2 + ' = ' + (a4 * b4 * hh2), '(' + a4 + ' + ' + b4 + ' + ' + hh2 + ') × 2 = ' + (2 * (a4 + b4 + hh2))], {
+            teach: 'Average the parallel sides, then multiply by the height.',
+            explain: explainOk(['The two parallel sides add to ' + (a4 + b4) + ', so the middle width is ' + ((a4 + b4) / 2) + '.', 'Middle width × height = (' + a4 + ' + ' + b4 + ') × ' + hh2 + ' ÷ 2 = <b>' + ar2 + '</b>.'], '(' + a4 + ' + ' + b4 + ') × ' + hh2 + ' ÷ 2 = ' + ar2) });
+      },
+      /* ── rhombuses ───────────────────────────────────────────────────── */
+      function () {
+        if (!/rhombus|diamond/.test(t)) return null;
+        var d1 = int(rng, 2, 8) * 2, d2 = int(rng, 2, 8) * 2;
+        if (d1 === d2) d2 = d1 + 2;
+        var ar3 = d1 * d2 / 2;
+        return ask(rng, sk, 'A rhombus has diagonals of ' + d1 + ' ' + unit + ' and ' + d2 + ' ' + unit + '. What is its area, in square ' + unit + '?', ar3,
+          [d1 * d2, d1 + d2, 4 * int(rng, 3, 9)], { lim: Math.max(600, ar3 * 3),
+            teach: 'The diagonals of a rhombus split it into four right triangles, so the area is half the product of the diagonals.',
+            explain: explainOk(['Multiply the diagonals: ' + d1 + ' × ' + d2 + ' = ' + (d1 * d2) + '.', 'Half of that is the rhombus: ' + (d1 * d2) + ' ÷ 2 = <b>' + ar3 + '</b> square ' + unit + '.'], ar3) });
+      },
+      function () {
+        if (!/rhombus|diamond/.test(t)) return null;
+        var sd = int(rng, 3, 12);
+        return ask(rng, sk, 'Each side of a rhombus is ' + sd + ' ' + unit + ' long. What is its perimeter, in ' + unit + '?', 4 * sd,
+          [2 * sd, sd * sd, sd + 4], { lim: Math.max(200, sd * 8),
+            teach: 'A rhombus has four equal sides, so the perimeter is 4 × side.',
+            explain: explainOk(['All four sides are ' + sd + ' ' + unit + ' long.', 'Add them: 4 × ' + sd + ' = <b>' + (4 * sd) + '</b> ' + unit + '.'], 4 * sd) });
+      },
+      /* ── any quadrilateral / polygon ─────────────────────────────────── */
+      function () {
+        if (!/quadrilateral|polygon/.test(t)) return null;
+        var dd = int(rng, 2, 8) * 2, h1 = int(rng, 2, 9), h2 = int(rng, 2, 9);
+        var ar4 = dd * (h1 + h2) / 2;
+        return ask(rng, sk, 'A diagonal of ' + dd + ' ' + unit + ' splits this quadrilateral into two triangles with heights ' + h1 + ' and ' + h2 + ' ' + unit + '. What is its area, in square ' + unit + '?', ar4,
+          [dd * (h1 + h2), dd * h1, (dd + h1 + h2)], { lim: Math.max(600, ar4 * 3),
+            teach: 'Split a quadrilateral along a diagonal, find each triangle, and add.',
+            explain: explainOk(['Triangle 1: ' + dd + ' × ' + h1 + ' ÷ 2 = ' + (dd * h1 / 2) + '.', 'Triangle 2: ' + dd + ' × ' + h2 + ' ÷ 2 = ' + (dd * h2 / 2) + '.', 'Add: ' + (dd * h1 / 2) + ' + ' + (dd * h2 / 2) + ' = <b>' + ar4 + '</b> square ' + unit + '.'], ar4) });
+      },
+      function () {
+        if (!/quadrilateral|polygon|perimeter/.test(t)) return null;
+        var s4 = [int(rng, 2, 12), int(rng, 2, 14), int(rng, 3, 15), int(rng, 2, 13)];
+        var sum4 = s4[0] + s4[1] + s4[2] + s4[3];
+        return ask(rng, sk, 'A quadrilateral has sides of ' + s4.join(', ') + ' ' + unit + '. What is its perimeter, in ' + unit + '?', sum4,
+          [sum4 - s4[0], sum4 + 2, s4[0] * s4[1]], { lim: Math.max(300, sum4 * 3),
+            teach: 'Perimeter is the distance around: add the lengths of all four sides.',
+            explain: explainOk(['The four sides are ' + s4.join(' + ') + '.', 'Add them: <b>' + sum4 + '</b> ' + unit + '.'], sum4) });
+      },
+      /* ── prisms, pyramids, cylinders ─────────────────────────────────── */
+      function () {
+        if (!/triangular prism/.test(t)) return null;
+        var tb = int(rng, 2, 8) * 2, th = int(rng, 2, 9), len = int(rng, 3, 14);
+        var v5 = tb * th / 2 * len;
+        return ask(rng, sk, 'A triangular prism has a triangular base with base ' + tb + ' ' + unit + ', height ' + th + ' ' + unit + ', and a length of ' + len + ' ' + unit + '. What is its volume, in cubic ' + unit + '?', v5,
+          [tb * th * len, (tb + th) * len, tb * th], { lim: Math.max(900, v5 * 3),
+            teach: 'Volume of any prism is the area of its base times its length.',
+            explain: explainOk(['The triangular base has area ' + tb + ' × ' + th + ' ÷ 2 = ' + (tb * th / 2) + '.', 'Multiply by the length: ' + (tb * th / 2) + ' × ' + len + ' = <b>' + v5 + '</b> cubic ' + unit + '.'], v5) });
+      },
+      function () {
+        if (!/pyramid|cone/.test(t)) return null;
+        var s5 = int(rng, 3, 9), h5 = int(rng, 1, 6) * 3, isPyr = /pyramid/.test(t);
+        var v6 = isPyr ? s5 * s5 * h5 / 3 : Math.round(3.14 * s5 * s5 * h5 / 3 * 100) / 100;
+        return ask(rng, sk, 'Find the volume of a ' + (isPyr ? 'square pyramid with base side ' + s5 + ' and height ' + h5 : 'cone with radius ' + s5 + ' and height ' + h5) + ' ' + unit + ' (use π = 3.14), in cubic ' + unit + '.', v6,
+          isPyr ? [s5 * s5 * h5, s5 * s5 + h5, 4 * s5 * h5] : [3.14 * s5 * s5 * h5, 3.14 * s5 * h5, 2 * 3.14 * s5 * h5], { tol: 0.5, lim: Math.max(900, v6 * 3),
+            teach: 'A pyramid or cone holds one third of the matching prism or cylinder.',
+            explain: isPyr
+              ? explainOk(['The matching prism has volume ' + s5 + ' × ' + s5 + ' × ' + h5 + ' = ' + (s5 * s5 * h5) + '.', 'A pyramid is one third of that: ' + (s5 * s5 * h5) + ' ÷ 3 = <b>' + v6 + '</b> cubic ' + unit + '.'], v6)
+              : explainOk(['The matching cylinder has volume 3.14 × ' + s5 + '² × ' + h5 + ' = ' + (3.14 * s5 * s5 * h5) + '.', 'A cone is one third of that: <b>' + nfmt(v6) + '</b> cubic ' + unit + '.'], nfmt(v6)) });
+      },
+      function () {
+        if (!/cylinder/.test(t)) return null;
+        var r6 = int(rng, 2, 9), h6 = int(rng, 2, 15);
+        var v7 = Math.round(3.14 * r6 * r6 * h6 * 100) / 100;
+        return ask(rng, sk, 'A cylinder has radius ' + r6 + ' ' + unit + ' and height ' + h6 + ' ' + unit + '. What is its volume, in cubic ' + unit + ' (use π = 3.14)?', v7,
+          [3.14 * r6 * h6, 2 * 3.14 * r6 * h6, 3.14 * r6 * r6], { tol: 0.5, lim: Math.max(1200, v7 * 3),
+            teach: 'Volume of a cylinder is the area of the circular base times the height: πr²h.',
+            explain: explainOk(['Base area: 3.14 × ' + r6 + '² = ' + (3.14 * r6 * r6) + '.', 'Times the height: ' + (3.14 * r6 * r6) + ' × ' + h6 + ' = <b>' + nfmt(v7) + '</b> cubic ' + unit + '.'], nfmt(v7)) });
+      },
+      function () {
+        if (!/surface area/.test(t)) return null;
+        var s7 = int(rng, 2, 10);
+        return ask(rng, sk, 'A cube has edges of ' + s7 + ' ' + unit + '. What is its surface area, in square ' + unit + '?', 6 * s7 * s7,
+          [s7 * s7 * s7, 12 * s7, 4 * s7 * s7], { lim: Math.max(900, s7 * s7 * 12),
+            teach: 'A cube has 6 identical square faces, so the surface area is 6s².',
+            explain: explainOk(['One face has area ' + s7 + ' × ' + s7 + ' = ' + (s7 * s7) + ' square ' + unit + '.', 'Six faces: 6 × ' + (s7 * s7) + ' = <b>' + (6 * s7 * s7) + '</b> square ' + unit + '.'], 6 * s7 * s7),
+            visual: rank(sk) <= 8 ? V.solid('cube', { label: 'six matching faces' }) : null });
+      },
+      function () {
+        if (!/surface area/.test(t) || !/pyramid/.test(t)) return null;
+        var s8 = int(rng, 2, 9), sl = s8 + int(rng, 1, 4);
+        var sa8 = s8 * s8 + 4 * (s8 * sl / 2);
+        return askStr(rng, sk, 'A square pyramid has base side ' + s8 + ' and slant height ' + sl + '. Which expression gives its surface area?',
+          [s8 + '² + 4 × (' + s8 + ' × ' + sl + ' ÷ 2) = ' + sa8], [s8 + '² + ' + s8 + ' × ' + sl + ' = ' + (s8 * s8 + s8 * sl), '4 × ' + s8 + ' × ' + sl + ' = ' + (4 * s8 * sl)], {
+            teach: 'Surface area adds the base to the four triangular faces.',
+            explain: explainOk(['The base covers ' + s8 + '² = ' + (s8 * s8) + ' square ' + unit + '.', 'Each triangular face is ' + s8 + ' × ' + sl + ' ÷ 2 = ' + (s8 * sl / 2) + '; four of them make ' + (4 * s8 * sl / 2) + '.', 'Total: <b>' + sa8 + '</b> square ' + unit + '.'], s8 + '² + 4 × (' + s8 + ' × ' + sl + ' ÷ 2) = ' + sa8) });
+      },
+      function () {
+        if (!/fractional side|fractional edge|unit fraction|fraction.*cube/.test(t)) return null;
+        var q = pick(rng, [[2, 2, 2], [2, 4, 2], [4, 2, 4], [6, 2, 2]]), half = R.chance(rng, 0.5);
+        var dims = [q[0] / 2 + (half ? 0.5 : 0), q[1] / 2, q[2] / 2];
+        var v9 = Math.round(dims[0] * dims[1] * dims[2] * 1000) / 1000;
+        return ask(rng, sk, 'A rectangular prism measures ' + dims[0] + ' by ' + dims[1] + ' by ' + dims[2] + ' unit cubes. What is its volume, in cubic units?', v9,
+          [dims[0] + dims[1] + dims[2], Math.round(v9 * 4 * 100) / 100, Math.round(v9 / 2 * 100) / 100], { tol: 0.002, lim: Math.max(400, v9 * 6),
+            teach: 'Fractional edge lengths multiply exactly like whole ones: length × width × height.',
+            explain: explainOk(['Multiply the edge lengths: ' + dims[0] + ' × ' + dims[1] + ' × ' + dims[2] + '.', 'The volume is <b>' + nfmt(v9) + '</b> cubic units.'], nfmt(v9)) });
+      },
+      function () {
+        if (!/between two shapes|shaded|difference|remaining|left over/.test(t)) return null;
+        var B = [int(rng, 6, 16), int(rng, 5, 14)], b9 = [int(rng, 2, 4), int(rng, 2, 4)];
+        if (b9[0] >= B[0] - 1 || b9[1] >= B[1] - 1) b9 = [2, 2];
+        var big = B[0] * B[1], small = b9[0] * b9[1], between = big - small;
+        return ask(rng, sk, 'A ' + B[0] + ' by ' + B[1] + ' ' + unit + ' rectangle has a ' + b9[0] + ' by ' + b9[1] + ' ' + unit + ' square cut from it. How many square ' + unit + ' are left?', between,
+          [big, small, big + small], { lim: Math.max(600, between * 3),
+            teach: 'Area between two figures is the larger area minus the smaller area.',
+            explain: explainOk(['The large rectangle covers ' + B[0] + ' × ' + B[1] + ' = ' + big + ' square ' + unit + '.', 'The cut-out covers ' + b9[0] + ' × ' + b9[1] + ' = ' + small + ' square ' + unit + '.', 'What is left is ' + big + ' − ' + small + ' = <b>' + between + '</b> square ' + unit + '.'], between) });
+      },
+      function () {
+        if (!/front|side, and top|top view|view|solid/.test(t)) return null;
+        var cols = int(rng, 2, 4), rows = int(rng, 2, 3), up = int(rng, 1, 3);
+        var total = cols * rows * up;
+        var cells = [], i5, row5;
+        for (i5 = 0; i5 < rows; i5++) { row5 = []; for (var c5 = 0; c5 < cols; c5++) row5.push('■'); cells.push(row5); }
+        return ask(rng, sk, 'A solid is built from ' + cols + ' × ' + rows + ' cubes in each layer and has ' + up + ' layers. How many cubes make the solid, and what does the view from the top show?', cols * rows,
+          [total, cols + rows, cols * rows * up - 1], { lim: 200,
+            teach: 'The view from the top is the footprint: one square for every column of cubes.',
+            explain: explainOk(['Each layer covers ' + cols + ' by ' + rows + ' = ' + (cols * rows) + ' squares.', 'The layers stack, so the footprint stays ' + (cols * rows) + ' squares.', 'The view from the top shows <b>' + (cols * rows) + '</b> squares.'], cols * rows),
+            visual: V.grid({ rows: rows, cols: cols, cells: cells, label: 'view from the top' }) });
+      },
+      function () {
+        if (!/relate volume|same volume|surface area|volume/.test(t)) return null;
+        var v10 = int(rng, 2, 6) * int(rng, 2, 6) * int(rng, 2, 6);
+        var good = [1, v10, 1], bad = [2, v10, 2], bad2 = [1, v10 + 1, 1];
+        var opts = R.shuffle(rng, ['1 × ' + v10 + ' × 1', '2 × ' + v10 + ' × 2', '1 × ' + (v10 + 1) + ' × 1']);
+        return I_choice('Which set of edge lengths makes a prism with volume ' + v10 + ' cubic ' + unit + '?', opts, opts.indexOf('1 × ' + v10 + ' × 1'), {
+          teach: 'The volume of a prism is the product of its three edge lengths.',
+          explain: explainOk(['Multiply each set of edges and compare with ' + v10 + '.', '1 × ' + v10 + ' × 1 = <b>' + v10 + '</b> cubic ' + unit + '.'], '1 × ' + v10 + ' × 1') });
+      },
+      function () {
+        if (!/circumference/.test(t)) return null;
+        var r11 = int(rng, 2, 12);
+        var c11 = Math.round(2 * 3.14 * r11 * 100) / 100;
+        return ask(rng, sk, 'Find the circumference of a circle with radius ' + r11 + ' ' + unit + ' (use π = 3.14), in ' + unit + '.', c11,
+          [Math.round(3.14 * r11 * r11 * 100) / 100, Math.round(3.14 * 2 * r11 * r11 * 100) / 100, 2 * r11], { tol: 0.2, lim: Math.max(400, c11 * 4),
+            teach: 'Circumference is the distance around a circle: C = 2πr.',
+            explain: explainOk(['C = 2 × 3.14 × ' + r11 + '.', 'The circumference is <b>' + nfmt(c11) + '</b> ' + unit + '.'], nfmt(c11)),
+            visual: V.circle('circle', { r: r11, label: 'walk around the edge' }) });
+      },
+      function () {
+        if (!/complex figures|dividing them into rectangles|composite|decompos/.test(t)) return null;
+        var pa = [int(rng, 3, 12), int(rng, 2, 9)], pb = [int(rng, 2, 9), int(rng, 2, 8)];
+        var tot15 = pa[0] * pa[1] + pb[0] * pb[1];
+        return ask(rng, sk, 'A figure is made of a ' + pa[0] + ' by ' + pa[1] + ' rectangle joined to a ' + pb[0] + ' by ' + pb[1] + ' rectangle. What is its total area, in square ' + unit + '?', tot15,
+          [(pa[0] + pb[0]) * (pa[1] + pb[1]), pa[0] * pa[1], tot15 + pa[1]], { lim: Math.max(600, tot15 * 3),
+            teach: 'Split a compound figure into rectangles, find each area, then add.',
+            explain: explainOk(['First rectangle: ' + pa[0] + ' × ' + pa[1] + ' = ' + (pa[0] * pa[1]) + '.', 'Second rectangle: ' + pb[0] + ' × ' + pb[1] + ' = ' + (pb[0] * pb[1]) + '.', 'Total: ' + (pa[0] * pa[1]) + ' + ' + (pb[0] * pb[1]) + ' = <b>' + tot15 + '</b> square ' + unit + '.'], tot15) });
+      },
+      function () {
+        if (!/perimeter/.test(t) || !/word problem|fence|tape|frame|border|walk/.test(t)) return null;
+        var wf = [int(rng, 3, 15), int(rng, 2, 12)], pf = 2 * (wf[0] + wf[1]);
+        var nmf = pick(rng, NAMES);
+        return ask(rng, sk, nmf + ' puts a fence all the way around a ' + wf[0] + ' by ' + wf[1] + ' ' + unit + ' garden. How many ' + unit + ' of fence does ' + nmf + ' need?', pf,
+          [wf[0] * wf[1], wf[0] + wf[1], pf + 2], { lim: Math.max(400, pf * 3),
+            teach: 'Fencing goes around the outside, so add all four sides.',
+            explain: explainOk(['The garden has two sides of ' + wf[0] + ' and two of ' + wf[1] + '.', 'Add: ' + wf[0] + ' + ' + wf[1] + ' + ' + wf[0] + ' + ' + wf[1] + ' = ' + pf + '.', nmf + ' needs <b>' + pf + '</b> ' + unit + ' of fence.'], pf) });
       }
     ];
   }
@@ -88161,51 +88522,110 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
 
   function deckProb(rng, lvl, sk) {
     var ttl = String(sk.name || '').toLowerCase();
-    var colours = [['red', 3], ['blue', 4], ['green', 2], ['yellow', 5]];
-    var c1 = pick(rng, colours), c2 = pick(rng, colours);
-    var total = 12, num = c1[1];
+    var colours = [['red', 3], ['blue', 4], ['green', 2], ['yellow', 5], ['purple', 6], ['orange', 1]];
+    var c1 = pick(rng, colours), c2 = pick(rng, colours.filter(function (x) { return x[0] !== c1[0]; }));
+    var total = c1[1] + c2[1], num = c1[1];
     var r = reduce(num, total);
+    var LIKELY = ['impossible', 'less likely than not', 'equally likely', 'more likely than not', 'certain'];
 
     return [
+      /* 1 a single draw, answered as a reduced fraction */
       function () {
-        return ask(rng, sk, 'A bag holds ' + c1[1] + ' ' + c1[0] + ' marbles and ' + c2[1] + ' ' + c2[0] + ' marbles. What is the probability of drawing a ' + c1[0] + ' marble?', num / total,
-          [(total - num) / total, num / (total + c2[1]), 1 / total], { tol: 0.01, lim: 10,
-            teach: 'Probability = favourable outcomes ÷ all outcomes.',
-            explain: explainOk(['There are ' + num + ' ' + c1[0] + ' of ' + total + ' marbles.', num + '/' + total + ' = <b>' + nfmt(+(num / total).toFixed(3)) + '</b>.'], nfmt(+(num / total).toFixed(3))) });
+        return I_frac('A bag holds ' + count(c1[1], c1[0] + ' marble') + ' and ' + count(c2[1], c2[0] + ' marble') + '. What is the probability of drawing ' + an(c1[0]) + ' marble? (Write the fraction in lowest terms.)',
+          r.n, r.d, {
+            teach: 'Probability = favourable outcomes ÷ all outcomes, then reduce.',
+            explain: explainOk(['There are ' + num + ' ' + c1[0] + ' of ' + total + ' marbles in all.', num + '/' + total + ' reduces by ' + (total / r.d) + ' to <b>' + fracStr(r.n, r.d) + '</b>.'], fracStr(r.n, r.d)) });
+      },
+      /* 2 the complement of the same draw */
+      function () {
+        var rc = reduce(total - num, total);
+        return I_frac('A bag holds ' + count(c1[1], c1[0] + ' marble') + ' and ' + count(c2[1], c2[0] + ' marble') + '. What is the probability of NOT drawing ' + an(c1[0]) + ' marble? (Write the fraction in lowest terms.)',
+          rc.n, rc.d, {
+            teach: 'The complement is 1 minus the event: count the outcomes that are not favourable.',
+            explain: explainOk(['Marbles that are not ' + c1[0] + ': ' + total + ' − ' + num + ' = ' + (total - num) + '.', 'So the complement is ' + (total - num) + '/' + total + ' = <b>' + fracStr(rc.n, rc.d) + '</b>.'], fracStr(rc.n, rc.d)) });
+      },
+      /* 3 a likelihood judgement, tapped rather than typed */
+      function () {
+        var which = num * 2 > total ? 3 : (num * 2 === total ? 2 : 1);
+        var opts = R.shuffle(rng, ['impossible', LIKELY[which], 'certain']);
+        return I_choice('A bag holds ' + count(num, c1[0] + ' marble') + ' and ' + count(total - num, c2[0] + ' marble') + '. How likely is it to draw ' + an(c1[0]) + ' marble?',
+          opts, opts.indexOf(LIKELY[which]), {
+            teach: 'Compare the favourable outcomes with half the total before naming the likelihood.',
+            explain: explainOk([num + ' favourable out of ' + total + ', and half of ' + total + ' is ' + (total / 2) + '.', num + (num * 2 > total ? ' is more than ' : num * 2 === total ? ' equals ' : ' is less than ') + (total / 2) + ', so drawing a ' + c1[0] + ' is <b>' + LIKELY[which] + '</b>.'], LIKELY[which]) });
+      },
+      /* 4 certain and impossible events, tapped */
+      function () {
+        var wantCertain = R.chance(rng, 0.5);
+        var right = wantCertain ? 'drawing a ' + c1[0] + ' or a ' + c2[0] + ' marble from this bag'
+          : 'drawing a ' + pick(rng, ['black', 'white', 'pink']) + ' marble from this bag';
+        var wrongs = wantCertain ? ['drawing a ' + pick(rng, ['black', 'white', 'pink']) + ' marble from this bag', 'drawing a marble numbered 9 from this bag']
+          : ['drawing a ' + c1[0] + ' or a ' + c2[0] + ' marble from this bag', 'drawing a marble from this bag'];
+        var opts = R.shuffle(rng, [right].concat(wrongs));
+        return I_choice('A bag holds only ' + count(c1[1], c1[0] + ' marble') + ' and ' + count(c2[1], c2[0] + ' marble') + '. Which event is ' + (wantCertain ? 'certain' : 'impossible') + '?',
+          opts, opts.indexOf(right), {
+            teach: 'A certain event covers every outcome; an impossible event covers none of them.',
+            explain: explainOk(['The bag can only give ' + c1[0] + ' or ' + c2[0] + ' marbles.', 'So the ' + (wantCertain ? 'certain' : 'impossible') + ' event is <b>' + right + '</b>.'], right) });
+      },
+      /* 5 the size of a sample space, one tool then two */
+      function () {
+        if (!/outcome|sample space|list all|tree diagram|possible/.test(ttl)) return null;
+        return ask(rng, sk, 'A number cube and a coin are used together in one trial. How many outcomes are in the sample space?', 12, [6, 2, 8], {
+          lim: 60, teach: 'When two tools are used, multiply the number of outcomes each one has.',
+          explain: explainOk(['The cube has 6 outcomes and the coin has 2 (heads or tails).', '6 × 2 = <b>12</b> outcomes.'], 12) });
       },
       function () {
-        return askStr(rng, sk, 'Which event is certain?', ['drawing a ' + c1[0] + ' or ' + c2[0] + ' marble from a bag of only those two colours'],
-          ['drawing a green marble from a bag with no green marbles', 'rolling a 7 on a number cube'],
-          { teach: 'A certain event includes every possible outcome.',
-            explain: explainOk(['List what the bag can give: only ' + c1[0] + ' and ' + c2[0] + '.', 'The certain event is <b>drawing a ' + c1[0] + ' or ' + c2[0] + ' marble</b>.'], 'drawing a ' + c1[0] + ' or ' + c2[0] + ' marble'),
-            });
+        if (!/outcome|sample space|list all|tree diagram|possible/.test(ttl)) return null;
+        return ask(rng, sk, 'Two number cubes are rolled. How many outcomes are in the sample space?', 36, [6, 12, 30], {
+          lim: 100, teach: 'Each cube has 6 outcomes, and each first outcome pairs with every second one.',
+          explain: explainOk(['Cube 1 has 6 outcomes and cube 2 has 6 outcomes.', '6 × 6 = <b>36</b> outcomes in the sample space.'], 36) });
       },
+      /* 6 the counting principle in a story */
       function () {
-        if (num * 2 === total) return null;
-        var right = num * 2 > total ? 'more likely than not' : 'less likely than not';
-        return askStr(rng, sk, 'A bag holds ' + num + ' ' + c1[0] + ' and ' + (total - num) + ' other marbles. Drawing a ' + c1[0] + ' is…', [right],
-          [num * 2 > total ? 'less likely than not' : 'more likely than not', 'impossible'],
-          { teach: 'Compare the number of favourable outcomes with half the total.',
-            explain: explainOk([num + ' favourable out of ' + total + ', and half of ' + total + ' is ' + total / 2 + '.', 'So drawing a ' + c1[0] + ' is <b>' + right + '</b>.'], right) });
+        if (!/counting principle|outfits|choices|combinations|menu|meal|route|path/.test(ttl)) return null;
+        var a = int(rng, 2, 6), b = int(rng, 2, 5), nm = pick(rng, NAMES);
+        return ask(rng, sk, nm + ' is choosing one of ' + a + ' shirts and one of ' + b + ' pairs of shorts. How many different outfits can ' + nm + ' make?', a * b,
+          [a + b, a * b + a, a * b - b], { lim: 200,
+            teach: 'Independent choices multiply: every first choice pairs with every second choice.',
+            explain: explainOk(['There are ' + a + ' shirt choices.', 'Each one can be paired with ' + b + ' shorts, so ' + a + ' × ' + b + ' = <b>' + (a * b) + '</b> outfits.'], a * b) });
       },
+      /* 7 two independent draws, with the marble put back */
       function () {
-        var outs = ['1', '2', '3', '4', '5', '6'];
-        return ask(rng, sk, 'How many outcomes are in the sample space of one roll of a number cube?', 6, [4, 3, 12], {
-          lim: 40, teach: 'The sample space lists every outcome the trial can produce.',
-          explain: explainOk(['A number cube shows ' + outs.join(', ') + '.', 'The sample space has <b>6</b> outcomes.'], 6) });
+        if (!/compound|both|two draws|with replacement|and then|independent/.test(ttl)) return null;
+        var rr = reduce(num * num, total * total);
+        return I_frac('A bag holds ' + count(c1[1], c1[0] + ' marble') + ' and ' + count(c2[1], c2[0] + ' marble') + '. One marble is drawn, put back, and a second marble is drawn. What is the probability that both are ' + c1[0] + '? (Write the fraction in lowest terms.)',
+          rr.n, rr.d, {
+            teach: 'When the first outcome is replaced the draws are independent, so the probabilities multiply.',
+            explain: explainOk(['Each draw is ' + fracStr(r.n, r.d) + ' because the bag is put back the same way.', fracStr(r.n, r.d) + ' × ' + fracStr(r.n, r.d) + ' = ' + (num * num) + '/' + (total * total) + ' = <b>' + fracStr(rr.n, rr.d) + '</b>.'], fracStr(rr.n, rr.d)) });
       },
+      /* 8 two cubes: an exact quarter, the classic compound event */
       function () {
-        var truth = num * 2 > total;
-        return I_bool('A bag holds ' + num + ' ' + c1[0] + ' and ' + (total - num) + ' other marbles. Is drawing a ' + c1[0] + ' marble more likely than not?', truth, {
-          teach: 'More than half the marbles makes the draw more likely than not.',
-          explain: explainOk([num + ' of ' + total + ' marbles are ' + c1[0] + '; half of ' + total + ' is ' + total / 2 + '.', 'The statement is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
+        if (!/compound|both|dice|two number cubes|sum|even|odd/.test(ttl)) return null;
+        return I_frac('Two number cubes are rolled. What is the probability that both cubes show an even number? (Write the fraction in lowest terms.)',
+          1, 4, {
+            teach: 'Half the faces on each cube are even, and independent events multiply.',
+            explain: explainOk(['One cube shows an even number with probability 1/2.', '1/2 × 1/2 = 1/4, and checking by counting: 9 of the 36 outcomes have both cubes even.', 'The probability is <b>1/4</b>.'], '1/4') });
       },
+      /* 9 predictions from a probability */
       function () {
-        var f = pick(rng, [1, 2, 3, 6]);
+        var f = pick(rng, [10, 20, 30, 40, 60]);
         var exp = num / total * f;
-        return ask(rng, sk, 'A spinner is ' + num + '/' + total + ' ' + c1[0] + '. Predict how many ' + c1[0] + ' results in ' + f + ' spins.', Math.round(exp), [f, Math.round(exp) + 1, num], {
-          lim: 60, teach: 'Expected number = probability × number of trials.',
-          explain: explainOk(['The probability is ' + fracStr(r.n, r.d) + '.', fracStr(r.n, r.d) + ' × ' + f + ' ≈ <b>' + Math.round(exp) + '</b>.'], Math.round(exp)) });
+        if (Math.abs(exp - Math.round(exp)) > 1e-9) return null;
+        return ask(rng, sk, 'A spinner is ' + fracStr(r.n, r.d) + ' ' + c1[0] + '. Predict how many ' + c1[0] + ' results there will be in ' + f + ' spins.', Math.round(exp),
+          [f - Math.round(exp), Math.round(exp) + 1, num], { lim: 200,
+            teach: 'Expected number = probability × number of trials.',
+            explain: explainOk(['The probability is ' + fracStr(r.n, r.d) + '.', fracStr(r.n, r.d) + ' × ' + f + ' = <b>' + Math.round(exp) + '</b> results.'], Math.round(exp)) });
+      },
+      /* 10 is the game fair? */
+      function () {
+        if (!/fair|unfair|game|advantage|equally likely/.test(ttl)) return null;
+        var right = c1[1] === c2[1] ? 'the game is fair' : 'the player who picks ' + (c1[1] > c2[1] ? c1[0] : c2[0]) + ' has the better chance';
+        var wrongs = c1[1] === c2[1] ? ['the player who picks ' + c1[0] + ' has the better chance', 'the player who picks ' + c2[0] + ' has the better chance']
+          : ['the game is fair', 'the player who picks ' + (c1[1] > c2[1] ? c2[0] : c1[0]) + ' has the better chance'];
+        var opts = R.shuffle(rng, [right].concat(wrongs));
+        return I_choice('A game uses a bag with ' + count(c1[1], c1[0] + ' marble') + ' and ' + count(c2[1], c2[0] + ' marble') + '. Two players pick a colour and draw one marble. Which statement is true?',
+          opts, opts.indexOf(right), {
+            teach: 'A game is fair only when both colours have the same number of outcomes.',
+            explain: explainOk([c1[0] + ' has ' + c1[1] + ' outcomes and ' + c2[0] + ' has ' + c2[1] + ' outcomes.', c1[1] === c2[1] ? 'The counts are equal, so <b>the game is fair</b>.' : 'The larger count wins more often, so <b>' + right + '</b>.'], right) });
       }
     ];
   }
@@ -88229,10 +88649,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['The coefficients are ' + like + ' and ' + like2 + '.', like + ' + ' + like2 + ' = ' + (like + like2) + ', so the result is <b>' + right + '</b>.'], right) });
       },
       function () {
-        var right = '4 × (' + a + ' + ' + b + ')';
-        return askStr(rng, sk, 'Which expression is equivalent to 4' + a + ' + 4' + b + ' by the distributive property?', [right],
-          ['4 × ' + a + ' + ' + b, '(' + a + ' + ' + b + ') + 4'], { teach: 'Factor out the common factor.',
-            explain: explainOk(['Both terms share the factor 4.', 'Factoring gives <b>' + right + '</b>.'], right) });
+        var g = pick(rng, [2, 3, 4, 6]), m = int(rng, 1, 6), n = int(rng, 1, 6);
+        if (m === n) n = m + 1;
+        var x = g * m, y = g * n;
+        var right = g + ' × (' + m + ' + ' + n + ')';
+        return askStr(rng, sk, 'Which expression is equivalent to ' + x + ' + ' + y + ' by the distributive property?', [right],
+          [g + ' × (' + m + ' + ' + (n + 1) + ')', (g + 1) + ' × (' + m + ' + ' + n + ')', g + ' + ' + m + ' + ' + n], { teach: 'Take out the factor the two terms share.',
+            explain: explainOk([x + ' = ' + g + ' × ' + m + ' and ' + y + ' = ' + g + ' × ' + n + ', so ' + g + ' is shared.', 'Factoring out ' + g + ' gives <b>' + right + '</b> = ' + (x + y) + '.'], right) });
       },
       function () {
         var inner = a + b, prod = c * inner;
@@ -88370,7 +88793,39 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         return I_bool('Is it true that the rule “multiply by 2” gives an output of ' + (inp * 2) + ' when the input is ' + inp + '?', truth, {
           teach: 'Apply the rule to check the claim.',
           explain: explainOk(['The rule gives ' + inp + ' × 2 = ' + (inp * 2) + '.', 'The statement is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
-      }
+      },
+      function () {
+        if (!/graph|plot|coordinate|ordered pair|line|picture/.test(ttl)) return null;
+        var m2 = int(rng, 1, 4), x2 = int(rng, 2, 6), y2 = m2 * x2;
+        var right = '(' + x2 + ', ' + y2 + ')';
+        var opts = R.shuffle(rng, [right, '(' + y2 + ', ' + x2 + ')', '(' + x2 + ', ' + (y2 + m2) + ')']);
+        return I_choice('The rule is y = ' + m2 + 'x. Which point lies on the graph of this rule?',
+          opts, opts.indexOf(right), {
+            teach: 'Substitute the x-coordinate into the rule; the y-coordinate has to come out of it.',
+            explain: explainOk(['y = ' + m2 + ' × ' + x2 + ' = ' + y2 + '.', 'So the point on the graph is <b>' + right + '</b>.'], right),
+            visual: V.coord({ pts: [{ x: 0, y: 0, label: 'start' }, { x: x2, y: y2, label: right }], lines: [{ m: m2, b: 0 }] }) });
+      },
+      function () {
+        if (!/graph|plot|relationship|two variables|situation/.test(ttl)) return null;
+        var rate = int(rng, 2, 9), hrs = int(rng, 2, 8), nm = pick(rng, NAMES);
+        var right2 = '(' + hrs + ', ' + (rate * hrs) + ')';
+        var opts2 = R.shuffle(rng, [right2, '(' + (rate * hrs) + ', ' + hrs + ')', '(' + hrs + ', ' + (rate * hrs + rate) + ')']);
+        return I_choice(nm + ' earns ' + rate + ' dollars for every hour worked, with x for hours and y for dollars. Which point on the graph shows ' + hrs + ' hours?',
+          opts2, opts2.indexOf(right2), {
+            teach: 'The first coordinate is the hours and the second is the money they earn.',
+            explain: explainOk(['x = ' + hrs + ' hours, and the pay is ' + rate + ' × ' + hrs + ' = ' + (rate * hrs) + ' dollars.', 'The point is <b>' + right2 + '</b>.'], right2),
+            visual: V.coord({ pts: [{ x: 0, y: 0, label: 'start' }, { x: hrs, y: rate * hrs, label: right2 }], lines: [{ m: rate, b: 0 }] }) });
+      },
+      function () {
+        if (!/graph|plot|slope|rate of change|line/.test(ttl)) return null;
+        var m3 = int(rng, 1, 5), run1 = int(rng, 1, 4);
+        var p1 = [int(rng, 1, 4), 0], p2 = [p1[0] + run1, m3 * run1];
+        return ask(rng, sk, 'A straight line passes through (' + p1[0] + ', ' + p1[1] + ') and (' + p2[0] + ', ' + p2[1] + '). What is the rate of change (the slope)?', m3,
+          [p2[1], m3 + 1, run1], { lim: 60,
+            teach: 'Slope is the change in y divided by the change in x between two points on the line.',
+            explain: explainOk(['The y-values rise ' + p2[1] + ' while x runs ' + run1 + '.', p2[1] + ' ÷ ' + run1 + ' = <b>' + m3 + '</b>.'], m3),
+            visual: V.coord({ pts: [{ x: p1[0], y: p1[1], label: '(' + p1[0] + ', ' + p1[1] + ')' }, { x: p2[0], y: p2[1], label: '(' + p2[0] + ', ' + p2[1] + ')' }], lines: [{ m: m3, b: 0 }] }) });
+      },
     ];
   }
 
@@ -88389,6 +88844,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           explain: explainOk([bse + ' is used as a factor ' + ex + ' times.', bse + sup(ex) + ' = <b>' + v + '</b>.'], v) });
       },
       function () {
+        if (!/powers? of ten|power of 10|ten to the|exponent.*10|10.*exponent/.test(ttl)) return null;
+        var p2 = int(rng, 2, 7), val = Math.pow(10, p2);
+        return ask(rng, sk, 'Evaluate 10' + sup(p2) + '.', val, [10 * p2, Math.pow(10, p2 - 1), val + 10], {
+          lim: 20000000,
+          teach: 'A power of ten is a 1 followed by as many zeros as the exponent.',
+          explain: explainOk(['10' + sup(p2) + ' means ' + p2 + ' factors of 10 multiplied.', 'That is a 1 followed by ' + p2 + ' zeros: <b>' + commas(val) + '</b>.'], val) });
+      },
+      function () {
+        if (!/powers? of ten|write powers|exponent with base 10|expanded/.test(ttl)) return null;
+        var p3 = int(rng, 2, 6);
+        var opts = R.shuffle(rng, ['10' + sup(p3), '10' + sup(p3 + 1), '10' + sup(Math.max(1, p3 - 1))]);
+        return I_choice('Which exponent is a way to write ' + commas(Math.pow(10, p3)) + ' using the base 10?',
+          opts, opts.indexOf('10' + sup(p3)), {
+            teach: 'Count the zeros to find the exponent when the base is 10.',
+            explain: explainOk([commas(Math.pow(10, p3)) + ' has ' + p3 + ' zeros after the 1.', 'So it is written <b>10' + sup(p3) + '</b>.'], '10' + sup(p3)) });
+      },
+      function () {
         if (/scientific notation/.test(ttl) || !/power|exponent|multiply|divide|quotient|product|law|rule|simplify/.test(ttl)) return null;
         var e2 = int(rng, 2, 4);
         var right = powStr(bse, ex + e2);
@@ -88405,7 +88877,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['Subtract the exponents: ' + ex + ' − ' + e2 + ' = ' + (ex - e2) + '.', 'The quotient is <b>' + right2 + '</b>.'], right2) });
       },
       function () {
-        var sci = (big / Math.pow(10, String(big).length - 1)).toFixed(2) + ' × 10' + sup(String(big).length - 1);
+        if (!/scientific notation/.test(ttl)) return null;
+        var ds = String(big), pw = ds.length - 1;
+        var mant = ds.charAt(0) + (ds.slice(1).replace(/0+$/, '') ? '.' + ds.slice(1).replace(/0+$/, '') : '');
+        var sci = mant + ' × 10' + sup(pw);
         return askStr(rng, sk, 'Write ' + commas(big) + ' in scientific notation.', [sci],
           [(big / Math.pow(10, String(big).length - 1)).toFixed(2) + ' × 10' + sup(String(big).length), String(big).charAt(0) + ' × 10' + sup(String(big).length)],
           { teach: 'Move the point so one non-zero digit is left of it; the moves are the exponent.',
@@ -88413,6 +88888,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         var v2 = +( (big / Math.pow(10, String(big).length - 1)).toFixed(2) * Math.pow(10, String(big).length - 1) );
+        if (!/scientific notation/.test(ttl)) return null;
         return ask(rng, sk, 'What ordinary number is ' + (big / Math.pow(10, String(big).length - 1)).toFixed(2) + ' × 10' + sup(String(big).length - 1) + '?', Math.round(v2),
           [Math.round(v2 * 10), Math.round(v2 / 10), Math.round(v2) + 10], { lim: 100000000,
             teach: 'Move the decimal point right by the exponent.',
@@ -88545,10 +89021,22 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       function () {
         if (!/estimate|measure|about|round|reasonable|which|unit/.test(ttl)) return null;
         var est = pick(rng, [[30, 'seconds'], [2, 'hours'], [5, 'liters'], [120, 'centimeters'], [2, 'kilograms']]);
-        return askStr(rng, sk, 'Estimate: which measurement is closest to ' + pick(rng, ['the time to brush your teeth', 'a morning walk', 'a large jug of juice', 'the height of a desk', 'a bag of flour']) + '?',
-          [est[0] + ' ' + est[1]], [est[0] * 20 + ' ' + est[1], Math.max(1, Math.round(est[0] / 20)) + ' ' + est[1]],
+        var KINDS = {
+          length: [['the height of a desk', 70, 'centimeters'], ['the length of a pencil', 18, 'centimeters'], ['the width of a doorway', 90, 'centimeters'], ['the length of a schoolyard', 90, 'meters'], ['the drive to the next town', 12, 'kilometers']],
+          mass: [['a bag of flour', 2, 'kilograms'], ['a feather', 2, 'grams'], ['a pumpkin', 4, 'kilograms'], ['a pencil', 8, 'grams']],
+          capacity: [['a large jug of juice', 2, 'liters'], ['a spoon of medicine', 5, 'milliliters'], ['a bathtub of water', 150, 'liters']],
+          time: [['the time to brush your teeth', 2, 'minutes'], ['a morning walk', 25, 'minutes'], ['a school day', 6, 'hours']]
+        };
+        var kind = /centimeter|centimetre|\bmeter|\bmetre|kilometer|kilometre|\blength|ruler|\bmm\b/.test(ttl) ? 'length'
+          : /gram|kilogram|\bmass\b|weight/.test(ttl) ? 'mass'
+            : /liter|litre|milliliter|millilitre|capacity|gallon|quart|pint|cup/.test(ttl) ? 'capacity'
+              : /\btime\b|clock|minute|hour|elapsed/.test(ttl) ? 'time' : null;
+        if (!kind) return null;                     /* never estimate a quantity the skill does not teach */
+        var ob = pick(rng, KINDS[kind]);
+        return askStr(rng, sk, 'Estimate: which measurement is closest to ' + ob[0] + '?',
+          [ob[1] + ' ' + ob[2]], [ob[1] * 20 + ' ' + ob[2], Math.max(1, Math.round(ob[1] / 20)) + ' ' + ob[2]],
           { teach: 'Compare each choice with a real object you know.',
-            explain: explainOk(['One choice is about the right size for the object.', 'The best estimate is <b>' + est[0] + ' ' + est[1] + '</b>.'], est[0] + ' ' + est[1]) });
+            explain: explainOk(['For ' + ob[0] + ', ' + ob[1] + ' ' + ob[2] + ' is the size that matches the real object.', 'The other choices are 20 times too big or 20 times too small.', 'The best estimate is <b>' + ob[1] + ' ' + ob[2] + '</b>.'], ob[1] + ' ' + ob[2]) });
       },
       function () {
         if (!/time|elapsed|clock|hour|minute|a\.m\.|p\.m\.|schedule|end|start/.test(ttl)) return null;
@@ -88786,6 +89274,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   GLOB.BANK_SAMPLES_LEFT = SAMPLE_BUDGET;
   GLOB.BANK_THIN_VISUAL_KEPT = THIN_KEPT;
   GLOB.BANK_THIN_VISUAL = THIN_VISUAL;
+  GLOB.BANK_FAMILY_OF = familyOf;
   GLOB.BANK_DECKS = DECKS;
 })();
 
