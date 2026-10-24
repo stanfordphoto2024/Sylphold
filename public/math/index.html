@@ -86946,8 +86946,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var m9 = t.match(/^([0-9]+)\s*:\s*([0-9]+)$/);                    /* 2 : 9 */
     if (m9 && !out.length) {
       var q1 = +m9[1], q2 = +m9[2], mm = [2, 3, 4][hash(t) % 3];   /* no rng here: the answer form must be reproducible */
-      out = [(q1 * mm) + ':' + (q2 * mm), (q1 + mm) + ':' + (q2 + mm), q1 + ':' + (q2 * mm), (q1 * mm) + ':' + q2];
-      out = out.filter(function (x) { return x !== t; });
+      /* a wrong choice has to be WRONG: multiplying both terms by the same
+         number is the definition of an equivalent ratio, so that tempting
+         candidate is dropped and only cross-products that differ survive */
+      var cands = [(q1 + mm) + ':' + (q2 + mm), (q1 * mm) + ':' + q2, q1 + ':' + (q2 * mm), q2 + ':' + q1, (q1 + 1) + ':' + q2, q1 + ':' + (q2 + 1)];
+      out = cands.filter(function (x) {
+        var pr = x.split(':'), a1 = +pr[0], b1 = +pr[1];
+        return a1 * q2 !== b1 * q1 && x !== t;
+      }).slice(0, 3);
     }
     var m8 = t.match(/^([a-z])([a-z])$/);                             /* l × w written lw */
     if (m8 && !out.length) out = [m8[1] + ' + ' + m8[2], '2' + m8[1] + m8[2], m8[2] + m8[1] + m8[1]];
