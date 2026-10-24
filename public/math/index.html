@@ -399,7 +399,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-23 — 100 modules inlined:
+/* MathPath 2026-10-24 — 100 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -672,13 +672,45 @@ function same(a, b, tol) {
   return Math.abs(a - b) <= t;
 }
 /* Core grader. Returns {ok, expected, why} */
+/* A learner types "5^8" or "1.5 × 10^6" or "20*pi" because a plain keyboard has
+   no superscript keys. The printed answer stays typographic; the INPUT is read
+   back into that typography before it is compared. */
+var SUPD = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+function caretToSuper(str) {
+  var t = String(str == null ? '' : str).trim();
+  t = t.replace(/\s*\^\s*(-?\d{1,3})/g, function (m, ex) {
+    var out = '';
+    for (var i = 0; i < ex.length; i++) { var c = ex.charAt(i); out += (SUPD[c] || c); }
+    return out;
+  });
+  return t;
+}
+function unifyTimes(str) {
+  return String(str == null ? '' : str).toLowerCase()
+    .replace(/[×·✕✶*]/g, 'x').replace(/\s+/g, ' ').replace(/\s*x\s*x\s*/g, 'xx').trim();
+}
 function checkSpec(spec, raw) {
   var t = normalizeAns(raw), v;
   if (t === '') return { ok: false, why: 'blank' };
   switch (spec.k) {
     case 'n': {
       v = parseNumber(raw);
-      if (!isFinite(v)) return { ok: false, why: 'unparsable' };
+      if (spec.alts && spec.alts.length) {
+        /* "20π" parses as 20, not as 62.8, so the listed exact spellings are read
+           first: when the question fixes π = 3.14 the pi form IS the answer. */
+        var uq0 = unifyTimes(raw), i0;
+        for (i0 = 0; i0 < spec.alts.length; i0++) if (unifyTimes(spec.alts[i0]) === uq0) return { ok: true };
+      }
+      if (!isFinite(v)) {
+        /* "20π" is not a number to the parser, yet when the question fixes
+           π = 3.14 it is the same length stated exactly. The card lists the
+           spellings it accepts; nothing else is let through. */
+        if (spec.alts && spec.alts.length) {
+          var uq = unifyTimes(raw), i;
+          for (i = 0; i < spec.alts.length; i++) if (unifyTimes(spec.alts[i]) === uq) return { ok: true };
+        }
+        return { ok: false, why: 'unparsable' };
+      }
       if (spec.pct && /%$/.test(t)) v = v / 100;
       return { ok: same(v, spec.v, spec.tol), got: v };
     }
@@ -715,13 +747,16 @@ function checkSpec(spec, raw) {
        * every label first; only a bare index is accepted when none of the
        * labels is a number the learner could be typing. */
       var labels = spec.opts && spec.opts.length ? spec.opts : null;
+      var tSup = normalizeAns(caretToSuper(raw)), uRaw = unifyTimes(raw), tU = unifyTimes(t);
       if (labels) {
         for (var q = 0; q < labels.length; q++) {
           if (normalizeAns(labels[q]) === t || strEquiv(labels[q], raw)) return { ok: q === spec.i, got: q };
+          if (tSup !== '' && normalizeAns(labels[q]) === tSup) return { ok: q === spec.i, got: q };
+          if (unifyTimes(labels[q]) === uRaw || unifyTimes(labels[q]) === tU) return { ok: q === spec.i, got: q };
         }
       } else {
         var alt = normalizeAns(spec.text || '');
-        if (alt !== '' && (t === alt || strEquiv(spec.text, raw))) return { ok: true };
+        if (alt !== '' && (t === alt || strEquiv(spec.text, raw) || (tSup !== '' && tSup === alt) || unifyTimes(spec.text) === uRaw)) return { ok: true };
       }
       var numericLabels = false;
       if (labels) for (var nl = 0; nl < labels.length; nl++) if (isFinite(parseNumber(labels[nl]))) { numericLabels = true; break; }
@@ -788,10 +823,16 @@ function checkSpec(spec, raw) {
       return { ok: same(c.re, spec.re, 1e-9) && same(c.im, spec.im, 1e-9) };
     }
     case 'str': {
+      /* the printed answer may be typographic ("1.5 × 10⁶") while the typed one
+         is keyboard ("1.5x10^6"): read the input back into the printed form
+         before comparing, so a correct answer is never lost to a keyboard */
+      var tSup2 = normalizeAns(caretToSuper(raw)), tUni2 = unifyTimes(t);
       for (var k = 0; k < spec.pats.length; k++) {
         var p2 = spec.pats[k];
-        if (p2 instanceof RegExp) { if (p2.test(t)) return { ok: true }; }
+        if (p2 instanceof RegExp) { if (p2.test(t) || p2.test(tSup2)) return { ok: true }; }
         else if (normalizeAns(p2) === t) return { ok: true };
+        else if (tSup2 !== '' && normalizeAns(p2) === tSup2) return { ok: true };
+        else if (unifyTimes(p2) === tUni2) return { ok: true };
       }
       return { ok: false };
     }
@@ -42893,9 +42934,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       if (!seen[st]) { seen[st] = { leaves: [] }; stems.push(st); }
       seen[st].leaves.push(lf);
     }
-    return V.table(['Stem', 'Leaf'], stems.map(function (st) {
+    var rows = stems.map(function (st) {
       return [String(st), seen[st].leaves.join(' ')];
-    }));
+    });
+    /* without the key the plot is a puzzle: 6 | 8 may be read as 68, 6.8 or
+       0.68, so the plot states which one it means, in its own digits */
+    if (stems.length) rows.push(['Key', String(stems[0]) + ' | ' + seen[stems[0]].leaves[0] + ' means ' + (stems[0] * 10 + seen[stems[0]].leaves[0])]);
+    return V.table(['Stem', 'Leaf'], rows);
   }
 
   /* fraction labels for a line plot scale: 0 … 1 in eighths/quarters/halves */
@@ -86743,6 +86788,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var alt = right.replace(/^(the|an|a)\s+/i, '');
       if (alt !== right) wide.push(alt); else wide.push(right + 's');
     }
+    /* a plain keyboard has no superscript keys: "5⁸" must also take "5^8" */
+    var supMap = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' };
+    var caret = right.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, function (ch) { return '^' + supMap[ch]; }).replace(/\^/g, function () { return '^'; });
+    if (/[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(right)) {
+      var flat = right.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, function (ch) { return supMap[ch]; });
+      var caretForm = flat.replace(/(\d)(\d+)/, '$1^$2');
+      if (caretForm !== right && wide.indexOf(caretForm) < 0) wide.push(caretForm);
+      var timesForm = caretForm.replace(/x/g, 'x');
+      if (/[0-9]x10\^/.test(timesForm) && wide.indexOf(timesForm) < 0) wide.push(timesForm);
+    }
     sp.pats = wide;
   }
 
@@ -86771,6 +86826,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     ['independent', 'dependent'],
     ['a proportional relationship', 'not a proportional relationship'],
     ['the slope', 'the y-intercept', 'the origin'],
+    ['Quadrant I', 'Quadrant II', 'Quadrant III', 'Quadrant IV'],
+    ['the x-axis', 'the y-axis', 'the origin'],
+    ['greater than zero', 'less than zero', 'equal to zero'],
+    ['a ratio', 'a rate', 'a unit rate'],
+    ['discrete', 'continuous'],
     ['rational', 'irrational'],
     ['a function', 'not a function'],
     ['more', 'less', 'the same']
@@ -86780,13 +86840,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return txt.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
   }
   function lexChoices(ans) {
-    var low = ans.toLowerCase(), i, j, group = null;
+    var low = String(ans).toLowerCase(), i, j, group = null, right = null;
     for (i = 0; i < LEX.length; i++) {
-      for (j = 0; j < LEX[i].length; j++) if (LEX[i][j] === low) { group = LEX[i]; break }
+      for (j = 0; j < LEX[i].length; j++) if (String(LEX[i][j]).toLowerCase() === low) { group = LEX[i]; right = LEX[i][j]; break }
       if (group) break;
     }
     if (!group || group.length < 3) return null;
-    return { right: ans, wrongs: group.filter(function (x) { return x !== low }) };
+    /* the canonical spelling from the table is shown, so "quadrant iii" on a
+       card becomes the proper noun "Quadrant III" in the option list */
+    return { right: right, wrongs: group.filter(function (x) { return String(x).toLowerCase() !== low }) };
   }
   function symbolChoices(ans) {
     var t = ans.replace(/\s+/g, ' ').trim();
@@ -86802,6 +86864,20 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (m2) out = [m2[1] + ' + ' + m2[3], m2[3] + ' − ' + m2[1], m2[1] + ' × ' + m2[3], m2[1] + ' − ' + (+m2[3] + 1)];
     var m3 = t.match(/^([0-9]+[a-z]?)\s*([+×−])\s*([0-9]+[a-z]?)$/);  /* n + 4, 4 × (2 + 3) */
     if (m3 && !out.length) out = [m3[1] + ' ' + (m3[2] === '+' ? '−' : '+') + ' ' + m3[3], m3[3] + ' ' + m3[2] + ' ' + m3[1], '(' + m3[1] + ' ' + m3[2] + ' ' + m3[3] + ') × 2'];
+    var m5 = t.match(/^([a-z])²$/);                                  /* s² */
+    if (m5) out = ['2' + m5[1], m5[1] + ' + 2', m5[1] + '³', m5[1] + ' ÷ 2'];
+    var m6 = t.match(/^([0-9]*)\s*[×*]?\s*π\s*([a-z])$/);             /* 2πr, πr */
+    if (m6 && !out.length) {
+      var kk = m6[1] || '1';
+      out = [(+kk || 1) === 1 ? 'π' + m6[2] + '²' : kk + 'π' + m6[2] + '²', (+kk || 1) + 'π', (+kk || 1) + m6[2], (kk === '1' ? '' : kk) + 'π' + m6[2] + ' ÷ 2'];
+    }
+    var m7 = t.match(/^([0-9]*)([a-z])\s*\+\s*([0-9]*)([a-z])$/);      /* 2l + 2w, l + w */
+    if (m7 && !out.length) {
+      var c1 = m7[1] || '1', c2 = m7[3] || '1';
+      out = [(+c1 + +c2) + m7[2] + ' + ' + (+c1 + +c2) + m7[4], c1 + m7[2] + c1 + m7[4], (+c1 + +c2) + m7[2], (+c1 + +c2) + m7[4]];
+    }
+    var m8 = t.match(/^([a-z])([a-z])$/);                             /* l × w written lw */
+    if (m8 && !out.length) out = [m8[1] + ' + ' + m8[2], '2' + m8[1] + m8[2], m8[2] + m8[1] + m8[1]];
     var m4 = t.match(/^([0-9]+)(?:\s*[×*]\s*10)?[⁰¹²³⁴⁵⁶⁷⁸⁹]/);      /* 4⁵, 3 × 10⁶ */
     if (m4) {
       var sup = '⁰¹²³⁴⁵⁶⁷⁸⁹', base = m4[1];
@@ -86839,6 +86915,27 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (uniq.length < 2) return null;
     return { right: fmtP(v), wrongs: uniq };
   }
+  /* When the question fixes π = 3.14 it is asking for a decimal, but a learner
+     who answers with the exact length — "20π" — is more right, not wrong. The
+     card lists those spellings so the grader can honour them. */
+  function piAlts(item, sk) {
+    var sp = item.spec;
+    if (!sp || sp.k !== 'n' || !isFinite(sp.v) || sp.v === 0) return;
+    var text = String(item.prompt || '') + ' ' + String(item.sub || '');
+    var mPi = text.match(/\u03C0\s*=\s*([0-9]+(?:\.[0-9]+)?)/);
+    if (!/\u03C0|\bpi\b/i.test(text)) return;
+    var pv = mPi ? parseFloat(mPi[1]) : Math.PI;
+    if (!(pv > 0)) return;
+    var k = sp.v / pv, kr = Math.round(k * 100) / 100;
+    if (!isFinite(kr) || Math.abs(k - kr) > 1e-9 || Math.abs(kr) > 200) return;
+    var ks = String(Math.round(kr * 100) / 100);
+    sp.alts = [ks + '\u03C0', ks + '*\u03C0', ks + ' \u03C0', ks + ' × \u03C0', ks + ' x pi', ks + ' pi'];
+    if (item.explain && item.explain.length) {
+      item.explain = item.explain.slice();
+      item.explain[item.explain.length - 1] = String(item.explain[item.explain.length - 1]).replace(/<\/b>\.?\s*$/, '') + ' — exactly <b>' + ks + '\u03C0</b>.</b>';
+    }
+  }
+
   function answerForm(item, sk) {
     var sp = item.spec;
     if (!sp) return;
@@ -86885,6 +86982,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (item.sub != null) item.sub = null;
   }
 
+  /* A template that forgets to fill a slot leaves the sentence visibly broken —
+     "(use π =, in units)." or "units)." — which reads as an unfinished question.
+     Nothing is added here: the stranded bracket and the empty note are removed. */
+  function repairFragments(t) {
+    var s = String(t);
+    s = s.replace(/\(\s*use\s*\u03C0\s*=\s*,\s*in\s*([^)]*?)\)\s*\./gi, ', in $1.');
+    s = s.replace(/\(\s*use\s*\u03C0\s*=\s*\)\s*/gi, ' ');
+    s = s.replace(/\(\s*=\s*\)/g, '');
+    var open = (s.match(/\(/g) || []).length, close = (s.match(/\)/g) || []).length;
+    while (close > open && s.lastIndexOf(')') > s.length - 12) {
+      var at = s.lastIndexOf(')');
+      s = s.slice(0, at) + s.slice(at + 1);
+      close--;
+    }
+    return s.replace(/\s+([,.!?])/g, '$1').replace(/\.\s*\./g, '.').replace(/\s{2,}/g, ' ').trim();
+  }
+
   DP.polish = function (item, sk, lvl) {
     if (!item || !item.prompt) return item;
     widen(item);
@@ -86898,8 +87012,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     t = storyName(t, item, sk);
     t = reframe(t, item, sk);
     t = fixRegister(t);
+    t = repairFragments(t);
     if (!t || t.length < 8 || /NaN|undefined|\[object/.test(t)) return item;
     item.prompt = t;
+    piAlts(item, sk);
     answerForm(item, sk);
     if (item.sub) {
       var s = fixRegister(String(item.sub).replace(/\s{2,}/g, ' ').trim());
@@ -87294,6 +87410,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        to count, a "proportional relationship" is not a table to read, and a bag
        of marbles is a probability question before it is a statistics one */
     if (/\b(?:square|cube) roots?\b|perfect (?:square|cube)|estimate (?:the )?roots?/.test(t)) return 'exponents';
+    if (/congruen|similar figures|similar (?:triangles|polygons|solids)|scale factor|dilation|rotation|reflection|translation|transform/.test(t)) return 'transform';
     if (/\bproportional\b|constant of proportionality|proportional relationship/.test(t)) return 'ratio';
     if (/arithmetic sequence|geometric sequence|\bsequences?\b|common (?:difference|ratio)|nth term|recursive|explicit rule/.test(t)) return 'functions';
     if (/lines? of best fit|scatter|two-way table|categorical data|numerical data|statistical question|representative|biased sample|\boutliers?\b|association|frequency table|dot plot|box plot|mean absolute deviation|interquartile/.test(t)) return 'stats';
@@ -88297,7 +88414,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           [Math.round(3.14 * r11 * r11 * 100) / 100, Math.round(3.14 * 2 * r11 * r11 * 100) / 100, 2 * r11], { tol: 0.2, lim: Math.max(400, c11 * 4),
             teach: 'Circumference is the distance around a circle: C = 2πr.',
             explain: explainOk(['C = 2 × 3.14 × ' + r11 + '.', 'The circumference is <b>' + nfmt(c11) + '</b> ' + unit + '.'], nfmt(c11)),
-            visual: V.circle('circle', { r: r11, label: 'walk around the edge' }) });
+            visual: V.circle({ label: 'radius ' + r11 + ' ' + unit, slices: [{ v: 1, label: 'the circle' }] }) });
       },
       function () {
         if (!/complex figures|dividing them into rectangles|composite|decompos/.test(t)) return null;
@@ -88385,6 +88502,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return [
       function () {
         var right = 'quadrant ' + q[0];
+        if (!/quadrant|coordinate plane|ordered pair|sign of|axis/.test(ttl)) return null;
         return askStr(rng, sk, 'In which quadrant does the point (' + q[1] + ', ' + q[2] + ') lie?', [right],
           ['quadrant ' + pick(rng, ['I', 'II', 'III', 'IV'].filter(function (x) { return x !== q[0]; })), 'on the x-axis'],
           { teach: 'The signs of the coordinates decide the quadrant.',
@@ -88755,7 +88873,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           visual: V.table(['Input', 'Output'], rows) });
       },
       function () {
-        return askStr(rng, sk, 'A table shows ' + rows.map(function (r) { return '(' + r[0] + ', ' + r[1] + ')'; }).join(', ') + '. Which rule matches the table?', ['y = ' + rule[2]],
+        return askStr(rng, sk, 'A table shows these pairs of x- and y-values: ' + rows.map(function (r) { return '(' + r[0] + ', ' + r[1] + ')'; }).join(', ') + '. Which rule, written as an equation relating x and y, gives every y from its x?', ['y = ' + rule[2]],
           rule[2] === 'x + 3' ? ['y = 3x', 'y = x − 3'] : ['y = x + ' + rule[1](1), 'y = ' + rule[2].replace('2x', 'x + 2')],
           { teach: 'Check the change from row to row, then test one point.',
             explain: explainOk(['Each input rises by 1 while the output rises by ' + (rows[1][1] - rows[0][1]) + '.', 'The rule that fits every row is <b>y = ' + rule[2] + '</b>.'], 'y = ' + rule[2]),
@@ -88777,9 +88895,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         var rng2 = rows.map(function (r) { return r[1]; });
-        var right = 'the inputs: ' + rows.map(function (r) { return r[0]; }).join(', ');
-        return askStr(rng, sk, 'For the table ' + rows.map(function (r) { return '(' + r[0] + ', ' + r[1] + ')'; }).join(', ') + ', which list is the domain?', [right],
-          ['the outputs: ' + rng2.join(', '), 'all the inputs and outputs'], { teach: 'The domain is the set of inputs.',
+        var right = rows.map(function (r) { return r[0]; }).join(', ');
+        return askStr(rng, sk, 'A relation contains the ordered pairs ' + rows.map(function (r) { return '(' + r[0] + ', ' + r[1] + ')'; }).join(', ') + '. Which list is its domain — the set of x-coordinates?', [right],
+          [rng2.join(', '), rows.map(function (r) { return r[0]; }).concat(rng2).sort(function (a, b) { return a - b; }).join(', ')], { teach: 'The domain is the set of x-coordinates; the range is the set of y-coordinates.',
             explain: explainOk(['The inputs are ' + rows.map(function (r) { return r[0]; }).join(', ') + '.', 'The domain is <b>' + right + '</b>.'], right) });
       },
       function () {
@@ -88832,16 +88950,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function powStr(b, e) { return e <= 1 ? String(b) : String(b) + sup(e); }
   function deckExponents(rng, lvl, sk) {
     var ttl = String(sk.name || '').toLowerCase();
-    var bse = int(rng, 2, 5), ex = int(rng, 2, 4), v = Math.pow(bse, ex);
+    /* "Powers with negative bases" cannot be practised with positive bases:
+       the card has to carry the condition the skill names. */
+    var negTtl = /negative base/.test(ttl);
+    var sb = function (b) { return b < 0 ? '(' + b + ')' : String(b); };
+    var pwS = function (b, e) { return sb(b) + (e === 0 ? '⁰' : sup(e)); };
+    var bse = negTtl ? -int(rng, 2, 4) : int(rng, 2, 5), ex = int(rng, 2, 4), v = Math.pow(bse, ex);
     var big = int(rng, 100000, 9000000);
     var root = int(rng, 2, 12), sq = root * root;
 
     return [
       function () {
         if (/scientific notation/.test(ttl)) return null;
-        return ask(rng, sk, 'Evaluate ' + bse + sup(ex) + '.', v, [bse * ex, v + bse, v * bse], {
-          lim: 20000, teach: 'A power means repeated multiplication of the base.',
-          explain: explainOk([bse + ' is used as a factor ' + ex + ' times.', bse + sup(ex) + ' = <b>' + v + '</b>.'], v) });
+        return ask(rng, sk, 'Evaluate ' + sb(bse) + sup(ex) + '.', v, [bse * ex, v + bse, v * bse], {
+          lim: 20000, teach: negTtl ? 'A negative base raised to an even power is positive; raised to an odd power it stays negative.' : 'A power means repeated multiplication of the base.',
+          explain: explainOk([sb(bse) + ' is used as a factor ' + ex + ' times.',
+            bse < 0 ? 'The exponent ' + ex + ' is ' + (ex % 2 === 0 ? 'even, so the product is positive.' : 'odd, so the product stays negative.') : 'Multiplying ' + ex + ' copies gives ' + v + '.',
+            sb(bse) + sup(ex) + ' = <b>' + v + '</b>.'], v) });
       },
       function () {
         if (!/powers? of ten|power of 10|ten to the|exponent.*10|10.*exponent/.test(ttl)) return null;
@@ -88863,16 +88988,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       function () {
         if (/scientific notation/.test(ttl) || !/power|exponent|multiply|divide|quotient|product|law|rule|simplify/.test(ttl)) return null;
         var e2 = int(rng, 2, 4);
-        var right = powStr(bse, ex + e2);
-        return askStr(rng, sk, 'Simplify ' + bse + sup(ex) + ' × ' + bse + sup(e2) + '.', [right], [bse + sup(ex * e2), (2 * bse) + sup(ex + e2)],
+        var right = pwS(bse, ex + e2);
+        return askStr(rng, sk, 'Simplify ' + sb(bse) + sup(ex) + ' × ' + sb(bse) + sup(e2) + '.', [right], [pwS(bse, ex * e2), pwS(Math.abs(bse) * 2, ex + e2)],
           { teach: 'When the bases match, add the exponents.',
-            explain: explainOk(['Both factors have base ' + bse + '.', ex + ' + ' + e2 + ' = ' + (ex + e2) + ', so the product is <b>' + right + '</b>.'], right) });
+            explain: explainOk(['Both factors have base ' + sb(bse) + '.', ex + ' + ' + e2 + ' = ' + (ex + e2) + ', so the product is <b>' + right + '</b>.'], right) });
       },
       function () {
         if (/scientific notation/.test(ttl) || !/power|exponent|divide|quotient|law|rule|simplify/.test(ttl)) return null;
         var e2 = int(rng, 1, ex);
-        var right2 = powStr(bse, ex - e2);
-        return askStr(rng, sk, 'Simplify ' + bse + sup(ex) + ' ÷ ' + bse + sup(e2) + '.', [right2], [bse + sup(ex + e2), bse + sup(ex / e2)],
+        if (ex === e2) {                        /* the exponents cancel: a⁰ = 1 */
+          return askStr(rng, sk, 'Simplify ' + sb(bse) + sup(ex) + ' ÷ ' + sb(bse) + sup(ex) + '.', ['1'], ['0', sb(bse), pwS(bse, 2 * ex)],
+            { teach: 'A number divided by itself is 1, which is why any non-zero base to the power 0 equals 1.',
+              explain: explainOk(['Both powers have the same base and the same exponent, so they are equal.',
+                sb(bse) + sup(ex) + ' ÷ ' + sb(bse) + sup(ex) + ' = 1, because a number divided by itself is 1.',
+                'The quotient is <b>1</b>.'], '1') });
+        }
+        var right2 = pwS(bse, ex - e2);
+        return askStr(rng, sk, 'Simplify ' + sb(bse) + sup(ex) + ' ÷ ' + sb(bse) + sup(e2) + '.', [right2], [pwS(bse, ex + e2), pwS(bse, Math.max(0, Math.round(ex / e2)))],
           { teach: 'When dividing powers with the same base, subtract the exponents.',
             explain: explainOk(['Subtract the exponents: ' + ex + ' − ' + e2 + ' = ' + (ex - e2) + '.', 'The quotient is <b>' + right2 + '</b>.'], right2) });
       },
@@ -89005,10 +89137,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       function () {
         if (!/unit|measure|appropriate|choose|customary|metric|best/.test(ttl)) return null;
         var right = conv[0];
-        return askStr(rng, sk, 'Which unit is best for measuring ' + pick(rng, ['the length of a pencil', 'the water in a bathtub', 'the weight of a dog', 'the distance between two cities']) + '?',
-          [pick(rng, [['a pencil', 'inches'], ['a bathtub', 'liters'], ['a dog', 'kilograms'], ['two cities', 'miles']])[1]],
-          ['kilometers', 'milliliters'], { teach: 'Choose the unit that gives a number that is easy to read.',
-            explain: explainOk(['A unit that is too small gives a huge number and one that is too big gives a fraction.', 'The appropriate unit is <b>' + right + '</b>.'], right) });
+        /* each object is answered with a unit that actually measures it, and the
+           distractors come from the other quantities, which is the mistake the
+           skill is testing */
+        var UNIT_ROWS = [
+          ['the length of a pencil', 'centimeters', ['kilograms', 'liters', 'seconds']],
+          ['the water in a bathtub', 'liters', ['kilograms', 'centimeters', 'hours']],
+          ['the mass of a dog', 'kilograms', ['liters', 'meters', 'minutes']],
+          ['the distance between two cities', 'kilometers', ['milliliters', 'grams', 'square meters']],
+          ['the time to brush your teeth', 'seconds', ['centimeters', 'kilograms', 'liters']],
+          ['the mass of a feather', 'grams', ['liters', 'meters', 'hours']]
+        ];
+        var urow = pick(rng, UNIT_ROWS);
+        var uopts = R.shuffle(rng, [urow[1], pick(rng, urow[2]), urow[2][(urow[2].indexOf(pick(rng, urow[2])) + 1) % urow[2].length]]);
+        return I_choice('Which unit is best for measuring ' + urow[0] + '?',
+          uopts, uopts.indexOf(urow[1]), {
+            teach: 'Choose the unit that measures that kind of quantity and gives a number that is easy to read.',
+            explain: explainOk([urow[0] + ' is a measure of ' + (/centimeter|kilometer|meter/.test(urow[1]) ? 'length' : /liter|milliliter/.test(urow[1]) ? 'capacity' : /gram|kilogram/.test(urow[1]) ? 'mass' : 'time') + ', so it must be named in ' + urow[1] + '.', 'The other units measure something else.', 'The appropriate unit is <b>' + urow[1] + '</b>.'], urow[1]) });
       },
       function () {
         if (!/compare|order|greater|less|which|symbol|convert/.test(ttl)) return null;
@@ -96155,6 +96300,12 @@ var MW = {
     var raw = item.choices;
     var arr = [];
     if (raw && typeof raw.length === 'number') { for (var i = 0; i < raw.length; i++) arr.push(raw[i]); }
+    /* a true/false question that arrives with Yes/No buttons is asked in one
+       language and answered in another: retitle the buttons to match the ask.
+       The grader already reads true/false and yes/no as the same pair. */
+    var atTF = String(item.answerText == null ? '' : item.answerText).toLowerCase();
+    if (arr.length === 2 && /^(yes|no)$/.test(String(arr[0]).trim().toLowerCase()) && /^(yes|no)$/.test(String(arr[1]).trim().toLowerCase()) &&
+      (atTF === 'true' || atTF === 'false' || /\btrue or false\b/i.test(String(item.prompt || '')))) arr = ['True', 'False'];
     var seen = {}, out = [];
     arr.forEach(function (c) {
       var s = (c == null ? '' : String(c)).trim();
@@ -96163,7 +96314,14 @@ var MW = {
     });
     if (out.length) return out;
     if (kind === 'compare') return ['<', '>', '='];
-    if (item.spec && item.spec.k === 'bool') return ['Yes', 'No'];
+    if (item.spec && item.spec.k === 'bool') {
+      /* a card that asks “true or false?” gets True/False buttons; one that
+         asks “is it…?” gets Yes/No. The learner should never have to translate
+         between the wording of the question and the words on the buttons. */
+      var at = String(item.answerText == null ? '' : item.answerText).toLowerCase();
+      if (at === 'true' || at === 'false' || /\btrue or false\b/i.test(String(item.prompt || ''))) return ['True', 'False'];
+      return ['Yes', 'No'];
+    }
     return out;                                  // empty: the caller degrades to a typed answer
   }
   /* An item that claims to be a choice but arrives without usable options must
