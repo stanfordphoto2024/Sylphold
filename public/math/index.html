@@ -27512,15 +27512,21 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       }, null, lvl, 0);
     }
     function fromTwoPoints() {
-      var dx = HS.pick(rng, [1, 2, 3]), dy = L.m;
+      /* the line is built first and the points are read off it: taking two
+         points and then computing b with a slope that belongs to another form
+         of this card was how "through (-1,7) and (1,8)" came out as ½x + 8
+         when the line is really ½x + 7.5 */
+      var dx = HS.pick(rng, [1, 1, 2]), dy = L.m, b0 = HS.cap(L.b, -6, 6);
+      var step = HS.pick(rng, [-3, -2, -1, 1, 2, 3]);
+      x1 = step * dx; y1 = BC.fix(dy * step + b0, 6);       /* exact: y = (dy/dx)x + b0 */
       var x2 = x1 + dx, y2 = y1 + dy;
-      var eq = si(dy, dx, BC.fix(y1 - mVal * x1, 6));
+      var eq = si(dy, dx, b0);
       var p = 'Write the equation of the line through ' + HS.ptStr([x1, y1]) + ' and ' + HS.ptStr([x2, y2]) + '.';
       if (HS.leaksText(p, eq)) return null;
       return HS.str(p, [HS.eqPat(eq)], {
         answerText: eq,
         explain: ['Slope first: (' + y2 + ' - (' + y1 + ')) ÷ (' + x2 + ' - (' + x1 + ')) = ' + slopeStr(dy, dx) + '.',
-          'Then the intercept: ' + y1 + ' = ' + slopeStr(dy, dx) + '·' + x1 + ' + b gives b = ' + BC.fix(y1 - mVal * x1, 6) + '.',
+          'Then the intercept: using (' + x1 + ', ' + y1 + '), ' + y1 + ' = ' + slopeStr(dy, dx) + '·' + x1 + ' + b gives b = ' + b0 + '.',
           'The equation is <b>' + eq + '</b>.'],
         teach: 'Two points fix the slope, and the slope with one point fixes the intercept.'
       }, null, lvl, 0.2);
@@ -27540,14 +27546,20 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       }, null, lvl, -0.1);
     }
     function pointSlope() {
-      var eq = 'y - (' + y1 + ') = ' + mStr + '(x - (' + x1 + '))';
+      /* "y - (-5) = 2(x - (1))" is correct arithmetic and unreadable prose:
+         the signs are printed the way they are said */
+      var yTxt = y1 < 0 ? 'y + ' + (-y1) : 'y − ' + y1;
+      var xTxt = x1 < 0 ? 'x + ' + (-x1) : 'x − ' + x1;
+      var xAlt = x1 < 0 ? 'x − ' + x1 : 'x + ' + x1;
+      var yAlt = y1 < 0 ? 'y − ' + (-y1) : 'y + ' + y1;
+      var eq = yTxt + ' = ' + mStr + '(' + xTxt + ')';
       var p = 'Write the equation in point-slope form for the line with slope ' + mStr + ' through ' + HS.ptStr([x1, y1]) + '.';
       if (HS.leaksText(p, eq)) return null;
-      return HS.mc(rng, p, 'y - (' + y1 + ') = ' + mStr + '(x - (' + x1 + '))',
-        ['y - (' + x1 + ') = ' + mStr + '(x - (' + y1 + '))', 'y + (' + y1 + ') = ' + mStr + '(x + (' + x1 + '))', 'y - (' + y1 + ') = ' + mStr + '(x + (' + x1 + '))'], {
-          explain: ['Point-slope form is y - y₁ = m(x - x₁).',
+      return HS.mc(rng, p, eq,
+        [yTxt + ' = ' + mStr + '(' + xAlt + ')', yAlt + ' = ' + mStr + '(' + xTxt + ')', xTxt + ' = ' + mStr + '(' + yTxt + ')'], {
+          explain: ['Point-slope form is y − y₁ = m(x − x₁).',
             'Substitute m = ' + mStr + ', x₁ = ' + x1 + ', y₁ = ' + y1 + '.',
-            'The equation is <b>y - (' + y1 + ') = ' + mStr + '(x - (' + x1 + '))</b>.'],
+            'The equation is <b>' + eq + '</b>'],
           teach: 'Point-slope form keeps the slope and one point visible.'
         }, null, lvl, 0.2);
     }
