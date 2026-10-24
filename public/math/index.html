@@ -344,10 +344,12 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .legend .lrow { display: flex; align-items: center; gap: 10px; }
 .legend .lrow.sel { background: var(--accent-soft); border-radius: 8px; }
 .legend .lsw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-.legend .lname { font-size: 13.5px; font-weight: 600; }
-.legend .lnum { font-size: 12px; color: var(--ink-2); }
+.legend .lname { font-size: 13.5px; font-weight: 600; flex: 1 1 auto; }
+/* the counts are read as a column, so they hang off the right edge of the card
+   rather than off the end of the strand name in front of them */
+.legend .lnum { flex: 0 0 auto; text-align: right; font-size: 12px; color: var(--ink-2); }
 .dpick { border-left: 3px solid var(--line); border-radius: 8px; padding-left: 12px; margin-top: 8px; }
-.dpick .num { font-size: 12.5px; color: var(--ink-2); }
+.dpick .num { font-size: 12.5px; color: var(--ink-2); text-align: right; }
 .dring { display: block; max-width: 240px; margin: 0 auto; }
 .dseg { cursor: pointer; fill-opacity: .85; stroke: var(--card); stroke-width: 1.5; }
 .dseg:hover { fill-opacity: .98 }
@@ -87365,6 +87367,31 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (item.answer) item.answer = kept[rightNew];
       item.answerText = texts[rightNew];
     })();
+    /* A hint assembled from a variable that was never set reaches the learner
+       as "NaN" or "undefined". The teaching line, or the first worked step,
+       says the same thing in words, so the card is repaired rather than shown
+       broken. (The generator that assembled it this way still needs its own
+       fix; this is the shared safety net that keeps it off the screen.) */
+    var brokenText = function (t) {
+      return typeof t !== 'string' || t.length < 12 || /NaN|undefined/.test(t);
+    };
+    var firstSoundStep = function () {
+      var list = item.explain;
+      if (!Array.isArray(list)) return null;
+      for (var q = 0; q < list.length; q++) {
+        var cand = String(list[q]).replace(/<[^>]*>/g, '').trim();
+        if (!brokenText(cand)) return cand;
+      }
+      return null;
+    };
+    if (brokenText(item.hint)) {
+      item.hint = !brokenText(item.teach) ? item.teach
+        : (firstSoundStep() || 'Work through the worked solution one step at a time and compare each line with the answer.');
+    }
+    if (brokenText(item.teach)) {
+      item.teach = !brokenText(item.hint) ? item.hint
+        : (firstSoundStep() || 'Read the worked solution and note the rule it applies before choosing.');
+    }
     return item;
   };
 })();
@@ -87747,8 +87774,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
      "which value makes 2n + 2 equal to 10?" — and every refusal is a card the
      learner never chose. One table, one truth: whatever routes here answers here. */
   var FAM_PAT = {
-    calc2: /(?:chain rule|product rule|quotient rule|continuity|continuous|one-sided|concav|inflection|increasing|decreasing|riemann|endpoint|under a curve|integral|antiderivative|velocity|acceleration|position|bounded|between the curves)|(?:continuity|continuous|one-sided|discontinu)|(?:long division)|(?:integrate)/,
-    calculus: /(?:\blimits?\b|derivative|differenti|tangent line|critical point|relative (?:max|min)|absolute (?:max|min)|increasing|decreasing|concav|continuity|discontinu|average rate of change|integral|antiderivative|sigma notation)/,
+    calc2: /(?:chain rule|product rule|quotient rule|continuity|continuous|one-sided|concav|inflection|increasing|decreasing|increase|decrease|intervals? of (?:increase|decrease)|riemann|endpoint|under a curve|integral|antiderivative|velocity|acceleration|position|bounded|between the curves)|(?:continuity|continuous|one-sided|discontinu)|(?:long division)|(?:integrate)/,
+    calculus: /(?:\blimits?\b|derivative|differenti|tangent line|critical (?:point|number|value)|relative (?:max|min)|absolute (?:max|min|extrema)|extrema|optimization|closed interval|endpoints? of (?:a |the )?interval|increasing|decreasing|concav|continuity|discontinu|average rate of change|integral|antiderivative|sigma notation)/,
     circle: /(?:arc length|sector|inscribed|tangent (?:line|of|to)|chord|central angle|major arc|minor arc|segment of a circle|circumference|diameter|radius)/,
     conics: /(?:graph circles?|circles? from equations?|circle.*(?:standard form|general form|equation)|equation of a circle|center of the circle|center of the circle|point on the circle|radius.*(?:equation|form))/,
     count: /(?:permutation|combination|counting principle|fundamental counting|how many (?:different )?(?:ways|orders|arrangements|groups)|factorial|committee|license plate|password)/,
@@ -87761,18 +87788,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     logic: /(?:\bsets?\b|subsets?|complements?\b|union|intersection|venn|element of|set notation|set-builder|hypothes|conclusions?\b|conditional|negation|converse|inverse of a conditional|contrapositive|biconditional|truth (?:table|value)|logic|counterexample|conjecture|deductive|inductive)/,
     logs: /(?:logarithm|logarithmic|\blog\b|exponential (?:function|equation|growth|decay)|natural log|inverse of an exponential|doubling|half.?life)/,
     money: /(?:checking account|bank account|\bregister\b|debit card|credit card|credit report|paying for college|tuition|scholarship|interest rate|\bloan\b|\bbudget\b|monthly fee)/,
-    polynomials: /(?:polynomial|monomial|binomial|trinomial|degree of|leading coefficient|rational expression|end behavior|difference of two squares|factor (?:the )?(?:polynomial|completely|out the gcf))/,
+    polynomials: /(?:polynomial|monomial|binomial|trinomial|degree of|leading coefficient|rational expression|end behavior|difference of two squares|factor (?:the )?(?:polynomial|completely|out the gcf)|like terms|distributive propert|simplify variable expression)/,
     precision: /(?:scientific notation|standard notation|order of magnitude|precision|greatest possible error|tolerance|percent error|relative error|absolute error|nearest|more precise|interval notation|bounds of a round)/,
     proof: /(?:\bangles?\b|parallel|transversal|perpendicular|bisect|vertical angle|complementary|supplementary|quadrilateral|polygon|interior angle|exterior angle|proof|theorem|classif|triangle)/,
     quadratics: /(?:quadrat|parabola|vertex form|discriminant|zero product|completing the square|sum of the (?:the )?roots|product of the roots|maximum value|minimum value)/,
     radicals: /(?:radical|nth root|nth roots|square roots?|cube roots?|roots? of|root of a number|rational exponent|descartes|by grouping|extraneous|radicand|irrational number)|roots? using a calculator|estimate.*roots?|between which two integers/,
     ratio: /(?:\bproportional\b|constant of proportionality|proportional relationship)/,
-    rtri: /(?:pythagor|right triangle|hypotenuse|leg of|legs of|special right|solve.*triangle|angle of elevation|angle of depression|line of sight|distance between two points)|(?:)|(?:)/,
+    rtri: /(?:pythagor|right triangle|hypotenuse|leg of|legs of|special right|solve.*triangle|angle of elevation|angle of depression|line of sight|distance between two points)/,
     sequences: /(?:(?:arithmetic|geometric) (?:sequence|series|term|growth)|\bsequences?\b|recursive|explicit (?:rule|formula|equation)|nth term|common (?:difference|ratio)|summation|sigma notation|partial sum)/,
     similar: /(?:congruen|similar|similarity|scale factor|corresponding (?:side|angle|part)|dilation|enlarg|reduc)/,
     solid: /(?:volume|surface area|lateral area|prism|cylinder|\bcone\b|sphere|pyramid|capacity|solid)/,
     stats: /(?:lines? of best fit|scatter|two-way table|categorical data|numerical data|statistical question|representative|biased sample|\boutliers?\b|association|frequency table|dot plot|box plot|mean absolute deviation|interquartile)/,
-    stats2: /(?:normal distribution|z-score|z-value|standard deviation|expected value|better bet|game of chance|confidence interval|sample mean|sampling|outlier|biased|representative|regression|line of best fit|random variable|distributions? of|margin of error|experiment design|survey design)|(?:interpret graphics)|(?:mean, median)|(?:line of best fit)|line plot|scatter plot|circle graph|two-way table|frequency/,
+    stats2: /(?:normal distribution|z-score|z-value|standard deviation|expected value|better bet|game of chance|confidence interval|sample mean|sampling|outlier|biased|representative|regression|line of best fit|random variable|distributions? of|margin of error|experiment design|survey design|normal variab|linear model|linear fit|modeling with a line)|(?:interpret graphics)|(?:mean, median)|(?:line of best fit)|line plot|scatter plot|circle graph|two-way table|frequency/,
     transform: /(?:congruen|similar figures|similar (?:triangles|polygons|solids)|scale factor|dilation|rotation|reflection|translation|transform)/,
     trig: /(?:trigonometric|\bsine\b|\bcosine\b|\btangent\b|unit circle|reference angle|radian|amplitude|period|phase shift|pythagorean identity|reciprocal (?:trigonometric )?function|law of sines|law of cosines)|(?:csc\b|\bsec\b|\bcot\b|reciprocal trig|trigonometric identit|inverse trig)/,
     wordalgebra: /(?:consecutive|rate of travel|average speed|constant speed|distance.*(?:rate|speed|time)|(?:rate|speed|time).*distance|density|unit price|better buy|fuel|mileage|uniform rate)/
@@ -87843,6 +87870,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (FAM_PAT.stats.test(t)) return 'stats';
     if (/counting principle|sample space|compound event|make predictions|predict with|experimental probability|theoretical probability|\bfair\b|\bunfair\b|how likely|\bcertain\b|impossible|probability/.test(t) && !/\barea\b|\bperimeter\b|geometric probability/.test(t)) return 'prob';
     if (FAM_PAT.money.test(t)) return 'money';
+    /* Measurement formulas that no senior topic list names still need a bank of
+       their own: "area of trapezoids" is a formula skill, and the measurement
+       deck carries the figures for it. */
+    if (rank(sk) >= 14 && /area of (?:the )?(?:trapezoids?|rhombuses?|kites?|quadrilaterals?)|area and perimeter/.test(t)) return 'measure';
     for (i = 0; i < FAMILY_OF.length; i++) if (FAMILY_OF[i][1].test(t)) return FAMILY_OF[i][0];
     return null;
   }
@@ -88603,6 +88634,48 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var r = int(rng, 1, 8);
 
     return [
+
+      function () {
+        if (!/area of|perimeter/.test(ttl)) return null;
+        var bw = int(rng, 3, 9), bh = int(rng, 2, 8), ar = bw * bh, pe = 2 * (bw + bh);
+        var which = int(rng, 0, 1);
+        var ansG = which ? pe : ar;
+        return ask(rng, sk, 'A rectangle is ' + bw + ' units long and ' + bh + ' units wide. What is its ' + (which ? 'perimeter' : 'area') + ', in ' + (which ? 'units' : 'square units') + '?', ansG,
+          [which ? ar : pe, ansG + bw + bh, ansG - 2], { lim: 200,
+            teach: 'Area counts the square units inside a figure while perimeter measures the distance around it; the two are different quantities.',
+            explain: explainOk([which ? 'Perimeter = 2 × (' + bw + ' + ' + bh + ') = ' + pe + '.' : 'Area = ' + bw + ' × ' + bh + ' = ' + ar + '.', which ? 'The area of the same rectangle is ' + ar + ' square units, which is a different measure.' : 'The perimeter of the same rectangle is ' + pe + ' units, which is a different measure.', 'The ' + (which ? 'perimeter' : 'area') + ' is <b>' + ansG + '</b> ' + (which ? 'units' : 'square units') + '.'], ansG) });
+      },
+      function () {
+        /* Reached by routing, so these gates restate the topic: the measurement
+           family table is written for K–8 titles and would decline here. */
+        if (!/trapez/.test(ttl)) return null;
+        var row = pick(rng, [[6, 4, 3, 15], [10, 4, 5, 35], [8, 12, 7, 70], [5, 9, 4, 28], [7, 3, 6, 30]]);
+        var b1 = row[0], b2 = row[1], h = row[2], ans = row[3];
+        if ((b1 + b2) * h / 2 !== ans) return null;
+        return ask(rng, sk, 'A trapezoid has parallel sides of ' + b1 + ' units and ' + b2 + ' units, and the perpendicular distance between them is ' + h + ' units. What is its area, in square units?', ans,
+          [b1 + b2 + h, (b1 + b2) * h, b1 * b2], { lim: 400,
+            teach: 'The area of a trapezoid is one half of the product of the sum of the parallel sides and the height between them.',
+            explain: explainOk(['The parallel sides sum to ' + b1 + ' + ' + b2 + ' = ' + (b1 + b2) + '.', 'Multiplying by the height and taking half gives ' + (b1 + b2) + ' × ' + h + ' ÷ 2 = ' + ans + '.', 'The area is <b>' + ans + '</b> square units.'], ans) });
+      },
+      function () {
+        if (!/rhomb|diamond/.test(ttl)) return null;
+        var row2 = pick(rng, [[6, 8, 24], [10, 12, 60], [4, 14, 28], [8, 10, 40], [6, 10, 30]]);
+        var d1 = row2[0], d2 = row2[1], ans2 = row2[2];
+        if (d1 * d2 / 2 !== ans2) return null;
+        return ask(rng, sk, 'A rhombus has diagonals of ' + d1 + ' units and ' + d2 + ' units. What is its area, in square units?', ans2,
+          [d1 + d2, d1 * d2, 2 * (d1 + d2)], { lim: 400,
+            teach: 'The diagonals of a rhombus bisect each other at right angles, so the area is half the product of the diagonals.',
+            explain: explainOk(['The diagonals cut the rhombus into four right triangles with legs ' + d1 / 2 + ' and ' + d2 / 2 + '.', 'Half the product of the diagonals is ' + d1 + ' × ' + d2 + ' ÷ 2 = ' + ans2 + '.', 'The area is <b>' + ans2 + '</b> square units.'], ans2) });
+      },
+      function () {
+        if (!/coordinate/.test(ttl)) return null;
+        var x1 = int(rng, 0, 4), y1 = int(rng, 0, 4), w = int(rng, 2, 7), hh = int(rng, 2, 7);
+        var x2 = x1 + w, y2 = y1 + hh, area = w * hh;
+        return ask(rng, sk, 'A rectangle has vertices at (' + x1 + ', ' + y1 + '), (' + x2 + ', ' + y1 + '), (' + x2 + ', ' + y2 + ') and (' + x1 + ', ' + y2 + '). What is its area, in square units?', area,
+          [2 * (w + hh), w + hh, area + w + hh], { lim: 200,
+            teach: 'With sides parallel to the axes, the side lengths are differences of coordinates, and the area is their product.',
+            explain: explainOk(['The horizontal side has length ' + x2 + ' − ' + x1 + ' = ' + w + ' and the vertical side has length ' + y2 + ' − ' + y1 + ' = ' + hh + '.', 'Area = length × width = ' + w + ' × ' + hh + ' = ' + area + '.', 'The area is <b>' + area + '</b> square units.'], area) });
+      },
       function () {
         if (!/area/.test(t)) return null;
         return ask(rng, sk, 'A rectangle is ' + l + ' ' + unit + ' long and ' + w + ' ' + unit + ' wide. What is its area, in square ' + unit + '?', area,
@@ -89871,6 +89944,32 @@ function () {
     var p1 = int(rng, 2, 6), p2 = int(rng, 1, 5), p3 = int(rng, 1, 7);
     var s1 = int(rng, 1, 6), s2 = int(rng, 1, 6);
     return [
+
+      function () {
+        if (!FAM.test(ttl)) return null;
+        if (!/like terms|distributive|simplify variable|combine/.test(ttl)) return null;
+        var sgn = function (v) { return v < 0 ? ' − ' + (-v) : ' + ' + v; };
+        var a = int(rng, 2, 7), c = int(rng, -3, 5), b = int(rng, -9, 9), d = int(rng, -9, 9);
+        var ka = a + c, kb = b + d;
+        if (ka < 2 || ka > 9 || ka === a || ka === c) return null;
+        var right = ka + 'x' + sgn(kb);
+        var opts = R.shuffle(rng, uniq([right, (a + c + 1) + 'x' + sgn(kb), ka + 'x' + sgn(b), (a) + 'x' + sgn(kb)]));
+        return I_choice('Simplify the expression ' + a + 'x' + sgn(b) + ' ' + (c < 0 ? '− ' + (-c) : '+ ' + c) + 'x' + sgn(d) + '.',
+          opts, opts.indexOf(right), {
+            teach: 'Collect the coefficients of the variable and the constant terms separately; the distributive property licenses that step.',
+            explain: explainOk(['The coefficients of x are ' + a + ' and ' + c + ', which sum to ' + ka + '.', 'The constant terms are ' + b + ' and ' + d + ', which sum to ' + kb + '.', 'The simplified expression is <b>' + right + '</b>.'], right) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        if (!/distributive|equivalent expression|expand/.test(ttl)) return null;
+        var k = int(rng, 2, 6), m = int(rng, 2, 9), n = int(rng, 1, 9);
+        var right2 = k + 'x + ' + k * n;
+        var opts2 = R.shuffle(rng, uniq([right2, k + 'x + ' + n, (k + 1) + 'x + ' + k * n, k + 'x + ' + (k + n)]));
+        return I_choice('Which expression is equivalent to ' + k + '(x + ' + n + ')?',
+          opts2, opts2.indexOf(right2), {
+            teach: 'The distributive property multiplies the factor by each term inside the parentheses.',
+            explain: explainOk(['Multiply ' + k + ' by x, which gives ' + k + 'x.', 'Multiply ' + k + ' by ' + n + ', which gives ' + k * n + '.', 'The equivalent expression is <b>' + right2 + '</b>.'], right2) });
+      },
       function () {
         if (!FAM.test(ttl)) return null;
         var right = (p1 + p2) + 'x² + ' + (p3 + 1) + 'x';
@@ -90199,6 +90298,101 @@ function () {
     var supT = function (n) { return String(n).replace(/\d/g, function (d) { return SUP.charAt(+d); }); };
     var a = int(rng, 2, 5), bb = int(rng, 1, 6), cc = int(rng, 1, 9), at = int(rng, 1, 5);
     return [
+
+      function () {
+        if (!FAM.test(ttl)) return null;
+        if (!/extrem|optimiz|maximum|minimum|closed interval|critical/.test(ttl)) return null;
+        var bb = pick(rng, [-4, 2, -6, 4]), cc = pick(rng, [3, -3, 5, -1]);
+        var vx = -bb / 2, fv = vx * vx + bb * vx + cc;
+        if (vx !== Math.round(vx)) return null;
+        return ask(rng, sk, 'The function f is defined by f(x) = x² ' + (bb < 0 ? '− ' + (-bb) : '+ ' + bb) + 'x ' + (cc < 0 ? '− ' + (-cc) : '+ ' + cc) + '. At what value of x does f attain its minimum value?', vx,
+          [fv, vx + 1, -vx], { lim: 40,
+            teach: 'A quadratic with a positive leading coefficient attains its minimum at the vertex, whose x-coordinate is −b ÷ 2a.',
+            explain: explainOk(['Here a = 1 and b = ' + bb + ', so the vertex has x-coordinate −(' + bb + ') ÷ 2 = ' + vx + '.', 'At that input the value is f(' + vx + ') = ' + fv + ', the smallest value the function takes.', 'The minimum occurs at x = <b>' + vx + '</b>.'], vx) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        if (!/extrem|optimiz|maximum|minimum|closed interval/.test(ttl)) return null;
+        var bb2 = pick(rng, [-4, -6, 2]), cc2 = pick(rng, [3, 5, -3]);
+        var vx2 = -bb2 / 2, lo = 0, hi = vx2 * 2;
+        if (vx2 !== Math.round(vx2) || hi <= lo) return null;
+        var vlo = lo * lo + bb2 * lo + cc2, vhi = hi * hi + bb2 * hi + cc2, vtv = vx2 * vx2 + bb2 * vx2 + cc2;
+        var mx = Math.max(vlo, vhi, vtv);
+        return ask(rng, sk, 'What is the absolute maximum value of f(x) = x² ' + (bb2 < 0 ? '− ' + (-bb2) : '+ ' + bb2) + 'x ' + (cc2 < 0 ? '− ' + (-cc2) : '+ ' + cc2) + ' on the closed interval ' + lo + ' ≤ x ≤ ' + hi + '?', mx,
+          [vtv, vlo, vhi], { lim: 80,
+            teach: 'On a closed interval the absolute maximum occurs at a critical point or at an endpoint, so each of those values is compared.',
+            explain: explainOk(['The critical point is x = ' + vx2 + ', which lies in the interval, with f(' + vx2 + ') = ' + vtv + '.', 'The endpoints give f(' + lo + ') = ' + vlo + ' and f(' + hi + ') = ' + vhi + '.', 'The largest of those three values is <b>' + mx + '</b>.'], mx) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        if (!/optimiz|maximum|extrem/.test(ttl)) return null;
+        var per = pick(rng, [24, 20, 28, 32]);
+        var half = per / 2, best = half / 2, areaBest = best * (half - best);
+        if (best !== Math.round(best)) return null;
+        return ask(rng, sk, 'A rectangle has perimeter ' + per + ' units. Its area, in square units, is modelled by A(x) = x(' + half + ' − x), where x is one side length. For what value of x is the area greatest?', best,
+          [half, best + 1, areaBest], { lim: 40,
+            teach: 'The area model is a downward-opening quadratic, so its greatest value occurs at the vertex, halfway between the two zeros.',
+            explain: explainOk(['The zeros of A are x = 0 and x = ' + half + '; the vertex lies halfway between them at x = ' + best + '.', 'The area there is ' + best + ' × ' + (half - best) + ' = ' + areaBest + ' square units.', 'The area is greatest when x = <b>' + best + '</b>.'], best) });
+      },
+
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var m = int(rng, 2, 9), b = int(rng, -6, 6), x1 = int(rng, 0, 4), d = int(rng, 2, 5), x2 = x1 + d;
+        var y1 = m * x1 + b, y2 = m * x2 + b;
+        return ask(rng, sk, 'The graph of the linear function f passes through the points (' + x1 + ', ' + y1 + ') and (' + x2 + ', ' + y2 + '). What is the average rate of change of f over the interval from x = ' + x1 + ' to x = ' + x2 + '?', m,
+          [m + 1, -m, d], { lim: 40,
+            teach: 'The average rate of change of a function between two inputs is the change in output divided by the change in input; for a linear function it equals the slope.',
+            explain: explainOk(['The change in output is ' + y2 + ' − (' + y1 + ') = ' + (y2 - y1) + '.', 'The change in input is ' + x2 + ' − ' + x1 + ' = ' + d + '.', 'Dividing gives ' + (y2 - y1) + ' ÷ ' + d + ' = <b>' + m + '</b>.'], m) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var a1 = int(rng, 1, 4), b1 = a1 + int(rng, 2, 4);
+        var fa = a1 * a1, fb = b1 * b1, rate = a1 + b1;
+        return ask(rng, sk, 'For the function f defined by f(x) = x², what is the average rate of change of f over the interval from x = ' + a1 + ' to x = ' + b1 + '?', rate,
+          [a1 * b1, b1 - a1, fa + fb], { lim: 40,
+            teach: 'For a nonlinear function the average rate of change depends on the interval and equals the slope of the secant line through the two points.',
+            explain: explainOk(['f(' + b1 + ') − f(' + a1 + ') = ' + fb + ' − ' + fa + ' = ' + (fb - fa) + '.', 'Dividing by ' + b1 + ' − ' + a1 + ' = ' + (b1 - a1) + ' gives ' + (fb - fa) + ' ÷ ' + (b1 - a1) + ' = ' + rate + '.', 'The average rate of change is <b>' + rate + '</b>.'], rate) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var r = int(rng, 2, 7), x0 = int(rng, 0, 3), f0 = int(rng, 4, 20), span = int(rng, 2, 6), f1 = f0 + r * span;
+        var unit = pick(rng, ['dollars', 'kilometres', 'kilograms', 'litres']);
+        return ask(rng, sk, 'A function g is recorded at two inputs: g(' + x0 + ') = ' + f0 + ' and g(' + (x0 + span) + ') = ' + f1 + ', where the output is measured in ' + unit + ' and the input in hours. What is the average rate of change of g, in ' + unit + ' per hour?', r,
+          [f1 - f0, span, f0 + r], { lim: 60,
+            teach: 'An average rate of change is a quotient of the two changes, so its units are output units divided by input units.',
+            explain: explainOk(['The output changes by ' + f1 + ' − ' + f0 + ' = ' + (f1 - f0) + ' ' + unit + '.', 'The input changes by ' + span + ' hours.', 'The rate is ' + (f1 - f0) + ' ÷ ' + span + ' = <b>' + r + '</b> ' + unit + ' per hour.'], r) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var r2 = int(rng, 2, 6), span2 = int(rng, 3, 8), delta = r2 * span2;
+        var right = delta + ' ' + pick(rng, ['centimetres', 'grams', 'litres']);
+        return ask(rng, sk, 'The average rate of change of a function h over an interval of ' + span2 + ' days is ' + r2 + ' centimetres per day. By how many centimetres does h change over that interval?', delta,
+          [r2 + span2, r2, span2], { lim: 80,
+            teach: 'Multiplying an average rate of change by the length of the interval gives the total change over that interval.',
+            explain: explainOk(['Total change = rate × length of the interval.', '' + r2 + ' × ' + span2 + ' = ' + delta + '.', 'The function changes by <b>' + delta + '</b> centimetres.'], delta) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var m1 = int(rng, 3, 8), m2 = m1 - int(rng, 1, m1 - 1);
+        var xA = int(rng, 0, 2), xB = xA + 3, xC = xB + 3;
+        var yA = 0, yB = m1 * 3, yC = yB + m2 * 3;
+        var opts = R.shuffle(rng, uniq(['over the first interval', 'over the second interval', 'the two intervals have the same average rate of change']));
+        var right2 = opts[0] === 'over the first interval' ? 0 : (opts[1] === 'over the second interval' ? 1 : 2);
+        right2 = opts.indexOf('over the first interval');
+        return I_choice('A graph passes through the points A(' + xA + ', ' + yA + '), B(' + xB + ', ' + yB + ') and C(' + xC + ', ' + yC + '). Over which interval is the average rate of change greater: from A to B, or from B to C?',
+          opts, right2, {
+            teach: 'Compare the two quotients of change in output over change in input; the larger quotient is the greater average rate of change.',
+            explain: explainOk(['From A to B the rate is ' + yB + ' ÷ 3 = ' + m1 + '.', 'From B to C the rate is ' + (yC - yB) + ' ÷ 3 = ' + m2 + '.', 'Since ' + m1 + ' > ' + m2 + ', the average rate of change is greater <b>over the first interval</b>.'], opts[right2]) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var p0 = int(rng, 2, 9) * 100, p1 = p0 + int(rng, 2, 9) * 100, yrs = int(rng, 2, 6);
+        var opts2 = R.shuffle(rng, uniq(['individuals per year', 'years per individual', 'individuals per year squared', 'individuals multiplied by years']));
+        return I_choice('The population of a town grew from ' + p0.toLocaleString('en-US') + ' residents to ' + p1.toLocaleString('en-US') + ' residents over ' + yrs + ' years. Which units express the average rate of change of the population?',
+          opts2, opts2.indexOf('individuals per year'), {
+            teach: 'A rate of change inherits its units from the quotient: output units divided by input units.',
+            explain: explainOk(['The output is a number of individuals and the input is a number of years.', 'Dividing individuals by years gives individuals per year.', 'The units are <b>individuals per year</b>.'], 'individuals per year') });
+      },
       function () {
         if (!FAM.test(ttl)) return null;
         var val = a * at * at + bb * at + cc;
@@ -92371,8 +92565,8 @@ function () {
  * and the working shows the computation, so the card teaches the object and
  * not only the sentence about it.
  *
- * build.js assembles this file ahead of the generated one, so the source line
- * above is resolved when a card is built, not at load; both files wrap the same
+ * A card carries no source line: the month and the MathWorld topic are the
+ * publisher's catalogue, not part of the question. Both files wrap the same
  * hook and either falls back to the skill's own items.
  * ============================================================================= */
 (function () {
@@ -92381,37 +92575,6 @@ function () {
   var SKILL_GEN = GLOB.SKILL_GEN, R = GLOB.R, I_num = GLOB.I_num, LEAK = GLOB.leaksAnswer;
   if (!SKILL_GEN || !R || !I_num) return;
 
-  /* The same source line a generated card carries — the month whose MathWorld
-     list announced the entry, and the topic that entry was filed under — read
-     back out of the generated table by entry name, so a hand-written card can
-     never claim a month the table contradicts. The lookup runs when a card is
-     built rather than here, because build.js assembles this file ahead of the
-     generated one and MW does not exist yet at this point in the script. */
-  var SRC_CACHE = {};
-  function mwRow(name) {
-    var MW = GLOB.MW, i, r, want = String(name).toLowerCase();
-    if (!MW || !MW.ROW) return null;
-    for (i = 0; i < MW.ROW.length; i++) {
-      r = MW.ROW[i];
-      if (String(r[0]).toLowerCase() !== want) continue;
-      var g = (MW.GP && MW.GP[r[3]]) || [];
-      return { month: (MW.MTH && MW.MTH[r[10]]) || 'October 2026',
-        topic: (MW.LAB && MW.LAB[g[1]]) || 'Mathematics' };
-    }
-    return null;
-  }
-  function SRC(name, standIn) {
-    var key = String(name) + ' ' + String(standIn || '');
-    if (!SRC_CACHE[key]) {
-      /* an entry the generated table dropped (the 3-tree) borrows the
-         provenance of the entry it is built beside, so the source line never
-         loses the month or the topic */
-      var hit = mwRow(name) || (standIn && mwRow(standIn)) ||
-        { month: 'October 2026', topic: 'Mathematics' };
-      SRC_CACHE[key] = 'New in MathWorld (' + hit.month + '), topic: ' + hit.topic + '.';
-    }
-    return SRC_CACHE[key];
-  }
   function bump(lvl) { return (lvl - 3) * 0.2; }
 
   /* ---------------------------------------------------------------- 16-cell --
@@ -92422,7 +92585,6 @@ function () {
       '(0, 1, 0, 0), (0, -1, 0, 0), (0, 0, 1, 0), (0, 0, -1, 0), (0, 0, 0, 1) and (0, 0, 0, -1). ' +
       'How many vertices does the 16-cell have?';
     return I_num(p, 8, {
-      sub: SRC('16-Cell'),
       explain: [
         'The 16-cell puts one pair of vertices on each coordinate axis of four-dimensional space.',
         'Four axes, two ends each: 4 × 2 = 8 points.',
@@ -92436,7 +92598,7 @@ function () {
     var p = 'Two vertices of the 16-cell are joined when they do not lie on the same coordinate axis. ' +
       'With 8 vertices, every vertex is therefore joined to 6 of the others. How many edges does the 16-cell have?';
     return I_num(p, 24, {
-      sub: SRC('16-Cell') + ' Enter the number of edges.',
+      sub: 'Enter the number of edges.',
       explain: [
         'Each of the 8 vertices joins the 6 vertices that are not itself or its opposite end of an axis.',
         'Counting at the vertices counts every edge twice, so divide by 2: 8 × 6 ÷ 2 = 24.',
@@ -92451,7 +92613,7 @@ function () {
       'The 8 vertices give 56 sets of 3, and 24 of those sets take both ends of an axis. ' +
       'How many triangular faces does the 16-cell have?';
     return I_num(p, 32, {
-      sub: SRC('16-Cell') + ' Enter the number of faces.',
+      sub: 'Enter the number of faces.',
       explain: [
         'Choose any 3 of the 8 vertices: that gives 56 triples.',
         'A triple holding one of the 4 opposite pairs can be finished by any of the remaining 6 vertices, so 4 × 6 = 24 triples are not faces.',
@@ -92465,7 +92627,6 @@ function () {
   function v16FacesFromCells(rng, lvl) {
     var p = 'The 16-cell is made of 16 tetrahedra, with 4 of them meeting at every edge. Each tetrahedron has 4 faces, and every face is shared by exactly 2 tetrahedra. How many faces does the 16-cell have?';
     return I_num(p, 32, {
-      sub: SRC('16-Cell'),
       explain: [
         'The 16 tetrahedra bring 16 × 4 = 64 faces between them.',
         'Each face is counted twice, once for each tetrahedron that owns it, so 64 ÷ 2 = 32.',
@@ -92479,7 +92640,7 @@ function () {
     var p = 'The 16-cell has 8 vertices, 24 edges and 32 triangular faces, and it is built from 16 tetrahedral cells. ' +
       'For the boundary of a four-dimensional polytope the Euler characteristic is V − E + F − C. What is it for the 16-cell?';
     return I_num(p, 0, {
-      sub: SRC('16-Cell') + ' Enter the value as a number.',
+      sub: 'Enter the value as a number.',
       explain: [
         'Start with the vertices and subtract the edges: 8 − 24 = -16.',
         'Add the faces, then subtract the cells: -16 + 32 − 16 = 0.',
@@ -92497,7 +92658,6 @@ function () {
       'A generating point strictly inside that triangle gets one image for every symmetry of the group, and those images form a regular polygon. ' +
       'How many vertices does that polygon have?';
     return I_num(p, 6, {
-      sub: SRC('Wythoff Construction'),
       explain: [
         'The triangle group has 6 symmetries: 3 rotations and 3 reflections in the mirrors.',
         'A point strictly inside the fundamental triangle is left fixed by none of them, so it has 6 different images.',
@@ -92512,7 +92672,6 @@ function () {
     var p = 'The same Wythoff construction now starts with the generating point on exactly one of the three mirrors, and no vertex of the fundamental triangle. ' +
       'Half of the group symmetries now bring it back to itself. How many points are in its orbit?';
     return I_num(p, 3, {
-      sub: SRC('Wythoff Construction'),
       explain: [
         'The point still sees all 6 symmetries, but the reflection in the mirror it lies on fixes it.',
         'So the 6 symmetries fall into pairs with the same image: 6 ÷ 2 = 3.',
@@ -92528,7 +92687,6 @@ function () {
       'The omnitruncated tetrahedron therefore gets one hexagonal face from every face of the tetrahedron, one from every vertex, and one square face from every edge. ' +
       'How many faces does the omnitruncated tetrahedron have?';
     return I_num(p, 14, {
-      sub: SRC('Wythoff Construction'),
       explain: [
         'A tetrahedron has 4 faces and 4 vertices, so it contributes 4 + 4 = 8 hexagonal faces.',
         'It also has 6 edges, each contributing a square face.',
@@ -92549,7 +92707,7 @@ function () {
     var p = 'A 2-tree is built from a single edge: every new vertex is joined to both ends of one edge that is already there. ' +
       'How many edges does a 2-tree on ' + n + ' vertices have?';
     return I_num(p, edges, {
-      sub: SRC('2-Tree') + ' Enter the number of edges.',
+      sub: 'Enter the number of edges.',
       explain: [
         'The construction starts with 2 vertices and 1 edge.',
         'It then adds ' + n + ' − 2 = ' + added + ' vertices, and each one adds 2 edges.',
@@ -92565,7 +92723,7 @@ function () {
     var p = 'In a 2-tree every new vertex is joined to both ends of an existing edge, which closes exactly one new triangle. ' +
       'How many triangles are in a 2-tree on ' + n + ' vertices?';
     return I_num(p, tr, {
-      sub: SRC('2-Tree') + ' Enter the number of triangles.',
+      sub: 'Enter the number of triangles.',
       explain: [
         'The starting edge is not a triangle, so the construction begins with 0 of them.',
         'After those first 2 vertices, ' + n + ' − 2 = ' + tr + ' vertices are added, and each closes exactly one triangle.',
@@ -92579,7 +92737,7 @@ function () {
     var n = R.int(rng, 6, 11), edges = 2 * n - 3;
     var p = 'A 2-tree on n vertices has 2n − 3 edges. For a 2-tree with ' + edges + ' edges, how many vertices does it have?';
     return I_num(p, n, {
-      sub: SRC('2-Tree') + ' Enter the number of vertices.',
+      sub: 'Enter the number of vertices.',
       explain: [
         'Solve 2n − 3 = ' + edges + ': add 3 to both sides, giving 2n = ' + (edges + 3) + '.',
         'Divide by 2: n = ' + (edges + 3) + ' ÷ 2 = ' + n + '.',
@@ -92599,7 +92757,7 @@ function () {
     var p = 'A 3-tree starts from a triangle with a fourth vertex joined to all three of them; every new vertex is joined to all three vertices of one triangular face. ' +
       'How many edges does a 3-tree on ' + n + ' vertices have?';
     return I_num(p, edges, {
-      sub: SRC('3-Tree', '2-Tree') + ' Enter the number of edges.',
+      sub: 'Enter the number of edges.',
       explain: [
         'The starting four vertices and their edges form a tetrahedron: 6 edges.',
         'That leaves ' + n + ' − 4 = ' + added + ' vertices to add, and each one caps a face with 3 new edges.',
@@ -92615,7 +92773,7 @@ function () {
     var p = 'A 3-tree on n vertices is a maximal planar graph, so its ' + (3 * n - 6) + ' edges cut the sphere into faces. ' +
       'How many faces, counting the outside one, does a 3-tree on ' + n + ' vertices have?';
     return I_num(p, faces, {
-      sub: SRC('3-Tree', '2-Tree') + ' Enter the number of faces.',
+      sub: 'Enter the number of faces.',
       explain: [
         'Euler\'s formula for a planar graph is V − E + F = 2.',
         'A 3-tree has n = ' + n + ' vertices and 3n − 6 = ' + (3 * n - 6) + ' edges, so ' + n + ' − ' + (3 * n - 6) + ' + F = 2.',
@@ -92631,7 +92789,7 @@ function () {
     var p = 'A 3-tree begins with a tetrahedron, whose 4 triangular faces are already there; every new vertex caps one face and creates 3 more triangles. ' +
       'How many triangles are in a 3-tree on ' + n + ' vertices?';
     return I_num(p, tr, {
-      sub: SRC('3-Tree', '2-Tree') + ' Enter the number of triangles.',
+      sub: 'Enter the number of triangles.',
       explain: [
         'The starting tetrahedron contributes 4 triangles.',
         'It is followed by ' + n + ' − 4 = ' + (n - 4) + ' vertices, each capping one triangle and adding 3: a net gain of 2 triangles each.',
@@ -92684,9 +92842,10 @@ function () {
  * Every concept carries the definition MathWorld prints for it, plus any plain
  * number that page states about that object, so a card's correct answer is always
  * the source's own. Regenerate with:  node tools/mathworld.js emit
- * A card names its provenance once, in the sub line — "New in MathWorld (May 2026),
- * topic: Graph Theory" — where the month index picks the list and the group picks
- * the topic. The question itself never mentions the source.
+ * A card states no provenance: the sub line carries an answer format ("Answer with
+ * the number alone.") or the description a name-choice card reads, never the month
+ * the list was announced in or the topic it was filed under. Nothing on the card
+ * names MathWorld at all — the month and topic stay here, in the data.
  * Data shape:  ROW [name, definition, name-free definition, group, typeBits,
  *              wordMask, sequence, counts, decimal, group order, month index]
  *              MTH  the month list each concept was announced in
@@ -98067,11 +98226,10 @@ var MW = {
  * those facts only, so the correct answer is always the source's own; the
  * working shows the definition, which is the point of the card.
  *
- * The source is stated once per card, and never inside the question: the sub
- * line reads "New in MathWorld (May 2026), topic: Graph Theory", carrying the
- * month that entry was announced in and the topic it was filed under. The
- * question itself names the concept and asks about it, so a learner reads a
- * math question first and the provenance second.
+ * The source is not stated at all: a card is a math question about a concept,
+ * and "new in MathWorld, filed under topic X, in month Y" is the publisher's
+ * catalogue, not something a learner needs on the card. Nothing on the card —
+ * question, sub line, working — names MathWorld, Wolfram, a month or a topic.
  *
  * A host skill keeps its own items: the MathWorld card is offered with a small
  * probability that shrinks as the host's pool grows, and every failure to build
@@ -98085,7 +98243,6 @@ var MW = {
   var MW = GLOB.MW;
   if (!MW || !SKILL_GEN || !R || !I_choice || !I_num) return;
 
-  var LAB = MW.LAB;                    /* MathWorld topic labels        */
   var GP = MW.GP;                      /* [host skill, topic label idx] */
   var ROW = MW.ROW;                    /* one row per MathWorld concept */
   var POOL = MW.POOL;                  /* rows per group                */
@@ -98131,13 +98288,6 @@ var MW = {
     return it;
   }
   function bump(lvl) { return (lvl - 3) * 0.25; }
-  function gp(rowIdx) { return GP[ROW[rowIdx][3]]; }
-  function monthOf(rowIdx) {
-    var row = MW.ROW[rowIdx];
-    var i = row ? row[10] : 0;
-    return (MW.MTH && MW.MTH[i]) || 'October 2026';
-  }
-  function label(rowIdx) { return LAB[gp(rowIdx)[1]]; }
 
   /* distractors: other entries whose description shares few of the words, so a
      wrong option really is a different idea and the card has one right answer */
@@ -98186,7 +98336,7 @@ var MW = {
       'Read each statement. Which one is the description of ' + name + '?'
     ];
     var prompt = stems[Math.floor(rng() * stems.length)];
-    var sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) + '.';
+    var sub = '';
     var wrong = [];
     for (k = 0; k < rest.length; k++) wrong.push(ROW[rest[k]][0]);
     var ex = [
@@ -98220,8 +98370,7 @@ var MW = {
        and the sentence starts where the mathematics starts. */
     var quote = alt.replace(/^This entry is\s+/i, '');
     quote = quote.charAt(0).toUpperCase() + quote.slice(1);
-    var sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) +
-      '. "' + quote + '"';
+    var sub = '"' + quote + '"';
     var wrong = [];
     for (k = 0; k < rest.length; k++) wrong.push(ROW[rest[k]][0]);
     var ex = [
@@ -98254,7 +98403,7 @@ var MW = {
     var listTxt = shown.join(', ');
     var prompt = '"' + row[0] + '" is associated with a sequence that begins ' + listTxt +
       ', ... What number comes next?';
-    var sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) + '.';
+    var sub = '';
     var ex = [
       'The listed terms are ' + listTxt + '.',
       'The gaps between the listed terms are ' + gaps.join(', ') + ', so the sequence continues ' + listTxt + ', ' + answer + '.',
@@ -98289,10 +98438,10 @@ var MW = {
       var prompt, sub, answer = q.n;
       if (q.ord) {
         prompt = 'The order of a finite group is the number of elements in it. What is the order of ' + row[0] + '?';
-        sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) + '.';
+        sub = '';
       } else {
         prompt = 'How many ' + q.u + ' does ' + row[0] + ' have?';
-        sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) + '. Answer with the number alone.';
+        sub = 'Answer with the number alone.';
       }
       if (leaks(prompt, sub, { k: 'n', v: answer })) continue;
       var other = [];
@@ -98321,7 +98470,7 @@ var MW = {
     var value = Math.round(parseFloat(row[8]) * Math.pow(10, dp)) / Math.pow(10, dp);
     var next = parseInt(digits[1].charAt(dp), 10);
     var prompt = 'What is ' + row[0] + ', correct to ' + dp + ' decimal ' + (dp === 1 ? 'place' : 'places') + '?';
-    var sub = 'New in MathWorld (' + monthOf(rowIdx) + '), topic: ' + label(rowIdx) + '. Write the decimal, e.g. 1.2.';
+    var sub = 'Write the decimal, e.g. 1.2.';
     var ex = [
       'The decimal expansion is ' + row[0] + ' = ' + row[8] + '...',
       'Keep ' + dp + ' decimal ' + (dp === 1 ? 'place' : 'places') + ' and look at the next digit, which is ' + next +
