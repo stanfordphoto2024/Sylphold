@@ -86876,6 +86876,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var c1 = m7[1] || '1', c2 = m7[3] || '1';
       out = [(+c1 + +c2) + m7[2] + ' + ' + (+c1 + +c2) + m7[4], c1 + m7[2] + c1 + m7[4], (+c1 + +c2) + m7[2], (+c1 + +c2) + m7[4]];
     }
+    var m9 = t.match(/^([0-9]+)\s*:\s*([0-9]+)$/);                    /* 2 : 9 */
+    if (m9 && !out.length) {
+      var q1 = +m9[1], q2 = +m9[2], mm = [2, 3, 4][hash(t) % 3];   /* no rng here: the answer form must be reproducible */
+      out = [(q1 * mm) + ':' + (q2 * mm), (q1 + mm) + ':' + (q2 + mm), q1 + ':' + (q2 * mm), (q1 * mm) + ':' + q2];
+      out = out.filter(function (x) { return x !== t; });
+    }
     var m8 = t.match(/^([a-z])([a-z])$/);                             /* l × w written lw */
     if (m8 && !out.length) out = [m8[1] + ' + ' + m8[2], '2' + m8[1] + m8[2], m8[2] + m8[1] + m8[1]];
     var m4 = t.match(/^([0-9]+)(?:\s*[×*]\s*10)?[⁰¹²³⁴⁵⁶⁷⁸⁹]/);      /* 4⁵, 3 × 10⁶ */
@@ -86990,6 +86996,21 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     s = s.replace(/\(\s*use\s*\u03C0\s*=\s*,\s*in\s*([^)]*?)\)\s*\./gi, ', in $1.');
     s = s.replace(/\(\s*use\s*\u03C0\s*=\s*\)\s*/gi, ' ');
     s = s.replace(/\(\s*=\s*\)/g, '');
+    /* an expression is not a sentence: "7 × (3 + 12) × 1. = ___" reads as a
+       typo. A point that follows a digit and precedes =, ? or the end is a
+       stray full stop — a decimal point (3.14) never matches, because a digit
+       follows the point there. */
+    var cut = '', i, ch, pv, nx;
+    for (i = 0; i < s.length; i++) {
+      ch = s.charAt(i);
+      if (ch === '.') {
+        pv = i ? s.charAt(i - 1) : '';
+        nx = i + 1 < s.length ? s.charAt(i + 1) : '';
+        if (/[0-9]/.test(pv) && (nx === '' || nx === '=' || nx === '?' || (nx === ' ' && i + 2 < s.length && s.charAt(i + 2) === '='))) continue;
+      }
+      cut += ch;
+    }
+    s = cut;
     var open = (s.match(/\(/g) || []).length, close = (s.match(/\)/g) || []).length;
     while (close > open && s.lastIndexOf(')') > s.length - 12) {
       var at = s.lastIndexOf(')');
@@ -87014,6 +87035,20 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     t = fixRegister(t);
     t = repairFragments(t);
     if (!t || t.length < 8 || /NaN|undefined|\[object/.test(t)) return item;
+    /* When the question asks for a quantity, the answer has to be the quantity.
+       A card that asks "how many does each friend get?" and then stores the
+       number sentence "12 ÷ 3 = 4" as the answer makes the learner type a
+       sentence; the number is taken from the sentence the card already holds. */
+    var qty = t.match(/^(?:.*?how (?:many|much)[^?]*\?)$/i);
+    if (qty && item.spec && item.spec.k === 'str' && !item.options) {
+      var ansTxt = String(item.answerText == null ? (item.spec.pats && item.spec.pats[0] || '') : item.answerText).trim();
+      var sm = ansTxt.match(/^(-?[0-9][0-9,.]*)\s*[+×÷−*\/]\s*(-?[0-9][0-9,.]*)\s*=\s*(-?[0-9][0-9,.]*)$/);
+      if (sm) {
+        var valTxt = sm[3];
+        item.spec = { k: 'n', v: parseFloat(valTxt.replace(/,/g, '')) };
+        item.answerText = valTxt;
+      }
+    }
     item.prompt = t;
     piAlts(item, sk);
     answerForm(item, sk);
@@ -87375,11 +87410,17 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   }
 
   /* ------------------------------------------------------- title reading ----- */
+  function uniq(a) {
+    var out = [], i, v;
+    for (i = 0; i < a.length; i++) { v = String(a[i]); if (v && out.indexOf(v) < 0) out.push(v); }
+    return out;
+  }
+
   var FAMILY_OF = [
     ['angles', /angle|degree|complementary|supplementary|vertical angle|straight line|protractor|turn\b/],
     ['measure', /area|perimeter|volume|surface area|circumference|\bdiameter\b|\bradius\b|prism|cylinder|pyramid|cone|sphere|\bcube\b|net\b/],
     ['exponents', /scientific notation|exponent|\bpowers?\b|square root|cube root|radical|integer exponent|zero exponent|negative exponent/],
-    ['ratio', /\bratios?\b|\bproportion\b|unit rate|rate per|\bscale\b|scale factor|similar figures|percent of change|percent change|constant of proportionality|equivalent ratio/],
+    ['ratio', /\bratios?\b|\bproportion\b|unit rate|rate per|\bscale\b|scale factor|similar figures|constant of proportionality|equivalent ratio/],
     ['stats', /mean\b|median|mode\b|range\b|outlier|quartile|interquartile|histogram|line plot|dot plot|bar graph|bar chart|scatter|two-way|frequency table|stem-and-leaf|box plot|data set|statistic|survey|population|sample\b|distribut/],
     ['prob', /probab|likely|unlikely|certain|unfair|sample space|outcome|event\b|simulation| Spinner|spinner/],
     ['coordinate', /coordinate|quadrant|ordered pair|plot the point|plot a point|distance between two|midpoint|slope|y-intercept|x-intercept|line of best|graph the line|reflect|rotation|rotation|translat|dilation|dilate|congruen|similar figures on the/],
@@ -87401,7 +87442,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var t = String(sk.name || '').toLowerCase(), i;
     /* A1 and up: the topic needs its own content, not an arithmetic re-reading.
        tools/smoke.js and tools/rigorcheck.js both report these as still to write. */
-    if (rank(sk) >= 14 && SENIOR_TOPIC.test(t)) return null;
+    if (rank(sk) >= 14) {
+      /* An A1-and-up title names the topic it wants practised. Sending "Solving
+         quadratics by completing the square" to a generic expression deck is how
+         two neighbouring skills end up printing the same card, so each senior
+         topic is matched to a deck written for it. */
+      if (/quadrat|parabola|vertex form|discriminant|zero product|completing the square|sum of the (?:the )?roots|product of the roots|maximum value|minimum value/.test(t)) return 'quadratics';
+      if (/polynomial|monomial|binomial|trinomial|degree of|leading coefficient|rational expression|end behavior|difference of two squares|factor (?:the )?(?:polynomial|completely|out the gcf)/.test(t)) return 'polynomials';
+      if (/logarithm|logarithmic|\blog\b|exponential (?:function|equation|growth|decay)|natural log|inverse of an exponential|doubling|half.?life/.test(t)) return 'logs';
+      if (/trigonometric|\bsine\b|\bcosine\b|\btangent\b|unit circle|reference angle|radian|amplitude|period|phase shift|pythagorean identity|reciprocal (?:trigonometric )?function|law of sines|law of cosines/.test(t)) return 'trig';
+      if (/\blimits?\b|derivative|differenti|tangent line|critical point|relative (?:max|min)|absolute (?:max|min)|increasing|decreasing|concav|continuity|discontinu|average rate of change|integral|antiderivative|sigma notation/.test(t)) return 'calculus';
+      if (SENIOR_TOPIC.test(t)) return null;
+    }
     /* "Subtraction up to three digits: fill in the missing digits" is about the
        subtraction, not about place value, whatever the word "digits" suggests. */
     if (/missing (the )?digits?|select the missing numbers|fill in the missing/.test(t) &&
@@ -88777,7 +88829,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         var inner = a + b, prod = c * inner;
-        return ask(rng, sk, 'Evaluate ' + c + ' × (' + a + ' + ' + b + ') × ' + 1 + '.', prod, [prod + c, inner + c, prod - c], {
+        return ask(rng, sk, 'What is the value of ' + c + ' × (' + a + ' + ' + b + ') + ' + b + '?', prod + b,
+          [prod, inner + c, prod - b], {
           lim: 900, teach: 'Work inside the parentheses first.',
           explain: explainOk(['The parentheses give ' + a + ' + ' + b + ' = ' + inner + '.', inner + ' × ' + c + ' = <b>' + prod + '</b>.'], prod) });
       },
@@ -89254,7 +89307,519 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     ];
   }
 
+  /* ================= HS decks: the senior topics in their own words =========
+     A1/A2/PC/MA titles used to fall through to a generic re-reading, which is
+     how two neighbouring skills ended up printing the same card. Each deck
+     below states the topic the way an exam does — a defined function, an exact
+     question, and answer choices that name a real mistake. */
+  function deckQuadratics(rng, lvl, sk) {
+    var ttl = String(sk.name || '').toLowerCase();
+    /* the deck was chosen because the title belongs to this topic; each form
+       states its own conditions, so any of them may answer any skill here */
+    var FAM = /quadrat|parabola|vertex|factor|root|solution|zero product|discriminant|maximum|minimum|solv|equation|function|graph|intercept/i;
+    var a = int(rng, 1, 3), r1 = int(rng, -6, 6), r2 = int(rng, -6, 6);
+    if (r1 === r2) r2 = r1 + 1;
+    var b = -(r1 + r2) * a, c = a * r1 * r2;
+    var lead = function (k) { return k === 1 ? '' : (k === -1 ? '−' : String(k)); };
+    var tri = function () {
+      var s = lead(a) + 'x²';
+      if (b) s += ' ' + (b < 0 ? '− ' : '+ ') + Math.abs(b) + 'x';
+      if (c) s += ' ' + (c < 0 ? '− ' : '+ ') + Math.abs(c);
+      return s;
+    };
+    var rootsTxt = 'x = ' + r1 + ' and x = ' + r2;
+    var wrongRoots = ['x = ' + (-r1) + ' and x = ' + (-r2), 'x = ' + r1 + ' and x = ' + (-r2), 'x = ' + (r1 + 1) + ' and x = ' + r2];
+    return [
+      function () {
+        var opts = R.shuffle(rng, uniq([rootsTxt, wrongRoots[0], wrongRoots[1], wrongRoots[2]]));
+        return I_choice('The solutions of ' + tri() + ' = 0 are which pair of values of x?',
+          opts, opts.indexOf(rootsTxt), {
+            teach: 'Factor the quadratic, then set each factor equal to zero.',
+            explain: explainOk(['Look for two numbers whose product is ' + (a * r1 * r2) + ' and whose sum is ' + b + '.', 'They are ' + r1 + ' and ' + r2 + ', so the factors are (x − ' + r1 + ')(x − ' + r2 + ') = 0.', 'The solutions are <b>' + rootsTxt + '</b>.'], rootsTxt),
+            visual: V.graph([{ expr: String(a) + '*x^2 + ' + b + '*x + ' + c, label: tri(), color: 1 }]) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var rightTxt = '(x − ' + r1 + ')(x − ' + r2 + ')';
+        var opts = R.shuffle(rng, [rightTxt, '(x + ' + r1 + ')(x + ' + r2 + ')', '(x − ' + r1 + ')(x + ' + r2 + ')', '(x + ' + r1 + ')(x − ' + r2 + ')']);
+        return I_choice('Which product of linear factors is equivalent to ' + tri() + '?',
+          opts, opts.indexOf(rightTxt), {
+            teach: 'Multiply the factors back out to check a factorization.',
+            explain: explainOk(['The middle coefficient is ' + b + ' and the constant is ' + c + '.', '(' + rightTxt + ') expands to ' + tri() + '.', 'The factorization is <b>' + rightTxt + '</b>.'], rightTxt) });
+      },
+      function () {
+        var d = b * b - 4 * a * c;
+        var how = d > 0 ? 'two real solutions' : (d === 0 ? 'exactly one real solution' : 'no real solution');
+        var opts = R.shuffle(rng, uniq([how, 'two real solutions', 'exactly one real solution', 'no real solution']));
+        return I_choice('Without solving, how many real solutions does ' + tri() + ' = 0 have?',
+          opts, opts.indexOf(how), {
+            teach: 'The discriminant b² − 4ac tells how many real solutions a quadratic has.',
+            explain: explainOk(['b² − 4ac = ' + b + '² − 4 × ' + a + ' × ' + c + ' = ' + d + '.', d + ' is ' + (d > 0 ? 'positive, so the square root gives two different values.' : d === 0 ? 'zero, so the square root adds nothing and the two roots coincide.' : 'negative, so no real number squares to it.'), 'The equation has <b>' + how + '</b>.'], how) });
+      },
+      function () {
+        var h = int(rng, -5, 5), k = int(rng, -6, 6);
+        var hTxt = h < 0 ? 'x + ' + (-h) : 'x − ' + h;            /* (x − -3)² is never printed */
+        var vTxt = k < 0 ? ' − ' + (-k) : ' + ' + k;
+        var right = '(' + h + ', ' + k + ')';
+        var opts = R.shuffle(rng, [right, '(' + (-h) + ', ' + k + ')', '(' + h + ', ' + (-k) + ')', '(' + k + ', ' + h + ')']);
+        return I_choice('A quadratic function is f(x) = (' + hTxt + ')²' + vTxt + '. What are the coordinates of its vertex?',
+          opts, opts.indexOf(right), {
+            teach: 'In vertex form f(x) = a(x − h)² + k, the vertex is (h, k).',
+            explain: explainOk(['(' + hTxt + ')² is smallest, equal to 0, when x = ' + h + '.', 'At that x the value of f is ' + k + '.', 'The vertex is <b>' + right + '</b>.'], right),
+            visual: V.graph([{ expr: '(x - ' + h + ')^2 + ' + k, label: 'f(x) = (' + hTxt + ')²' + vTxt, color: 1 }]) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var opens = R.chance(rng, 0.5), hh = int(rng, -4, 6), kk = int(rng, -8, 12);
+        var val = kk, kind = opens ? 'maximum' : 'minimum';
+        var opts = R.shuffle(rng, uniq([String(val), String(-val), String(hh), String(val + 1), String(val - 1)]));
+        return I_choice('A parabola has vertex (' + hh + ', ' + kk + ') and opens ' + (opens ? 'upward' : 'downward') + '. What is its ' + kind + ' value?',
+          opts, opts.indexOf(String(val)), {
+            teach: 'The vertex is the turning point, so the y-coordinate of the vertex is the maximum or minimum value.',
+            explain: explainOk(['A parabola that opens ' + (opens ? 'downward has a maximum' : 'upward has a minimum') + ' at its vertex.', 'The vertex is (' + hh + ', ' + kk + '), so the ' + kind + ' value is the y-coordinate.', 'The ' + kind + ' value is <b>' + val + '</b>.'], val) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var p = 2 * int(rng, 1, 5), q = int(rng, -9, 9);
+        var hh = p / 2, kk = hh * hh - q;
+        return ask(rng, sk, 'The equation x² + ' + p + 'x + ' + q + ' = 0 is rewritten in the form (x + ' + hh + ')² = ' + kk + '. What is the value on the right-hand side?', kk,
+          [hh * hh, -kk, q], { lim: 200,
+            teach: 'Completing the square moves the constant across and adds (b ÷ 2)² to both sides.',
+            explain: explainOk(['Half of ' + p + ' is ' + hh + ', and ' + hh + '² = ' + (hh * hh) + '.', 'Moving the constant ' + q + ' to the right gives ' + (hh * hh) + ' − (' + q + ') = ' + kk + '.', 'The right-hand side is <b>' + kk + '</b>.'], kk) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var ask2 = R.chance(rng, 0.5);
+        var want = ask2 ? -(b / a) : (c / a), nm = ask2 ? 'sum' : 'product';
+        var opts = R.shuffle(rng, uniq([String(want), String(-want), String(ask2 ? (c / a) : -(b / a)), String(want + b)]));
+        return I_choice('For the equation ' + tri() + ' = 0, what is the ' + nm + ' of the two solutions?',
+          opts, opts.indexOf(String(want)), {
+            teach: 'For ax² + bx + c = 0 the solutions add to −b ÷ a and multiply to c ÷ a.',
+            explain: explainOk(['Here a = ' + a + ', b = ' + b + ', c = ' + c + '.', 'The solutions ' + r1 + ' and ' + r2 + ' ' + (ask2 ? 'add to ' + (r1 + r2) + ' = −(' + b + ') ÷ ' + a : 'multiply to ' + (r1 * r2) + ' = ' + c + ' ÷ ' + a) + '.', 'The ' + nm + ' is <b>' + want + '</b>.'], want) });
+      },
+      function () {
+        var z = int(rng, 1, 6);
+        var right = rootsTxt;
+        var opts = R.shuffle(rng, [right, 'x = 0 only', 'x = ' + z + ' only', 'x = ' + z * z]);
+        return I_choice('The graph of y = ' + tri() + ' crosses the x-axis at which values of x?',
+          opts, opts.indexOf(right), {
+            teach: 'The x-intercepts are the solutions of the equation when y = 0.',
+            explain: explainOk(['Set y = 0: ' + tri() + ' = 0.', 'The solutions are ' + rootsTxt + '.', 'The graph crosses at <b>' + right + '</b>.'], right),
+            visual: V.graph([{ expr: String(a) + '*x^2 + ' + b + '*x + ' + c, label: tri(), color: 1 }], { marks: [r1, r2] }) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var m = int(rng, 2, 6), zz = int(rng, 1, 4);
+        if (m === 2 * zz) m += 1;                    /* two different intersection points */
+        var xs = [zz, m - zz];                       /* x² − mx + (mz − z²) = 0 */
+        var rightTxt = '(' + xs[0] + ', ' + (m * xs[0]) + ') and (' + xs[1] + ', ' + (m * xs[1]) + ')';
+        var opts = R.shuffle(rng, [rightTxt, '(' + xs[1] + ', ' + (m * xs[0]) + ') and (' + xs[0] + ', ' + (m * xs[1]) + ')', '(0, 0) and (' + xs[1] + ', ' + (m * xs[1]) + ')']);
+        return I_choice('A line y = ' + m + 'x and a parabola y = x² + ' + (m * zz - zz * zz) + ' are graphed on the same axes. Which points do they share?',
+          opts, opts.indexOf(rightTxt), {
+            teach: 'Set the two expressions for y equal and solve the resulting quadratic.',
+            explain: explainOk(['x² + ' + (m * zz - zz * zz) + ' = ' + m + 'x gives x = ' + xs[0] + ' or x = ' + xs[1] + '.', 'Each x is paired with y = ' + m + 'x.', 'The shared points are <b>' + rightTxt + '</b>.'], rightTxt),
+            visual: V.coord({ pts: [{ x: xs[0], y: m * xs[0], label: '(' + xs[0] + ', ' + (m * xs[0]) + ')' }, { x: xs[1], y: m * xs[1], label: '(' + xs[1] + ', ' + (m * xs[1]) + ')' }], lines: [{ m: m, b: 0 }] }) });
+      }
+    ];
+  }
+
+  function deckPolynomials(rng, lvl, sk) {
+    var ttl = String(sk.name || '').toLowerCase();
+    /* the deck was chosen because the title belongs to this topic; each form
+       states its own conditions, so any of them may answer any skill here */
+    var FAM = /polynomial|monomial|binomial|trinomial|expression|factor|simplify|expand|degree|leading|rational|undefined|restrict|domain|term|equation|solv|end behavior/i;
+    var p1 = int(rng, 2, 6), p2 = int(rng, 1, 5), p3 = int(rng, 1, 7);
+    var s1 = int(rng, 1, 6), s2 = int(rng, 1, 6);
+    return [
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var right = (p1 + p2) + 'x² + ' + (p3 + 1) + 'x';
+        var opts = R.shuffle(rng, uniq([right, (p1 + p2) + 'x² + ' + p3 + 'x', (p1 + p2 + 1) + 'x² + ' + (p3 + 1) + 'x', (2 * p1) + 'x⁴ + ' + (2 * p3) + 'x²']));
+        return I_choice('Add the polynomials: (' + p1 + 'x² + ' + p3 + 'x) + (' + p2 + 'x² + ' + 1 + 'x). Which is the sum?',
+          opts, opts.indexOf(right), {
+            teach: 'Only like terms — terms with the same variable and exponent — may be combined.',
+            explain: explainOk(['The x² terms give ' + p1 + ' + ' + p2 + ' = ' + (p1 + p2) + '.', 'The x terms give ' + p3 + ' + 1 = ' + (p3 + 1) + '.', 'The sum is <b>' + right + '</b>.'], right) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var right2 = 'x² + ' + (s1 - s2) + 'x − ' + (s1 * s2);
+        var opts2 = R.shuffle(rng, uniq(['x² + ' + (s1 + s2) + 'x − ' + (s1 * s2), right2, 'x² + ' + (s1 - s2) + 'x + ' + (s1 * s2), 'x² − ' + (s1 * s2)]));
+        return I_choice('Expand the product (x + ' + s1 + ')(x − ' + s2 + '). Which polynomial is equivalent?',
+          opts2, opts2.indexOf(right2), {
+            teach: 'Multiply each term of one factor by each term of the other, then combine like terms.',
+            explain: explainOk(['x · x = x², x · (−' + s2 + ') = −' + s2 + 'x, ' + s1 + ' · x = ' + s1 + 'x, ' + s1 + ' · (−' + s2 + ') = −' + (s1 * s2) + '.', 'The x-terms combine to ' + (s1 - s2) + 'x.', 'The product is <b>' + right2 + '</b>.'], right2) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var c = int(rng, 1, 4);
+        var right3;
+        right3 = '4x² − ' + (4 * c) + 'x + ' + (c * c);
+        var opts3 = R.shuffle(rng, uniq([right3, '4x² + ' + (4 * c) + 'x + ' + (c * c), '4x² − ' + (2 * c) + 'x + ' + (c * c), '2x² − ' + (4 * c) + 'x + ' + (c * c)]));
+        return I_choice('Which polynomial is equivalent to (2x − ' + c + ')²?',
+          opts3, opts3.indexOf(right3), {
+            teach: '(a − b)² = a² − 2ab + b²; the middle term keeps the sign of the binomial.',
+            explain: explainOk(['(2x)² = 4x² and 2 · 2x · ' + c + ' = ' + (4 * c) + 'x, ' + c + '² = ' + (c * c) + '.', 'So (2x − ' + c + ')² = 4x² − ' + (4 * c) + 'x + ' + (c * c) + '.', 'The product is <b>' + right3 + '</b>.'], right3) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var g = pick(rng, [2, 3, 4, 6]), e1 = int(rng, 2, 4), e2 = e1 - 1, co = pick(rng, [3, 5, 7]);
+        var right4 = g + 'x' + sup(e1) + '(' + (co * 2) + 'x + ' + 3 + ')';
+        var expanded = (g * co * 2) + 'x' + sup(e1 + 1) + ' + ' + (g * 3) + 'x' + sup(e1);
+        var opts4 = R.shuffle(rng, uniq([right4, g + 'x' + sup(e1) + '(' + (co * 2) + 'x − 3)', g + 'x' + sup(e2) + '(' + (co * 2) + 'x + 3)', (g * 2) + 'x' + sup(e1) + '(' + co + 'x + 3)']));
+        return I_choice('Which expression is the complete factorization of ' + expanded + '?',
+          opts4, opts4.indexOf(right4), {
+            teach: 'Factor out the greatest common factor, including the variable with the smallest exponent.',
+            explain: explainOk(['The coefficients ' + (g * co * 2) + ' and ' + (g * 3) + ' share the factor ' + g + '; the powers share x' + sup(e1) + '.', 'Dividing each term by ' + g + 'x' + sup(e1) + ' leaves ' + (co * 2) + 'x + 3.', 'The factorization is <b>' + right4 + '</b>.'], right4) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var u = int(rng, 2, 5), w = int(rng, 1, 4);
+        var right5 = '(' + u + 'x − ' + w + ')(' + u + 'x + ' + w + ')';
+        var poly = (u * u) + 'x² − ' + (w * w);
+        var opts5 = R.shuffle(rng, uniq([right5, '(' + u + 'x − ' + w + ')²', '(' + u + 'x + ' + w + ')²', '(' + u + 'x − ' + (w * w) + ')(' + u + 'x + ' + (w * w) + ')']));
+        return I_choice('Which product is equivalent to ' + poly + '?',
+          opts5, opts5.indexOf(right5), {
+            teach: 'A difference of two squares factors as (a − b)(a + b).',
+            explain: explainOk(['' + (u * u) + 'x² = (' + u + 'x)² and ' + (w * w) + ' = ' + w + '².', 'A difference of squares factors into a sum and a difference of the same two terms.', 'The product is <b>' + right5 + '</b>.'], right5) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var hi = int(rng, 3, 6), lo = int(rng, 1, 2);
+        if (R.chance(rng, 0.5)) {
+          var opts6 = R.shuffle(rng, uniq([String(hi), String(hi + lo), String(hi * lo), String(lo)]));
+          return I_choice('What is the degree of the polynomial ' + pick(rng, [3, 5, 7]) + 'x' + sup(hi) + ' + ' + pick(rng, [2, 4]) + 'x' + sup(lo) + ' + 9?',
+            opts6, opts6.indexOf(String(hi)), {
+              teach: 'The degree of a polynomial in one variable is the highest exponent that appears.',
+              explain: explainOk(['The exponents that appear are ' + hi + ' and ' + lo + '; the constant has none.', 'The highest is ' + hi + '.', 'The degree is <b>' + hi + '</b>.'], hi) });
+        }
+        var neg = R.chance(rng, 0.5);
+        var right7 = (neg ? 'f(x) → −∞' : 'f(x) → ∞') + ' as x → ∞';
+        var opts7 = R.shuffle(rng, uniq([right7, (neg ? 'f(x) → ∞' : 'f(x) → −∞') + ' as x → ∞', 'f(x) → 0 as x → ∞', 'f(x) stays the same as x → ∞']));
+        return I_choice('Let f(x) = ' + (neg ? '−' : '') + (int(rng, 2, 4)) + 'x' + sup(2 * int(rng, 1, 3)) + ' + 3x − 7. As x gets larger and larger, what happens to the values of f(x)?',
+          opts7, opts7.indexOf(right7), {
+            teach: 'For large x only the leading term matters, so the sign of its coefficient decides.',
+            explain: explainOk(['The leading term is ' + (neg ? '−' : '') + 'a positive number times an even power of x.', neg ? 'An even power is positive, and the minus sign makes the term negative.' : 'The term therefore grows without bound.', 'As x → ∞, <b>' + right7 + '</b>.'], right7) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var y1 = int(rng, 1, 7), y2 = int(rng, 1, 7);
+        var want = Math.max(y1, y2);
+        return ask(rng, sk, 'The equation (x − ' + y1 + ')(x + ' + y2 + ') = 0 has two solutions. What is the greater solution?', want,
+          [-want, y1 + y2, -y2], { lim: 40,
+            teach: 'A product is zero only when one of its factors is zero.',
+            explain: explainOk(['x − ' + y1 + ' = 0 gives x = ' + y1 + '; x + ' + y2 + ' = 0 gives x = −' + y2 + '.', 'Comparing ' + y1 + ' and −' + y2 + ', the greater solution is ' + want + '.', 'The greater solution is <b>' + want + '</b>.'], want) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var v = int(rng, 2, 7);
+        if (R.chance(rng, 0.5)) {
+          return ask(rng, sk, 'For which value of x is the expression (x + ' + v + ') ÷ (x − ' + v + ') undefined?', v,
+            [-v, 0, v + 1], { lim: 40,
+              teach: 'A rational expression is undefined exactly where its denominator equals zero.',
+              explain: explainOk(['The denominator is x − ' + v + '.', 'It equals zero when x = ' + v + ', and division by zero is undefined.', 'The expression is undefined at <b>' + v + '</b>.'], v) });
+        }
+        var right8 = 'x + ' + v;
+        var opts8 = R.shuffle(rng, uniq([right8, 'x − ' + v, '(' + v + ')', 'x² − ' + v]));
+        return I_choice('The expression (x² − ' + (v * v) + ') ÷ (x − ' + v + ') simplifies to which expression, for x ≠ ' + v + '?',
+          opts8, opts8.indexOf(right8), {
+            teach: 'Factor the denominator out of the numerator and cancel the common factor.',
+            explain: explainOk(['x² − ' + (v * v) + ' = (x − ' + v + ')(x + ' + v + ').', 'The factor (x − ' + v + ') cancels, which is allowed only when x ≠ ' + v + '.', 'The simplified expression is <b>' + right8 + '</b>.'], right8) });
+      }
+    ];
+  }
+
+  function deckLogs(rng, lvl, sk) {
+    var ttl = String(sk.name || '').toLowerCase();
+    /* the deck was chosen because the title belongs to this topic; each form
+       states its own conditions, so any of them may answer any skill here */
+    var FAM = /log|exponenti|inverse|growth|decay|doubling|half.?life|equation|solv|evaluat|function|power|propert|rewrit|form/i;
+    var bse = pick(rng, [2, 3, 5]), ex = int(rng, 2, 5), val = Math.pow(bse, ex);
+    var supT = function (n) { return String(n).replace(/\d/g, function (d) { return '⁰¹²³⁴⁵⁶⁷⁸⁹'.charAt(+d); }); };
+    return [
+      function () {
+        if (!FAM.test(ttl)) return null;
+        return ask(rng, sk, 'Evaluate log' + supT(bse) + ' ' + val + '.', ex, [ex + 1, ex - 1, val / bse], { lim: 20,
+          teach: 'log base b of N is the exponent that b must be raised to in order to give N.',
+          explain: explainOk(['' + bse + supT(ex) + ' = ' + val + '.', 'So log' + supT(bse) + ' ' + val + ' = ' + ex + '.', 'The value is <b>' + ex + '</b>.'], ex) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var right = 'log' + supT(bse) + ' ' + val + ' = ' + ex;
+        var opts = R.shuffle(rng, uniq([right, 'log' + supT(ex) + ' ' + val + ' = ' + bse, 'log' + supT(bse) + ' ' + ex + ' = ' + val, val + ' = ' + bse + ' × ' + ex]));
+        return I_choice('The equation ' + bse + supT(ex) + ' = ' + val + ' can be stated in logarithmic form. Which statement is it?',
+          opts, opts.indexOf(right), {
+            teach: 'bᵏ = N means exactly log base b of N equals k.',
+            explain: explainOk(['The base stays the base: ' + bse + '.', 'The exponent ' + ex + ' becomes the value of the logarithm, and ' + val + ' becomes its input.', 'The logarithmic form is <b>' + right + '</b>.'], right) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var right2 = 'log' + supT(bse) + '(x · y)';
+        var opts2 = R.shuffle(rng, uniq([right2, 'log' + supT(bse) + '(x + y)', 'log' + supT(bse) + '(x ÷ y)', supT(bse) + ' · log(x · y)']));
+        return I_choice('Write log' + supT(bse) + ' x + log' + supT(bse) + ' y as a single logarithm. Which is correct?',
+          opts2, opts2.indexOf(right2), {
+            teach: 'The product rule: log b M + log b N = log b (MN).',
+            explain: explainOk(['Adding two logarithms with the same base multiplies their inputs.', 'So log' + supT(bse) + ' x + log' + supT(bse) + ' y = log' + supT(bse) + '(x · y).', 'The single logarithm is <b>' + right2 + '</b>.'], right2) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var k = int(rng, 2, 5), target = Math.pow(bse, k);
+        return ask(rng, sk, 'Solve ' + bse + 'ˣ = ' + target + '. What is x?', k, [k + 1, target / bse, target], { lim: 40,
+          teach: 'Write both sides with the same base and then set the exponents equal.',
+          explain: explainOk(['' + target + ' = ' + bse + supT(k) + '.', 'With the same base on both sides the exponents must match.', 'x = <b>' + k + '</b>.'], k) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var kk = int(rng, 1, 4), sh = int(rng, 1, 6), sol = Math.pow(bse, kk) - sh;
+        return ask(rng, sk, 'Solve log' + supT(bse) + '(x + ' + sh + ') = ' + kk + '. What is x?', sol,
+          [Math.pow(bse, kk), sol + 1, sol - sh], { lim: 200,
+            teach: 'Rewrite the logarithm in exponential form, then undo the shift.',
+            explain: explainOk(['x + ' + sh + ' = ' + bse + supT(kk) + ' = ' + Math.pow(bse, kk) + '.', 'Subtract ' + sh + ' from both sides.', 'x = <b>' + sol + '</b>.'], sol) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var start = pick(rng, [40, 50, 100, 200]), rounds = int(rng, 2, 4), per = int(rng, 1, 4);
+        var fin = start * Math.pow(2, rounds);
+        return ask(rng, sk, 'A culture of ' + start + ' bacteria doubles every ' + per + ' hours. After ' + (per * rounds) + ' hours, how many bacteria are there?', fin,
+          [start * rounds, fin / 2, fin + start], { lim: 100000,
+            teach: 'Repeated doubling is modelled by N = N₀ · 2^(t ÷ doubling period).',
+            explain: explainOk(['In ' + (per * rounds) + ' hours there are ' + (per * rounds) + ' ÷ ' + per + ' = ' + rounds + ' doublings.', start + ' × 2' + supT(rounds) + ' = ' + fin + '.', 'The culture holds <b>' + fin + '</b> bacteria.'], fin) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var k3 = int(rng, 1, 5);
+        return ask(rng, sk, 'A function is f(x) = ' + bse + 'ˣ. Its inverse gives the input when the output is ' + Math.pow(bse, k3) + '. What is that input?', k3,
+          [k3 + 1, Math.pow(bse, k3), bse * k3], { lim: 40,
+            teach: 'An inverse function returns the original input, which for an exponential is a logarithm.',
+            explain: explainOk(['Solve ' + bse + 'ˣ = ' + Math.pow(bse, k3) + '.', 'x = ' + k3 + ', which is log' + supT(bse) + ' ' + Math.pow(bse, k3) + '.', 'The input is <b>' + k3 + '</b>.'], k3) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var p = int(rng, 2, 4);
+        var right3 = supT(p) + ' · log' + supT(bse) + ' x';
+        var opts3 = R.shuffle(rng, uniq([right3, 'log' + supT(bse) + ' x' + supT(p), '(' + p + ')ˣ · log' + supT(bse) + ' x', 'log' + supT(bse) + '(x ÷ ' + p + ')']));
+        return I_choice('Which expression is equivalent to log' + supT(bse) + ' x' + supT(p) + '?',
+          opts3, opts3.indexOf(right3), {
+            teach: 'The power rule: log b (Mᵏ) = k · log b M.',
+            explain: explainOk(['An exponent inside a logarithm may be moved in front as a factor.', 'So log' + supT(bse) + ' x' + supT(p) + ' = ' + p + ' · log' + supT(bse) + ' x.', 'The equivalent expression is <b>' + right3 + '</b>.'], right3) });
+      }
+    ];
+  }
+
+  function deckTrig(rng, lvl, sk) {
+    var ttl = String(sk.name || '').toLowerCase();
+    /* the deck was chosen because the title belongs to this topic; each form
+       states its own conditions, so any of them may answer any skill here */
+    var FAM = /trigonometr|sine|cosine|tangent|cot|sec\b|csc\b|unit circle|angle|radian|triangle|identit|amplitude|period|reference|quadrant|reciprocal|exact value|ratio|side/i;
+    var trip = pick(rng, [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25]]);
+    var SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+    var supT = function (n) { return String(n).replace(/\d/g, function (d) { return SUP.charAt(+d); }); };
+    var ANGLE = [[30, '1/2', '√3/2', '√3/3'], [45, '√2/2', '√2/2', '1'], [60, '√3/2', '1/2', '√3']];
+    return [
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var which = int(rng, 0, 1), legs = [trip[0], trip[1]], hyp = trip[2];
+        var known = legs[which], want = legs[1 - which];
+        return ask(rng, sk, 'In a right triangle one leg measures ' + known + ' units and the hypotenuse measures ' + hyp + ' units. What is the length, in units, of the other leg?', want,
+          [hyp - known, known + 1, legs[which] === trip[0] ? trip[1] + 2 : trip[0] + 2], { lim: 60,
+            teach: 'Use the Pythagorean theorem, a² + b² = c², and solve for the unknown leg.',
+            explain: explainOk(['' + known + '² + b² = ' + hyp + '², so b² = ' + (hyp * hyp) + ' − ' + (known * known) + ' = ' + (want * want) + '.', 'The positive square root is the length.', 'The other leg is <b>' + want + '</b> units.'], want) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var right = 'the opposite leg ÷ the hypotenuse';
+        var opts = R.shuffle(rng, uniq([right, 'the adjacent leg ÷ the hypotenuse', 'the opposite leg ÷ the adjacent leg', 'the hypotenuse ÷ the opposite leg']));
+        return I_choice('For an acute angle θ in a right triangle, sin θ is defined as which ratio?',
+          opts, opts.indexOf(right), {
+            teach: 'SOH-CAH-TOA: sine is opposite over hypotenuse, cosine is adjacent over hypotenuse, tangent is opposite over adjacent.',
+            explain: explainOk(['Label the sides with respect to θ: the side across from θ is the opposite leg, the side next to θ is the adjacent leg, and the longest side is the hypotenuse.', 'By definition the sine of θ is the opposite leg divided by the hypotenuse.', 'sin θ = <b>' + right + '</b>.'], right) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var row = pick(rng, ANGLE), fn = pick(rng, ['sin', 'cos', 'tan']);
+        var right2 = row[fn === 'sin' ? 1 : fn === 'cos' ? 2 : 3];
+        var opts2 = R.shuffle(rng, uniq([right2, row[1], row[2], row[3]]));
+        return I_choice('Without a calculator, give the exact value of ' + fn + ' ' + row[0] + '°.',
+          opts2, opts2.indexOf(right2), {
+            teach: 'The 30-60-90 and 45-45-90 triangles give the exact values of the special angles.',
+            explain: explainOk(['A ' + row[0] + '° angle belongs to a ' + (row[0] === 45 ? '45-45-90' : '30-60-90') + ' triangle, whose sides are in a fixed ratio.', 'Reading ' + fn + ' ' + row[0] + '° off that triangle gives ' + right2 + '.', 'The exact value is <b>' + right2 + '</b>.'], right2) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var degs = pick(rng, [120, 135, 210, 225, 240, 300, 315, 330]);
+        var quad = degs < 90 ? 1 : degs < 180 ? 2 : degs < 270 ? 3 : 4;
+        var ref = degs < 180 ? 180 - degs : degs < 270 ? degs - 180 : 360 - degs;
+        if (R.chance(rng, 0.5)) {
+          var right3 = 'Quadrant ' + ['I', 'II', 'III', 'IV'][quad - 1];
+          var opts3 = R.shuffle(rng, uniq(['Quadrant I', 'Quadrant II', 'Quadrant III', 'Quadrant IV']));
+          return I_choice('An angle in standard position measures ' + degs + '°. On which quadrant does its terminal side lie?',
+            opts3, opts3.indexOf(right3), {
+              teach: 'Quadrants are read from the positive x-axis: 0°-90° is I, 90°-180° is II, 180°-270° is III, 270°-360° is IV.',
+              explain: explainOk(['' + degs + '° is between ' + (quad - 1) * 90 + '° and ' + quad * 90 + '°.', 'That is quadrant ' + ['I', 'II', 'III', 'IV'][quad - 1] + '.', 'The terminal side lies in <b>' + right3 + '</b>.'], right3) });
+        }
+        var right4 = String(ref) + '°';
+        var opts4 = R.shuffle(rng, uniq([right4, String(degs) + '°', String(180 - ref) + '°', String(90 - ref > 0 ? 90 - ref : ref) + '°']));
+        return I_choice('Find the reference angle for ' + degs + '°. The reference angle is the acute angle the terminal side makes with the x-axis.',
+          opts4, opts4.indexOf(right4), {
+            teach: 'The reference angle is the distance from the terminal side to the nearest x-axis.',
+            explain: explainOk(['' + degs + '° lies in quadrant ' + ['I', 'II', 'III', 'IV'][quad - 1] + ', so the nearest x-axis is at ' + (quad === 2 ? '180°' : quad === 3 ? '180°' : '360°') + '.', quad === 2 ? '180° − ' + degs + '° = ' + ref + '°.' : quad === 3 ? degs + '° − 180° = ' + ref + '°.' : '360° − ' + degs + '° = ' + ref + '°.', 'The reference angle is <b>' + right4 + '</b>.'], right4) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        if (R.chance(rng, 0.5)) {
+          var right5 = '1';
+          var opts5 = R.shuffle(rng, uniq([right5, 'sin²θ', 'cos²θ', '2']));
+          return I_choice('Simplify sin²θ + cos²θ.',
+            opts5, opts5.indexOf(right5), {
+              teach: 'The Pythagorean identity states sin²θ + cos²θ = 1 for every angle θ.',
+              explain: explainOk(['On the unit circle a point is (cos θ, sin θ) and its distance from the origin is 1.', 'The Pythagorean theorem then gives cos²θ + sin²θ = 1.', 'The expression simplifies to <b>1</b>.'], right5) });
+        }
+        var right6 = 'sin²θ';
+        var opts6 = R.shuffle(rng, uniq([right6, 'cos²θ', '1', '2 sin θ cos θ']));
+        return I_choice('Simplify 1 − cos²θ.',
+          opts6, opts6.indexOf(right6), {
+            teach: 'Rearrange the Pythagorean identity sin²θ + cos²θ = 1.',
+            explain: explainOk(['Start from sin²θ + cos²θ = 1.', 'Subtract cos²θ from both sides.', 'The result is <b>' + right6 + '</b>.'], right6) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var num = int(rng, 3, 8), den = pick(rng, [10, 13, 15]);
+        if (num >= den) num = den - 1;
+        var fracTxt = num + '/' + den;
+        var opts7 = R.shuffle(rng, uniq([fracTxt, (den - num) + '/' + den, den + '/' + num, '1 − ' + fracTxt]));
+        return I_choice('For an acute angle θ, sin θ = ' + fracTxt + '. What is the value of cos(90° − θ)?',
+          opts7, opts7.indexOf(fracTxt), {
+            teach: 'Sine and cosine are co-functions: cos(90° − θ) = sin θ, because the two acute angles of a right triangle add to 90°.',
+            explain: explainOk(['The angle 90° − θ is the other acute angle of the same right triangle.', 'Its cosine is the same ratio that θ has as a sine.', 'cos(90° − θ) = <b>' + fracTxt + '</b>.'], fracTxt) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var amp = int(rng, 2, 5), k = pick(rng, [1, 2, 3]);
+        if (R.chance(rng, 0.5)) {
+          var right8 = String(amp);
+          var opts8 = R.shuffle(rng, uniq([right8, String(amp * k), String(2 * amp), String(amp + k)]));
+          return I_choice('A function is y = ' + amp + ' sin(' + k + 'x). What is its amplitude?',
+            opts8, opts8.indexOf(right8), {
+              teach: 'In y = a sin(kx) the amplitude is |a|, the greatest distance the graph reaches from its midline.',
+              explain: explainOk(['The graph of sine moves between −1 and 1.', 'Multiplying by ' + amp + ' moves it between −' + amp + ' and ' + amp + ', and the factor ' + k + ' only changes how fast it repeats.', 'The amplitude is <b>' + right8 + '</b>.'], right8) });
+        }
+        var per = k === 1 ? '2π' : (k === 2 ? 'π' : '2π/' + k);
+        var opts9 = R.shuffle(rng, uniq([per, '2π/' + amp, String(k) + 'π', 'π/' + k]));
+        return I_choice('A function is y = ' + amp + ' sin(' + k + 'x). What is its period?',
+          opts9, opts9.indexOf(per), {
+            teach: 'The period of y = a sin(kx) is 2π ÷ k.',
+            explain: explainOk(['Sine completes one cycle in 2π.', 'The factor ' + k + ' inside the argument compresses the graph, so one cycle takes 2π ÷ ' + k + ' = ' + per + '.', 'The period is <b>' + per + '</b>.'], per) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var right10 = '2';
+        var opts10 = R.shuffle(rng, uniq([right10, '1/2', '√2', '2/√3']));
+        return I_choice('Without a calculator, give the exact value of sec 60°.',
+          opts10, opts10.indexOf(right10), {
+            teach: 'sec θ is the reciprocal of cos θ, and cos 60° = 1/2.',
+            explain: explainOk(['cos 60° = 1/2.', 'sec 60° = 1 ÷ (1/2) = 2.', 'The exact value is <b>2</b>.'], right10) });
+      }
+    ];
+  }
+
+  function deckCalculus(rng, lvl, sk) {
+    var ttl = String(sk.name || '').toLowerCase();
+    /* the deck was chosen because the title belongs to this topic; each form
+       states its own conditions, so any of them may answer any skill here */
+    var FAM = /limit|derivativ|differenti|tangent|slope|rate of change|continuous|discontinu|critical|extrem|maximum|minimum|increasing|decreasing|integrat|antiderivative|approach|function|polynomial|rational/i;
+    var SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+    var supT = function (n) { return String(n).replace(/\d/g, function (d) { return SUP.charAt(+d); }); };
+    var a = int(rng, 2, 5), bb = int(rng, 1, 6), cc = int(rng, 1, 9), at = int(rng, 1, 5);
+    return [
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var val = a * at * at + bb * at + cc;
+        return ask(rng, sk, 'Evaluate the limit of ' + a + 'x² + ' + bb + 'x + ' + cc + ' as x approaches ' + at + '.', val,
+          [val + a, val - bb, a * at * at + cc], { lim: 400,
+            teach: 'A polynomial is continuous everywhere, so its limit at a point is its value there.',
+            explain: explainOk(['Substitute x = ' + at + ': ' + a + ' · ' + (at * at) + ' + ' + bb + ' · ' + at + ' + ' + cc + '.', 'That is ' + (a * at * at) + ' + ' + (bb * at) + ' + ' + cc + ' = ' + val + '.', 'The limit is <b>' + val + '</b>.'], val) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var v = int(rng, 2, 6), m = int(rng, 1, 4);
+        var lim = 2 * v + m;
+        return ask(rng, sk, 'Evaluate the limit of (x² + ' + (v + m) + 'x + ' + (v * m) + ') ÷ (x − ' + (-v) + ') as x approaches ' + (-v) + ' — the value the function approaches at the hole.', lim,
+          [v * m, lim + 1, -lim], { lim: 200,
+            teach: 'Factor first: the common factor cancels, and the simplified function gives the limit even though the original is undefined there.',
+            explain: explainOk(['x² + ' + (v + m) + 'x + ' + (v * m) + ' = (x + ' + v + ')(x + ' + m + ').', v === m ? 'The numerator and the denominator share the factor (x + ' + v + '), so cancelling it leaves the constant ' + m + '.' : 'The factor (x + ' + v + ') cancels with the denominator, which is allowed because a limit never asks for the value at the point itself, leaving x + ' + m + '.', 'As x approaches −' + v + ', that expression approaches −' + v + ' + ' + m + ' = ' + (m - v) + '.', 'The limit is <b>' + (m - v) + '</b>.'], m - v) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var t = int(rng, 1, 4), step = 2, target = 3 * t + 1;
+        var rows = [[String(t - 0.1), String(Math.round((3 * (t - 0.1) + 1) * 1000) / 1000)], [String(t), '—'], [String(t + 0.1), String(Math.round((3 * (t + 0.1) + 1) * 1000) / 1000)]];
+        var right2 = String(target);
+        var opts2 = R.shuffle(rng, uniq([right2, 'the limit does not exist', String(target + 1), '—']));
+        return I_choice('The table gives values of f(x) near x = ' + t + ', where f is not defined at x = ' + t + ' itself. What value does f(x) approach as x approaches ' + t + '?',
+          opts2, opts2.indexOf(right2), {
+            teach: 'A limit is the value the outputs approach from both sides; the value at the point itself is irrelevant.',
+            explain: explainOk(['Just left of ' + t + ' the outputs are near ' + rows[0][1] + ', and just right they are near ' + rows[2][1] + '.', 'Both sides approach the same number, ' + target + '.', 'The limit is <b>' + right2 + '</b>.'], right2),
+            visual: V.table(['x', 'f(x)'], rows) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var n = int(rng, 2, 5), d1 = n * a;
+        var right3 = d1 + 'x' + supT(n - 1);
+        var opts3 = R.shuffle(rng, uniq([right3, a + 'x' + supT(n), d1 + 'x' + supT(n), (n * a) + 'x' + supT(Math.max(1, n - 2))]));
+        return I_choice('Differentiate f(x) = ' + a + 'x' + supT(n) + '. Which expression is f′(x)?',
+          opts3, opts3.indexOf(right3), {
+            teach: 'The power rule: d/dx (c·xⁿ) = c·n·xⁿ⁻¹.',
+            explain: explainOk(['Multiply the coefficient ' + a + ' by the exponent ' + n + '.', 'Lower the exponent by one: ' + n + ' − 1 = ' + (n - 1) + '.', 'f′(x) = <b>' + right3 + '</b>.'], right3) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var slope = 2 * a * at;
+        return ask(rng, sk, 'A curve is y = ' + a + 'x². Find the slope of the tangent line to the curve at x = ' + at + '.', slope,
+          [a * at * at, slope + a, at], { lim: 200,
+            teach: 'The slope of the tangent line at a point is the derivative at that x-value.',
+            explain: explainOk(['dy/dx = 2 · ' + a + 'x = ' + (2 * a) + 'x.', 'At x = ' + at + ' the slope is ' + (2 * a) + ' · ' + at + ' = ' + slope + '.', 'The slope is <b>' + slope + '</b>.'], slope) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var lo = int(rng, 0, 3), hi = lo + int(rng, 2, 4);
+        var f1 = a * lo * lo + bb, f2 = a * hi * hi + bb;
+        var rate = (f2 - f1) / (hi - lo);
+        return ask(rng, sk, 'For f(x) = ' + a + 'x² + ' + bb + ', what is the average rate of change over the interval from x = ' + lo + ' to x = ' + hi + '?', rate,
+          [f2 - f1, rate + a, (f2 + f1) / (hi - lo)], { lim: 400,
+            teach: 'Average rate of change is the change in output divided by the change in input.',
+            explain: explainOk(['f(' + hi + ') = ' + f2 + ' and f(' + lo + ') = ' + f1 + '.', '(' + f2 + ' − ' + f1 + ') ÷ (' + hi + ' − ' + lo + ') = ' + (f2 - f1) + ' ÷ ' + (hi - lo) + ' = ' + rate + '.', 'The average rate of change is <b>' + rate + '</b>.'], rate) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var h = int(rng, 1, 6);
+        if (R.chance(rng, 0.5)) {
+          return ask(rng, sk, 'A function has derivative f′(x) = 2(x − ' + h + '). For what value of x does f have a critical point?', h,
+            [-h, h + 2, 2 * h], { lim: 40,
+              teach: 'A critical point occurs where the derivative is zero or undefined.',
+              explain: explainOk(['Set the derivative equal to zero: 2(x − ' + h + ') = 0.', 'Divide by 2 and solve: x = ' + h + '.', 'The critical point is at <b>x = ' + h + '</b>.'], h) });
+        }
+        var right4 = 'a relative minimum';
+        var opts4 = R.shuffle(rng, uniq([right4, 'a relative maximum', 'neither, it is an inflection point', 'an absolute endpoint']));
+        return I_choice('The derivative of f is f′(x) = 2(x − ' + h + '), which is negative before x = ' + h + ' and positive after it. What kind of point does f have at x = ' + h + '?',
+          opts4, opts4.indexOf(right4), {
+            teach: 'The first-derivative test: a sign change from negative to positive marks a relative minimum.',
+            explain: explainOk(['f′(x) < 0 for x < ' + h + ', so f is decreasing there.', 'f′(x) > 0 for x > ' + h + ', so f is increasing after it.', 'Decreasing then increasing gives <b>' + right4 + '</b>.'], right4) });
+      },
+      function () {
+        if (!FAM.test(ttl)) return null;
+        var top = int(rng, 2, 6), bot = int(rng, 1, top - 1 > 0 ? top - 1 : 1);
+        var gg = 1, t2 = top, b2 = bot, q;
+        for (q = 2; q <= Math.min(t2, b2); q++) if (t2 % q === 0 && b2 % q === 0) { t2 /= q; b2 /= q; gg *= q; }
+        var right5 = b2 === 1 ? String(t2) : t2 + '/' + b2;
+        var opts5 = R.shuffle(rng, uniq([right5, '0', '∞', '1']));
+        return I_choice('Evaluate the limit, as x increases without bound, of (' + top + 'x² + 4) ÷ (' + bot + 'x² − 5).',
+          opts5, opts5.indexOf(right5), {
+            teach: 'When the numerator and denominator have the same degree, the limit at infinity is the ratio of the leading coefficients.',
+            explain: explainOk(['Divide every term by x². The constants become 4 ÷ x² and −5 ÷ x², which approach 0.', 'What remains is the ratio of the leading coefficients, ' + top + ' ÷ ' + bot + (gg > 1 ? ', which reduces to ' + right5 : '') + '.', 'The limit is <b>' + right5 + '</b>.'], right5) });
+      }
+    ];
+  }
+
   var DECKS = {
+    quadratics: deckQuadratics, polynomials: deckPolynomials, logs: deckLogs, trig: deckTrig, calculus: deckCalculus,
     operations: deckOperations, places: deckPlaces, fractions: deckFractions, decimals: deckDecimals,
     percent: deckPercent, shapes: deckShapes, measure: deckMeasure, angles: deckAngles,
     coordinate: deckCoordinate, transform: deckCoordinate, stats: deckStats, prob: deckProb,
@@ -89402,7 +89967,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var owned = !!OWNED[sk.id];
       /* a completion-deck skill is taken by right; a specialised card is taken
          only when it never talks about the skill it is assigned to */
-      if (!owned && servesWell(before, sk)) return;
+      /* A purpose-written senior deck replaces a thin generic generator even
+         when the old card mentioned the title: the title mention was the only
+         thing right about it. */
+      var SENIOR_TAKEOVER = DECKS[fam] === deckQuadratics || DECKS[fam] === deckPolynomials ||
+        DECKS[fam] === deckLogs || DECKS[fam] === deckTrig || DECKS[fam] === deckCalculus;
+      if (!owned && !SENIOR_TAKEOVER && servesWell(before, sk)) return;
       G(sk.id, function (rng, lvl) {
         if (DP.preKCard) { var pk = DP.preKCard(rng, sk, lvl); if (pk) return pk; }
         var it = buildDeck(fam, rng, lvl, sk);
