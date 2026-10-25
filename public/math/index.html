@@ -94752,6 +94752,35 @@ function () {
      (0, 2)" is a question about a picture, and the card gives every corner.  The
      points are transcribed, not redrawn, so the distances the learner measures
      are the ones the answer uses. */
+  /* A vector card writes \u27e83, -4\u27e9 and asks how it adds, what its unit vector
+     is, or which resultant it produces.  The drawing is the arrow from the origin
+     to the stated component pair: the numbers are the card's, and the length and
+     direction the question reasons about are the ones the picture shows. */
+  function vectorFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ');
+    var re = /[\u27e8\u27ec\[(]\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*[\u27e9\u27e6\])]/g;
+    var m, vecs = [];
+    while ((m = re.exec(t)) && vecs.length < 3) {
+      var x = parseFloat(m[1]), y = parseFloat(m[2]);
+      if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 20 || Math.abs(y) > 20) return null;
+      vecs.push({ x: x, y: y });
+    }
+    if (!vecs.length) return null;
+    var lines = [], pts = [], i8, edge = 1;
+    for (i8 = 0; i8 < vecs.length; i8++) {
+      edge = Math.max(edge, Math.abs(vecs[i8].x) + 1, Math.abs(vecs[i8].y) + 1);
+      var len = Math.sqrt(vecs[i8].x * vecs[i8].x + vecs[i8].y * vecs[i8].y);
+      if (vecs[i8].x !== 0) lines.push({ m: vecs[i8].y / vecs[i8].x, b: 0 });
+      else if (vecs.length === 1) return null;   /* a vertical vector cannot be drawn with a slope */
+      pts.push({ x: vecs[i8].x, y: vecs[i8].y,
+        label: '(' + vecs[i8].x + ', ' + vecs[i8].y + ')' + (isFinite(len) ? '  |v|=' + (Math.round(len * 100) / 100) : '') });
+    }
+    pts.push({ x: 0, y: 0, label: 'origin' });
+    edge = Math.max(4, edge);
+    return V.coord({ lines: lines, pts: pts, xmin: -edge, xmax: edge, ymin: -edge, ymax: edge,
+      label: 'the vector drawn from the origin' });
+  }
+
   function polygonFromVertices(text) {
     var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
     if (!/vertex|vertices|corner|polygon|rectangle|triangle|quadrilateral/i.test(t)) return null;
@@ -94797,7 +94826,7 @@ function () {
        that promises a histogram — never reached a builder.  FIGURE_TITLE is the
        same test the registration and the promise check use, plus the stats
        spellings it leaves out. */
-    if (!(FIGURE_TITLE.test(t) || /histogram|box ?plot|circle graph|pie|tally|line ?plot|dot ?plot|normal|distribution/i.test(t))) return item;
+    if (!(FIGURE_TITLE.test(t) || /histogram|box ?plot|circle graph|pie|tally|line ?plot|dot ?plot|normal|distribution|coordinate plane|coordinate grid|vector/i.test(t))) return item;
     var text = String(item.prompt || '') + ' ' + String(item.sub || '');
     /* Read the inequality from the question first: the card's second line can
        carry prose ("Give the solution as an inequality for x"), and prose on the
@@ -94842,7 +94871,8 @@ function () {
     }
     var fig = rateTable(String(item.prompt || '')) === null ? null : null;
     fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
-      distanceFigure(text) || systemFigure(text) || slopeInterceptFigure(text) ||
+      distanceFigure(text) || vectorFigure(text) || systemFigure(text) ||
+      slopeInterceptFigure(text) ||
       standardFormFigure(text) ||
       polygonFromVertices(text) || inequalityFigure(text) || equationFigure(text) ||
       pointFigure(text);
