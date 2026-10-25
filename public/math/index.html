@@ -7721,6 +7721,24 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
  * function call — so prose stays prose ("Maya has 5 apples" is never typeset)
  * and a formula always is ("3 × 4 = 12" always is).
  *
+ * The app is written in TWO faces, and this module decides which side of the
+ * line a stretch of text falls on (src/ui.css owns the faces: --math-font for
+ * symbols, --text-font for words). Every digit, operator and variable goes to
+ * the maths face; every word stays in the prose face — including the words a
+ * formula borrows, which is why they travel inside `\text{…}`: `x\text{-axis}`,
+ * `3\,\text{cm}`, `100\,^{\circ}\text{C}`. So the detector also covers the
+ * things a card says around its maths: measurements (`3 cm`, `13 m²`, `3/4 L`),
+ * temperatures (`100 °C`, `−4 °F`), the axis a variable is hyphenated to
+ * (`x-axis`, `x- and y-values`), the capitals that name a figure (`AB ∥ CD`,
+ * `A(2, 3)`, `∠1 = 65°`), a comparator printed on its own ("Choose >, < or =."),
+ * the plural of a typed fraction (`1/4s`), a solution set (`{−2, 3}`) and the
+ * value a maths sentence closes on ("Read across to the x-axis: 8.").
+ * Keeping prose as prose is the other half of the same rule: "has 6 in all" is
+ * not inches, `4 = IIII` is not a segment, `Kobos (2026)` is a date, `3-mile`
+ * is a compound adjective, `max-value` is one word, and a grade, a chapter or
+ * `3:30` is a name rather than a value. tools/texcases.js pins down both halves;
+ * tools/_texresidue.js and tools/texcheck.js watch the whole corpus.
+ *
  * Without KaTeX (the headless DOM shim, a truncated build) every string
  * degrades to exactly what the app used to print: plain text, never a red
  * error and never a broken formula.
