@@ -88217,6 +88217,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        the exponent table matched the word "cube" and sent nine G8 skills to a
        deck that only evaluates powers, which kept them one shape short. */
     if (/\broots?\b|\bsurd/.test(t)) return 'radicals';
+    /* "Evaluate radical expressions" says radical, not root, and was being
+       routed to the exponent table — the learner got 3⁴ and 3³ on a radical
+       skill while five genuine radical forms sat in another deck. */
+    if (/radical/.test(t)) return 'radicals';
     if (FAM_PAT.exponents.test(t)) return 'exponents';
     /* Congruence and similarity have a card bank of their own. The
        transformation deck answers "translate the point by the vector" and says
@@ -88236,6 +88240,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (/\btip\b|\btips\b|gratuity|sales tax|discount|markdown|commission/.test(t)) return 'money';
     if (/reciprocal|multiplicative inverse/.test(t)) return 'fractions';
     if (/front,? side,? (and|or) top view|sketch and describe graphs?/.test(t)) return /graph/.test(t) ? 'coord' : 'solid';
+    /* "Identify graphs: word problems" and "Checkpoint sketch and describe
+       graphs" name a graph and were being handed a mean-of-numbers card. */
+    if (/describe graphs?|identify graphs?|sketch.*graph|graphs?: word problems/.test(t)) return 'coord';
+    /* "Relationships between two variables: word problems" reached no deck at
+       all and was answered only by a repeated quiz-rule card. */
+    if (/two variables|relationships? between/.test(t)) return 'funcs';
+    /* "Circumference of circles" matched the measure family first, so the
+       circle deck — which draws a real circle — never saw the title. */
+    if (/circumference|radius|diameter/.test(t)) return 'circle';
     if (FAM_PAT.ratio.test(t)) return 'ratio';
     if (FAM_PAT.functions.test(t)) return 'functions';
     if (FAM_PAT.stats.test(t)) return 'stats';
@@ -88782,9 +88795,21 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         if (!/mixed|improper|fraction|convert|rename/.test(ttl)) return null;
         var whole = int(rng, 2, 5), nn2 = int(rng, 1, fd - 1);
         var imp = whole * fd + nn2;
-        return askStr(rng, sk, 'Write ' + imp + '/' + fd + ' as a mixed number.', [mixedStr(whole, nn2, fd)],
-          [whole + ' + ' + nn2 + '/' + fd, (whole + 1) + '/' + fd], { teach: 'Divide the numerator by the denominator.',
-            explain: explainOk([imp + ' ÷ ' + fd + ' is ' + whole + ' with a remainder of ' + nn2 + '.', 'So the mixed number is <b>' + mixedStr(whole, nn2, fd) + '</b>.'], mixedStr(whole, nn2, fd)) });
+        /* mixedStr takes the improper numerator and the denominator: 44 and 8.
+           It was called as mixedStr(whole, remainder, denominator), which asked
+           it to convert 5/4 and printed "1 1/4" for 44/8 while the explanation
+           correctly said 5 remainder 4 — the card marked a wrong option. */
+        var red = reduce(imp, fd);
+        var right = mixedStr(imp, fd);
+        var bad = [(whole + 1) + ' ' + mixedStr(nn2, fd), whole + ' ' + mixedStr(fd, nn2), mixedStr(nn2, fd)];
+        var kept = [];
+        for (var z = 0; z < bad.length; z++) if (bad[z] !== right && kept.indexOf(bad[z]) < 0) kept.push(bad[z]);
+        if (kept.length < 3) return null;
+        return askStr(rng, sk, 'Write ' + imp + '/' + fd + ' as a mixed number.', [right], kept, {
+          teach: 'Divide the numerator by the denominator.',
+          explain: explainOk([imp + ' ÷ ' + fd + ' is ' + whole + ' with a remainder of ' + nn2 + '.',
+            (red.n !== imp ? 'The fraction part ' + nn2 + '/' + fd + ' reduces to ' + (red.n % red.d) + '/' + red.d + '.' : 'The fraction part is already in lowest terms.'),
+            'So the mixed number is <b>' + right + '</b>.'], right) });
       },
       function () {
         var w = int(rng, 2, 9), ans = w * fn / fd;
@@ -88821,6 +88846,19 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var tenths = int(rng, 1, 9);
 
     return [
+      function () {
+        if (!/divide|division|quotient|place value/.test(ttl)) return null;
+        var q = int(rng, 2, 9), dv = pick(rng, [2, 5, 10]), a = q * dv;
+        var div = dv === 10 ? 0 : (dv === 5 ? 1 : 1);
+        var aText = div === 0 ? String(a) : (a / 10).toFixed(1);
+        var dText = dv === 10 ? '0.1' : (dv === 5 ? '0.5' : '0.2');
+        var ans = dv === 10 ? a : (a / 10) / (dv / 10);
+        if (Math.abs(Math.round(ans) - ans) > 1e-9) return null;
+        return ask(rng, sk, 'Use place value: ' + aText + ' ÷ ' + dText + ' = ?', ans,
+          [ans * 10, ans / 10, a + dv], { lim: 60,
+            teach: 'Multiplying both numbers by the same power of ten keeps the quotient, and turns the divisor into a whole number.',
+            explain: explainOk(['Rewrite ' + aText + ' ÷ ' + dText + ' by multiplying both by ten.', aText + ' × 10 = ' + (parseFloat(aText) * 10) + ' and ' + dText + ' × 10 = ' + (parseFloat(dText) * 10) + '.', 'The quotient is <b>' + ans + '</b>.'], ans) });
+      },
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
       function () { return tableShape(rng, lvl, sk, ttl, 1); },
       function () { return tableShape(rng, lvl, sk, ttl, 2); },
@@ -88893,6 +88931,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     ];
   }
 
+  /* A hundred-square grid the learner can actually count: filled cells first,
+     then the empty ones.  Used whenever a title promises a grid model. */
+  function hundredGrid(shaded) {
+    var cells = [], row = [], i;
+    for (i = 0; i < 100; i++) {
+      row.push(i < shaded ? '\u25A0' : '\u00B7');
+      if (row.length === 10) { cells.push(row); row = []; }
+    }
+    return V.grid({ rows: 10, cols: 10, cells: cells, noun: 'grid squares',
+      label: shaded + ' of 100 squares shaded' });
+  }
+
   function deckPercent(rng, lvl, sk) {
     var ttl = String(sk.name || '').toLowerCase();
     var p = pick(rng, [5, 10, 20, 25, 50, 60, 75, 80, 40, 30]);
@@ -88902,6 +88952,95 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var off = pick(rng, [10, 20, 25, 50]);
 
     return [
+      function () {
+        if (!/percent|grid|shaded|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [15, 30, 35, 45, 65, 70]);
+        return ask(rng, sk, 'A 100-square grid shows ' + n + '% of its squares shaded. How many squares are shaded?', n,
+          [n / 5, 100 - n, n * 10], { lim: 90,
+            /* the title promises a grid model, so the card shows one */
+            visual: hundredGrid(n),
+            teach: 'On a hundred-grid the percent and the shaded count are the same number.',
+            explain: explainOk(['Percent means out of 100, and the grid has 100 squares.', n + '% of 100 squares is ' + n + ' squares.', '<b>' + n + ' squares</b> are shaded.'], n) });
+      },
+      function () {
+        if (!/percent|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [10, 20, 25, 50]), whole = pick(rng, [20, 40, 60, 80]);
+        return ask(rng, sk, 'What is ' + n + '% of ' + whole + '?', n * whole / 100,
+          [n * whole, whole - n, n + whole / 100], { lim: 90,
+            teach: 'A percent of a number means multiplying by the percent and dividing by 100.',
+            explain: explainOk([n + '% of ' + whole + ' means ' + n + ' ÷ 100 × ' + whole + '.', n + ' × ' + whole + ' = ' + (n * whole) + ', and dividing by 100 gives ' + (n * whole / 100) + '.', '<b>' + (n * whole / 100) + '</b>.'], n * whole / 100) });
+      },
+      function () {
+        if (!/percent|fraction|decimal/.test(ttl)) return null;
+        var d = pick(rng, [2, 4, 5, 10, 20]), n = int(rng, 1, d - 1);
+        var pct = n * 100 / d;
+        var shown = (Math.round(pct * 10) / 10) + '%';
+        var opts = R.shuffle(rng, uniq([shown, n + '%', d + '%', (100 - pct) + '%']));
+        if (opts.length < 4) return null;
+        return I_choice('Which percent names the same amount as ' + n + '/' + d + '?',
+          opts, opts.indexOf(shown), {
+            teach: 'Rename the fraction with a denominator of 100; the numerator is then the percent.',
+            explain: explainOk(['Scale ' + n + '/' + d + ' to a denominator of 100: multiply top and bottom by ' + (100 / d) + '.', 'That gives ' + (n * (100 / d)) + '/100.', 'So the fraction is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/percent|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [5, 10, 20, 25, 50]);
+        var shown = n + '%';
+        var opts = R.shuffle(rng, uniq([shown, n + '%', (100 - n) + '%', n + '/1000']));
+        var uniqOpts = [];
+        for (var z = 0; z < opts.length; z++) if (uniqOpts.indexOf(opts[z]) < 0) uniqOpts.push(opts[z]);
+        if (uniqOpts.length < 4) return null;
+        return I_choice('Of the squares on a 100-square grid, ' + (100 - n) + ' are left unshaded. What percent of the grid IS shaded?',
+          uniqOpts, uniqOpts.indexOf(shown), {
+            visual: V.table(['grid', 'squares'], [['shaded', n], ['unshaded', 100 - n], ['total', 100]]),
+            teach: 'Subtract the unshaded count from 100 to get the shaded percent.',
+            explain: explainOk(['100 − ' + (100 - n) + ' = ' + n + ' squares are shaded.', 'Out of 100 squares that is a percent directly.', '<b>' + shown + '</b> is shaded.'], shown) });
+      },
+      function () {
+        if (!/percent|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [10, 20, 25, 50]);
+        return ask(rng, sk, 'A percent is a rate out of 100. If ' + n + '% of a class is absent, how many would be absent from a class of 400?', n * 4,
+          [n * 40, n + 4, n * 4], { lim: 90,
+            visual: V.table(['class size', 'absent at ' + n + '%'], [['100', n], ['400', n * 4]]),
+            teach: 'A percent is a rate out of 100, so a class four times as large has four times as many absent.',
+            explain: explainOk([n + '% means ' + n + ' out of every 100.', 'A class of 400 is four groups of 100, so ' + n + ' × 4 = ' + (n * 4) + '.', '<b>' + (n * 4) + ' students</b> would be absent.'], n * 4) });
+      },
+      function () {
+        if (!/percent|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [5, 10, 20, 25, 50]);
+        var dec = n / 100;
+        var shown = String(dec);
+        var opts = R.shuffle(rng, uniq([shown, String(n / 10), String(n), String(n * 100)]));
+        if (opts.length < 4) return null;
+        return I_choice('Which decimal names the same amount as ' + n + '%?',
+          opts, opts.indexOf(shown), {
+            teach: 'Percent means out of one hundred, so the decimal is the percent divided by 100.',
+            explain: explainOk([n + '% is ' + n + ' out of 100.', n + ' ÷ 100 = ' + dec + '.', 'The matching decimal is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/percent|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [5, 10, 20, 25, 40, 45, 50, 60, 75, 80]);
+        var shown = n + '%';
+        var opts = R.shuffle(rng, uniq([shown, n + '/1000', (n / 10) + '%', n + '0%']));
+        if (opts.length < 4) return null;
+        return I_choice('A 100-square grid has ' + n + ' squares shaded. What percent of the grid is shaded?',
+          opts, opts.indexOf(shown), {
+            visual: V.table(['grid squares', 'shaded'], [['out of 100', n]]),
+            teach: 'Percent means "out of 100", so on a hundred-grid the shaded count is already the percent.',
+            explain: explainOk(['The grid has 100 squares in all.', n + ' of 100 squares are shaded.', 'That is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/percent|decimal|fraction/.test(ttl)) return null;
+        var n = pick(rng, [5, 10, 25, 50, 75, 125]);
+        var dec = n / 100;
+        var shown = dec.toString();
+        var opts = R.shuffle(rng, uniq([shown, (dec / 10).toString(), n.toString(), (dec + 0.1).toString()]));
+        if (opts.length < 4) return null;
+        return I_choice('Write ' + n + '% as a decimal.',
+          opts, opts.indexOf(shown), {
+            teach: 'A percent is a number out of 100, so turning it into a decimal means dividing by 100.',
+            explain: explainOk([n + '% means ' + n + ' out of 100.', n + ' ÷ 100 = ' + dec + '.', 'As a decimal it is <b>' + shown + '</b>.'], shown) });
+      },
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
       function () { return tableShape(rng, lvl, sk, ttl, 1); },
       function () { return tableShape(rng, lvl, sk, ttl, 2); },
@@ -89047,6 +89186,32 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var r = int(rng, 1, 8);
 
     return [
+      function () {
+        if (!/area|between|shaded|remaining/.test(ttl)) return null;
+        var side = int(rng, 3, 8), big = side * int(rng, 2, 3) + side;
+        if (big * big <= side * side) return null;
+        return ask(rng, sk, 'A square has side ' + side + ' units and a larger square has side ' + (side + 2) + ' units. What is the difference of their areas, in square units?', (side + 2) * (side + 2) - side * side,
+          [side * side, 2 * side + 2, (side + 2) * (side + 2)], { lim: 120,
+            visual: V.table(['square', 'side (units)', 'area (square units)'], [['small', side, side * side], ['large', side + 2, (side + 2) * (side + 2)]]),
+            teach: 'Find each area from its own side length, then subtract.',
+            explain: explainOk(['The small square covers ' + side * side + ' square units.', 'The large square covers ' + ((side + 2) * (side + 2)) + ' square units.', 'The difference is <b>' + ((side + 2) * (side + 2) - side * side) + ' square units</b>.'], (side + 2) * (side + 2) - side * side) });
+      },
+      function () {
+        if (!/area/.test(ttl)) return null;
+        var b = int(rng, 3, 10), hh = int(rng, 2, 8);
+        return ask(rng, sk, 'A parallelogram has a base of ' + b + ' units and a perpendicular height of ' + hh + ' units. What is its area, in square units?', b * hh,
+          [b + hh, 2 * (b + hh), Math.round(b * hh / 2)], { lim: 120,
+            teach: 'A parallelogram can be cut and re-joined into a rectangle with the same base and height.',
+            explain: explainOk(['Cut the slanted end and move it: the shape becomes a ' + b + ' by ' + hh + ' rectangle.', b + ' × ' + hh + ' = ' + (b * hh) + '.', 'The area is <b>' + (b * hh) + ' square units</b>.'], b * hh) });
+      },
+      function () {
+        if (!/area/.test(ttl)) return null;
+        var b = pick(rng, [4, 6, 8, 10]), hh = pick(rng, [3, 5, 7]);
+        return ask(rng, sk, 'A triangle has a base of ' + b + ' units and a height of ' + hh + ' units. What is its area, in square units?', b * hh / 2,
+          [b * hh, b + hh, (b + hh) / 2], { lim: 120,
+            teach: 'Two copies of a triangle make a parallelogram, so the triangle is half of base times height.',
+            explain: explainOk(['A matching triangle would complete a ' + b + ' by ' + hh + ' parallelogram.', 'That area is ' + (b * hh) + ', so the triangle is half of it.', 'The area is <b>' + (b * hh / 2) + ' square units</b>.'], b * hh / 2) });
+      },
       function () {
         if (!/area/.test(ttl)) return null;
         var a1 = int(rng, 3, 9) * int(rng, 2, 6), a2 = int(rng, 2, 8) * int(rng, 2, 5);
@@ -90195,6 +90360,22 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var root = int(rng, 2, 12), sq = root * root;
 
     return [
+      function () {
+        if (!/exponent|power|negative|zero/.test(ttl)) return null;
+        var b = pick(rng, [2, 3, 4, 5]);
+        return ask(rng, sk, 'What is ' + b + '²?', b * b,
+          [b * 2, b * b * b, b + 2], { lim: 40,
+            teach: 'A square means the number used as a factor twice.',
+            explain: explainOk([b + '² means ' + b + ' × ' + b + '.', 'That is ' + (b * b) + '.', '<b>' + (b * b) + '</b>.'], b * b) });
+      },
+      function () {
+        if (!/exponent|power|zero|negative/.test(ttl)) return null;
+        var b = int(rng, 2, 9);
+        return ask(rng, sk, 'What is ' + b + '⁰?', 1,
+          [b, 0, b * b], { lim: 20,
+            teach: 'Every non-zero number to the power zero is 1, because dividing a power by itself leaves the exponent zero.',
+            explain: explainOk([b + '⁵ ÷ ' + b + '⁵ = ' + b + '⁰.', 'Any number divided by itself is 1.', 'So ' + b + '⁰ = <b>1</b>.'], 1) });
+      },
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
       function () { return tableShape(rng, lvl, sk, ttl, 1); },
       function () { return tableShape(rng, lvl, sk, ttl, 2); },
@@ -90313,6 +90494,39 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var t = int(rng, 2, 12), u = int(rng, 1, 9);
 
     return [
+      function () {
+        if (!/ratio|understanding|equivalent|proportional/.test(ttl)) return null;
+        var r1 = int(rng, 1, 6), r2 = int(rng, 1, 6), tot = r1 + r2;
+        var shown = r1 + ':' + tot;
+        var opts = R.shuffle(rng, uniq([shown, r1 + ':' + r2, r2 + ':' + tot, tot + ':' + r1]));
+        if (opts.length < 4) return null;
+        return I_choice('A bag holds ' + r1 + ' red beads and ' + r2 + ' blue beads. Which ratio compares red beads to all the beads?',
+          opts, opts.indexOf(shown), {
+            teach: 'Compare red to total: the total is the two parts added, not one part against the other.',
+            explain: explainOk(['Red beads: ' + r1 + '.', 'All beads: ' + r1 + ' + ' + r2 + ' = ' + tot + '.', 'Red to total is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/rate|proportional|compare|equivalent/.test(ttl)) return null;
+        var a1 = int(rng, 3, 9), b1 = int(rng, 2, 5), a2 = int(rng, 2, 9), b2 = int(rng, 2, 5);
+        var r1 = a1 / b1, r2v = a2 / b2;
+        if (Math.abs(r1 - r2v) < 1e-9) return null;
+        var winner = r1 > r2v ? 'First: ' + a1 + ' miles in ' + b1 + ' hours' : 'Second: ' + a2 + ' miles in ' + b2 + ' hours';
+        var loser = r1 > r2v ? 'Second: ' + a2 + ' miles in ' + b2 + ' hours' : 'First: ' + a1 + ' miles in ' + b1 + ' hours';
+        var opts = R.shuffle(rng, uniq([winner, loser, 'They have the same unit rate', 'Cannot be compared without the distance']));
+        if (opts.length < 4) return null;
+        return I_choice('Two cyclists: the first rides ' + a1 + ' miles in ' + b1 + ' hours, the second rides ' + a2 + ' miles in ' + b2 + ' hours. Which description gives the greater unit rate?',
+          opts, opts.indexOf(winner), {
+            teach: 'Convert each description to miles per hour, then compare those two numbers.',
+            explain: explainOk([a1 + ' ÷ ' + b1 + ' = ' + Math.round(r1 * 100) / 100 + ' miles per hour.', a2 + ' ÷ ' + b2 + ' = ' + Math.round(r2v * 100) / 100 + ' miles per hour.', 'The greater rate is the <b>' + winner + '</b>.'], winner) });
+      },
+      function () {
+        if (!/proportional|similar|side|triangle/.test(ttl)) return null;
+        var k = pick(rng, [2, 3, 4]), s1 = int(rng, 2, 6), s2 = int(rng, 2, 6);
+        return ask(rng, sk, 'Two triangles are similar in the ratio ' + k + ':1. A side of ' + s1 + ' units on the larger triangle matches a side on the smaller one. How many units is that shorter side?', s1 / k,
+          [s1 * k, s1 - k, s1 + k], { lim: 60,
+            teach: 'Matching sides of similar figures are in the same ratio, so divide by the scale factor.',
+            explain: explainOk(['The larger figure is ' + k + ' times the smaller one.', s1 + ' ÷ ' + k + ' = ' + (s1 / k) + '.', 'The matching side is <b>' + (s1 / k) + ' units</b>.'], s1 / k) });
+      },
       function () {
         if (!/unit rate|unit rates|rate/.test(ttl)) return null;
         var an = int(rng, 2, 5), ad = pick(rng, [3, 4, 5]), bn = pick(rng, [1, 2]), bd = pick(rng, [3, 4, 5, 6]);
@@ -91400,6 +91614,52 @@ function () {
       return a === 1 ? 'π/' + b : a + 'π/' + b;            /* π/2 and 2π/3, as printed */
     }
     return [
+      function () {
+        if (!/circumference|circles?|radius|diameter/.test(ttl)) return null;
+        var r = pick(rng, [3, 5, 10]);
+        var c = Math.round(2 * 3.14 * r);
+        return ask(rng, sk, 'The circumference of a circle is ' + c + ' units (use π ≈ 3.14). What is its radius, to the nearest unit?', r,
+          [c, Math.round(r / 2), Math.round(c / 2)], { lim: 200,
+            teach: 'Undo C = 2πr by dividing the circumference by 2π.',
+            explain: explainOk(['r = C ÷ (2π).', c + ' ÷ 6.28 ≈ ' + (c / 6.28) + '.', 'To the nearest unit the radius is <b>' + r + ' units</b>.'], r) });
+      },
+      function () {
+        if (!/circumference|circles?|radius|diameter|roll|wheel/.test(ttl)) return null;
+        var r1 = pick(rng, [2, 3]), r2 = r1 * 2;
+        var shown = 'the circle with radius ' + r2;
+        var opts = R.shuffle(rng, uniq([shown, 'the circle with radius ' + r1, 'both circles are the same distance', 'it cannot be told from the radii']));
+        return I_choice('Two wheels are rolled one full turn each. One has radius ' + r1 + ' units, the other radius ' + r2 + ' units. Which wheel rolls the greater distance?',
+          opts, opts.indexOf(shown), {
+            teach: 'One full turn covers exactly the circumference, and circumference is 2πr, so the bigger radius wins.',
+            explain: explainOk(['Each wheel travels its own circumference: 2π × radius.', '2π × ' + r2 + ' is more than 2π × ' + r1 + '.', 'The greater distance is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/circumference|circles?|diameter|radius/.test(ttl)) return null;
+        var r = pick(rng, [5, 10, 15, 20]);
+        return ask(rng, sk, 'Use C = 2πr and take π ≈ 3.14. What is the circumference of a circle with radius ' + r + ' units, to the nearest unit?', Math.round(2 * 3.14 * r),
+          [Math.round(3.14 * r * r), Math.round(2 * 3.14 + r), Math.round(3.14 * r)], { lim: 200,
+            teach: 'Substitute the radius into C = 2πr, then round only at the end.',
+            explain: explainOk(['C = 2 × 3.14 × ' + r + '.', 'That is ' + (2 * 3.14 * r) + '.', 'To the nearest unit, <b>' + Math.round(2 * 3.14 * r) + ' units</b>.'], Math.round(2 * 3.14 * r)) });
+      },
+      function () {
+        if (!/circumference|circles?|diameter|radius/.test(ttl)) return null;
+        var r = int(rng, 2, 9);
+        return ask(rng, sk, 'A circle has a radius of ' + r + ' units. What is its diameter, in units?', 2 * r,
+          [r * r, r, Math.round(3.14 * r)], { lim: 60,
+            teach: 'The diameter runs across the whole circle through the centre, so it is twice the radius.',
+            explain: explainOk(['The radius reaches from the centre to the edge: ' + r + ' units.', 'The diameter is two radii: 2 × ' + r + ' = ' + (2 * r) + '.', 'The diameter is <b>' + (2 * r) + ' units</b>.'], 2 * r) });
+      },
+      function () {
+        if (!/circumference|circles?/.test(ttl)) return null;
+        var d = pick(rng, [2, 4, 5, 6, 8, 10]);
+        var shown = d + 'π';
+        var opts = R.shuffle(rng, uniq([shown, (d / 2) + 'π', (d * d) + 'π', d + 'π units']));
+        if (opts.length < 4) return null;
+        return I_choice('A circle has a diameter of ' + d + ' units. What is its circumference, in terms of π?',
+          opts, opts.indexOf(shown), {
+            teach: 'The circumference is π times the diameter; leaving π in the answer keeps it exact.',
+            explain: explainOk(['C = π × d.', 'With d = ' + d + ' that gives ' + d + 'π.', 'The circumference is <b>' + shown + ' units</b>.'], shown) });
+      },
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
       function () { return tableShape(rng, lvl, sk, ttl, 1); },
       function () { return tableShape(rng, lvl, sk, ttl, 2); },
@@ -91668,6 +91928,35 @@ function () {
     }
     return [
       function () {
+        if (!/view|projection|solid|prism|cube/.test(ttl)) return null;
+        var d = int(rng, 2, 5), h = int(rng, 2, 4);
+        return ask(rng, sk, 'A prism is 4 cubes wide, ' + d + ' cubes deep and ' + h + ' cubes tall. How many cubes appear in its side view?', d * h,
+          [4 * h, 4 * d, 4 * d * h], { lim: 60,
+            visual: V.solid('rectangularPrism', { label: 'side view ' + d + ' by ' + h }),
+            teach: 'The side view keeps depth and height only; width disappears from it.',
+            explain: explainOk(['From the side you see a rectangle ' + d + ' cubes by ' + h + ' cubes.', d + ' × ' + h + ' = ' + (d * h) + '.', 'The side view holds <b>' + (d * h) + ' cubes</b>.'], d * h) });
+      },
+      function () {
+        if (!/view|projection|solid|prism|cube/.test(ttl)) return null;
+        var w = int(rng, 2, 5), h = int(rng, 2, 4);
+        var shown = 'the front view';
+        var opts = R.shuffle(rng, uniq(['the front view', 'the top view', 'the side view', 'none of the views']));
+        return I_choice('A prism is ' + w + ' cubes wide, ' + h + ' cubes tall and 3 cubes deep. Which view is a rectangle ' + w + ' cubes wide and ' + h + ' cubes tall?',
+          opts, opts.indexOf(shown), {
+            visual: V.solid('rectangularPrism', { label: w + ' wide, ' + h + ' tall, 3 deep' }),
+            teach: 'Each view keeps two of the three measurements; width and height are the ones the front view keeps.',
+            explain: explainOk(['The front view keeps width and height: ' + w + ' by ' + h + '.', 'The top view keeps width and depth, and the side view keeps depth and height.', 'The ' + w + ' by ' + h + ' rectangle is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/view|projection|cube|solid|prism/.test(ttl)) return null;
+        var w = int(rng, 2, 4), d = int(rng, 2, 4), h = int(rng, 1, 3);
+        return ask(rng, sk, 'A solid is built from unit cubes: ' + w + ' cubes wide, ' + d + ' cubes deep and ' + h + ' cube(s) tall. How many unit cubes build it?', w * d * h,
+          [w * d, w + d + h, w * h], { lim: 90,
+            visual: V.solid('rectangularPrism', { label: w + ' × ' + d + ' × ' + h + ' cubes' }),
+            teach: 'Count one layer at a time: the bottom layer is width by depth, and each extra layer repeats it.',
+            explain: explainOk(['The bottom layer is ' + w + ' × ' + d + ' = ' + (w * d) + ' cubes.', 'There are ' + h + ' such layers.', 'The solid holds <b>' + (w * d * h) + ' cubes</b>.'], w * d * h) });
+      },
+      function () {
         if (!/surface/.test(ttl)) return null;
         var w = int(rng, 2, 5), h = int(rng, 2, 5), d = int(rng, 2, 5);
         var sa = 2 * (w * h + w * d + h * d);
@@ -91879,6 +92168,25 @@ function () {
       return rows;
     }
     return [
+      function () {
+        if (!/relationship|two variables|rule|table|function/.test(ttl)) return null;
+        var m = pick(rng, [2, 3, 4, 5]), b0 = int(rng, 0, 6);
+        var shown = 'increases by ' + m;
+        var opts = R.shuffle(rng, uniq([shown, 'increases by ' + (m + b0), 'stays the same', 'decreases by ' + m]));
+        return I_choice('A relationship is y = ' + m + 'x + ' + b0 + '. As x increases by 1, what happens to y?',
+          opts, opts.indexOf(shown), {
+            visual: V.table(['x', 'y'], [[0, b0], [1, m + b0], [2, 2 * m + b0], [3, 3 * m + b0]]),
+            teach: 'The number multiplied by x is the change in y for each step of one in x.',
+            explain: explainOk(['When x = 0, y = ' + b0 + '; when x = 1, y = ' + (m + b0) + '.', 'The gap is ' + m + ', and it repeats for every step.', 'So y <b>' + shown + '</b> for each step of one.'], shown) });
+      },
+      function () {
+        if (!/relationship|two variables|word problem|rule/.test(ttl)) return null;
+        var m = pick(rng, [2, 3, 4, 5]), b0 = int(rng, 1, 9), x = int(rng, 3, 9);
+        return ask(rng, sk, 'A tank already holds ' + b0 + ' litres and water flows in at ' + m + ' litres per minute. How many litres are in the tank after ' + x + ' minutes?', b0 + m * x,
+          [m * x, b0 * x, b0 + m + x], { lim: 90,
+            teach: 'The starting amount stays and the rate is multiplied by the number of minutes.',
+            explain: explainOk(['The flow adds ' + m + ' × ' + x + ' = ' + (m * x) + ' litres.', 'On top of the ' + b0 + ' litres already there.', 'The tank holds <b>' + (b0 + m * x) + ' litres</b>.'], b0 + m * x) });
+      },
 
       function () { return graphShape(rng, lvl, sk, ttl, 0); },
       function () { return graphShape(rng, lvl, sk, ttl, 1); },
@@ -92002,6 +92310,22 @@ function () {
     var SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
     function sup(n) { return String(n).replace(/\d/g, function (d) { return SUP.charAt(+d); }); }
     return [
+      function () {
+        if (!/root|radical/.test(ttl)) return null;
+        var k = pick(rng, [2, 3, 4]);
+        return ask(rng, sk, 'What is ∛(-' + (k * k * k) + ')?', -k,
+          [k, -k * k, Math.round(Math.sqrt(k)) || 1], { lim: 40,
+            teach: 'A negative number has a negative cube root, because a negative number used three times stays negative.',
+            explain: explainOk(['(-' + k + ') × (-' + k + ') × (-' + k + ') = -' + (k * k * k) + '.', 'So the cube root of -' + (k * k * k) + ' is -' + k + '.', 'The answer is <b>-' + k + '</b>.'], -k) });
+      },
+      function () {
+        if (!/root|radical/.test(ttl)) return null;
+        var a = int(rng, 2, 6), b = int(rng, 2, 6);
+        return ask(rng, sk, 'What is √' + (a * a) + ' + √' + (b * b) + '?', a + b,
+          [a * b, (a + b) * (a + b), a * b * 2], { lim: 40,
+            teach: 'Evaluate each root first; roots are not added by putting the numbers under one root.',
+            explain: explainOk(['√' + (a * a) + ' = ' + a + ' and √' + (b * b) + ' = ' + b + '.', a + ' + ' + b + ' = ' + (a + b) + '.', 'The sum is <b>' + (a + b) + '</b>.'], a + b) });
+      },
 
       /* ---- square and cube roots: the nine G7/G8 skills that were being shown
          a re-rolled power question.  Every value here is exact — a radical that
@@ -93409,6 +93733,37 @@ function () {
     var TRIP = [[3, 4, 5], [6, 8, 10], [5, 12, 13], [9, 12, 15], [8, 15, 17]];
     var SPACE = [[1, 2, 2, 3], [2, 3, 6, 7], [1, 4, 8, 9], [2, 6, 9, 11]];
     return [
+      function () {
+        if (!/graph|plot|describe|sketch|line|point/.test(ttl)) return null;
+        var k = pick(rng, [2, 3, 4]);
+        var shown = '(' + k + ', ' + k + ')';
+        var opts = R.shuffle(rng, uniq([shown, '(' + k + ', ' + (k + 1) + ')', '(' + (k + 1) + ', ' + k + ')', '(' + k + ', ' + 0 + ')']));
+        if (opts.length < 4) return null;
+        return I_choice('The graph of y = x is drawn. Which point lies on that line?',
+          opts, opts.indexOf(shown), {
+            visual: V.graph([{ expr: 'x', label: 'y = x' }], { xmin: -1, xmax: 8, ymin: -1, ymax: 8 }),
+            teach: 'On y = x the two coordinates are equal, so only a point whose numbers match can lie on it.',
+            explain: explainOk(['On this line y must equal x.', 'Substituting: ' + k + ' = ' + k + ' is true.', 'The point on the line is <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/graph|plot|describe|sketch|point|coordinate/.test(ttl)) return null;
+        var x = pick(rng, [-4, -1, 1, 4]), y = pick(rng, [-4, -1, 1, 4]);
+        return I_point('A point is plotted in the figure. Write its coordinates.', [x, y], {
+          teach: 'Read the x-coordinate by moving across from the origin, then the y-coordinate by moving up or down.',
+          explain: explainOk(['From the origin move ' + (x > 0 ? 'right ' + x : 'left ' + (-x)) + '.', 'Then move ' + (y > 0 ? 'up ' + y : 'down ' + (-y)) + '.', 'The point is <b>(' + x + ', ' + y + ')</b>.'], [x, y]) });
+      },
+      function () {
+        if (!/graph|plot|describe|sketch|point|quadrant/.test(ttl)) return null;
+        var x = pick(rng, [-4, -2, 2, 4]), y = pick(rng, [-4, -2, 2, 4]);
+        var q = x > 0 && y > 0 ? 'quadrant I' : (x < 0 && y > 0 ? 'quadrant II' : (x < 0 && y < 0 ? 'quadrant III' : 'quadrant IV'));
+        var all = ['quadrant I', 'quadrant II', 'quadrant III', 'quadrant IV'];
+        var opts = R.shuffle(rng, [q].concat(all.filter(function (z) { return z !== q; })));
+        return I_choice('The point (' + x + ', ' + y + ') is plotted on the coordinate plane. In which quadrant does it lie?',
+          opts, opts.indexOf(q), {
+            visual: V.coord({ pts: [{ x: x, y: y, label: '(' + x + ', ' + y + ')' }], xmin: -6, xmax: 6, ymin: -6, ymax: 6 }),
+            teach: 'The signs of the coordinates decide the quadrant: (+, +) is I, (−, +) is II, (−, −) is III, (+, −) is IV.',
+            explain: explainOk(['x = ' + x + ' is ' + (x > 0 ? 'positive' : 'negative') + ' and y = ' + y + ' is ' + (y > 0 ? 'positive' : 'negative') + '.', 'That sign pair belongs to one quadrant only.', 'The point is in <b>' + q + '</b>.'], q) });
+      },
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
       function () { return tableShape(rng, lvl, sk, ttl, 1); },
       function () { return tableShape(rng, lvl, sk, ttl, 2); },
@@ -93597,7 +93952,11 @@ function () {
     }
     if (toks.length && hit < 3) return false;   /* never mentions what the title names */
     if (uniq < 3) {                             /* one question re-rolled is not a deck */
-      if (visual) { THIN_KEPT++; if (THIN_VISUAL.length < 40) THIN_VISUAL.push(sk.id); return true; }
+      /* A pretty card that repeats is still a repeat.  The visual used to be
+         enough to keep a one-shape bank; the variety floor disagrees, and a
+         deck that asks six different questions teaches more than the same
+         hundred-grid drawn twice. */
+      if (visual) { THIN_KEPT++; if (THIN_VISUAL.length < 40) THIN_VISUAL.push(sk.id); }
       return false;
     }
     return true;
@@ -94127,7 +94486,11 @@ function () {
         return buildDeck(fam, GLOB.seedRng(h32(sk.id) + k * 6151 + 31), 1 + (k % 5), sk);
       }, sk, 10);
       var wellOnTitle = (owned || SENIOR_TAKEOVER) ? true : servesWell(before, sk);
-      if (!owned && !SENIOR_TAKEOVER && wellOnTitle && !(nNew >= nOld + 3)) {
+      if (!owned && !SENIOR_TAKEOVER && wellOnTitle && nOld >= 6 && !(nNew >= nOld + 3)) {
+        /* The floor is the same number smoke uses: a stay-on-title bank that can
+           only turn out three question shapes in ten draws keeps the skill to
+           itself no longer, because three shapes is exactly the repeat the
+           variety gate exists to catch. */
         /* The hand-written card is the better fit and stays in charge — but a
            title that promises a drawing still has to be kept honest, so the
            incumbent's own cards pass through the same figure check. */
