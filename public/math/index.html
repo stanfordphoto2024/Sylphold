@@ -94517,10 +94517,112 @@ function () {
     return V.circle({ slices: slices, label: Math.round(total) + '% of the whole shown' });
   }
 
+  /* Statistics cards in this catalogue almost always hand over the numbers:
+     "For the data set 4, 7, 12, 10, 3 …" while the title promises a dot plot or
+     a histogram.  Both pictures are then read straight off the stated data —
+     counts are frequencies, bins are equal widths — so nothing is invented. */
+  function dataFromCard(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-');
+    var m = /(?:data set|mean of|median of|out of|scores?|times?|values?)\s*:?!?\s*(-?\d+(?:\s*,\s*-?\d+){3,})/i.exec(t);
+    if (!m) {
+      var m2 = /(-?\d+(?:\s*,\s*-?\d+){3,})/.exec(t);
+      if (!m2) return null;
+      m = [t, m2[1]];
+    }
+    var nums = m[1].split(',').map(function (x) { return parseInt(x.trim(), 10); });
+    if (nums.length < 4 || nums.length > 14) return null;
+    for (var i = 0; i < nums.length; i++) if (!isFinite(nums[i]) || Math.abs(nums[i]) > 1000) return null;
+    return nums;
+  }
+  function dotPlotFromData(nums) {
+    var counts = {}, i4, k;
+    for (i4 = 0; i4 < nums.length; i4++) counts[nums[i4]] = (counts[nums[i4]] || 0) + 1;
+    var keys = Object.keys(counts).map(Number).sort(function (a, b) { return a - b; });
+    if (keys.length < 3 || keys.length > 12) return null;
+    var labels = keys.map(function (x) { return String(x); });
+    var freq = keys.map(function (x) { return counts[x]; });
+    return V.lineplot(labels, freq, { label: 'each \u00D7 is one value in the set' });
+  }
+  function histogramFromData(nums) {
+    var lo = Math.min.apply(null, nums), hi = Math.max.apply(null, nums);
+    if (hi - lo < 3) return null;
+    var width = Math.max(1, Math.ceil((hi - lo + 1) / 5));
+    var bins = [], at = lo;
+    while (at <= hi && bins.length <= 6) {
+      var to = at + width - 1, c = 0, i5;
+      for (i5 = 0; i5 < nums.length; i5++) if (nums[i5] >= at && nums[i5] <= to) c++;
+      bins.push({ label: at === to ? String(at) : at + '–' + to, v: c });
+      at = to + 1;
+    }
+    if (bins.length < 3) return null;
+    return V.bars(bins, { label: 'how many values fall in each bin' });
+  }
+
+  /* A normal distribution is a curve, and the cards state exactly what it takes
+     to draw one: the mean and the standard deviation.  The height is the density
+     shape exp(-((x-mean)^2) / (2*sd^2)); it is drawn from the card's own numbers,
+     four standard deviations each side so the tails are visible. */
+  function normalFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-');
+    var mu = /mean\s*(?:of|\-|=|:)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);
+    var sd = /standard (?:deviation|error)\s*(?:of|\-|=|:)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);
+    if (!mu || !sd) return null;
+    var m = parseFloat(mu[1]), v = parseFloat(sd[1]);
+    if (!isFinite(m) || !isFinite(v) || v <= 0 || v > 500 || Math.abs(m) + 4 * v > 5000) return null;
+    return V.graph([{
+      expr: 'exp(-((x-' + m + ')^2)/(2*' + v + '*' + v + '))',
+      label: 'normal curve: mean ' + m + ', standard deviation ' + v
+    }], { xmin: m - 4 * v, xmax: m + 4 * v, label: 'the curve is highest at ' + m + ' and halves its width a little inside one standard deviation' });
+  }
+
+  /* "Box plots" as a title, and the card hands over the data.  The five numbers
+     are computed from that data (median of the lower half, median, median of the
+     upper half), so the box is the card's own distribution rather than a picture
+     of someone else's. */
+  function boxPlotFromData(nums) {
+    if (!nums || nums.length < 5 || nums.length > 20) return null;
+    var a = nums.slice().sort(function (x, y) { return x - y; });
+    var q = function (arr, p) {
+      var pos = (arr.length - 1) * p, lo = Math.floor(pos), hi = Math.ceil(pos);
+      /* linear interpolation between the two ranks around pos, which is the
+         definition the statistics lessons use; averaging the neighbours instead
+         puts the box edges in the wrong place on a card that states the data */
+      return lo === hi ? arr[lo] : arr[lo] + (pos - lo) * (arr[hi] - arr[lo]);
+    };
+    var st = { min: a[0], q1: q(a, 0.25), med: q(a, 0.5), q3: q(a, 0.75), max: a[a.length - 1] };
+    var fmt = function (x) { return String(Math.round(x * 100) / 100); };
+    return V.boxplot({ min: fmt(st.min), q1: fmt(st.q1), med: fmt(st.med), q3: fmt(st.q3), max: fmt(st.max) },
+      { label: 'the five-number summary of the given data' });
+  }
+
+  /* "A population has standard deviation 8. Samples of size 16 are drawn."  The
+     card states two numbers and asks for the third, which is exactly what a
+     small table of the relationship is for: every entry is either a number the
+     card gave or the value the learner is working out, computed from σ/√n. */
+  function samplingTable(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-');
+    var sd = /standard deviation\s*(?:of|\-|=|:)?\s*(\d+(?:\.\d+)?)/i.exec(t);
+    var n = /(?:samples?|size)\s*(?:of|\-|=|:)?\s*(\d{1,4})\b/i.exec(t);
+    if (!sd || !n) return null;
+    var v = parseFloat(sd[1]), size = parseInt(n[1], 10), root = Math.sqrt(size);
+    if (!isFinite(v) || size < 2 || size > 10000) return null;
+    var se = Math.round(v / root * 1000) / 1000;
+    return V.table(['quantity', 'value'], [
+      ['population standard deviation', v],
+      ['sample size', size],
+      ['standard error  \u03C3/\u221An', se]
+    ]);
+  }
+
   function withModel(item, sk) {
     if (!item || item.visual) return item;
     var t = String((sk && sk.name) || '').toLowerCase();
-    if (!/graph|plot|curve|limit|continuity|slope|line|function|inequalit|asymptot/.test(t)) return item;
+    /* Skip titles that promise no picture at all.  The list used to be hand
+       written and forgot the statistics words, so "Create histograms" — a title
+       that promises a histogram — never reached a builder.  FIGURE_TITLE is the
+       same test the registration and the promise check use, plus the stats
+       spellings it leaves out. */
+    if (!(FIGURE_TITLE.test(t) || /histogram|box ?plot|circle graph|pie|tally|line ?plot|dot ?plot|normal|distribution/i.test(t))) return item;
     var text = String(item.prompt || '') + ' ' + String(item.sub || '');
     /* Read the inequality from the question first: the card's second line can
        carry prose ("Give the solution as an inequality for x"), and prose on the
@@ -94528,6 +94630,32 @@ function () {
     /* The title decides which picture the learner is owed.  A skill that says
        "from a table" is served the table even when the card also names points —
        one lonely plotted point is not what was promised. */
+    /* Some skills carry cards that do not match their own title — "Interpret
+       circle graphs" is serving z-score questions.  The learner reads the card,
+       so a card that states a mean and a standard deviation is given the curve
+       it describes even when the skill name says something else. */
+    if (/normal|distribution|curve/i.test(t) || /normal distribution|z-score|standard deviation/i.test(text)) {
+      var bell = normalFigure(text);
+      if (bell) { item.visual = bell; return item; }
+    }
+    if (/sampling distribution|standard error/i.test(t) || (/standard deviation/i.test(text) && /samples? of size/i.test(text))) {
+      if (!/tables?/i.test(t)) {
+        var svt = samplingTable(text);
+        if (svt) { item.visual = svt; return item; }
+      }
+    }
+    if (/box ?plots?/i.test(t)) {
+      var data0 = dataFromCard(text), bp = data0 ? boxPlotFromData(data0) : null;
+      if (bp) { item.visual = bp; return item; }
+    }
+    if (/dot ?plots?|line ?plots?/i.test(t)) {
+      var data1 = dataFromCard(text), lp = data1 ? dotPlotFromData(data1) : null;
+      if (lp) { item.visual = lp; return item; }
+    }
+    if (/histograms?/i.test(t)) {
+      var data2 = dataFromCard(text), hg = data2 ? histogramFromData(data2) : null;
+      if (hg) { item.visual = hg; return item; }
+    }
     if (/circle graphs?|pie charts?/i.test(t)) {
       var pie = circleFromPercents(text);
       if (pie) { item.visual = pie; return item; }
@@ -94557,7 +94685,10 @@ function () {
     [/pictures|dots|shapes/, ['array', 'tenframe', 'grid', 'frac', 'blocks']],
     [/tables?/, ['table']],
     [/(on |using |from )?(a |the )?graph/, ['graph', 'coord', 'barchart', 'bar', 'circle', 'scatter', 'boxplot', 'tally', 'tallychart', 'table']],
-    [/histograms?|dot ?plots?/, ['barchart', 'bar', 'tally', 'tallychart']],
+    /* A dot plot is a number line with one mark per value — that is the model the
+       lessons use — so a line plot discharges the promise for "dot plots" and
+       "line plots".  Histograms still have to be drawn as bars. */
+    [/histograms?|dot ?plots?/, ['barchart', 'bar', 'tally', 'tallychart', 'lineplot']],
     [/circle graphs?/, ['circle']],
     [/box ?plots?/, ['boxplot']],
     [/scatter plots?/, ['scatter']],
