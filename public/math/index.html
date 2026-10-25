@@ -94219,8 +94219,15 @@ function () {
     for (var i = 0; i < pats.length; i++) {
       var m = pats[i].exec(t);
       if (!m) continue;
-      var e = tidyExpr(m[1]);
-      if (isPlotable(e)) return e;
+      /* the capture runs to the end of the sentence, and a card that asks
+         "Does the graph of y = -2x + 1 pass through the origin?" hands over
+         "-2x + 1 pass through the origin?".  Words are cut from the back, one at
+         a time, until what is left is an expression the plotter accepts. */
+      var words = String(m[1]).trim().split(/\s+/);
+      for (var w = words.length; w >= 1; w--) {
+        var e = tidyExpr(words.slice(0, w).join(' '));
+        if (isPlotable(e)) return e;
+      }
     }
     /* "Which graph matches x³ − 4x?" names the function without saying "y =" —
        take the polynomial itself, but only if the plotter agrees it can draw it. */
@@ -94402,6 +94409,78 @@ function () {
      promises a graph, and the equation is a line.  Reading ax + by = c gives the
      line, and the label states the slope-intercept form the card is working out,
      so the picture and the answer say the same thing. */
+  /* "Write the equation of the line with slope -1 and y-intercept -6" is asked
+     by a skill whose title says graph an equation.  The two numbers the card
+     states determine one line, so the drawing is the answer the learner is about
+     to write — not a decoration next to it. */
+  function slopeInterceptFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-');
+    /* the separator must not include a minus: "slope -1" loses its sign to the
+       separator and the drawn line runs the other way */
+    var m = /slope\s*(?:of|=|:)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);
+    var b = /y[- ]?intercept\s*(?:of|=|:|is)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);
+    if (!m || !b) return null;
+    var k = parseFloat(m[1]), c = parseFloat(b[1]);
+    if (!isFinite(k) || !isFinite(c) || Math.abs(k) > 24 || Math.abs(c) > 60) return null;
+    var r = function (x) { return Math.round(x * 100) / 100; };
+    return V.graph([{ expr: r(k) + '*x' + (c < 0 ? '-' : '+') + r(Math.abs(c)),
+      label: 'y = ' + r(k) + 'x ' + (c < 0 ? '- ' : '+ ') + r(Math.abs(c)) }],
+      { label: 'slope ' + r(k) + ', y-intercept ' + r(c) });
+  }
+  /* A ticket word problem states the unit prices and the money spent, and asks
+     which equation models it.  A table of those stated quantities is the picture
+     of the modelling step: it holds only numbers the card gave. */
+  /* "A sample proportion is 0.6 with a standard error of 0.02. Using the rule
+     that about 95% of sample proportions lie within two standard errors…" asks
+     for an interval.  The table shows the centre, the spread and the two ends,
+     each computed from the two numbers the card states. */
+  function intervalTable(text) {
+    var t = String(text || '').replace(/\u2212/g, '-');
+    var p = /(?:proportion|mean|estimate)\s*(?:is|=|of|:)?\s*(-?\d*\.?\d+)/i.exec(t);
+    var e = /standard error\s*(?:of|=|:|is)?\s*(\d*\.?\d+)/i.exec(t);
+    var k = /within\s+(\d+|one|two|three)\s+standard/i.exec(t);
+    if (!p || !e) return null;
+    var centre = parseFloat(p[1]), err = parseFloat(e[1]);
+    if (!isFinite(centre) || !isFinite(err) || err <= 0) return null;
+    var mult = 2;
+    if (k) {
+      mult = k[1] === 'one' ? 1 : (k[1] === 'two' ? 2 : (k[1] === 'three' ? 3 : parseInt(k[1], 10)));
+      if (!isFinite(mult) || mult < 1 || mult > 3) mult = 2;
+    }
+    var r = function (x) { return Math.round(x * 10000) / 10000; };
+    return V.table(['quantity', 'value'], [
+      ['centre', r(centre)],
+      ['standard error', r(err)],
+      ['lower end  (-' + mult + ' SE)', r(centre - mult * err)],
+      ['upper end  (+' + mult + ' SE)', r(centre + mult * err)]
+    ]);
+  }
+
+  function rateTable(text) {
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
+    /* Only a sentence that says what each price is for becomes a table.  A card
+       like "4 tickets and a 2-dollar snack cost at most 84 dollars" mixes a
+       quantity, a price and a total, and guessing which is which labels the rows
+       wrongly - a wrong label is a wrong card, so those are refused. */
+    var re = /([a-z][a-z \-]{1,26}?)\s+(?:cost|costs|are|is|price of|cost of)\s+(\d+)\s*(?:dollars|\$|cents)/gi;
+    var m2, rows = [], total = null, allMoney = t.match(/(\d+)\s*(?:dollars|\$)/gi) || [];
+    while ((m2 = re.exec(t)) && rows.length < 2) {
+      var what = m2[1].trim().replace(/^(the|a|an|each|and|or|then)\s+/i, '').trim().slice(0, 26);
+      var v2 = parseInt(m2[2], 10);
+      if (!what || !isFinite(v2) || v2 <= 0 || v2 > 100000) continue;
+      var dup = false, r0;
+      for (r0 = 0; r0 < rows.length; r0++) if (rows[r0][0] === what) dup = true;
+      if (dup) continue;
+      rows.push([what.charAt(0).toLowerCase() + what.slice(1), v2]);
+    }
+    if (rows.length < 2) return null;
+    if (allMoney.length > rows.length) {
+      total = parseInt(String(allMoney[allMoney.length - 1]).replace(/[^0-9]/g, ''), 10);
+      if (isFinite(total)) rows.push(['total paid', total]);
+    }
+    return V.table(['quantity', 'value'], rows);
+  }
+
   function standardFormFigure(text) {
     var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ')
       .replace(/\+\s*-\s*/g, '-').replace(/-\s*\+/g, '-');
@@ -94472,8 +94551,18 @@ function () {
     var m1 = /distance from x to (-?\d+) (?:is|equals|must be) (-?\d+)/i.exec(t);
     if (m1) { c = +m1[1]; r = Math.abs(+m1[2]); }
     if (c === null) {
-      var m2 = /\|\s*x\s*([-+])\s*(-?\d+)\s*\|\s*(?:=|<|>|<=|>=|\u2264|\u2265)\s*(-?\d+)/i.exec(t);
-      if (m2) { c = (m2[1] === '-' ? 1 : -1) * (+m2[2]); r = Math.abs(+m2[3]); }
+      /* the banks also write the shifted form |x - 6| + 1 = 2, and the distance
+         is then the right side minus that offset; drawing the unshifted radius
+         would put both points in the wrong place */
+      var m2 = /\|\s*x\s*([-+])\s*(-?\d+)\s*\|\s*([+-]\s*\d+)?\s*(?:=|<|>|<=|>=|\u2264|\u2265)\s*(-?\d+)/i.exec(t);
+      if (m2) {
+        c = (m2[1] === '-' ? 1 : -1) * (+m2[2]);
+        r = Math.abs(+m2[4]);
+        if (m2[3]) {
+          var off = parseInt(String(m2[3]).replace(/\s+/g, ''), 10);
+          if (isFinite(off)) r = Math.abs(+m2[4]) - off;
+        }
+      }
     }
     if (c === null || !isFinite(c) || !isFinite(r) || r < 0 || Math.abs(c) + r > 40) return null;
     var marks = [{ x: c, label: 'centre ' + c }];
@@ -94560,6 +94649,23 @@ function () {
     for (var i = 0; i < nums.length; i++) if (!isFinite(nums[i]) || Math.abs(nums[i]) > 1000) return null;
     return nums;
   }
+  /* A skill titled "… frequency tables" that is asked for the mean of
+     7, 19, 6, 7, 5 is owed a table, and the honest one is the data laid out as
+     value and frequency.  It is the same information the dot plot shows, in the
+     shape the title promises — nothing is added and nothing is rounded away. */
+  function tableFromData(nums) {
+    if (!nums || nums.length < 3 || nums.length > 14) return null;
+    var counts = {}, i7, keys = [];
+    for (i7 = 0; i7 < nums.length; i7++) {
+      if (counts[nums[i7]] === undefined) keys.push(nums[i7]);
+      counts[nums[i7]] = (counts[nums[i7]] || 0) + 1;
+    }
+    if (keys.length < 2 || keys.length > 10) return null;
+    var rows = keys.map(function (v) { return [v, counts[v]]; });
+    rows.push(['total', nums.length]);
+    return V.table(['value', 'frequency'], rows);
+  }
+
   function dotPlotFromData(nums) {
     var counts = {}, i4, k;
     for (i4 = 0; i4 < nums.length; i4++) counts[nums[i4]] = (counts[nums[i4]] || 0) + 1;
@@ -94590,13 +94696,15 @@ function () {
      four standard deviations each side so the tails are visible. */
   function normalFigure(text) {
     var t = String(text || '').replace(/\u2212|\u2013/g, '-');
-    var mu = /mean\s*(?:of|\-|=|:)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);
+    var mu = /mean\s*(?:of|=|:)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);   /* no minus in the separator: the sign belongs to the number */
     var sd = /standard (?:deviation|error)\s*(?:of|\-|=|:)?\s*(-?\d+(?:\.\d+)?)/i.exec(t);
     if (!mu || !sd) return null;
     var m = parseFloat(mu[1]), v = parseFloat(sd[1]);
     if (!isFinite(m) || !isFinite(v) || v <= 0 || v > 500 || Math.abs(m) + 4 * v > 5000) return null;
     return V.graph([{
-      expr: 'exp(-((x-' + m + ')^2)/(2*' + v + '*' + v + '))',
+      /* the offset has to be joined with a sign of its own: "x--5" reads as a
+         decrement in some parsers and silently evaluates wrong */
+      expr: 'exp(-((x' + (m < 0 ? '+' : '-') + Math.abs(m) + ')^2)/(2*' + v + '*' + v + '))',
       label: 'normal curve: mean ' + m + ', standard deviation ' + v
     }], { xmin: m - 4 * v, xmax: m + 4 * v, label: 'the curve is highest at ' + m + ' and halves its width a little inside one standard deviation' });
   }
@@ -94640,6 +94748,47 @@ function () {
     ]);
   }
 
+  /* "Find the perimeter of the rectangle with vertices (0, 0), (4, 0), (4, 2),
+     (0, 2)" is a question about a picture, and the card gives every corner.  The
+     points are transcribed, not redrawn, so the distances the learner measures
+     are the ones the answer uses. */
+  function polygonFromVertices(text) {
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
+    if (!/vertex|vertices|corner|polygon|rectangle|triangle|quadrilateral/i.test(t)) return null;
+    var re = /\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g;
+    var m, pts = [];
+    while ((m = re.exec(t)) && pts.length < 8) {
+      var x = +m[1], y = +m[2];
+      if (Math.abs(x) > 20 || Math.abs(y) > 20) return null;
+      pts.push({ x: x, y: y, label: '(' + x + ', ' + y + ')' });
+    }
+    if (pts.length < 3) return null;
+    /* three identical corners are not a shape */
+    var distinct = {}, dn = 0;
+    for (var q = 0; q < pts.length; q++) {
+      var key = pts[q].x + ',' + pts[q].y;
+      if (!distinct[key]) { distinct[key] = 1; dn++; }
+    }
+    if (dn < 3) return null;
+    var edge = 0, i6;
+    for (i6 = 0; i6 < pts.length; i6++) edge = Math.max(edge, Math.abs(pts[i6].x), Math.abs(pts[i6].y));
+    edge = Math.max(5, edge + 2);
+    return V.coord({ pts: pts, xmin: -edge, xmax: edge, ymin: -edge, ymax: edge,
+      label: 'the points named in the question' });
+  }
+  /* "Within 1 standard deviation of the mean lie 68% of the values" states the
+     empirical rule without a mean or a spread.  The standard curve still teaches
+     what the question needs: the centre is the mean and the rule is symmetric
+     about it. */
+  function empiricalRuleFigure(text) {
+    var m = /within\s*(\d+)\s*standard deviations?[^.]{0,40}?(\d{1,3})\s*%/i.exec(String(text || ''));
+    if (!m) return null;
+    var k = parseInt(m[1], 10), pct = parseInt(m[2], 10);
+    if (k < 1 || k > 3 || pct < 50 || pct > 100) return null;
+    return V.graph([{ expr: 'exp(-(x^2)/2)', label: 'normal curve, mean 0, standard deviation 1' }],
+      { xmin: -4, xmax: 4, label: 'the middle ' + k + ' standard deviation(s) hold ' + pct + '% of the values' });
+  }
+
   function withModel(item, sk) {
     if (!item || item.visual) return item;
     var t = String((sk && sk.name) || '').toLowerCase();
@@ -94661,7 +94810,7 @@ function () {
        so a card that states a mean and a standard deviation is given the curve
        it describes even when the skill name says something else. */
     if (/normal|distribution|curve/i.test(t) || /normal distribution|z-score|standard deviation/i.test(text)) {
-      var bell = normalFigure(text);
+      var bell = normalFigure(text) || empiricalRuleFigure(text);
       if (bell) { item.visual = bell; return item; }
     }
     if (/sampling distribution|standard error/i.test(t) || (/standard deviation/i.test(text) && /samples? of size/i.test(text))) {
@@ -94686,14 +94835,24 @@ function () {
       var pie = circleFromPercents(text);
       if (pie) { item.visual = pie; return item; }
     }
-    if (/tables?/i.test(t)) {
-      var tab = tableFromCard(text) || tableFromPairs(text);
+    if (/tables?/i.test(t) || /standard error/i.test(text)) {
+      var tab = tableFromCard(text) || tableFromPairs(text) ||
+        intervalTable(text) || tableFromData(dataFromCard(text));
       if (tab) { item.visual = tab; return item; }
     }
-    var fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
-      distanceFigure(text) || systemFigure(text) || standardFormFigure(text) ||
-      inequalityFigure(text) || equationFigure(text) || pointFigure(text);
+    var fig = rateTable(String(item.prompt || '')) === null ? null : null;
+    fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
+      distanceFigure(text) || systemFigure(text) || slopeInterceptFigure(text) ||
+      standardFormFigure(text) ||
+      polygonFromVertices(text) || inequalityFigure(text) || equationFigure(text) ||
+      pointFigure(text);
     if (fig) { item.visual = fig; nameThePicture(item, fig); return item; }
+    /* a modelling question whose equation lives in the answer choices has nothing
+       to plot in the sentence, so it gets the quantities the card did state */
+    if (/dollars|\$/i.test(String(item.prompt || ''))) {
+      var rt = rateTable(String(item.prompt || ''));
+      if (rt) { item.visual = rt; return item; }
+    }
     var e = exprFromCard(text);
     if (!e) return item;
     item.visual = V.graph([{ expr: e, label: 'y = ' + e }], { xmin: -6, xmax: 6 });
