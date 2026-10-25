@@ -424,6 +424,21 @@ input.fld.math-input {
   letter-spacing: 0.01em;
 }
 
+/* One progress bar under the question, for the level chosen in the picker.
+   The bar starts at zero width and the UI sets the real width once the card is
+   on screen, so the learner watches the progress arrive rather than reading a
+   page of band-by-band statistics. */
+.progress { margin-top: 12px; }
+.progress .track { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 9px; }
+.progress .fill { height: 100%; border-radius: 99px; background: var(--accent);
+  /* the width is written inline by the UI; the keyframe only supplies the
+     motion, so the bar grows into place and is still right with animations off */
+  animation: growbar 900ms cubic-bezier(.22, .61, .36, 1);
+  /* later changes come from a graded answer, so they glide rather than jump */
+  transition: width 450ms ease-out; }
+@keyframes growbar { from { width: 0; } }
+.progress .pct { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
 </style>
 </head>
 <body>
@@ -92754,6 +92769,58 @@ function () {
   var OWNED = GLOB.COMPLETION_IDS || {};
   var GEN = GLOB.SKILL_GEN || {};
   var BANK_SERVED = 0, BANK_TOOKOVER = 0;
+  /* ------------------------------------------------------------ models ------
+   * A title that promises a figure — "find one-sided limits using graphs",
+   * "find the slope of a graph" — is kept honest by drawing the function the
+   * card itself names. The expression is read out of the card's own wording,
+   * and anything the page's evaluator cannot compute is dropped rather than
+   * guessed, so a picture that disagrees with the words cannot reach the page.
+   */
+  var SUP = { '²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6' };
+  function tidyExpr(raw) {
+    var e = String(raw || '').replace(/\u2212/g, '-').replace(/×/g, '*').replace(/[·]/g, '*');
+    e = e.replace(/[²³⁴⁵⁶]/g, function (ch) { return SUP[ch]; });
+    e = e.replace(/\s+/g, ' ').replace(/\s*([+\-*/^()])\s*/g, '$1').trim();
+    /* a sentence tail is not algebra: "…= 2x + 5 when x = 3" stops at the words */
+    e = e.replace(/\b(when|where|for|is|as|what|which|give|if|and|over|the)\b.*$/i, '').trim();
+    e = e.replace(/[.,;:?!]+$/, '');
+    return e;
+  }
+  function isPlotable(e) {
+    if (!e || e.length > 40 || !/[x]/.test(e) || /[^0-9a-zA-Z+\-*/^().\s]/.test(e)) return false;
+    var ok = 0, xs = [0, 1, 2, -1, 0.5, -2];
+    for (var i = 0; i < xs.length; i++) {
+      var v = GLOB.evalExpr ? GLOB.evalExpr(e, { x: xs[i] }) : NaN;
+      if (typeof v === 'number' && isFinite(v)) ok++;
+    }
+    return ok >= 4;                                /* a real curve, not a typo */
+  }
+  function exprFromCard(text) {
+    var t = String(text || '');
+    var pats = [
+      /\b[fgy]\s*\(\s*x\s*\)\s*=\s*([^=]{3,48})/i,
+      /\by\s*=\s*([^=]{3,48})/i,
+      /\blimit of\s+([^=]{3,48}?)\s+as\b/i,
+      /\b(?:modelled|modeled|given) by\s+([^=]{3,48})/i
+    ];
+    for (var i = 0; i < pats.length; i++) {
+      var m = pats[i].exec(t);
+      if (!m) continue;
+      var e = tidyExpr(m[1]);
+      if (isPlotable(e)) return e;
+    }
+    return null;
+  }
+  function withModel(item, sk) {
+    if (!item || item.visual) return item;
+    var t = String((sk && sk.name) || '').toLowerCase();
+    if (!/graph|plot|curve|limit|continuity|slope|line|function|asymptot/.test(t)) return item;
+    var e = exprFromCard(String(item.prompt || '') + ' ' + String(item.sub || ''));
+    if (!e) return item;
+    item.visual = V.graph([{ expr: e, label: 'y = ' + e }], { xmin: -6, xmax: 6 });
+    return item;
+  }
+
   function buildDeck(fam, rng, lvl, sk) {
     var j, hs = 2166136261, idTxt = String((sk && sk.id) || '');
     for (j = 0; j < idTxt.length; j++) { hs ^= idTxt.charCodeAt(j); hs = (hs * 16777619) >>> 0; }
@@ -92772,7 +92839,7 @@ function () {
     for (j = 0; j < order.length; j++) {
       try {
         var it = deck[order[j]] && deck[order[j]]();
-        if (it && it.spec) { it.sub = it.sub || ''; return it; }
+        if (it && it.spec) { it.sub = it.sub || ''; return withModel(it, sk); }
       } catch (e) { /* this form cannot answer this draw: try the next one */ }
     }
     return null;
@@ -92840,17 +92907,17 @@ function () {
            the bank answers outright. */
         var share = deckLeads ? (rank(sk) >= 14 ? 1 : 0.82) : 0.3;
         var first = R.chance(rng, share) ? buildDeck(fam, rng, lvl, sk) : null;
-        if (first && first.spec) return first;
+        if (first && first.spec) return withModel(first, sk);
         /* When the old generator could only ever produce one or two shapes, its
            card is a filler — "which value makes 8n + 6 equal to 78?" standing in
            for a trigonometry skill. Ask the bank once more before accepting it. */
         if (nOld < 3) {
           var retry = buildDeck(fam, rng, lvl, sk);
-          if (retry && retry.spec) return retry;
+          if (retry && retry.spec) return withModel(retry, sk);
         }
-        try { var fb = before(rng, lvl); if (fb && fb.spec) return fb; } catch (e2) { }
+        try { var fb = before(rng, lvl); if (fb && fb.spec) return withModel(fb, sk); } catch (e2) { }
         var again = buildDeck(fam, rng, lvl, sk);
-        return again && again.spec ? again : null;
+        return again && again.spec ? withModel(again, sk) : null;
       });
       if (owned) BANK_SERVED++; else BANK_TOOKOVER++;
     })(SK[i]);
@@ -100176,6 +100243,9 @@ var MW = {
     /* the probe counter is live state: redraw it here or it freezes on whatever
      * number the view happened to render last */
     if (S.item.diag) renderProbeProgress();
+    /* the progress bar under the question is live state as well: it has to move
+       when the answer is recorded, not when the learner reaches the next card */
+    refreshProgress();
     /* ------------------------------------------------ the voice answers the answer
      * A missed card is read out in full — every step, the answer, the reason — in
      * the comfort voice, slower and lower, because the panel that just appeared is
@@ -100385,14 +100455,59 @@ var MW = {
   function renderEmpty(view) {
     clear(view).appendChild(h('div', { class: 'card center' }, [
       h('h2', { text: 'No item available' }),
-      h('div', { class: 'muted', text: 'The skill ladder is loaded but no generator is registered for it yet. Open the Ladder tab to see which skills already have items.' }),
+      h('div', { class: 'muted', text: 'This skill has no questions written for it yet. Choose another level in the picker above, or carry on with the questions chosen for you.' }),
       h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '12px' } }, [
-        h('button', { class: 'btn primary', type: 'button', on: { click: function () { location.hash = '#ladder'; } } }, 'Browse the ladder')
+        h('button', { class: 'btn primary', type: 'button', on: { click: function () { S.manual = null; S.queue = []; S.item = null; render(); } } }, 'Back to questions chosen for me')
       ])
     ]));
   }
 
   /* --------------------------------------------------------------- views -- */
+  /* A single progress bar for the level chosen in the picker. It reports one
+     number — how many of that level's questions have been answered correctly —
+     and grows from zero every time the screen is drawn, so the learner can see
+     progress without a page of its own. */
+  var progNodes = null;
+  /* The same two numbers are used when the card is built and when a graded
+     answer updates it, so the bar can never show one thing and mean another. */
+  function progressNumbers() {
+    var p = E.placement(), band = E.level().band;
+    var g = p.byBand[band] || {};
+    var pct = g.n ? Math.round((g.corr || 0) / g.n * 100) : 0;
+    /* any progress at all keeps a hairline so a started level never looks
+       untouched, even when one answer out of several hundred rounds to 0% */
+    return { band: band, pct: pct, wide: (pct > 0 ? Math.max(1, pct) : 0) + '%' };
+  }
+  /* A bar that only updates when the page is redrawn tells the learner to
+     ignore it: the number has to move as the answer is recorded. */
+  function refreshProgress() {
+    if (!progNodes || !progNodes.fill) return;
+    try {
+      var v = progressNumbers();
+      if (progNodes.pct) progNodes.pct.textContent = v.pct + '%';
+      progNodes.fill.style.width = v.wide;
+    } catch (e) { /* a broken bar must never swallow the answer itself */ }
+  }
+
+  function progressCard() {
+    /* the bar carries the level's name and one number, nothing else: the
+       learner asked for a percentage, not a sentence */
+    var v0 = progressNumbers(), band = v0.band, pct = v0.pct;
+    /* the bar's own width is the answer, so a browser that ignores animations
+       still shows the correct length */
+    var fill = h('div', { class: 'fill', style: { width: v0.wide } });
+    var pctNode = h('span', { class: 'pct', text: pct + '%' });
+    var card = h('div', { class: 'card tight progress' }, [
+      h('div', { class: 'row between' }, [
+        h('b', { text: E.BAND_LABEL[band] || band }),
+        pctNode
+      ]),
+      h('div', { class: 'track' }, [fill])
+    ]);
+    progNodes = { fill: fill, pct: pctNode };
+    return card;
+  }
+
   function viewPractice() {
     var view = $('#view'), wrap = h('div', {});
     if (S.manual) {
@@ -100407,73 +100522,12 @@ var MW = {
     }
     if (!S.manual && !climbMode()) wrap.appendChild(modeBar('plan'));
     wrap.appendChild(h('div', { id: 'itemhost' }));
+    /* the statistics that used to have a page of their own now sit under the
+       question: one bar, for the level in the picker, showing one percentage */
+    wrap.appendChild(progressCard());
     clear(view).appendChild(wrap);
     /* a probe item from a finished probe is not a practice item: drop it */
     if (!S.item || (S.item.diag && !E.diagActive())) next(); else renderItem();
-  }
-
-  function viewPlan() {
-    var p = E.placement(), view = $('#view');
-    var bands = p.bands.map(function (b) {
-      var g = p.byBand[b] || {};
-      /* the bar is the answered ratio over the WHOLE level: of every question
-         (skill) this level has, how many have been answered correctly — a skill
-         counts from its FIRST right answer; two right answers make it mastered,
-         which is a separate badge. 答对题数 ÷ 该年级总题数. */
-      var pct = g.n ? Math.round((g.corr || 0) / g.n * 100) : 0;
-      /* a level holds hundreds of questions: 1/170 rounds to 0% and the bar
-         would look dead even once the learner has started, so any real
-         progress keeps a visible hairline. */
-      var wide = g.corr ? Math.max(1, pct) : pct;
-      var cls = g.verdict === 'ready' ? 'm' : (g.verdict === 'not yet' ? 'g' : '');
-      return h('div', { class: 'barrow ' + cls }, [
-        h('div', { text: E.BAND_LABEL[b] || b }),
-        h('div', { class: 'track' }, [h('div', { class: 'fill', style: { width: wide + '%' } })]),
-        h('div', { class: 'val', text: g.att ? (g.corr || 0) + '/' + g.n + ' answered correctly' : 'not started' })
-      ]);
-    });
-    var plan = (p.plan || []).map(function (row) {
-      var sk = row.sk, has = !!root.SKILL_GEN[sk.id];
-      return h('div', { class: 'skill' + (has ? '' : ' locked') }, [
-        h('div', { class: 'grow' }, [
-          h('div', { class: 'nm', text: sk.name }),
-          h('div', { class: 'cd', text: sk.code + ' · ' + (sk.blurb || '').slice(0, 92) })
-        ]),
-        h('span', { class: 'pill ' + (row.kind === 'reteach' ? 'bad' : row.kind === 'new' ? 'accent' : ''), text: row.kind === 'reteach' ? 'reteach' : row.kind === 'new' ? 'new' : 'practice' }),
-        h('button', {
-          class: 'btn small', type: 'button', disabled: !has,
-          on: { click: function () { S.manual = sk.id; S.queue = []; S.view = 'practice'; S.item = null; render(); } }
-        }, has ? 'Practice' : 'no items')
-      ]);
-    });
-    clear(view).appendChild(h('div', {}, [
-      h('div', { class: 'card' }, [
-        h('div', { class: 'row between' }, [
-          h('h2', { text: 'Where you are' }),
-          h('span', { class: 'pill accent', text: p.bandLabel })
-        ]),
-        h('div', { class: 'tiny', style: { marginTop: '6px' }, text: 'Skills tried: ' + p.attempted + (p.totals && p.totals.a ? ' · items answered: ' + p.totals.a : '') + ' · mastered: ' + ((p.totals && p.totals.mast) || 0) }),
-        h('h3', { text: 'Readiness by band' }),
-        h('div', { class: 'bars' }, bands)
-      ]),
-      h('div', { class: 'card' }, [
-        h('h2', { text: 'Your next steps' }),
-        h('div', { class: 'muted', text: 'Skills at ' + (p.bandLabel || 'your level') + ' you have not answered yet.' }),
-        h('div', { class: 'skill-list', style: { marginTop: '10px' } }, plan.length ? plan : [h('div', { class: 'muted', text: 'Nothing left to start at ' + (p.bandLabel || 'your level') + ' — every skill here has been answered. Change the level to find more.' })])
-      ]),
-      p.gaps && p.gaps.length ? h('div', { class: 'card' }, [
-        h('h2', { text: 'Gaps to close' }),
-        h('div', { class: 'skill-list' }, p.gaps.map(function (g) {
-          return h('div', { class: 'skill' }, [
-            h('div', { class: 'grow' }, [h('div', { class: 'nm', text: g.name }), h('div', { class: 'cd', text: g.code })]),
-            h('button', {
-              class: 'btn small', type: 'button', disabled: !root.SKILL_GEN[g.id],
-              on: { click: function () { S.manual = g.id; S.queue = []; S.view = 'practice'; S.item = null; render(); } }
-            }, root.SKILL_GEN[g.id] ? 'Reteach' : 'no items')
-          ]);
-        }))
-      ]) : null
-    ]));
   }
 
   /* --------------------------------------------------------------- climb --- */
@@ -100489,54 +100543,6 @@ var MW = {
         ])
       ])
     ]);
-  }
-
-  function viewLadder() {
-    var view = $('#view'), bands = E.BANDS, L = root.SKILLS;
-    if (S.lvlOpen == null) S.lvlOpen = E.level().band;
-    var counts = {};
-    L.forEach(function (s) {
-      counts[s.band] = counts[s.band] || { n: 0, has: 0, mast: 0, att: 0 };
-      counts[s.band].n++;
-      if (root.SKILL_GEN[s.id]) counts[s.band].has++;
-      var ss = E.skillState(s.id);
-      if (ss && ss.a) counts[s.band].att++;
-      if (E.statusOf(s.id) === 'mastered') counts[s.band].mast++;
-    });
-    var rowsOut = bands.map(function (b) {
-      var c = counts[b] || { n: 0, has: 0, mast: 0, att: 0 };
-      var open = S.lvlOpen === b;
-      var head = h('div', { class: 'band-h', on: { click: function () { S.lvlOpen = open ? null : b; render(); } } }, [
-        h('span', { class: 't', text: (open ? '▾ ' : '▸ ') + (E.BAND_LABEL[b] || b) }),
-        h('span', { class: 'tiny', text: c.att + ' tried · ' + c.mast + ' mastered · ' + c.has + ' with items' })
-      ]);
-      if (!open) return h('div', {}, [head]);
-      var rows = L.filter(function (s) { return s.band === b; });
-      var out = [], lastTopic = null;
-      rows.forEach(function (sk) {
-        if (sk.strand !== lastTopic) {
-          lastTopic = sk.strand;
-          out.push(h('div', { class: 'cd', style: { margin: '10px 2px 4px', fontWeight: '700' } }, sk.code.split('.')[0] + ' · ' + sk.strand));
-        }
-        var st = E.skillState(sk.id), status = E.statusOf(sk.id), has = !!root.SKILL_GEN[sk.id];
-        var m = st ? Math.round((st.m || 0) * 100) : 0;
-        out.push(h('div', { class: 'skill' + (has ? '' : ' locked') }, [
-          h('div', { style: { width: '44px', textAlign: 'center' } }, [h('div', { class: 'cd', text: sk.code })]),
-          h('div', { class: 'grow' }, [
-            h('div', { class: 'nm', text: sk.name }),
-            h('div', { class: 'cd', text: (E.STATUS_LABEL[status] || status) + (st && st.a ? ' · ' + st.c + '/' + st.a : '') })
-          ]),
-          h('div', { class: 'bar', title: 'mastery ' + m + '%' }, [h('i', { style: { width: m + '%' } })]),
-          h('button', {
-            class: 'btn small', type: 'button', disabled: !has,
-            on: { click: function () { S.manual = sk.id; S.queue = []; S.view = 'practice'; S.item = null; render(); } }
-          }, has ? 'Practice' : '—')
-        ]));
-      });
-      return h('div', {}, [head, h('div', { class: 'skill-list' }, out)]);
-    });
-    /* the level list, straight away: no title card above it */
-    clear(view).appendChild(h('div', {}, rowsOut));
   }
 
   /* ------------------------------------------------ the strand doughnut ---
@@ -101699,10 +101705,11 @@ var MW = {
       h('div', { class: 'brand' }, [h('div', { class: 'glyph', text: 'π' }), 'MathPath']),
       h('div', { class: 'meter' }, [
         levelPicker(lv),
-        st.sess.asked ? h('span', { class: 'pill', title: 'answered right in this sitting', text: acc + '%' }) : null
+        /* the running score used to sit here; it now lives under the question,
+           where the learner is actually working, as a bar for the chosen level */
       ]),
       h('nav', { class: 'tabs' }, [
-        tab('practice', 'Practice'), tab('plan', 'Plan'), tab('ladder', 'Ladder'), tab('report', 'Report'),
+        tab('practice', 'Practice'), tab('report', 'Report'),
         h('button', { type: 'button', class: S.view === 'diag' ? 'on' : '', on: { click: function () { location.hash = '#diag'; } }, text: E.diagActive() ? 'Probe ●' : 'Probe' })
       ])
     ]));
@@ -101736,9 +101743,7 @@ var MW = {
   /* -------------------------------------------------------------- render - */
   function render() {
     renderHeader();
-    if (S.view === 'plan') viewPlan();
-    else if (S.view === 'ladder') viewLadder();
-    else if (S.view === 'report') viewReport();
+    if (S.view === 'report') viewReport();
     else if (S.view === 'diag') viewDiag();
     else viewPractice();
   }
@@ -101746,7 +101751,10 @@ var MW = {
   function route() {
     var v = (location.hash || '#practice').replace(/^#\/?/, '') || 'practice';
     if (v.indexOf('practice/') === 0) { S.manual = v.slice(9); S.item = null; S.queue = []; v = 'practice'; }
-    if (['practice', 'plan', 'ladder', 'report', 'diag'].indexOf(v) < 0) v = 'practice';
+    /* the Plan and Ladder pages were removed; a bookmarked address for either
+       of them lands on Practice rather than on a blank screen */
+    if (v === 'plan' || v === 'ladder') v = 'practice';
+    if (['practice', 'report', 'diag'].indexOf(v) < 0) v = 'practice';
     if (v !== S.view) { S.view = v; }
     render();
   }
