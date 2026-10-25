@@ -449,7 +449,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-24 — 100 modules inlined:
+/* MathPath 2026-10-25 — 100 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -7783,6 +7783,18 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     tanh: '\\tanh', log: '\\log', ln: '\\ln', exp: '\\exp', max: '\\max', min: '\\min'
   };
   var UNITS = 'cm|mm|km|ft|in|yd|mi|oz|lb|kg|ml|qt|pt|gal|m|l|g';      /* longest first */
+  /* The words a single letter is hyphenated to in a maths sentence. A hyphenated
+     word is only a maths compound when the word is one of these, so "x-ray" and
+     "24-hour" and "a-b-c" stay exactly the words they are. */
+  var MATHWORD = 'axis|axes|coordinate|coordinates|intercept|intercepts|value|values|' +
+    'variable|variables|quantity|quantities|quartile|quartiles|variable|term|terms|' +
+    'scale|scales|grid|grids|plane|pair|intercept|score|coordinate';
+  /* A unit is only a unit next to a quantity, and the short ones lie: "5 in the
+     box" is prose. So the ambiguous units need a measure word near them, while
+     cm/mm/kg/gal are never words in English and may stand on their own. */
+  var HARDUNIT = /^(?:cm|mm|km|kg|mg|mL|ml|qt|gal|yd|mi|oz|lb|ft)$/;
+  var MEASURENEXT = /^(?:long|wide|tall|high|deep|thick|round|square|cube|by|of|and|or|per)\b|^[.,;:!?]|^[=<>≈≤≥-]/;
+  var MEASURECUE = /\b(?:inch|inches|foot|feet|yard|yards|mile|miles|centimeter|centimetre|meter|metre|liter|litre|gram|kilogram|pound|ounce|quart|gallon|square|cube|area|perimeter|volume|capacity|measure|measured|length|width|height|depth|weight|capacity)\b/;
   var FUNWORDS = 'arcsin|arccos|arctan|sinh|cosh|tanh|sqrt|sin|cos|tan|cot|sec|csc|log|ln|exp|max|min';
   var GREEKWORDS = 'theta|alpha|beta|gamma|delta|epsilon|zeta|eta|iota|kappa|lambda|mu|nu|rho|sigma|tau|phi|chi|psi|omega';
 
@@ -7796,12 +7808,16 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   var SIGNED = '[-+]?' + ND;
   var FR = '(?:\\(\\s*' + SIGNED + '\\s*\\)|' + SIGNED + '|[a-z]|\\d*pi)';   /* a fraction side */
   /* |−7| and |A|: the bars have to hug one value, because "green | other" is a
-     separator in an answer string and must stay words */
-  var AVAL = '(?:[-+]?\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+)?|pi|[a-zA-Z])';
-  var ABS = '\\|(?=\\s*[-+\\d(|[a-zA-Z])(?!\\s*[A-Za-z]{2})\\s*[-+\\da-zA-Z.,\\s^{}()/[\\]*√π]{1,24}?\\s*\\|';
+     separator in an answer string and must stay words. A card writes its minus
+     as the real thing (−, U+2212) as often as as a hyphen, and a sign class
+     that knows only ASCII loses the bars of |x − 3| = 5: the learner then gets
+     "x − 3" and "= 5" typeset as two unrelated maths. */
+  var SIGN = '[-+\u2212\u2013\u00b1\u2213]';
+  var AVAL = '(?:' + SIGN + '?\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+)?|pi|[a-zA-Z])';
+  var ABS = '\\|(?=\\s*(?:' + SIGN + '|\\d|\\(|\\[|[a-zA-Z]))(?!\\s*[A-Za-z]{2})\\s*(?:' + SIGN + '|[-+\\da-zA-Z.,\\s^{}()/[\\]*√π]){1,24}?\\s*\\|';
   var PATS = [
     ['[-+]?\\d+\\s+\\d+\\s*\\/\\s*\\d+(?![\\d.])', 'mixed'],            /* 2 1/4 */
-    ['' + FR + '\\s*\\/\\s*' + FR + '(?![\\w])', 'frac'],            /* 3/4  -3/8  (-3)/4  n/1  pi/3  2pi/3 */
+    ['' + FR + '\\s*\\/\\s*' + FR + '(?![a-rt-z0-9_]|s[a-z])', 'frac'],            /* 3/4  -3/8  (-3)/4  n/1  pi/3  2pi/3 */
     ['√\\s*(?:' + ND + '|\\([^()]{1,24}\\)|[a-z](?![a-z]))', 'root'],           /* √36 √(a+b) √a */
     ['∛\\s*(?:' + ND + '|\\([^()]{1,24}\\)|[a-z](?![a-z]))', 'croot'],
     ['' + ABS, 'abs'],                          /* |−7|, |x| — absolute value */
@@ -7810,13 +7826,30 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     ['(?:' + UNITS + ')[²³⁴⁵]', 'unitpow'],               /* m² cm³ in² */
     ['' + ND + '\\s*[' + SUPCH + ']+', 'sup'],       /* 10⁴  5⁻² */
     ['[' + SUPCH + ']+', 'supx'],                    /* ³ after a bracket: (-3)³ */
+    /* 100 °C and −4 °F: the degree and its letter are one symbol, not a value
+       followed by a point name. Taken apart, the card shows a typeset 100 next
+       to a plain °C — the split the reference never makes. */
+    ['(?:' + ND + '\\s*)?°\\s*[CF](?![a-z])', 'temp'],   /* 100 °C  °F  27.5°C */
     ['' + ND + '\\s*°(?!\\w)', 'deg'],                    /* 90°  27.5° */
     ['' + ND + '\\s*%(?!\\w)', 'pct'],                    /* 20%  0.5% */
     ['(?:' + FUNWORDS + ')\\d{0,2}\\s*\\([-+a-z0-9.,\\s()]{0,12}\\)', 'call'],   /* sin(theta) */
     ['[fgh](?:\'{1,2})?\\s*\\([-+a-z0-9.,\\s()]{0,12}\\)', 'call'],      /* f(x)  f'(x)  g(-3) */
+    /* AB, CD, XYZ — a segment or an angle named by two capitals, but only
+       where it leans on a relation or a figure symbol (scan() checks), so that
+       "AMC 8" and "US" stay words. */
+    ['[A-Z]{2,4}(?![a-z])', 'seg'],
     ['' + ND + '(?![\\d])', 'num'],                     /* 12  3.5  1,000 — "3x" splits into 3 | x */
     ['(?:' + GREEKWORDS + ')(?![\\w.])', 'greek'],
     ['pi(?!([a-z]|[01]?\\d?\\/))', 'pi'],                    /* pi as a word, not "pip" */
+    /* cm, mm, kg … as one token. They must be tried before the single letters,
+       because "cm" otherwise scans as c + m and the unit is gone. scan() then
+       decides whether "in" is a unit or the preposition. */
+    ['(?:' + UNITS + '|mL|mg|L)(?![a-z])', 'unit'],
+    /* x-axis, y-coordinates, x-intercept, t-values: the reference writes $x$-axis
+       — the variable in the maths face, the word in the text face. Left as words,
+       one card holds two different letters for the same x. */
+    ['[xyztrn]-(?:' + MATHWORD + ')(?![a-z])', 'varword'],
+    ['[xyztrn]-(?=\\s+and\\s+[xyztrn]-(?:' + MATHWORD + ')(?![a-z]))', 'varhalf'],
     ['[a-z](?![a-z\'"⁻])', 'var'],                           /* x y n r … */
     ['[A-Z](?![a-z])', 'varuc'],                          /* A B (point names) */
     ['\\(', 'open'], ['\\)', 'close'], ['\\[', 'bopen'], ['\\]', 'bclose'],
@@ -7834,23 +7867,28 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   var SELF = {
     mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1, sup: 1, deg: 1, pct: 1, blank: 1,
-    vulgar: 1, greekuc: 1, call: 1, matrix: 1, abs: 1, bb: 1, point: 1, sub: 1
+    vulgar: 1, greekuc: 1, call: 1, matrix: 1, abs: 1, bb: 1, point: 1, sub: 1,
+    temp: 1, varword: 1, varhalf: 1, fracs: 1
   };
   var VALUE = {
     num: 1, var: 1, varuc: 1, pi: 1, greek: 1, call: 1, mixed: 1, frac: 1, root: 1, croot: 1,
-    pow: 1, unitpow: 1, sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1, matrix: 1, abs: 1, bb: 1, point: 1
+    pow: 1, unitpow: 1, sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1, matrix: 1, abs: 1, bb: 1, point: 1,
+    temp: 1, varword: 1, unit: 1, seg: 1, fracs: 1
   };
   var ATOM = {
     num: 1, var: 1, varuc: 1, pi: 1, greek: 1, call: 1, open: 1, close: 1, bopen: 1, bclose: 1,
     comma: 1, colon: 1, op: 1, blank: 1, mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1,
     sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1, matrix: 1, abs: 1, dots: 1, bb: 1,
-    point: 1, sub: 1, gopen: 1, gclose: 1
+    point: 1, sub: 1, gopen: 1, gclose: 1, temp: 1, varword: 1, varhalf: 1, unit: 1, seg: 1, fracs: 1
   };
   /* whitespace is only allowed inside a run; these pairs stay tight */
   function tight(a, b) {
     if (a === 'open' || a === 'bopen' || a === 'gopen') return true;
     if (a === 'close' || a === 'bclose' || a === 'gclose' || a === 'comma') return true;
     if (b === 'close' || b === 'bclose' || b === 'gclose' || b === 'comma' || b === 'pow' || b === 'supx' || b === 'sub') return true;
+    /* a unit and a temperature bring their own thin space, so the word space
+       between them and their number must not be added on top of it */
+    if (b === 'unit' || b === 'temp' || b === 'unitpow') return true;
     return false;
   }
   /* A lone letter may sit across a space inside a run only when it touches an
@@ -7859,7 +7897,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   function letterMayBridge(gapPrev, prevKind, gapNext, nextKind) {
     var okPrev = !gapPrev || prevKind === 'op' || prevKind === 'open' || prevKind === 'comma' || prevKind === 'colon';
     var okNext = !gapNext || nextKind === 'op' || nextKind === 'close' || nextKind === 'comma' ||
-      nextKind === 'colon' || nextKind === 'pow' || nextKind === 'supx';
+      nextKind === 'colon' || nextKind === 'pow' || nextKind === 'supx' ||
+      /* A(2, 3) and f(x): the letter is the name standing in front of the pair,
+         so it belongs to the formula however tightly prose sits in front of it */
+      nextKind === 'point' || nextKind === 'call' || nextKind === 'seg' || nextKind === 'unit';
     /* R^n, S^(n-1), A^2: the letter IS the base of the power, so it is inside
        the formula even where a space ended the word before it. Letting it stay
        text and typesetting only `^n` is exactly the half-converted look. */
@@ -7867,6 +7908,9 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     /* “… has solution x < 6”: the x stands in front of the relation, so it is
        part of the formula however much prose comes before it. */
     if (gapPrev && nextKind === 'op') okPrev = true;
+    /* "Point A(2, 3)": A is the name of the point, not the last word before the
+       coordinates, so it walks into the formula with them. */
+    if (gapPrev && (nextKind === 'point' || nextKind === 'call')) okPrev = true;
     return okPrev && okNext;
   }
 
@@ -7942,26 +7986,41 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
      running prose, and a list taken token by token is only commas and brackets,
      which no acceptance rule can defend. A grid of rows is checked first, so
      [[a, b], [c, d]] stays a matrix and never becomes a list of lists. */
-  var PTOPEN = { '(': ')', '[': ']', '⟨': '⟩' };
+  var PTOPEN = { '(': ')', '[': ']', '⟨': '⟩', '{': '}' };
+  var PTCLOSE = { ')': 1, ']': 1, '⟩': 1, '}': 1 };
+  /* Every pair has two drawings: a plain one and a grown one. \left( … \right)
+     makes KaTeX fetch its own delimiter fonts (KaTeX_Size1, Size2 …), and those
+     are a different typeface from the maths face of this page, so a coordinate
+     pair would show parentheses that visibly do not match the digits between
+     them. Growing is worth that only around something tall, so the plain column
+     is the default and the grown column is used when the run holds a fraction,
+     a root or a matrix. */
   var PTTEX = {
-    '(': '\\left(', '[': '\\left[', '⟨': '\\left\\langle',
-    ')': '\\right)', ']': '\\right]', '⟩': '\\right\\rangle'
+    '(': ['(', '\\left('], ')': [')', '\\right)'],
+    '[': ['[', '\\left['], ']': [']', '\\right]'],
+    '⟨': ['\\langle', '\\left\\langle'], '⟩': ['\\rangle', '\\right\\rangle'],
+    '{': ['\\{', '\\left\\{'], '}': ['\\}', '\\right\\}']
   };
-  var PTEXT = '[-+]?(?:\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+)?|pi|[a-z])';
+  var PTEXT = SIGN + '?(?:\\d+(?:\\.\\d+)?(?:\\s*\\/\\s*\\d+)?|pi|[a-z])';
   function tupleAt(src, i) {
     var open = src.charAt(i), want = PTOPEN[open];
     if (!want) return null;
+    /* a brace that a ^ or an _ is raising is not a set: x ^ {2} stays a power */
+    if (open === '{' && /[\^_]$/.test(src.slice(0, i).replace(/\s+$|$/, ''))) {
+      var back = src.slice(0, i).replace(/\s+$/, '');
+      if (/[\^_]$/.test(back)) return null;
+    }
     var j = i + 1, parts = [], start = j, depth = 0, c, k;
     for (; j < src.length && j - i < 120; j++) {
       c = src.charAt(j);
-      if (c === '(' || c === '[' || c === '⟨') depth++;
-      else if (c === ')' || c === ']' || c === '⟩') {
+      if (PTOPEN[c]) depth++;
+      else if (PTCLOSE[c]) {
         if (!depth) { parts.push(src.slice(start, j)); break; }   /* [0, 1) closes early */
         depth--;
       } else if (c === ',' && !depth) { parts.push(src.slice(start, j)); start = j + 1; }
     }
     if (depth || !parts.length || parts.length > 8) return null;
-    if (src.charAt(j) !== ')' && src.charAt(j) !== ']' && src.charAt(j) !== '⟩') return null;
+    if (src.charAt(j) !== want) return null;
     var one = new RegExp('^\\s*' + PTEXT + '\\s*$');
     var body = [];
     for (k = 0; k < parts.length; k++) {
@@ -7993,6 +8052,11 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         }
       }
       var pt = tupleAt(src, i);
+      /* Kobos (2026) proved a bound for every n ≥ 3. — brackets around one bare
+         four-digit year carry a date, not a coordinate: "(2026)" belongs to the
+         sentence, and only the maths around it belongs to the maths. */
+      var yearPair = !!pt && pt.body.length === 1 && /^(?:19|20)\d{2}$/.test(String(pt.body[0]).trim());
+      if (yearPair) pt = null;
       if (pt) {
         out.push({
           kind: 'point', s: src.slice(i, pt.end), at: i,
@@ -8024,12 +8088,66 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
             /[-+\u00d7\u00f7=<>\u2248\u2264\u2265\u2260\u00b1*]/.test(pd) || /\s/.test(nd) ||
             (unary && /\d|[a-z]/.test(nd))) ? 'op' : 'txt';
         }
+        /* A unit is a unit only beside a quantity, and the short ones lie:
+           "3 cm" and "7 in long" are measurements, "5 in the box" is prose. The
+           long names (cm, mm, kg, gal) are never English words, so a number in
+           front of them is enough; the short ones (in, m, l, g, pt) also need a
+           measure word beside or near them. */
+        if (hit.kind === 'unit') {
+          var up = i - 1;
+          while (up >= 0 && /\s/.test(src.charAt(up))) up--;
+          var beforeQty = /(?:\d|[²³⁴⁵½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])$/.test(src.slice(0, up + 1));
+          /* what follows, with our own <b>…</b> markup removed: a sentence that
+             says "has 18 in all" is prose, and an unanchored test would read the
+             "<" of a closing tag as a relation and call it inches. */
+          var afterTail = src.slice(i + hit.s.length).replace(/<[^>]*>/g, '');
+          if (up >= 0 && src.charAt(up) === '-') hit = { kind: 'txt', s: hit.s, at: i };
+          if (!beforeQty || (!HARDUNIT.test(hit.s) &&
+            !MEASURENEXT.test(afterTail) && !MEASURECUE.test(src))) {
+            hit = { kind: 'txt', s: hit.s, at: i };
+          }
+        }
+        /* x-axis, y-values: the letter has to stand free, or "max-value" would
+           lose its x into a formula that was never there. */
+        if (hit.kind === 'varword' || hit.kind === 'varhalf') {
+          var vb = i > 0 ? src.charAt(i - 1) : '';
+          if (/[A-Za-z0-9']/.test(vb)) hit = { kind: 'txt', s: hit.s, at: i };
+        }
+        /* Two capitals are the name of a segment only where a relation or a
+           figure symbol leans on them; "AMC 8", "SAT" and "US" stay words. */
+        if (hit.kind === 'seg') {
+          var SEG_TOUCH = '∥⊥≅∼≌<>=∠°\'′″(';
+          var SEG_FIGURE = '∥⊥≅∼≌∠△°\'′″';      /* a figure, not just a relation */
+          var bp = i - 1, ap = i + hit.s.length;
+          while (bp >= 0 && (src.charAt(bp) === ' ' || src.charAt(bp) === '\n')) bp--;
+          while (ap < n && (src.charAt(ap) === ' ' || src.charAt(ap) === '\n')) ap++;
+          /* charAt past either end is the empty string, and indexOf('') is 0 —
+             which would read every name at the edge of a card as touched */
+          var lc = bp >= 0 ? src.charAt(bp) : '\u0000';
+          var rc = ap < n ? src.charAt(ap) : '\u0000';
+          var touched = SEG_TOUCH.indexOf(lc) >= 0 || SEG_TOUCH.indexOf(rc) >= 0;
+          /* III, XXIV, XLII — Roman numerals are all capitals too, and a bar
+             over them (the segment reading) is simply wrong. They stay words
+             unless a figure symbol is right there, which is how "CD ∥ AB" and
+             "24 = XXIV" are told apart. */
+          var roman = /^[IVXLCDM]+$/.test(hit.s);
+          var figure = SEG_FIGURE.indexOf(lc) >= 0 || SEG_FIGURE.indexOf(rc) >= 0;
+          if (!touched || (roman && !figure)) hit = { kind: 'txt', s: hit.s, at: i };
+        }
         /* "of (1, 4)" is prose plus a coordinate pair, not the function f of
            (1, 4): a call letter has to stand free on its left. */
         if (hit.kind === 'call') {
           var cb = i > 0 ? src.charAt(i - 1) : '';
           if (/[A-Za-z']/.test(cb)) hit = { kind: 'txt', s: hit.s, at: i };
         }
+        /* 1/4s, 3/8s — the plural of a typed fraction. The s is a letter of
+           English, not a variable multiplying the fraction, so it is kept with
+           the fraction and printed upright. */
+        if (hit.kind === 'frac' && src.charAt(i + hit.s.length) === 's' &&
+          !/[a-z]/.test(src.charAt(i + hit.s.length + 1))) {
+          hit = { kind: 'fracs', s: hit.s + 's', at: i };
+        }
+        /* a lone bracket that opens prose — "(the larger of)" — is not a delimiter */
         if (hit.kind === 'txt') { out.push(hit); i++; continue; }
         out.push(hit); i += hit.s.length; continue;
       }
@@ -8058,8 +8176,30 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (/^-/.test(b)) { b = b.slice(1); sign = sign === '-' ? '' : '-'; }
     return sign + '\\frac{' + piTex(a) + '}{' + piTex(b) + '}';
   }
+  /* Grown delimiters are drawn from KaTeX's own delimiter fonts, which are a
+     different typeface from the maths face of this page. They are worth it only
+     around something that is actually tall — a fraction, a root, a matrix — and
+     everywhere else the plain pair keeps the brackets in the same face as the
+     digits between them, which is what the reference does. */
+  function tallRun(toks) {
+    var i, t;
+    for (i = 0; i < toks.length; i++) {
+      t = toks[i];
+      if (t.kind === 'frac' || t.kind === 'root' || t.kind === 'croot' ||
+        t.kind === 'mixed' || t.kind === 'matrix') return true;
+      /* |1/2| wants grown bars, |x − 3| does not: judge the bars by what is
+         between them, not by the fact that they are bars */
+      if (t.kind === 'abs' && /[√∛]|\d\s*\/\s*\d|\(/.test(t.s)) return true;
+      if (t.kind === 'point') {
+        for (var j = 0; j < (t.body || []).length; j++) {
+          if (/[√∛]|\s\/\s|^\[/.test(t.body[j])) return true;
+        }
+      }
+    }
+    return false;
+  }
   function emit(toks) {
-    var parts = [], i, t, s, mm, m;
+    var parts = [], i, t, s, mm, m, tall = tallRun(toks);
     for (i = 0; i < toks.length; i++) {
       t = toks[i]; s = t.s;
       if (t.kind === 'num') { parts.push(numTex(s)); continue; }
@@ -8071,26 +8211,57 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (t.kind === 'blank') { parts.push('\\mathbin{\\bigcirc}'); continue; }
       if (t.kind === 'vulgar') { parts.push(VULGAR[s] || s); continue; }
       if (t.kind === 'matrix') { parts.push(matrixTex(t.rows || [])); continue; }
-      if (t.kind === 'abs') { parts.push('\\left|' + innerTex(s.slice(1, -1)) + '\\right|'); continue; }
+      if (t.kind === 'abs') {
+        var ab = innerTex(s.slice(1, -1));
+        parts.push(tall ? '\\left|' + ab + '\\right|' : '\\lvert ' + ab + ' \\rvert');
+        continue;
+      }
       if (t.kind === 'dots') { parts.push('\\ldots'); continue; }
       if (t.kind === 'bb') { parts.push(BB[s] || s); continue; }
       if (t.kind === 'point') {
-        parts.push((PTTEX[t.open] || '\\left(') + t.body.map(innerTex).join(', ') +
-          (PTTEX[t.close] || '\\right)'));
+        var pob = PTTEX[t.open] || ['(', '\\left('], pcb = PTTEX[t.close] || [')', '\\right)'];
+        /* TeX throws away the space between tokens, so " (1, 4)" would print as
+           "(1,4)": the comma is told to keep its space, the way it is written. */
+        parts.push(pob[tall ? 1 : 0] + t.body.map(innerTex).join(',\\ ') + pcb[tall ? 1 : 0]);
         continue;
       }
+      /* 100 °C is one symbol: the degree rides up as a superscript and the C is
+         a word, upright, in the text face — exactly as the reference sets it. */
+      if (t.kind === 'temp') {
+        m = s.match(/^(.*?)°\s*([CF])$/);
+        parts.push((m && m[1].trim() ? numTex(m[1].trim()) + '\\,' : '') +
+          '^{\\circ}\\text{' + (m ? m[2] : 'C') + '}');
+        continue;
+      }
+      if (t.kind === 'unit') { parts.push('\\,\\text{' + s + '}'); continue; }
+      /* x-axis: the variable in the maths face, the hyphen and the word in the
+         text face. One letter for the x of the sentence and the x of the axis. */
+      if (t.kind === 'varword') {
+        var vhy = s.indexOf('-');
+        parts.push(s.slice(0, vhy) + '\\text{' + s.slice(vhy) + '}');
+        continue;
+      }
+      if (t.kind === 'varhalf') { parts.push(s.slice(0, 1) + '\\text{-}'); continue; }
+      /* AB is the segment named by A and B, so it is drawn with the bar over it,
+         and the two letters stay roman rather than turning into a product ab. */
+      if (t.kind === 'seg') { parts.push('\\overline{' + s + '}'); continue; }
       if (t.kind === 'sub') { parts.push('_{' + s.replace(/^_\{?/, '').replace(/\}$/, '') + '}'); continue; }
-      if (t.kind === 'gopen') { parts.push('\\left\\langle'); continue; }
-      if (t.kind === 'gclose') { parts.push('\\right\\rangle'); continue; }
-      if (t.kind === 'open') { parts.push('\\left('); continue; }
-      if (t.kind === 'close') { parts.push('\\right)'); continue; }
-      if (t.kind === 'bopen') { parts.push('\\left['); continue; }
-      if (t.kind === 'bclose') { parts.push('\\right]'); continue; }
+      if (t.kind === 'gopen') { parts.push(tall ? '\\left\\langle' : '\\langle'); continue; }
+      if (t.kind === 'gclose') { parts.push(tall ? '\\right\\rangle' : '\\rangle'); continue; }
+      if (t.kind === 'open') { parts.push(tall ? '\\left(' : '('); continue; }
+      if (t.kind === 'close') { parts.push(tall ? '\\right)' : ')'); continue; }
+      if (t.kind === 'bopen') { parts.push(tall ? '\\left[' : '['); continue; }
+      if (t.kind === 'bclose') { parts.push(tall ? '\\right]' : ']'); continue; }
       if (t.kind === 'comma') { parts.push(','); continue; }
       if (t.kind === 'colon') { parts.push(':'); continue; }
       if (t.kind === 'mixed') {
         mm = s.replace(/\s+/g, ' ').trim().split(/[\s\/]+/);
         parts.push(numTex(mm[0]) + '\\frac{' + mm[1] + '}{' + mm[2] + '}'); continue;
+      }
+      if (t.kind === 'fracs') {
+        var sideS = s.slice(0, -1).replace(/\(\s*|\s*\)/g, '').split('/');
+        parts.push(fracTex((sideS[0] || '').trim(), (sideS[1] || '').trim()) + '\\text{s}');
+        continue;
       }
       if (t.kind === 'frac') {
         var side = s.replace(/\(\s*|\s*\)/g, '').split('/');
@@ -8107,13 +8278,17 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         parts.push('^{' + pw + '}'); continue;
       }
       if (t.kind === 'sup') {
-        m = s.match(/^(\d+(?:,\d{3})*(?:\.\d+)?)\s*([' + SUPCH + ']+)$/) || [null, '', ''];
+        /* NOT `/^(\d…)\s*([' + SUPCH + ']+)$/` — a regex literal plus a string
+           goes through toString(), which keeps the slashes and plants a literal
+           "/" in front of the class, so nothing ever matched and every 10⁴ came
+           out as the bare ^{} that a learner reads as a typo. */
+        m = s.match(new RegExp('^(' + ND + ')\\s*([' + SUPCH + ']+)$')) || [null, '', ''];
         parts.push(numTex(m[1]) + '^{' + supDigits(m[2]) + '}'); continue;
       }
       if (t.kind === 'supx') { parts.push('^{' + supDigits(s) + '}'); continue; }
       if (t.kind === 'unitpow') {
         m = s.match(/^([a-z]+)([²³⁴⁵])$/);
-        parts.push(m ? '\\text{' + m[1] + '}^{' + supDigits(m[2]) + '}' : s); continue;
+        parts.push(m ? '\\,\\text{' + m[1] + '}^{' + supDigits(m[2]) + '}' : s); continue;
       }
       if (t.kind === 'deg') { parts.push(numTex(s.replace(/°/, '').replace(/\s+/, '')) + '^\\circ'); continue; }
       if (t.kind === 'pct') { parts.push(numTex(s.replace(/%/, '').replace(/\s+/, '')) + '\\%'); continue; }
@@ -8159,8 +8334,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (a >= b || run[a].kind !== 'op') return false;
     if (!/^[-+\u00b1\u2212]$/.test(run[a].s)) return false;
     var nx = run[a + 1];
-    return !!nx && (nx.kind === 'num' || nx.kind === 'var' || nx.kind === 'open' ||
-      nx.kind === 'root' || nx.kind === 'frac' || nx.kind === 'vulgar');
+    if (!nx) return false;
+    /* −4 °C, −3 cm, −x²: whatever follows the sign, the sign belongs to it, so
+       trimming the sign off would quietly turn "−4 °C" into "4 °C". */
+    return nx.kind === 'num' || nx.kind === 'var' || nx.kind === 'varuc' || nx.kind === 'open' ||
+      nx.kind === 'root' || nx.kind === 'frac' || nx.kind === 'vulgar' ||
+      nx.kind === 'temp' || nx.kind === 'deg' || nx.kind === 'pct' ||
+      nx.kind === 'unit' || nx.kind === 'unitpow' || nx.kind === 'pow' || nx.kind === 'supx';
   }
   /* “the solution is ≈ 24”, “x < 6” — a relation may open a formula
      because it belongs to the number that follows it, and dropping it would
@@ -8171,19 +8351,73 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var nx = run[a + 1];
     return !!nx && !!VALUE[nx.kind];
   }
+  /* ∠1, △ABC, AB ∥ CD: the symbol is the head of the thing it names, and
+     trimming it off typesets "1 = 65°" and leaves the ∠ in the sentence. */
+  function isPrefixLead(run, a, b) {
+    if (a >= b || run[a].kind !== 'op') return false;
+    var lead = run[a].s;
+    var isGeom = lead === '∠' || lead === '△' || lead === '∥' || lead === '⊥' ||
+      lead === '≅' || lead === '∼' || lead === '≌' || lead === '°' ||
+      lead === '′' || lead === '″';
+    if (!isGeom) return false;
+    var nx = run[a + 1];
+    return !!nx && (!!VALUE[nx.kind] || nx.kind === 'seg' || nx.kind === 'deg');
+  }
+  /* "Choose >, < or =." — a comparator printed on its own is a symbol of the
+     maths; leaving it in the text face beside a typeset 3/4 is one sentence in
+     two notations. */
+  function isRelationToken(t) {
+    if (t.kind !== 'op') return false;
+    var rel = t.s;
+    return rel === '=' || rel === '<' || rel === '>' || rel === '≈' || rel === '≤' ||
+      rel === '≥' || rel === '≠' || rel === '≡' || rel === '≅' || rel === '∝' ||
+      rel === '∈' || rel === '∉' || rel === '⊂' || rel === '⊆' || rel === '∪' || rel === '∩';
+  }
+  /* a run made of nothing but comparators and the commas between them is the
+     symbol set the card is asking the learner to choose from */
+  function isRelationalRun(run, a, b) {
+    var seen = 0, i;
+    for (i = a; i < b; i++) {
+      if (run[i].kind === 'comma' || run[i].kind === 'dots') continue;
+      if (!isRelationToken(run[i])) return false;
+      seen++;
+    }
+    return seen >= 1;
+  }
+  function isLoneRelation(run, a, b) {
+    if (b - a !== 1 || run[a].kind !== 'op') return false;
+    var rel = run[a].s;
+    return rel === '=' || rel === '<' || rel === '>' || rel === '≈' || rel === '≤' ||
+      rel === '≥' || rel === '≠' || rel === '≡' || rel === '≅' || rel === '∝' ||
+      rel === '∈' || rel === '∉' || rel === '⊂' || rel === '⊆' || rel === '∪' || rel === '∩';
+  }
   function trim(run) {
     var a = 0, b = run.length, i, d;
+    /* a lone comparator survives the trim precisely because it is the formula,
+       even when the card lists its comparators and commas fence them in */
+    if (isLoneRelation(run, a, b)) return run.slice(a, b);
+    var p = a, q = b - 1, k;
+    while (p < b && (run[p].kind === 'comma' || run[p].kind === 'dots')) p++;
+    while (q >= p && (run[q].kind === 'comma' || run[q].kind === 'dots')) q--;
+    if (p <= q && isRelationalRun(run, p, q + 1)) return run.slice(p, q + 1);
     /* a leading "…" is the tail of the sentence before it, not part of the
        formula that starts here; a trailing one means "and so on" and stays */
     while (a < b && (run[a].kind === 'comma' || run[a].kind === 'dots' ||
-      (run[a].kind === 'op' && !(isUnaryLead(run, a, b) || isRelationLead(run, a, b))))) a++;
+      (run[a].kind === 'op' && !(isUnaryLead(run, a, b) || isRelationLead(run, a, b) ||
+        isPrefixLead(run, a, b))))) a++;
     while (b > a && (run[b - 1].kind === 'op' || run[b - 1].kind === 'comma')) b--;
     /* drop brackets that a word or that trim cut in half */
     d = 0;
     for (i = a; i < b; i++) {
       var k = run[i].kind;
       if (k === 'open' || k === 'bopen' || k === 'gopen') d++;
-      else if (k === 'close' || k === 'bclose' || k === 'gclose') { if (d === 0) a = i + 1; else d--; }
+      else if (k === 'close' || k === 'bclose' || k === 'gclose') {
+        if (d !== 0) { d--; continue; }
+        /* the bracket has no partner: at the end of the run it is the one to
+           drop, in the middle it is the text on its left that has to go */
+        if (i === b - 1) { b = i; break; }
+        a = i + 1;
+      }
     }
     d = 0;
     for (i = b - 1; i >= a; i--) {
@@ -8222,7 +8456,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     return tight && vals >= 3;                          /* 3,4,3 — a Schläfli symbol */
   }
   function acceptable(run) {
-    var self = 0, op = 0, val = 0, colon = 0, supx = 0, br = 0, dots = 0, i;
+    var self = 0, op = 0, val = 0, colon = 0, supx = 0, br = 0, dots = 0, meas = 0, i;
     for (i = 0; i < run.length; i++) {
       var t = run[i];
       if (SELF[t.kind]) self++;
@@ -8232,6 +8466,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (t.kind === 'supx') supx++;
       if (t.kind === 'dots') dots++;
       if (t.kind === 'bopen' || t.kind === 'bclose') br++;
+      if (t.kind === 'unit' || t.kind === 'unitpow' || t.kind === 'temp') meas++;
     }
     if (!run.length || !balanced(run)) return false;
     if (self) return true;
@@ -8240,8 +8475,39 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     if (supx >= 1 && val >= 1) return true;           /* (-3)³ */
     if (br >= 2 && val >= 2) return true;             /* [[2, 1], [0, 3]] */
     if (dots >= 1 && val >= 1) return true;           /* 15, 16 … 31 */
+    /* "3 cm, 4 cm and 5 cm": the numbers are the point of the sentence, and a
+       measurement is typeset maths even though it carries no operator. */
+    if (meas >= 1 && val >= 1) return true;
+    if (isRelationalRun(run, 0, run.length)) return true;
     if (valueList(run)) return true;                  /* (1, 4) — coordinates */
     return false;
+  }
+  /* A card that already carries a formula prints its answer value in the maths
+     face too: "Read across to the x-axis: 8." sets x in one face and its 8 in
+     another, and a learner reads one sentence in two notations. Only a value
+     that closes a clause is promoted, and never a grade, a chapter, a year, a
+     time or a count of the catalogue — those are numbers used as names. */
+  var NAMEYNUMBER = /(?:^|\s)(?:grade|chapter|unit|lesson|section|problem|example|page|year|room|figure|table|number|item|quiz|test|form|code|version|option|choice|amc|part|step|day|week|month|score|out|of|to|from|in)\s*$/i;
+  function promoteValues(src, runs) {
+    var out = [], i, m, last = 0;
+    var re = /(?:^|[\s(:=\u2013\u2014>])((?:\d{1,3}(?:,\d{3})*|\d+)(?:\.\d+)?)(?=\s*[.!?](?:\s|$)|\s*$)/g;
+    while ((m = re.exec(src))) {
+      var at = m.index + m[0].indexOf(m[1]);
+      var end = at + m[1].length;
+      var before = src.slice(0, at), after = src.slice(end);
+      var inside = false;
+      for (i = 0; i < runs.length; i++) if (at < runs[i].end && end > runs[i].start) inside = true;
+      if (inside) continue;
+      if (NAMEYNUMBER.test(before)) continue;
+      /* a letter, a hyphen or a slash means the digits are part of a word, an
+         address or a ratio written in words, not the value the sentence ends on */
+      if (/^[a-z\-\u2212\/]/i.test(after)) continue;
+      if (/\d:$/.test(before)) continue;                     /* 3:30 — a time, not a value */
+      if (/[$°%]$/.test(before)) continue;
+      if (/^\d{4}$/.test(m[1]) && !/[=+\u00d7\u00f7\u2212\u2013<>\/%]/.test(src)) continue;
+      out.push({ start: at, end: end, tex: numTex(m[1]), value: 1 });
+    }
+    return out;
   }
   function findRuns(src) {
     var toks = scan(src);
@@ -8293,6 +8559,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       cur.push(atoms[i].t);
     }
     flush();
+    if (runs.length) {
+      promoteValues(src, runs).forEach(function (v) { runs.push(v); });
+      runs.sort(function (x, y) { return x.start - y.start; });
+    }
     return runs;
   }
   /* runs across our own markup, in the original string's coordinates */
