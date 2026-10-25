@@ -94210,6 +94210,31 @@ function () {
   /* Read a straight line y = a·x + c out of an expression written on the card.
      The slope and intercept are taken by evaluating at two inputs and checked
      against a third, so a curve or a typo is refused rather than drawn wrong. */
+  /* Read one side of a comparison out of a card's sentence.  Three things get in
+     the way, and each has been seen in real cards: the English in front of the
+     algebra ("Solve x + 8"), the typed division and multiplication signs that
+     the catalogue writes as ÷ and ×, and implicit multiplication ("3(3x + 4)").
+     Words are dropped from the front one at a time until the rest parses. */
+  function sideOf(raw) {
+    var words = String(raw == null ? '' : raw).replace(/\u00F7/g, '/').replace(/\u00D7/g, '*')
+      .replace(/\u2212/g, '-').replace(/(\))\s*([(0-9a-z])/gi, '$1*$2')
+      .replace(/([0-9a-z)])\s*\(/gi, '$1*(').trim().split(/\s+/);
+    var hasLetter = function (t) { return /[a-z]/i.test(t); };
+    for (var k = 0; k < words.length; k++) {
+      var cut = words.slice(k).join(' ');
+      if (!cut || !hasLetter(cut)) continue;
+      var got = linearOf(cut);
+      if (got) return got;
+    }
+    return null;
+  }
+  function sideOfConst(raw) {
+    var t = String(raw == null ? '' : raw).replace(/\u2212/g, '-').trim().split(/\s+/)[0].replace(/\.$/, '');
+    if (!/^-?\d+(\.\d+)?$/.test(t)) return null;
+    var v = parseFloat(t);
+    return isFinite(v) ? { a: 0, c: v } : null;
+  }
+
   function linearOf(raw) {
     var e = tidyExpr(raw);
     if (!e || /[^0-9a-z+\-*/^().\s]/i.test(e)) return null;
@@ -94227,15 +94252,55 @@ function () {
      each side is drawn as a line and the side of the intersection that solves
      the inequality is shaded. Both sides come from the card, so the picture and
      the words cannot disagree. */
+  /* A one-variable inequality has one solution set on the line, and that is the
+     picture the catalogue asks for ("graph the solution of x + 8 < 5"): a ray
+     from the boundary, filled circle when the boundary belongs.  The coordinate
+     half-plane below stays for two-variable comparisons, where it is the right
+     model.  Signs that include equality are accepted here and refused there. */
+  function inequalityLine(text) {
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
+    var m = /([0-9a-z+\-*/(). \u00F7\u00D7]{1,24}?)\s*(<=|>=|<|>|\u2264|\u2265)\s*([0-9a-z+\-*/(). \u00F7\u00D7]{1,24})/i.exec(t);
+    if (!m) return null;
+    var op = m[2];
+    if (op === '\u2264') op = '<='; else if (op === '\u2265') op = '>=';
+    var hasVar = function (side) { return /[a-z]/i.test(String(side)); };
+    var L = sideOf(m[1]) || (hasVar(m[1]) ? null : sideOfConst(m[1]));
+    var R2 = sideOf(m[3]) || (hasVar(m[3]) ? null : sideOfConst(m[3]));
+    /* one side may be a bare number while the other carries the letter */
+    if ((!L || !R2) && (L || R2)) { if (L && !R2) R2 = sideOfConst(m[3]); if (R2 && !L) L = sideOfConst(m[1]); }
+    if (!L || !R2) return null;
+    /* exactly one side carries the variable: x + 8 < 5, 2x > 10, 7 > x */
+    if (hasVar(m[1]) === hasVar(m[3])) return null;
+    var a = L.a - R2.a, c = R2.c - L.c;                       /* a·x (op) c */
+    if (!a || !isFinite(a) || !isFinite(c)) return null;
+    var xs = c / a;
+    if (!isFinite(xs) || Math.abs(xs) > 60) return null;
+    var flip = a < 0;
+    var gt = op.indexOf('>') >= 0;
+    var rightSide = flip ? !gt : gt;
+    var closed = op.indexOf('=') >= 0;
+    var half = Math.max(6, Math.abs(xs) * 0.6 + 4);
+    var lo = xs - half, hi = xs + half;
+    return V.numline(Math.round(lo * 2) / 2, Math.round(hi * 2) / 2, [{
+      x: xs,
+      shade: (rightSide ? '>' : '<') + (closed ? '=' : ''),
+      /* the label must state the SOLVED relation: dividing by a negative
+         coefficient turns ≤ into ≥, and a number line drawn one way with the
+         old sign written next to it is a card that teaches the wrong rule */
+      label: 'x ' + (rightSide ? (closed ? '\u2265' : '>') : (closed ? '\u2264' : '<')) +
+        ' ' + (Math.round(xs * 100) / 100)
+    }], {});
+  }
+
   function inequalityFigure(text) {
     var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
     /* the classes spell the space out: inside a character class a "\s" is easy
        to lose on the way through a patch, and silently drops the spaces that
        every real card writes around its operators */
     var m = /([0-9a-z+\-*/(). ]{2,26}?)[ ]*([<>])[ ]*([0-9a-z+\-*/(). ]{1,26})/i.exec(t);
-    if (/[≤≥]|>=|<=|<>/.test(t)) return null;              /* not a strict sign */
+    if (/[≤≥]|>=|<=|<>/.test(t)) return null;              /* one-variable sets use the number line */
     if (!m) return null;
-    var L = linearOf(m[1]), R2 = linearOf(m[3]);               /* m[2] is the sign */
+    var L = sideOf(m[1]), R2 = sideOf(m[3]);                   /* m[2] is the sign */
     if (!L || !R2 || L.a === R2.a) return null;
     var xs = (R2.c - L.c) / (L.a - R2.a);
     if (!isFinite(xs) || Math.abs(xs) > 40) return null;
@@ -94258,6 +94323,52 @@ function () {
   /* The same reading for an equation: each side is drawn as a line and the
      learner sees where they agree. The intersection is left unlabelled — a
      figure that prints the answer has stopped being a figure. */
+  /* A system of two linear equations is a picture of two lines and the point
+     they cross at — the catalogue asks for it ("which ordered pair solves … and
+     …", "graph the system").  Each equation is read in the standard form
+     ax + by = c, the lines are put in slope-intercept form for drawing, and the
+     intersection is solved rather than estimated. */
+  function systemFigure(text) {
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\u2013|\u2014/g, '-').replace(/\s+/g, ' ');
+    var re = /(-?\d*)x\s*([+-])\s*(\d*)y\s*=\s*(-?\d+)/gi;
+    var got = [], m;
+    while ((m = re.exec(t)) && got.length < 2) {
+      var a = m[1] === '' || m[1] === '+' ? 1 : (m[1] === '-' ? -1 : parseInt(m[1], 10));
+      var b = (m[2] === '-' ? -1 : 1) * (m[3] === '' ? 1 : parseInt(m[3], 10));
+      var c = parseInt(m[4], 10);
+      if (!isFinite(a) || !isFinite(b) || !isFinite(c) || a === 0 && b === 0) continue;
+      got.push({ a: a, b: b, c: c });
+    }
+    if (got.length < 2) return null;
+    var d = got[0].a * got[1].b - got[1].a * got[0].b;
+    if (!d || Math.abs(d) > 1e6) return null;
+    var xs = (got[0].c * got[1].b - got[1].c * got[0].b) / d;
+    var ys = (got[0].a * got[1].c - got[1].a * got[0].c) / d;
+    if (!isFinite(xs) || !isFinite(ys) || Math.abs(xs) > 40 || Math.abs(ys) > 40) return null;
+    var lines = [], i2;
+    for (i2 = 0; i2 < 2; i2++) {
+      if (Math.abs(got[i2].b) < 1e-9) continue;                        /* vertical line, not plottable */
+      lines.push({ m: -got[i2].a / got[i2].b, b: got[i2].c / got[i2].b });
+    }
+    if (lines.length < 2) return null;
+    var w = Math.max(6, Math.abs(xs) + 2, Math.abs(ys) + 2);
+    return V.coord({ lines: lines, pts: [{ x: xs, y: ys, label: '(' + (Math.round(xs * 100) / 100) + ', ' + (Math.round(ys * 100) / 100) + ')' }],
+      xmin: -w, xmax: w, ymin: -w, ymax: w });
+  }
+  /* A title that says "from a table" has to be answered with the table the card
+     already contains.  These rows are transcribed from the card, not computed:
+     the numbers in the question are the data, so no row is invented. */
+  function tableFromPairs(text) {
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
+    var re = /\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g;
+    var rows = [], m3;
+    while ((m3 = re.exec(t)) && rows.length < 6) rows.push([+m3[1], +m3[2]]);
+    if (rows.length < 2) return null;
+    var head = ['x', 'y'], i3;
+    for (i3 = 0; i3 < rows.length; i3++) if (!isFinite(rows[i3][0]) || !isFinite(rows[i3][1])) return null;
+    return V.table(head, rows);
+  }
+
   function equationFigure(text) {
     var t = String(text || '').replace(/\u2212/g, '-').replace(/\s+/g, ' ');
     /* a yes/no question about one value is answered by the drawing itself, and
@@ -94300,17 +94411,85 @@ function () {
     if (ok < 5) return null;
     return V.table(['x', 'y'], rows);
   }
+  /* Two more pictures the senior banks keep promising and never draw.
+     Absolute value is a distance on the line: "the distance from x to -6 is 6"
+     has a centre, a radius and two points, and that is exactly what a number
+     line shows.  And a card that asks which quadrant (-5, -2) sits in should
+     show the plane it is talking about. */
+  function distanceFigure(text) {
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\u2013|\u2014/g, '-').replace(/\s+/g, ' ');
+    var c = null, r = null;
+    var m1 = /distance from x to (-?\d+) (?:is|equals|must be) (-?\d+)/i.exec(t);
+    if (m1) { c = +m1[1]; r = Math.abs(+m1[2]); }
+    if (c === null) {
+      var m2 = /\|\s*x\s*([-+])\s*(-?\d+)\s*\|\s*(?:=|<|>|<=|>=|\u2264|\u2265)\s*(-?\d+)/i.exec(t);
+      if (m2) { c = (m2[1] === '-' ? 1 : -1) * (+m2[2]); r = Math.abs(+m2[3]); }
+    }
+    if (c === null || !isFinite(c) || !isFinite(r) || r < 0 || Math.abs(c) + r > 40) return null;
+    var marks = [{ x: c, label: 'centre ' + c }];
+    if (r > 0) { marks.push({ x: c - r, label: '' + (c - r) }); marks.push({ x: c + r, label: '' + (c + r) }); }
+    var half = Math.max(4, r + 2);
+    return V.numline(c - half, c + half, marks, { label: 'the points a distance ' + r + ' from ' + c });
+  }
+  function pointFigure(text) {
+    var m = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(String(text || ''));
+    if (!m) return null;
+    var x = +m[1], y = +m[2];
+    if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 12 || Math.abs(y) > 12) return null;
+    var edge = Math.max(5, Math.abs(x) + 2, Math.abs(y) + 2);
+    return V.coord({ pts: [{ x: x, y: y, label: '(' + x + ', ' + y + ')' }],
+      xmin: -edge, xmax: edge, ymin: -edge, ymax: edge });
+  }
+
+  /* When a card only says "the picture", the learner is told to look at
+     something without being told what it is — the audit calls this out, and it
+     is right.  A figure supplied by the model layer should be named in the
+     card's own words: a number line, a coordinate plane, a table. */
+  var FIGURE_NAMES = [
+    [/^numline$/, 'number line'],
+    [/^coord$/, 'coordinate plane'],
+    [/^graph$/, 'graph'],
+    [/^table$/, 'table'],
+    [/^grid$/, 'grid'],
+    [/^scatter$/, 'scatter plot'],
+    [/^barchart$|^bar$/, 'bar graph'],
+    [/^circle$/, 'circle graph'],
+    [/^lineplot$/, 'line plot']
+  ];
+  function nameThePicture(item, fig) {
+    var name = null;
+    for (var i = 0; i < FIGURE_NAMES.length; i++) if (FIGURE_NAMES[i][0].test(String(fig.k))) { name = FIGURE_NAMES[i][1]; break; }
+    if (!name) return;
+    var re = /\b(the|that|this)\s+(picture|image|diagram)\b/gi;
+    var fix = function (t3) {
+      return String(t3 == null ? '' : t3).replace(re, function (whole, which) {
+        return which + ' ' + name;
+      });
+    };
+    var p = fix(item.prompt), sp = fix(item.sub);
+    if (p !== item.prompt) item.prompt = p;
+    if (sp !== item.sub) item.sub = sp;
+  }
+
   function withModel(item, sk) {
     if (!item || item.visual) return item;
     var t = String((sk && sk.name) || '').toLowerCase();
     if (!/graph|plot|curve|limit|continuity|slope|line|function|inequalit|asymptot/.test(t)) return item;
     var text = String(item.prompt || '') + ' ' + String(item.sub || '');
-    var fig = inequalityFigure(text) || equationFigure(text);
-    if (fig) { item.visual = fig; return item; }
+    /* Read the inequality from the question first: the card's second line can
+       carry prose ("Give the solution as an inequality for x"), and prose on the
+       right of the sign makes the comparison look two-sided. */
+    /* The title decides which picture the learner is owed.  A skill that says
+       "from a table" is served the table even when the card also names points —
+       one lonely plotted point is not what was promised. */
     if (/tables?/i.test(t)) {
-      var tab = tableFromCard(text);
+      var tab = tableFromCard(text) || tableFromPairs(text);
       if (tab) { item.visual = tab; return item; }
     }
+    var fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
+      distanceFigure(text) || systemFigure(text) || inequalityFigure(text) ||
+      equationFigure(text) || pointFigure(text);
+    if (fig) { item.visual = fig; nameThePicture(item, fig); return item; }
     var e = exprFromCard(text);
     if (!e) return item;
     item.visual = V.graph([{ expr: e, label: 'y = ' + e }], { xmin: -6, xmax: 6 });
@@ -94342,8 +94521,16 @@ function () {
        and the audit checks every promise it finds, so this must too.  Keeping
        only the last match let a card satisfy the broad promise while the audit
        still flagged the narrow one. */
+    /* One promise the wording of the audit cannot express on its own: in this
+       catalogue "graph the solutions of an inequality" — one variable — is
+       graded on a number line, and that is the picture the cards now draw.  A
+       shaded half-plane would be a worse card, and two-variable graphing,
+       systems and linear programming keep demanding the plane. */
+    var oneVarIneq = /inequalit/.test(t) &&
+      !/two[- ]variable|systems?\b|linear programming|half[- ]plane|shade/.test(t);
     for (var m = 0; m < PROMISE_KINDS.length; m++) {
       if (!PROMISE_KINDS[m][0].test(t)) continue;
+      if (oneVarIneq && vis === 'numline' && String(PROMISE_KINDS[m][0].source).indexOf('graph') >= 0) continue;
       if (PROMISE_KINDS[m][1].indexOf(vis) < 0) return false;
       promised = PROMISE_KINDS[m][1];
     }
