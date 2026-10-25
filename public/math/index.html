@@ -94353,11 +94353,16 @@ function () {
      ax + by = c, the lines are put in slope-intercept form for drawing, and the
      intersection is solved rather than estimated. */
   function systemFigure(text) {
-    var t = String(text || '').replace(/\u2212/g, '-').replace(/\u2013|\u2014/g, '-').replace(/\s+/g, ' ');
-    var re = /(-?\d*)x\s*([+-])\s*(\d*)y\s*=\s*(-?\d+)/gi;
+    var t = String(text || '').replace(/\u2212/g, '-').replace(/\u2013|\u2014/g, '-').replace(/\s+/g, ' ')
+      .replace(/\+\s*-\s*/g, '-').replace(/-\s*\+/g, '-');   /* "3x + - 3y" is how the banks print it */
+    /* the generators write "3x + - 3y = -33" and "4x + 1y = -9", so the sign in
+       front of y is optional and the two signs have to be multiplied together */
+    var re = /(-?\d*)\s*x\s*(?:([+-])\s*)?(-?\d*)\s*y\s*=\s*(-?\d+)/gi;
     var got = [], m;
     while ((m = re.exec(t)) && got.length < 2) {
       var a = m[1] === '' || m[1] === '+' ? 1 : (m[1] === '-' ? -1 : parseInt(m[1], 10));
+      /* parseInt already carries a leading minus, so the visible sign before y
+         and the sign attached to the digits simply multiply */
       var b = (m[2] === '-' ? -1 : 1) * (m[3] === '' ? 1 : parseInt(m[3], 10));
       var c = parseInt(m[4], 10);
       if (!isFinite(a) || !isFinite(b) || !isFinite(c) || a === 0 && b === 0) continue;
@@ -94391,6 +94396,27 @@ function () {
     var head = ['x', 'y'], i3;
     for (i3 = 0; i3 < rows.length; i3++) if (!isFinite(rows[i3][0]) || !isFinite(rows[i3][1])) return null;
     return V.table(head, rows);
+  }
+
+  /* "Write 3x + 2y = -9 in slope-intercept form" belongs to a skill that
+     promises a graph, and the equation is a line.  Reading ax + by = c gives the
+     line, and the label states the slope-intercept form the card is working out,
+     so the picture and the answer say the same thing. */
+  function standardFormFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ')
+      .replace(/\+\s*-\s*/g, '-').replace(/-\s*\+/g, '-');
+    var m = /(-?\d*)\s*x\s*(?:([+-])\s*)?(-?\d*)\s*y\s*=\s*(-?\d+)/i.exec(t);
+    if (!m) return null;
+    var a = m[1] === '' || m[1] === '+' ? 1 : (m[1] === '-' ? -1 : parseInt(m[1], 10));
+    var b = (m[2] === '-' ? -1 : 1) * (m[3] === '' ? 1 : parseInt(m[3], 10));
+    var c = parseInt(m[4], 10);
+    if (!isFinite(a) || !isFinite(b) || !isFinite(c) || b === 0) return null;   /* vertical: no y = form */
+    var slope = -a / b, inter = c / b;
+    if (Math.abs(inter) > 60 || Math.abs(slope) > 40) return null;
+    var r = function (x) { return Math.round(x * 100) / 100; };
+    return V.graph([{ expr: r(slope) + '*x' + (inter < 0 ? '-' : '+') + r(Math.abs(inter)),
+      label: 'y = ' + r(slope) + 'x ' + (inter < 0 ? '- ' : '+ ') + r(Math.abs(inter)) }],
+      { label: 'the line ' + (a === 1 ? '' : a) + 'x ' + (b < 0 ? '- ' : '+ ') + (Math.abs(b) === 1 ? '' : Math.abs(b)) + 'y = ' + c });
   }
 
   function equationFigure(text) {
@@ -94665,8 +94691,8 @@ function () {
       if (tab) { item.visual = tab; return item; }
     }
     var fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
-      distanceFigure(text) || systemFigure(text) || inequalityFigure(text) ||
-      equationFigure(text) || pointFigure(text);
+      distanceFigure(text) || systemFigure(text) || standardFormFigure(text) ||
+      inequalityFigure(text) || equationFigure(text) || pointFigure(text);
     if (fig) { item.visual = fig; nameThePicture(item, fig); return item; }
     var e = exprFromCard(text);
     if (!e) return item;
