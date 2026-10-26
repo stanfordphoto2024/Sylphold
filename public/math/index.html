@@ -7793,6 +7793,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     for (i = 0; i < s.length; i++) { var p = SUPCH.indexOf(s.charAt(i)); if (p >= 0) out += SUPD.charAt(p); }
     return out;
   }
+  var SUBCH = '₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₕᵢⱼₖₗₘₙₒᵣᵤᵥₓ';
+  var SUBD = '0123456789+-=()aehijklmnoprstuvx';
+  function subDigits(s) {
+    var out = '', i;
+    for (i = 0; i < s.length; i++) { var p = SUBCH.indexOf(s.charAt(i)); if (p >= 0) out += SUBD.charAt(p); }
+    return out;
+  }
   var VULGAR = {
     '½': '\\frac{1}{2}', '⅓': '\\frac{1}{3}', '⅔': '\\frac{2}{3}', '¼': '\\frac{1}{4}',
     '¾': '\\frac{3}{4}', '⅕': '\\frac{1}{5}', '⅖': '\\frac{2}{5}', '⅗': '\\frac{3}{5}',
@@ -7891,6 +7898,10 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     ['\\s:\\s(?=[-\\d(])', 'colon'],                        /* 12 : 11, a spaced ratio */
     ['○|◯', 'blank'],                             /* the ○ a compare card asks to fill */
     ['[+*=<>×÷−–≈≤≥≠±→⇒∝∞∘⊥∥△∠' + MOREOPS + ']', 'op'],
+    /* N₀, q₁, a₀ — a subscript typed as a character rather than as _2. Left
+       alone it breaks the formula in half: "N = N₀" typesets "N = N" and leaves
+       the₀ in the sentence. */
+    ['[' + SUBCH + ']+', 'usub'],
     ['_\\{?(?:\\d{1,3}|[a-z])\\}?', 'sub'],   /* B_2 — a subscripted name */
     ['-', 'dash'],                                  /* 5 - 2 yes, K-8 no, (-3) yes */
     ['π|θ|α|β|γ|δ|ε|λ|μ|ρ|σ|τ|φ|ω|χ|ψ|ζ|η|ι|κ|ν', 'greekuc'],
@@ -7900,7 +7911,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
 
   var SELF = {
     mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1, sup: 1, deg: 1, pct: 1, blank: 1,
-    vulgar: 1, greekuc: 1, call: 1, matrix: 1, abs: 1, bb: 1, point: 1, sub: 1,
+    vulgar: 1, greekuc: 1, call: 1, matrix: 1, abs: 1, bb: 1, point: 1, sub: 1, usub: 1,
     temp: 1, varword: 1, varhalf: 1, fracs: 1
   };
   var VALUE = {
@@ -7912,13 +7923,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     num: 1, var: 1, varuc: 1, pi: 1, greek: 1, call: 1, open: 1, close: 1, bopen: 1, bclose: 1,
     comma: 1, colon: 1, op: 1, blank: 1, mixed: 1, frac: 1, root: 1, croot: 1, pow: 1, unitpow: 1,
     sup: 1, supx: 1, deg: 1, pct: 1, vulgar: 1, greekuc: 1, matrix: 1, abs: 1, dots: 1, bb: 1,
-    point: 1, sub: 1, gopen: 1, gclose: 1, temp: 1, varword: 1, varhalf: 1, unit: 1, seg: 1, fracs: 1
+    point: 1, sub: 1, usub: 1, gopen: 1, gclose: 1, temp: 1, varword: 1, varhalf: 1, unit: 1, seg: 1, fracs: 1
   };
   /* whitespace is only allowed inside a run; these pairs stay tight */
   function tight(a, b) {
     if (a === 'open' || a === 'bopen' || a === 'gopen') return true;
     if (a === 'close' || a === 'bclose' || a === 'gclose' || a === 'comma') return true;
-    if (b === 'close' || b === 'bclose' || b === 'gclose' || b === 'comma' || b === 'pow' || b === 'supx' || b === 'sub') return true;
+    if (b === 'close' || b === 'bclose' || b === 'gclose' || b === 'comma' || b === 'pow' || b === 'supx' || b === 'sub' || b === 'usub') return true;
     /* a unit and a temperature bring their own thin space, so the word space
        between them and their number must not be added on top of it */
     if (b === 'unit' || b === 'temp' || b === 'unitpow') return true;
@@ -7937,7 +7948,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     /* R^n, S^(n-1), A^2: the letter IS the base of the power, so it is inside
        the formula even where a space ended the word before it. Letting it stay
        text and typesetting only `^n` is exactly the half-converted look. */
-    if (gapPrev && (nextKind === 'pow' || nextKind === 'supx' || nextKind === 'sub')) okPrev = true;
+    if (gapPrev && (nextKind === 'pow' || nextKind === 'supx' || nextKind === 'sub' ||
+      nextKind === 'usub')) okPrev = true;
     /* “… has solution x < 6”: the x stands in front of the relation, so it is
        part of the formula however much prose comes before it. */
     if (gapPrev && nextKind === 'op') okPrev = true;
@@ -8279,6 +8291,7 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
          and the two letters stay roman rather than turning into a product ab. */
       if (t.kind === 'seg') { parts.push('\\overline{' + s + '}'); continue; }
       if (t.kind === 'sub') { parts.push('_{' + s.replace(/^_\{?/, '').replace(/\}$/, '') + '}'); continue; }
+      if (t.kind === 'usub') { parts.push('_{' + subDigits(s) + '}'); continue; }
       if (t.kind === 'gopen') { parts.push(tall ? '\\left\\langle' : '\\langle'); continue; }
       if (t.kind === 'gclose') { parts.push(tall ? '\\right\\rangle' : '\\rangle'); continue; }
       if (t.kind === 'open') { parts.push(tall ? '\\left(' : '('); continue; }
@@ -8456,7 +8469,13 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     for (i = b - 1; i >= a; i--) {
       var k2 = run[i].kind;
       if (k2 === 'close' || k2 === 'bclose' || k2 === 'gclose') d++;
-      else if (k2 === 'open' || k2 === 'bopen' || k2 === 'gopen') { if (d === 0) { b = i; break; } d--; }
+      else if (k2 === 'open' || k2 === 'bopen' || k2 === 'gopen') {
+        if (d !== 0) { d--; continue; }
+        /* the partner is gone: at the end of the run the open is the one to
+           drop, higher up it takes the text on its left with it */
+        if (i === a) { a = i + 1; break; }
+        b = i; break;
+      }
     }
     return run.slice(a, b);
   }
@@ -8559,7 +8578,8 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
       if (!ATOM[t.kind]) { atoms.push({ kind: 'break' }); pendingGap = false; continue; }
       /* a subscript needs a name in front of it: B_2 is a name with an index,
          while a1_1 is a cell address a learner types, and 1_1 is nobody. */
-      if (t.kind === 'sub' && !(i > 0 && toks[i - 1] && /^(var|varuc|greek|greekuc|close|bclose)$/.test(toks[i - 1].kind))) {
+      if ((t.kind === 'sub' || t.kind === 'usub') &&
+        !(i > 0 && toks[i - 1] && /^(var|varuc|greek|greekuc|close|bclose)$/.test(toks[i - 1].kind))) {
         atoms.push({ kind: 'break' }); pendingGap = false; continue;
       }
       atoms.push({ t: t, gap: pendingGap });
@@ -94784,7 +94804,7 @@ function () {
     var m, vecs = [];
     while ((m = re.exec(t)) && vecs.length < 3) {
       var x = parseFloat(m[1]), y = parseFloat(m[2]);
-      if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 20 || Math.abs(y) > 20) return null;
+      if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 26 || Math.abs(y) > 26) return null;
       vecs.push({ x: x, y: y });
     }
     /* component notation also spells ordinary points: a card about a relation of
@@ -94817,6 +94837,64 @@ function () {
      of segment AB?" is the number line the title names, and the length asked for
      is the gap the marks show.  The same reading serves "how far apart are the
      lines x = -4 and x = 2", where the two lines are at those positions. */
+  /* A transformation-matrix card hands over a 2x2 matrix and the vertex matrix of
+     a polygon, and the lesson says graph the image.  The columns of the vertex
+     matrix are the pre-image as stated; multiplying gives the image, so both are
+     plotted and the learner sees where the polygon actually lands. */
+  function matrixImageFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ');
+    var m = /\[\s*\[\s*(-?-?\d+)\s*,\s*(-?-?\d+)\s*\]\s*,\s*\[\s*(-?-?\d+)\s*,\s*(-?-?\d+)\s*\]\s*\]/.exec(t);
+    if (!m) return null;
+    var a = +m[1], b = +m[2], c = +m[3], d = +m[4];
+    var v = /\[\s*\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(-?\d+))?(?:\s*,\s*(-?\d+))?\s*\]\s*,\s*\[\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*(-?\d+))?(?:\s*,\s*(-?\d+))?\s*\]\s*\]/.exec(t);
+    if (!v) return null;
+    var xs = [v[1], v[2], v[3], v[4]].filter(function (x) { return x !== undefined && x !== ''; })
+      .map(function (x) { return parseFloat(x); });
+    var ys = [v[5], v[6], v[7], v[8]].filter(function (x) { return x !== undefined && x !== ''; })
+      .map(function (x) { return parseFloat(x); });
+    if (xs.length < 2 || xs.length !== ys.length) return null;
+    var pts = [], edge = 3, i1;
+    for (i1 = 0; i1 < xs.length; i1++) {
+      if (!isFinite(xs[i1]) || !isFinite(ys[i1]) || Math.abs(xs[i1]) > 12 || Math.abs(ys[i1]) > 12) return null;
+      var ix = a * xs[i1] + b * ys[i1], iy = c * xs[i1] + d * ys[i1];
+      if (Math.abs(ix) > 30 || Math.abs(iy) > 30) return null;
+      pts.push({ x: xs[i1], y: ys[i1], label: '(' + xs[i1] + ', ' + ys[i1] + ')' });
+    }
+    for (i1 = 0; i1 < xs.length; i1++) {
+      var ix2 = a * xs[i1] + b * ys[i1], iy2 = c * xs[i1] + d * ys[i1];
+      pts.push({ x: Math.round(ix2 * 100) / 100, y: Math.round(iy2 * 100) / 100,
+        label: 'image (' + (Math.round(ix2 * 100) / 100) + ', ' + (Math.round(iy2 * 100) / 100) + ')' });
+      edge = Math.max(edge, Math.abs(ix2) + 1, Math.abs(iy2) + 1);
+    }
+    edge = Math.max(edge, 5);
+    return V.coord({ pts: pts, xmin: -edge, xmax: edge, ymin: -edge, ymax: edge,
+      label: 'pre-image as given, and the image after the matrix' });
+  }
+  /* A law-of-cosines card states two sides and the angle between them and asks
+     for the third side.  Those two sides and that angle fix a triangle, so the
+     drawing is the given information - the sides are drawn at their stated
+     lengths and the included angle at its stated size. */
+  function triangleFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ');
+    if (!/triangle|law of cosines|third side|length of bc|length of ac/i.test(t)) return null;
+    var s1 = null, s2 = null, ang = null;
+    var m = /(?:sides|measures?)\s*([a-z]+\s*=\s*)?(\d+(?:\.\d+)?)\s*(?:and|,)\s*(?:[a-z]+\s*=\s*)?(\d+(?:\.\d+)?)/i.exec(t);
+    var m2 = /(AB|AC|BC)\s*=\s*(\d+(?:\.\d+)?)[^.]{0,40}?(AB|AC|BC)\s*=\s*(\d+(?:\.\d+)?)/i.exec(t);
+    var am = /(?:angle|include[sd]? an angle|between them)(?:\s*measures)?[^0-9]{0,24}(\d+(?:\.\d+)?)\s*(?:degrees|\u00B0)/i.exec(t);
+    if (m2) { s1 = parseFloat(m2[2]); s2 = parseFloat(m2[4]); }
+    else if (m) { s1 = parseFloat(m[2]); s2 = parseFloat(m[3]); }
+    if (am) ang = parseFloat(am[1]);
+    if (!s1 || !s2 || !ang || s1 <= 0 || s2 <= 0 || s1 > 24 || s2 > 24 || ang <= 0 || ang >= 180) return null;
+    var rad = ang * Math.PI / 180, cx = s2 * Math.cos(rad), cy = s2 * Math.sin(rad);
+    var r = function (x) { return Math.round(x * 100) / 100; };
+    var edge = Math.max(s1, Math.abs(cx), Math.abs(cy)) + 2;
+    return V.coord({
+      pts: [{ x: 0, y: 0, label: 'A' }, { x: r(s1), y: 0, label: 'B  (AB = ' + s1 + ')' },
+        { x: r(cx), y: r(cy), label: 'C  (AC = ' + s2 + ')' }],
+      xmin: -2, xmax: r(edge), ymin: -2, ymax: r(edge),
+      label: 'angle A = ' + ang + '\u00B0 between the two given sides' });
+  }
+
   function segmentLineFigure(text) {
     var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ');
     if (!/number line|how far apart|segment|distance between/i.test(t)) return null;
@@ -94991,7 +95069,8 @@ function () {
     }
     var fig = rateTable(String(item.prompt || '')) === null ? null : null;
     fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
-      distanceFigure(text) || segmentLineFigure(text) || vectorFigure(text + ' ' + t) ||
+      distanceFigure(text) || segmentLineFigure(text) || matrixImageFigure(text) ||
+      triangleFigure(text) || vectorFigure(text + ' ' + t) ||
       magnitudeVectorFigure(text + ' ' + t) ||
       hyperbolaFigure(text) || systemFigure(text) || slopeInterceptFigure(text) ||
       slopeInterceptFigure(text) ||
