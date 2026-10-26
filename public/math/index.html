@@ -464,7 +464,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-25 — 101 modules inlined:
+/* MathPath 2026-10-26 — 101 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 99-gen-zzzzz-models.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -94571,13 +94571,35 @@ function () {
     return V.numline(c - half, c + half, marks, { label: 'the points a distance ' + r + ' from ' + c });
   }
   function pointFigure(text) {
-    var m = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(String(text || ''));
-    if (!m) return null;
-    var x = +m[1], y = +m[2];
-    if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 12 || Math.abs(y) > 12) return null;
-    var edge = Math.max(5, Math.abs(x) + 2, Math.abs(y) + 2);
-    return V.coord({ pts: [{ x: x, y: y, label: '(' + x + ', ' + y + ')' }],
-      xmin: -edge, xmax: edge, ymin: -edge, ymax: edge });
+    var re = /\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g;
+    var m, pts = [], seen = {};
+    while ((m = re.exec(String(text || ''))) && pts.length < 8) {
+      var x = parseFloat(m[1]), y = parseFloat(m[2]);
+      /* ±20 matches polygonFromVertices: dropping a stated point because it is a
+         little outside the frame would plot a relation the card never described */
+      if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 20 || Math.abs(y) > 20) continue;
+      var key = x + ',' + y;
+      if (seen[key]) continue;
+      seen[key] = 1;
+      pts.push({ x: x, y: y, label: '(' + m[1] + ', ' + m[2] + ')' });
+    }
+    if (!pts.length) return null;
+    var edge = 5, i9;
+    for (i9 = 0; i9 < pts.length; i9++)
+      edge = Math.max(edge, Math.abs(pts[i9].x) + 2, Math.abs(pts[i9].y) + 2);
+    /* a relation given as a list of ordered pairs is exactly the plotted set;
+       the joining line is added only when every point really lies on it */
+    var lines = [];
+    if (pts.length >= 2) {
+      var s0 = (pts[1].y - pts[0].y) / (pts[1].x - pts[0].x);
+      var b0 = pts[0].y - s0 * pts[0].x, collinear = isFinite(s0), j;
+      for (j = 1; j < pts.length && collinear; j++)
+        if (Math.abs(pts[j].y - (s0 * pts[j].x + b0)) > 1e-6) collinear = false;
+      if (collinear) lines.push({ m: Math.round(s0 * 1000) / 1000, b: Math.round(b0 * 1000) / 1000 });
+    }
+    return V.coord({ pts: pts, lines: lines,
+      xmin: -edge, xmax: edge, ymin: -edge, ymax: edge,
+      label: pts.length > 1 ? 'the ' + pts.length + ' plotted points' : '' });
   }
 
   /* When a card only says "the picture", the learner is told to look at
@@ -94765,7 +94787,13 @@ function () {
       if (!isFinite(x) || !isFinite(y) || Math.abs(x) > 20 || Math.abs(y) > 20) return null;
       vecs.push({ x: x, y: y });
     }
+    /* component notation also spells ordinary points: a card about a relation of
+       ordered pairs writes "(2, 5), (3, 7)" and is not about vectors at all.
+       Drawing those as arrows from the origin would mislead, so the arrow figure
+       only runs when the card or its lesson actually speaks about vectors. */
     if (!vecs.length) return null;
+    if (!/vector|resultant|parallelogram|component|unit vector|magnitude|displacement/i.test(t) &&
+        !/vector|resultant|parallelogram/i.test(String(text || ''))) return null;
     var lines = [], pts = [], i8, edge = 1;
     for (i8 = 0; i8 < vecs.length; i8++) {
       edge = Math.max(edge, Math.abs(vecs[i8].x) + 1, Math.abs(vecs[i8].y) + 1);
@@ -94779,6 +94807,98 @@ function () {
     edge = Math.max(4, edge);
     return V.coord({ lines: lines, pts: pts, xmin: -edge, xmax: edge, ymin: -edge, ymax: edge,
       label: 'the vector drawn from the origin' });
+  }
+
+  /* "Which way do the branches of y² ÷ 9 − x² ÷ 4 = 1 open?" is a title about a
+     graph, and the equation gives the curve exactly: solving for y gives
+     y = ±a·sqrt(1 + x²/b²).  Both branches are drawn, so the answer - up or
+     sideways, and which vertices - is visible rather than recited. */
+  /* "On a number line, point A is at -6 and point B is at -2. What is the length
+     of segment AB?" is the number line the title names, and the length asked for
+     is the gap the marks show.  The same reading serves "how far apart are the
+     lines x = -4 and x = 2", where the two lines are at those positions. */
+  function segmentLineFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ');
+    if (!/number line|how far apart|segment|distance between/i.test(t)) return null;
+    var re = /(?:at|is at|x\s*=|y\s*=)\s*(-?\d+(?:\.\d+)?)/gi;
+    var m, vals = [];
+    while ((m = re.exec(t)) && vals.length < 4) {
+      var v = parseFloat(m[1]);
+      if (isFinite(v) && Math.abs(v) <= 200) vals.push(v);
+    }
+    if (vals.length < 2) return null;
+    var uniq = [], seen = {}, i0;
+    for (i0 = 0; i0 < vals.length; i0++) if (!seen[vals[i0]]) { seen[vals[i0]] = 1; uniq.push(vals[i0]); }
+    if (uniq.length < 2) return null;
+    uniq.sort(function (a, b) { return a - b; });
+    var lo = uniq[0], hi = uniq[uniq.length - 1];
+    var marks = [], k;
+    for (k = 0; k < uniq.length; k++) marks.push({ v: uniq[k], label: String(uniq[k]) });
+    var span = Math.max(4, (hi - lo) + 3);
+    return V.numline(lo - Math.ceil(span / 4), hi + Math.ceil(span / 4), marks,
+      { label: 'the distance shown is ' + (Math.round((hi - lo) * 100) / 100) + ' units' });
+  }
+
+  function hyperbolaFigure(text) {
+    var t = plainMath(String(text || '')).replace(/\s+/g, ' ');
+    /* the catalogue writes y\u00B2 \u00F7 9 - x\u00B2 \u00F7 4 = 1; plainMath turns that into
+       y^2 / 9 - x^2 / 4 = 1, and a slash inside a regex literal would end the
+       literal, so these patterns are built with RegExp. */
+    var SL = '\\s*[/\u00F7]\\s*';
+    var reV = new RegExp('y\\s*\\^\\s*2' + SL + '(\\d+)\\s*-\\s*x\\s*\\^\\s*2' + SL + '(\\d+)\\s*=\\s*1', 'i');
+    var reH = new RegExp('x\\s*\\^\\s*2' + SL + '(\\d+)\\s*-\\s*y\\s*\\^\\s*2' + SL + '(\\d+)\\s*=\\s*1', 'i');
+    var v = reV.exec(t), h = reH.exec(t), a2 = null, b2 = null, vertical = true;
+    if (v && v[1] && v[2]) { a2 = parseFloat(v[1]); b2 = parseFloat(v[2]); vertical = true; }
+    else if (h && h[1] && h[2]) { a2 = parseFloat(h[1]); b2 = parseFloat(h[2]); vertical = false; }
+    else {
+      /* Ax\u00B2 + By\u00B2 = 1 with opposite signs is the same conic written without
+         denominators; the negative coefficient marks the axis the branches use. */
+      var g = new RegExp('([+-]?\\d*)\\s*x\\s*\\^\\s*2\\s*([+-])\\s*(\\d*)\\s*y\\s*\\^\\s*2\\s*=\\s*1', 'i').exec(t);
+      if (!g) return null;
+      var ca = (g[1] === '' || g[1] === '+') ? 1 : (g[1] === '-' ? -1 : parseInt(g[1], 10));
+      var cb = (g[3] === '' ? 1 : parseInt(g[3], 10)) * (g[2] === '-' ? -1 : 1);
+      if (ca > 0 && cb < 0) { a2 = 1 / ca; b2 = 1 / -cb; vertical = false; }
+      else if (cb > 0 && ca < 0) { a2 = 1 / cb; b2 = 1 / -ca; vertical = true; }
+      else return null;
+    }
+    if (!a2 || !b2 || a2 <= 0 || b2 <= 0 || a2 > 400 || b2 > 400) return null;
+    var a = Math.sqrt(a2), bb = Math.sqrt(b2), r = function (x) { return Math.round(x * 1000) / 1000; };
+    var peak = vertical ? a : bb, edge = Math.max(6, r(a) + 3);
+    var slopeOut = r(vertical ? a / bb : bb / a);
+    /* the asymptotes are determined by the same two numbers and are what the
+       asymptote lessons ask for, so they are drawn as the two straight lines */
+    var fns = [{ expr: r(peak) + '*sqrt(1+x^2/(' + r(vertical ? bb : a) + '*' + r(vertical ? bb : a) + '))', label: 'branch above' },
+      { expr: '-' + r(peak) + '*sqrt(1+x^2/(' + r(vertical ? bb : a) + '*' + r(vertical ? bb : a) + '))', label: 'branch below' },
+      { expr: slopeOut + '*x', label: 'asymptote' },
+      { expr: '-' + slopeOut + '*x', label: 'asymptote' }];
+    return V.graph(fns, { label: vertical
+        ? 'branches open up and down; vertices at y = ' + r(-a) + ' and ' + r(a)
+        : 'the x term is positive, so the branches open left and right; vertices at x = ' + r(-a) + ' and ' + r(a),
+      xmin: -edge, xmax: edge, ymin: -edge, ymax: edge });
+  }
+  /* A vector given as a magnitude and a direction is still the arrow the title
+     promises: the components follow from cosine and sine of the stated bearing,
+     and the label repeats the given magnitude and direction rather than only the
+     computed pair. */
+  function magnitudeVectorFigure(text) {
+    var t = String(text || '').replace(/\u2212|\u2013/g, '-').replace(/\s+/g, ' ');
+    if (!/magnitude|length of the vector|direction/i.test(t)) return null;
+    var mm = /magnitude\s*(?:of|\bis)?\s*(\d+(?:\.\d+)?)/i.exec(t);
+    if (!mm) mm = /vector with length\s*(\d+(?:\.\d+)?)/i.exec(t);
+    var dm = /(\d+(?:\.\d+)?)\s*(?:degrees|\u00B0)\s*(?:from|counterclockwise|north|of the)?[^.]{0,24}/i.exec(t);
+    if (!mm || !dm) return null;
+    var mag = parseFloat(mm[1]), deg = parseFloat(dm[1]);
+    if (!isFinite(mag) || !isFinite(deg) || mag <= 0 || mag > 40) return null;
+    var rad = deg * Math.PI / 180, x = mag * Math.cos(rad), y = mag * Math.sin(rad);
+    if (!isFinite(x) || !isFinite(y)) return null;
+    var rx = Math.round(x * 100) / 100, ry = Math.round(y * 100) / 100;
+    var edge = Math.max(4, Math.ceil(Math.max(Math.abs(x), Math.abs(y)) + 1));
+    var lines = [];
+    if (Math.abs(x) > 1e-6) lines.push({ m: y / x, b: 0 });
+    return V.coord({ lines: lines,
+      pts: [{ x: rx, y: ry, label: '|v| = ' + mag + ' at ' + deg + '\u00B0' }, { x: 0, y: 0, label: 'origin' }],
+      xmin: -edge, xmax: edge, ymin: -edge, ymax: edge,
+      label: 'components (' + rx + ', ' + ry + ')' });
   }
 
   function polygonFromVertices(text) {
@@ -94826,7 +94946,7 @@ function () {
        that promises a histogram — never reached a builder.  FIGURE_TITLE is the
        same test the registration and the promise check use, plus the stats
        spellings it leaves out. */
-    if (!(FIGURE_TITLE.test(t) || /histogram|box ?plot|circle graph|pie|tally|line ?plot|dot ?plot|normal|distribution|coordinate plane|coordinate grid|vector/i.test(t))) return item;
+    if (!(FIGURE_TITLE.test(t) || /histogram|box ?plot|circle graph|pie|tally|line ?plot|dot ?plot|normal|distribution|coordinate plane|coordinate grid|vector|asymptote/i.test(t))) return item;
     var text = String(item.prompt || '') + ' ' + String(item.sub || '');
     /* Read the inequality from the question first: the card's second line can
        carry prose ("Give the solution as an inequality for x"), and prose on the
@@ -94871,7 +94991,9 @@ function () {
     }
     var fig = rateTable(String(item.prompt || '')) === null ? null : null;
     fig = inequalityLine(String(item.prompt || '')) || inequalityLine(text) ||
-      distanceFigure(text) || vectorFigure(text) || systemFigure(text) ||
+      distanceFigure(text) || segmentLineFigure(text) || vectorFigure(text + ' ' + t) ||
+      magnitudeVectorFigure(text + ' ' + t) ||
+      hyperbolaFigure(text) || systemFigure(text) || slopeInterceptFigure(text) ||
       slopeInterceptFigure(text) ||
       standardFormFigure(text) ||
       polygonFromVertices(text) || inequalityFigure(text) || equationFigure(text) ||
