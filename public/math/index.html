@@ -87069,7 +87069,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var workSteps = 0, wi;
         for (wi = 0; wi < it.explain.length; wi++) {
           var wt = String(it.explain[wi]).replace(/<[^>]+>/g, '');
-          if (/[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(wt)) workSteps++;
+          if (/[-\d.)<]\s*(?:[=≈<>≤≥≠]|\s*[<>]\s*)/.test(wt) || /\d\s*[<>≤≥]=?\s*\d/.test(wt)) workSteps++;
         }
         if (workSteps > 0) budget = Math.max(budget, Math.min(workSteps + 1, 6));
       }
@@ -87077,7 +87077,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var steps = it.explain.slice();
         var worth = function (txt) {
           var t = String(txt == null ? '' : txt).replace(/<[^>]+>/g, '');
-          if (/[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(t)) return 3;   /* an equation */
+          if (/[-\d.)<]\s*(?:[=≈<>≤≥≠]|\s*[<>]\s*)/.test(t) || /\d\s*[<>≤≥]=?\s*\d/.test(t)) return 3;   /* a relation */
           if (/\b\d/.test(t)) return 2;                                /* names the numbers */
           if (/^(?:Therefore|So|Hence)\b/.test(t.trim())) return 0;    /* announces the answer */
           return 1;                                                    /* a rule stated in words */
@@ -102246,7 +102246,11 @@ var MW = {
 
   function claimLine(item, text, shown) {
     var kind = String((item.spec && item.spec.k) || item.type || '').toLowerCase();
-    if (kind !== 'bool' && kind !== 'boolean' && item.type !== 'bool') return null;
+    /* most of these cards are not a bool spec: they are a choice whose two
+       options are True / False (or Yes / No). The judgement is the same card, so
+       the working is owed to it as well. */
+    var verdict = /^(true|false|yes|no)$/.test(String(shown == null ? '' : shown).trim().toLowerCase());
+    if (!verdict && kind !== 'bool' && kind !== 'boolean' && item.type !== 'bool') return null;
     var m = /(-?\d+(?:\.\d+)?)\s*(?:is\s+)?\s*(larger|bigger|greater|smaller|less)\s+than\s+(-?\d+(?:\.\d+)?)/i.exec(text);
     if (!m) return null;
     var a = +m[1], rel = String(m[2]).toLowerCase(), b = +m[3];
@@ -102425,6 +102429,35 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* A frozen explanation bank leaves steps that quote numbers from an older
+     draw: the card says $0.75 and a $1 bill, the step still explains 4 quarters.
+     The gate calls that F_STALE, and it is worse than a plain step because it
+     teaches the wrong thing. These are the steps that mention numbers found
+     nowhere on the card and carry no computation — the same test the gate uses. */
+  function staleSteps(item, steps) {
+    var card = (String(item.prompt || '') + ' ' + String(item.sub || '') + ' ' +
+      ((item.choices || []).join(' ')) + ' ' + JSON.stringify(item.visual || {}))
+      .replace(/<[^>]+>/g, ' ');
+    var cardNums = card.match(/\d[\d.,]*/g) || [];
+    if (!cardNums.length) return [];
+    var seen = {}, i;
+    for (i = 0; i < cardNums.length; i++) {
+      seen[cardNums[i]] = 1;
+      seen[cardNums[i].replace(/[.,].*$/, '')] = 1;
+    }
+    var out = [];
+    for (i = 0; i < steps.length; i++) {
+      var nums = String(steps[i]).replace(/<[^>]+>/g, ' ').match(/\d[\d.,]*/g) || [];
+      if (!nums.length) continue;
+      var fresh = false;
+      for (var q = 0; q < nums.length; q++) {
+        if (seen[nums[q]] || seen[nums[q].replace(/[.,].*$/, '')]) { fresh = true; break; }
+      }
+      if (!fresh) out.push(i);
+    }
+    return out;
+  }
+
   function addWorkLine(item) {
     if (!item || item.type === 'bool' || (item.spec && item.spec.k === 'bool')) return item;
     var field = null, steps = null, f;
@@ -102512,6 +102545,16 @@ var MW = {
       var saysAnswer = /^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(String(txt).trim());
       var carriesNumbers = /[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(txt) || /\b\d/.test(txt);
       if (saysAnswer || carriesNumbers || pruned.length === 0) pruned.push(steps[pi]);
+    }
+    /* the working also takes over the room the stale numbers were using, so a
+       card does not explain last week's problem next to this one. At least one
+       earlier step is always left, so a solution never collapses to one line. */
+    var stale = staleSteps(item, pruned);
+    if (stale.length) {
+      var fresh = [], fi, drop = {};
+      for (fi = 0; fi < stale.length; fi++) drop[stale[fi]] = 1;
+      for (fi = 0; fi < pruned.length; fi++) if (!drop[fi]) fresh.push(pruned[fi]);
+      if (fresh.length >= 1) pruned = fresh;
     }
     var out = pruned;
     /* the working belongs where a working belongs: after whatever the card has
