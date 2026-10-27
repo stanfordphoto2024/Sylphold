@@ -464,7 +464,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-26 — 101 modules inlined:
+/* MathPath 2026-10-27 — 101 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 99-gen-zzzzz-models.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -9819,13 +9819,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
         });
     }
     if (mode === 6) {                                    /* true or false */
-      var c = cap(a + R.int(rng, 0, 2), 1, big + 5);
-      var claim = a + ' + ' + b + ' = ' + (chance(rng, 0.5) ? (a + b) : (a + b + 1));
-      return I_bool('Is this true?  ' + claim, claim.replace(/\s/g, '') === (a + ' + ' + b + '=' + (a + b)), {
+      /* the verdict has to come from the NUMBERS. The old test compared the
+         printed claim with a differently-spaced string of its own ("9 + 9=18"
+         against "9+9=18"), so a true sentence was graded No while the worked
+         steps called it true. */
+      var shown = chance(rng, 0.5) ? (a + b) : (a + b + 1);
+      var claim = a + ' + ' + b + ' = ' + shown;
+      var isTrue = shown === a + b;
+      return I_bool('Is this true?  ' + claim, isTrue, {
         teach: 'The equals sign means both sides have the same value, not "the answer comes next".',
-        explain: ['Compute the left side: ' + a + ' + ' + b + ' = ' + (a + b) + '.',
-          'The right side says ' + claim.split('=')[1].trim() + '.',
-          'They are ' + (claim.split('=')[1].trim() === String(a + b) ? 'the same, so it is <b>true</b>.' : 'different, so it is <b>false</b>.')]
+        explain: ['Work out the left side: ' + a + ' + ' + b + ' = ' + (a + b) + '.',
+          'The sentence says the right side is ' + shown + '.',
+          isTrue ? 'Both sides name ' + (a + b) + ', so the sentence is <b>true</b>.'
+            : shown + ' is not ' + (a + b) + ', so the sentence is <b>false</b>.']
       });
     }
     /* mode 7 — number line jump */
@@ -10150,12 +10156,15 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
     var mode = R.int(rng, 0, lvl >= 4 ? 7 : 4);
 
     if (mode === 0) {                        /* tens & ones of a number */
-      return I_parts('Look at ' + n + '. How many tens? How many ones?', ['tens', 'ones'],
+      return I_parts('Look at ' + n + '. How many tens and how many ones make it up?', ['tens', 'ones'],
         [{ k: 'n', v: t }, { k: 'n', v: o }], {
           visual: V.blocks(0, t, o),
           teach: 'In a two-digit number the first digit counts tens and the second counts ones.',
-          explain: [n + ' is made of ' + t + ' tens, which is ' + (t * 10) + '.',
-            'Plus ' + o + ' ones.', 'So ' + t * 10 + ' + ' + o + ' = <b>' + n + '</b>.']
+          /* the card grades the two DIGITS, so the last step names them; it used
+             to bold the total, which is the number the learner was given. */
+          explain: [n + ' has ' + t + ' in the tens place and ' + o + ' in the ones place.',
+            'The tens digit stands for ' + t + ' × 10 = ' + (t * 10) + '; the ones digit stands for ' + o + '.',
+            'Check: ' + (t * 10) + ' + ' + o + ' = ' + n + ', so ' + n + ' is <b>' + t + ' tens and ' + o + ' ones</b>.']
         });
     }
     if (mode === 1) {                        /* build the number */
@@ -10934,13 +10943,15 @@ return MC(rng, ctx(rng) + ', chairs are set in ' + rows + ' rows of ' + per + '.
     var n = h * 100 + t * 10 + o, mode = R.int(rng, 0, lvl >= 3 ? 8 : 4);
 
     if (mode === 0) {
-      return I_parts('What does ' + n + ' have?', ['hundreds', 'tens', 'ones'],
+      return I_parts('How many hundreds, how many tens, and how many ones make up ' + n + '?', ['hundreds', 'tens', 'ones'],
         [{ k: 'n', v: h }, { k: 'n', v: t }, { k: 'n', v: o }], {
           visual: V.blocks(h, t, o),
           teach: 'Each place is ten times the place to its right: 10 ones make a ten, 10 tens make a hundred.',
-          explain: [n + ' is ' + h + ' hundreds = ' + (h * 100) + '.',
-            'Plus ' + t + ' tens = ' + (t * 10) + ' and ' + o + ' ones.',
-            'Check: ' + (h * 100) + ' + ' + (t * 10) + ' + ' + o + ' = <b>' + n + '</b>.']
+          /* three blanks are graded, so the closing step states the three counts
+             instead of bolding the total the card already gives away */
+          explain: [n + ' has ' + h + ' in the hundreds place, ' + t + ' in the tens place and ' + o + ' in the ones place.',
+            'Those places are worth ' + h + ' × 100 = ' + (h * 100) + ', ' + t + ' × 10 = ' + (t * 10) + ', and ' + o + '.',
+            'Check: ' + (h * 100) + ' + ' + (t * 10) + ' + ' + o + ' = ' + n + ', so ' + n + ' is <b>' + h + ' hundreds, ' + t + ' tens and ' + o + ' ones</b>.']
         });
     }
     if (mode === 1) {
@@ -13267,7 +13278,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         mis: DP.mis(sk, need, [have - need, n - need, 1, -1]),
         explain: ['The goal is ' + n + ' ' + t + '.', 'You already have ' + have + '.',
           'Count on from ' + have + ' until you reach ' + n + ': that is ' + need + ' more.',
-          'Check: ' + have + ' + ' + need + ' = <b>' + n + '</b>.'],
+          'Check: ' + have + ' + ' + need + ' = ' + n + ', so you need <b>' + need + ' more</b>.'],
         teach: 'Counting out a set means adding on until the count reaches the number asked for.',
         b: 0.3
       });
@@ -16688,7 +16699,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (whole > L) { half = Math.max(1, Math.floor(L / 2)); whole = half * 2; }
         return I_parts('Write the same number in both blanks so the sentence is true: ___ + ___ = ' + whole, ['first blank', 'second blank'], [{ k: 'n', v: half }, { k: 'n', v: half }], {
           b: 1.1,
-          explain: ['Both blanks hold the same number, so the total is a double.', 'Half of ' + whole + ' is ' + half + '.', 'Check: ' + half + ' + ' + half + ' = <b>' + whole + '</b>.'],
+          explain: ['Both blanks hold the same number, so the total is a double.', 'Half of ' + whole + ' is ' + half + '.',
+            /* the last step used to bold the TOTAL (4), while the two blanks the
+               learner fills are each half of it — the card marked 2 and taught 4. */
+            'Check: ' + half + ' + ' + half + ' = ' + whole + ', so each blank holds <b>' + half + '</b>.'],
           teach: 'Two equal parts make a double; halving the total finds each part.'
         });
       }
@@ -17439,7 +17453,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           if (even < 2) return I_num('Complete: ' + m + ' = ' + part + ' + ___', rest, { b: 1.0, explain: ['The whole is ' + m + '.', m + ' − ' + part + ' = ' + rest + '.', 'So the answer is <b>' + rest + '</b>.'], teach: teach2 });
           return I_parts('Break ' + even + ' into two SAME parts. Write both parts.', ['first part', 'second part'], [{ k: 'n', v: half }, { k: 'n', v: half }], {
             visual: V.numberbond([half, half], even), b: 1.1,
-            explain: ['Both parts are equal, so ' + even + ' is a double.', 'Half of ' + even + ' is ' + half + '.', 'Check: ' + half + ' + ' + half + ' = <b>' + even + '</b>.'],
+            /* two blanks are graded and both hold `half`; the closing step bolded
+               the whole instead of the number to write. */
+            explain: ['Both parts are equal, so ' + even + ' is a double.', 'Half of ' + even + ' is ' + half + '.',
+              'Check: ' + half + ' + ' + half + ' = ' + even + ', so each part is <b>' + half + '</b>.'],
             teach: 'Two equal parts are half of the whole.'
           });
         }
@@ -18157,6 +18174,11 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       cylinder: function () { return honestTwoGroups('cylinders'); }
     };
     var honestTwoGroups = function (noun) {
+      /* the two-group model belongs to the family, but the objects counted have
+         to be the shapes the skill names: "Circles" (PK) was counting hexagons,
+         which practises counting and not the skill on the card. */
+      var want = (focus && (focus.flat || focus.solid)) || null;
+      if (want && want.length > 2 && noun.slice(0, -1) !== want) noun = want + 's';
       var g = R.int(rng, 2, 4), g2 = R.int(rng, 2, 4), tot = g + g2;
       var row1 = [], row2 = [], i;
       for (i = 0; i < 4; i++) { row1.push(i < g ? '●' : ''); row2.push(i < g2 ? '●' : ''); }
@@ -20289,10 +20311,20 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
       },
       function () {
+        /* the key of this card is an EQUATION, not the number that solves it. The
+           shared steps closed on "the missing number is 83", which is not one of
+           the options, so the solution and the answer disagreed. This ask gets
+           steps that end on the equation itself. */
+        var sameEq = op === 'add' ? BOX + ' = ' + rightVal + ' − ' + a : BOX + ' = ' + a + ' − ' + rightVal;
         return MC(rng, 'Which equation has the same solution as  ' + sent + ' ?',
-          op === 'add' ? BOX + ' = ' + rightVal + ' − ' + a : BOX + ' = ' + a + ' − ' + rightVal,
+          sameEq,
           [BOX + ' = ' + rightVal + ' + ' + a, BOX + ' = ' + c + ' + ' + d2], {
-          b: 0.7 + hard * 0.3, explain: steps, teach: 'Undoing the same operation on the known side isolates the unknown.'
+          b: 0.7 + hard * 0.3,
+          explain: ['Right side: ' + c + ' + ' + d2 + ' = ' + rightVal + '.',
+            op === 'add' ? 'The balance ' + a + ' + ___ = ' + rightVal + ' is kept by undoing the addition: ___ = ' + rightVal + ' − ' + a + ' = ' + ans + '.'
+              : 'The balance ' + a + ' − ___ = ' + rightVal + ' is kept by undoing the subtraction: ___ = ' + a + ' − ' + rightVal + ' = ' + ans + '.',
+            'The equation that isolates the blank by that same undoing is <b>' + sameEq + '</b>.'],
+          teach: 'Undoing the same operation on the known side isolates the unknown.'
         });
       }
     ]);
@@ -20441,8 +20473,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
       },
       function () {
+        /* the choices are EQUATIONS here, so the worked lines have to end on the
+           equation; the shared steps ended on the number that solves the sentence,
+           which is not one of the options the learner is choosing between. */
+        var firstSteps = ['The sentence is ' + sent + ', with the unknown joined to (or separated from) one known number.',
+          'Undoing that one operation is written ' + undo + '.',
+          'So the first step is <b>' + undo + '</b>.'];
         return MC(rng, 'Which equation shows the first step to solve  ' + sent + ' ?',
-          undo, undoWrong, { b: 0.6 + hard * 0.4, explain: steps, teach: 'Undo the operation on the known side to isolate the unknown.' });
+          undo, undoWrong, { b: 0.6 + hard * 0.4, explain: firstSteps, teach: 'Undo the operation on the known side to isolate the unknown.' });
       },
       function () {
         var other = kind === 'add' ? R.int(rng, 2, 9) : R.int(rng, 2, 9);
@@ -20769,6 +20807,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         fmt(a2) + ' ' + d.sign + ' ' + fmt(b2) + ' = ' + fmt(easy) + '.',
         'So ' + expr + ' = <b>' + fmt(exact) + '</b>.'];
       var compExpr = '(' + fmt(aC) + (m > 0 ? ' + ' + m : ' − ' + (-m)) + ') ' + d.sign + ' (' + fmt(bC) + (op === 'add' ? (m > 0 ? ' − ' + m : ' + ' + (-m)) : (m > 0 ? ' + ' + m : ' − ' + (-m))) + ') = ' + fmt(a2) + ' ' + d.sign + ' ' + fmt(b2);
+      /* "Which compensation SENTENCE shows how to find …?" grades the SENTENCE, so
+         those steps must close on the sentence. Reusing the array that ends
+         "So 966 + 919 = 1,885" made the worked solution name a number the card
+         never asks for. */
+      var compStepsEq = compSteps.slice(0, compSteps.length - 1).concat(
+        ['That move is written ' + compExpr + ', so the compensation sentence is <b>' + compExpr + '</b>.']);
       return build(rng, [
         function () {
           return I_num('Use compensation to find ' + expr + '.', exact, {
@@ -20780,7 +20824,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return MC(rng, 'Which compensation sentence shows how to find ' + expr + '?',
             compExpr, [fmt(a2) + ' ' + d.sign + ' ' + fmt(bC), fmt(aC) + ' ' + d.sign + ' ' + fmt(b2),
             '(' + fmt(aC) + (m > 0 ? ' + ' + m : ' − ' + (-m)) + ') ' + d.sign + ' (' + fmt(bC) + (op === 'add' ? (m > 0 ? ' + ' + m : ' − ' + (-m)) : (m > 0 ? ' − ' + m : ' + ' + (-m))) + ')'], {
-            b: 0.4 + hard * 0.4, explain: compSteps,
+            b: 0.4 + hard * 0.4, explain: compStepsEq,
             teach: 'In compensation, whatever you add to one number you take from the other (addition) or add to both (subtraction).'
           });
         },
@@ -20818,7 +20862,17 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return MC(rng, 'Diego moved the amount the wrong way for ' + expr + ' and got ' + fmt(slip) + '. What should he have done?',
             (op === 'add' ? 'move ' + Math.abs(m) + ' the other way' : 'change ' + fmt(bC) + ' by ' + Math.abs(m) + ' too'),
             ['round both numbers to 1,000', 'add 100 at the end', 'nothing — ' + fmt(slip) + ' is right'], {
-            b: 0.7 + hard * 0.3, explain: compSteps,
+            b: 0.7 + hard * 0.3,
+            /* the key is the FIX, stated in words; the shared steps ended on the
+               number, so the card graded "move 3 the other way" while its solution
+               concluded "47 + 49 = 96". */
+            explain: op === 'add'
+              ? ['Compensation moves ' + Math.abs(m) + ' from one number to the other, which keeps the total: ' + fmt(a2) + ' + ' + fmt(b2) + ' = ' + fmt(exact) + '.',
+                 'Diego moved it the other way, so his total changed by ' + Math.abs(2 * m) + ' and landed on ' + fmt(slip) + ' instead of ' + fmt(exact) + '.',
+                 'To get back he should <b>' + (op === 'add' ? 'move ' + Math.abs(m) + ' the other way' : 'change ' + fmt(bC) + ' by ' + Math.abs(m) + ' too') + '</b>.']
+              : ['In a subtraction both numbers must move by the same amount: ' + fmt(a2) + ' − ' + fmt(target) + ' = ' + fmt(exact) + '.',
+                 'Diego moved only one of them, so his answer was ' + fmt(slip) + ' instead of ' + fmt(exact) + '.',
+                 'To fix that he should <b>' + (op === 'add' ? 'move ' + Math.abs(m) + ' the other way' : 'change ' + fmt(bC) + ' by ' + Math.abs(m) + ' too') + '</b>.'],
             teach: 'A compensation only works when both numbers move by the same amount.'
           });
         }
@@ -21130,31 +21184,45 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         rels.push(sorted[i2].n + ' has more ' + prop + ' than ' + sorted[i2 + 1].n);
       }
       var scrambled = R.shuffle(rng, rels);
-      var ask = pick(rng, ['tallest', 'most']);
-      var answer = ask === 'tallest' ? sorted[0].n : sorted[0].n;
+      var answer = sorted[0].n;
       var second = sorted[1].n, lastOne = sorted[sorted.length - 1].n;
-      var steps = ['Turn the sentences into an order from most to least.',
-        scrambled.join('; ') + '.',
-        'Putting them together: ' + sorted.map(function (x) { return x.n; }).join(' > ') + '.',
-        'So the one with the most ' + prop + ' is <b>' + answer + '</b>.'];
+      var orderTxt = sorted.map(function (x) { return x.n; }).join(' > ');
       var teach = 'Chain the comparisons: if A has more than B and B has more than C, then A has more than C.';
+      /* One chain, six possible asks. The steps used to be ONE array shared by
+         every ask, so a card asking "who has the least?" (or "who is between
+         Maya and Noah?") was explained by a line naming the MOST — the worked
+         solution and the graded answer were different people. Each ask now
+         closes on its own question. */
+      var chain = 'Read the comparisons as one chain from most to least: ' + scrambled.join('; ') + '. Putting them together: ' + orderTxt + '.';
+      function stepsFor(ask) {
+        if (ask === 'least') return [chain, 'The chain ends with the smallest amount.',
+          'So the one with the least ' + prop + ' is <b>' + lastOne + '</b>.'];
+        if (ask === 'between') return [chain, sorted[0].n + ' is first and ' + sorted[2].n + ' is third, so between them stands ' + second + '.',
+          'So the one whose ' + prop + ' is between those two is <b>' + second + '</b>.'];
+        if (ask === 'list') return [chain, 'Written as a list from most to least, that is ' + orderTxt + '.',
+          'So the list is <b>' + orderTxt.replace(/ > /g, ', ') + '</b>.'];
+        if (ask === 'more') return [chain, sorted[0].n + ' stands above ' + lastOne + ' in that chain.',
+          'So <b>' + sorted[0].n + '</b> has more ' + prop + '.'];
+        return [chain, 'The chain begins with the largest amount.',
+          'So the one with the most ' + prop + ' is <b>' + answer + '</b>.'];
+      }
       return build(rng, [
         function () {
           return MC(rng, ct + ', four friends compare their ' + prop + ': ' + scrambled.join(', ') + '. Who has the most?',
-            answer, [second, lastOne, sorted[2].n], { b: 0 + hard * 0.4, explain: steps, teach: teach });
+            answer, [second, lastOne, sorted[2].n], { b: 0 + hard * 0.4, explain: stepsFor('most'), teach: teach });
         },
         function () {
           return MC(rng, ct + ', ' + scrambled.join(', ') + '. Who has the least?',
-            lastOne, [answer, second, sorted[2].n], { b: 0.2 + hard * 0.4, explain: steps, teach: teach });
+            lastOne, [answer, second, sorted[2].n], { b: 0.2 + hard * 0.4, explain: stepsFor('least'), teach: teach });
         },
         function () {
           return MC(rng, 'Who has more ' + prop + ', ' + sorted[0].n + ' or ' + lastOne + '?',
-            sorted[0].n, [lastOne, 'they are the same'], { b: 0.3 + hard * 0.4, explain: steps, teach: teach });
+            sorted[0].n, [lastOne, 'they are the same'], { b: 0.3 + hard * 0.4, explain: stepsFor('more'), teach: teach });
         },
         function () {
           return I_bool(sorted[0].n + ' has more ' + prop + ' than ' + second + '.', true, {
             b: 0.3 + hard * 0.4,
-            explain: ['From the sentences: ' + sorted.map(function (x) { return x.n; }).join(' > ') + '.',
+            explain: ['From the sentences: ' + orderTxt + '.',
               sorted[0].n + ' is above ' + second + ' in that order.',
               'So <b>yes</b>.'], teach: teach
           });
@@ -21164,11 +21232,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             sorted.map(function (x) { return x.n; }).join(', '),
             [sorted.slice().reverse().map(function (x) { return x.n; }).join(', '),
             R.shuffle(rng, sorted.map(function (x) { return x.n; })).join(', '),
-            sorted.map(function (x) { return x.n; }).slice(1).concat([sorted[0].n]).join(', ')], { b: 0.5 + hard * 0.4, explain: steps, teach: teach });
+            sorted.map(function (x) { return x.n; }).slice(1).concat([sorted[0].n]).join(', ')], { b: 0.5 + hard * 0.4, explain: stepsFor('list'), teach: teach });
         },
         function () {
-          return MC(rng, 'Who has the ' + prop + ' between ' + sorted[0].n + ' and ' + sorted[2].n + '?',
-            second, [lastOne, sorted[0].n, sorted[2].n], { b: 0.6 + hard * 0.4, explain: steps, teach: teach });
+          /* "between X and Y" asked about two people who are first and third in
+             the chain, but the question named them in the wrong order and read
+             as a place, not a rank; the ask now says what is being compared. */
+          return MC(rng, ct + ', four friends compare their ' + prop + ': ' + scrambled.join(', ') + '. Whose ' + prop + ' is between those of ' + sorted[0].n + ' and ' + sorted[2].n + '?',
+            second, [lastOne, sorted[0].n, sorted[2].n], { b: 0.6 + hard * 0.4, explain: stepsFor('between'), teach: teach });
         }
       ]);
     }
@@ -21191,8 +21262,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return I_num(ct + ', ' + whoA + ' is ' + mult + ' times as old as ' + whoB + ', who is ' + kid + '. ' + (askIn ? 'How old will ' + whoA + ' be in ' + years + ' years?' : 'How old is ' + whoA + ' now?'), ans, { b: 0 + hard * 0.4, explain: steps, teach: teach });
         },
         function () {
+          /* this card asks for the age NOW, but the shared steps walked on to "in 6
+             years" and closed there, so a card grading 24 was explained by 30. */
+          var nowSteps = ['"Times as old" is a multiplication: ' + mult + ' × ' + kid + ' = ' + older + '.',
+            'That is the age right now — no years have passed in this question.',
+            'Check: ' + older + ' ÷ ' + kid + ' = ' + mult + ', so ' + whoA + ' really is ' + mult + ' times as old as ' + whoB + '.',
+            'So ' + whoA + ' is <b>' + older + '</b> years old.'];
           return MC(rng, whoA + ' is ' + mult + ' times as old as ' + whoB + ', who is ' + kid + '. How old is ' + whoA + ' now?',
-            String(older), [String(older + years), String(kid + mult), String(older - kid)], { b: 0.1 + hard * 0.4, explain: steps, teach: teach });
+            String(older), [String(older + years), String(kid + mult), String(older - kid)], { b: 0.1 + hard * 0.4, explain: nowSteps, teach: teach });
         },
         function () {
           return I_bool(whoA + ' is ' + mult + ' times as old as ' + whoB + ', who is ' + kid + '. Is ' + whoA + ' ' + older + ' years old?', true, {
@@ -21273,7 +21350,11 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           pairTxt, decoPairs, { b: 0.1 + hard * 0.4, explain: afSteps, teach: sdTeach });
       },
       function () {
-        return I_num('A puzzle gives two numbers: ' + factList + '. What is the smaller number?', small, { b: 0.3 + hard * 0.4, explain: afSteps, teach: sdTeach });
+        /* one array closed "the larger number is …" for every ask, so a card that
+           asks for the SMALLER number was explained with the larger one. */
+        return I_num('A puzzle gives two numbers: ' + factList + '. What is the smaller number?', small,
+          { b: 0.3 + hard * 0.4, explain: afSteps.slice(0, afSteps.length - 1).concat(
+            ['So the smaller number is <b>' + small + '</b>.']), teach: sdTeach });
       },
       function () {
         return I_bool('Are the two numbers ' + pairTxt + '?', true, {
@@ -21284,13 +21365,25 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
       },
       function () {
-        var wrong = big + ' and ' + (small + 1);
-        return MC(rng, 'Diego guessed ' + wrong + ' for the pair with ' + factList + '. Which fact does his guess break?',
-          'the sum, which must be ' + sum, ['nothing — his guess is right', 'the numbers are not whole'], {
+        /* adding 1 to BOTH numbers keeps the difference and breaks the rest, so the
+           card has exactly one right option (the old guess broke every fact at once
+           while offering "the sum" as the only answer), and the last step names the
+           same facts the key names instead of wandering off to the right pair. */
+        var wB = big + 1, wS = small + 1, wrong = wB + ' and ' + wS;
+        var broken = p.kind === 'allFour'
+          ? 'the sum and the product' + (quot != null ? ' and the quotient' : '')
+          : 'the sum, which must be ' + sum;
+        return MC(rng, ct + ', Diego guessed ' + wrong + ' for the two numbers described: ' + factList + '. Which fact does his guess break?',
+          broken, ['the difference, which must be ' + diff, 'nothing — his guess is right', 'only that the numbers are not whole'], {
           b: 0.6 + hard * 0.4,
-          explain: ['Test ' + wrong + ': ' + big + ' + ' + (small + 1) + ' = ' + (big + small + 1) + ', not ' + sum + '.',
-            'A pair must satisfy every fact, not just one.',
-            'The pair that works is <b>' + pairTxt + '</b>.'], teach: sdTeach
+          explain: p.kind === 'allFour'
+            ? ['Test each fact on the guess: ' + wB + ' + ' + wS + ' = ' + (sum + 2) + ', but the sum must be ' + sum + '.',
+               'The product fails too: ' + wB + ' × ' + wS + ' = ' + (wB * wS) + ', but it must be ' + prod + (quot != null ? ', and ' + wB + ' ÷ ' + wS + ' is not ' + quot : '') + '.',
+               'The difference survives: ' + wB + ' − ' + wS + ' = ' + diff + '. So the guess breaks <b>' + broken + '</b>.']
+            : ['Test the guess: ' + wB + ' + ' + wS + ' = ' + (sum + 2) + ', but the sum must be ' + sum + '.',
+               'The difference survives: ' + wB + ' − ' + wS + ' = ' + diff + ', exactly as the fact requires.',
+               'So the guess breaks <b>' + broken + '</b>.'],
+          teach: 'Check a guess against every fact: one fact holding is not enough.'
         });
       },
       function () {
@@ -27699,21 +27792,26 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       }, null, lvl, 0);
     }
     function fromTable() {
-      var rows = [], i, xs = [], step = HS.pick(rng, [1, 2]);
+      /* the table must SHOW the rate the card grades. The x column used to step by
+         a random 1 or 2 while the y column stepped by the numerator, so a line of
+         slope -3/3 printed rows falling 3 for every +1 and then graded -1. Step x
+         by the run and y by the matching rise, and both agree. */
+      var rise = L.run < 0 ? -L.m : L.m, step = Math.abs(L.run) || 1;
+      var rows = [], i, xs = [];
       for (i = 0; i < 4; i++) xs.push(x1 + i * step);
-      for (i = 0; i < 4; i++) rows.push([String(xs[i]), String(y1 + L.m * i)]);
+      for (i = 0; i < 4; i++) rows.push([String(xs[i]), String(y1 + rise * i)]);
       var p = LIM ? 'What is the limit of the average rate of change shown by this table of values?'
                 : AV ? 'What is the average rate of change shown by this table of values?'
                  : 'What is the slope of the line shown by this table of values?';
       if (HS.leaks(p, [red.n, red.d])) return null;
-      return HS.numExact(p, BC.fix(L.m / L.run, 6), {
+      return HS.numExact(p, BC.fix(rise / step, 6), {
         visual: V.table(['x', 'y'], rows),
-        explain: ['Pick any two rows. Moving from one to the next changes x by ' + step + ' and y by ' + L.m + '.',
-          'Slope = ' + L.m + ' ÷ ' + step + ' = ' + slopeStr(L.m, step) + '.',
-          AV ? 'The average rate of change over each interval is <b>' + slopeStr(L.m, step) + '</b>.'
-             : 'The slope is <b>' + slopeStr(L.m, step) + '</b>.',
-          LIM ? 'The limit of that rate as the interval shrinks is still ' + slopeStr(L.m, step) + ', the same for every interval.'
-                : 'So the answer is <b>' + slopeStr(L.m, step) + '</b>.'],
+        explain: ['Take any two rows. Moving from one to the next changes x by ' + step + ' and y by ' + rise + '.',
+          'Rate = rise ÷ run = ' + rise + ' ÷ ' + step + ' = ' + slopeStr(rise, step) + '.',
+          AV ? 'The average rate of change over each interval is <b>' + slopeStr(rise, step) + '</b>.'
+             : 'The slope is <b>' + slopeStr(rise, step) + '</b>.',
+          LIM ? 'The limit of that rate as the interval shrinks is still ' + slopeStr(rise, step) + ', the same for every interval.'
+                : 'The table steps by the same amount everywhere, so the answer is <b>' + slopeStr(rise, step) + '</b>.'],
         teach: 'A constant rate in a table is the slope of the line behind it.'
       }, null, lvl, 0.1);
     }
@@ -27996,13 +28094,20 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       }, null, lvl, 0);
     }
     function perpPair() {
-      var m2v = -Math.round(1000 / m1) / 1000 * (m1 > 0 ? 1 : -1);
-      var m2r = -1 / m1;
-      var p = 'Are ' + HS.lineSI(m1, b1) + ' and ' + HS.lineSI(BC.fix(m2r, 4), b2) + ' perpendicular?';
+      /* the slope printed on the card has to BE the negative reciprocal. Printing
+         -1/3 rounded to -0.3333 made the card claim "3 × (-0.3333) = -1", a false
+         line on a card whose answer was Yes. A slope whose reciprocal does not
+         terminate is nudged to one that does, so every number shown is exact. */
+      var mag = Math.abs(m1);
+      if (mag === 3 || mag === 6) mag -= 1;
+      if (mag !== 1 && mag !== 2 && mag !== 4 && mag !== 5) mag = 1;
+      var mExact = m1 < 0 ? -mag : mag;
+      var m2r = -1 / mExact;
+      var p = 'Are ' + HS.lineSI(mExact, b1) + ' and ' + HS.lineSI(m2r, b2) + ' perpendicular?';
       return HS.judge(p, true, {
         explain: ['Perpendicular lines have slopes whose product is -1.',
-          m1 + ' × (' + BC.fix(m2r, 4) + ') = ' + BC.fix(m1 * m2r, 6) + '.',
-          'So the lines are <b>perpendicular</b>.'],
+          'The slopes are ' + mExact + ' and ' + m2r + ': ' + mExact + ' × ' + m2r + ' = ' + BC.fix(mExact * m2r, 6) + '.',
+          'The product is -1, so the lines are <b>perpendicular</b>.'],
         teach: 'Perpendicular slopes are negative reciprocals of each other. When the component vectors of a resultant vector are perpendicular, the parallelogram becomes a rectangle.'
       }, null, lvl, 0.2);
     }
@@ -28835,13 +28940,16 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       }, null, lvl, 0);
     }
     function none() {
-      var rhs = a * s + HS.pick(rng, [1, 2, 3]) + d;
-      var p = 'How many solutions does ' + a + 'x + ' + b + ' = ' + a + 'x + ' + (b + HS.pick(rng, [1, 2, 3])) + ' have?';
+      /* the leftover in the explanation has to be the constant actually printed on
+         the card. Each line rolled its own random offset, so "4x + 3 = 4x + 6" was
+         explained with "3 = 5". */
+      var rhs = b + HS.pick(rng, [1, 2, 3]);
+      var p = 'How many solutions does ' + a + 'x + ' + b + ' = ' + a + 'x + ' + rhs + ' have?';
       if (HS.leaksText(p, 'none')) return null;
       return HS.mc(rng, p, 'none', ['exactly one', 'infinitely many', 'two'], {
-        explain: ['Subtract ' + a + 'x from both sides and the x-terms vanish.',
-          'What is left is ' + b + ' = ' + (b + HS.pick(rng, [1, 2, 3])) + ', a false statement.',
-          'So there are <b>no</b> solutions.'],
+        explain: ['Subtract ' + a + 'x from both sides: the x-terms vanish and only the constants are left.',
+          'The constants left behind, ' + b + ' and ' + rhs + ', are not equal for any value of x.',
+          'A false statement with no x left means the equation has <b>no</b> solutions.'],
         teach: 'A false statement with no x left means the equation has no solution.'
       }, null, lvl, 0.1);
     }
@@ -38818,7 +38926,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!ineq) return null;
         var op = opPick(), sg = opSign(op);
         var a = BC.int(rng, 3, 12), b = op === 'div' ? BC.int(rng, 2, 6) : BC.int(rng, 2, 12);
-        var val = op === 'mul' ? a * b : (op === 'div' ? a : (op === 'add' ? a + b : a - b));
+        if (op === 'div') a = a * b;   /* keep the quotient whole */
+        /* 'div' used to score the left side as `a` itself, so the card printed
+           "6 ÷ 6 = 6" and then compared 6 with the claim. */
+        var val = op === 'mul' ? a * b : (op === 'div' ? a / b : (op === 'add' ? a + b : a - b));
         if (op === 'sub' && b > a) { var sw = a; a = b; b = sw; val = a - b; }
         var lie = R.chance(rng, 0.5);
         var claim = lie ? val + BC.pick(rng, [1, 2, -1]) : val;
@@ -38841,15 +38952,43 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!ineq) return null;
         var op = opPick();
         var who = BC.pick(rng, BC.WHO), thing = BC.pick(rng, ['pencils', 'seeds', 'sticker sheets', 'cans', 'bookmarks']);
-        var have = BC.int(rng, 6, 20), need = BC.int(rng, 30, 80), ans, sg, line;
-        if (op === 'add') { ans = need - have + 1; sg = '+'; line = ['If ' + who + ' had exactly ' + need + ', that would be ' + (need - have) + ' more.', 'One more than that is more than ' + need + ': ' + have + ' + ' + ans + ' = ' + (have + ans) + ' > ' + need + '.']; }
-        else if (op === 'mul') { ans = Math.floor(need / have) + 1; sg = '×'; line = [need + ' ÷ ' + have + ' = ' + Math.floor(need / have) + ' remainder ' + (need % have) + ', so ' + have + ' × ' + Math.floor(need / have) + ' is not over ' + need + '.', 'One more row gives ' + have + ' × ' + ans + ' = ' + (have * ans) + ' > ' + need + '.']; }
-        else if (op === 'div') { var b = BC.int(rng, 2, 6); ans = Math.floor(need / b) + 1; sg = '÷'; line = [need + ' ÷ ' + b + ' = ' + Math.floor(need / b) + ' remainder ' + (need % b) + '.', 'To beat that quotient you need ' + ans + ' ÷ ' + b + ' = ' + Math.floor(need / b + 1) + ', which is more than the goal.']; }
-        else { ans = need + 1; sg = '−'; line = ['Giving away ' + need + ' leaves ' + have + ' − ' + need + ' — impossible here, so the goal is to keep more than ' + need + '.', 'With ' + ans + ' you would have ' + ans + ' − 1 = ' + need + ', and one more than that beats ' + need + '.']; }
-        return I_NUM(who + ' has ' + have + ' ' + thing + '. What is the smallest number of ' + thing + ' more than ' + need + ' ' + who + ' could end with? (Hint: ' + have + ' ' + sg + ' ? > ' + need + ')', ans, {
+        var have = BC.int(rng, 6, 20), need = BC.int(rng, 30, 80), ans, line, promptTxt, hintTxt;
+        /* Each operation gets ITS OWN question and its own boundary work. One
+           prompt was shared by all four, so the division card asked "how many more
+           seeds" while its steps divided 63 by a group size and printed
+           "32 ÷ 2 = 32"; the multiplication card asked for a total but graded the
+           number of boxes. */
+        if (op === 'add') {
+          ans = need - have + 1;
+          promptTxt = who + ' has ' + have + ' ' + thing + '. What is the smallest number of ' + thing + ' more that ' + who + ' must collect to end with more than ' + need + '? (Hint: ' + have + ' + ? > ' + need + ')';
+          hintTxt = 'Find the number that lands exactly on ' + need + ', then take one more.';
+          line = ['Exactly ' + need + ' needs ' + (need - have) + ': ' + have + ' + ' + (need - have) + ' = ' + need + ', which is not MORE than ' + need + '.',
+            'One more gives ' + have + ' + ' + ans + ' = ' + (have + ans) + ', and ' + (have + ans) + ' > ' + need + '.'];
+        } else if (op === 'mul') {
+          var rows = Math.floor(need / have);
+          ans = rows + 1;
+          promptTxt = who + ' packs ' + have + ' ' + thing + ' into each box. What is the smallest number of boxes needed so that more than ' + need + ' ' + thing + ' are packed? (Hint: ' + have + ' × ? > ' + need + ')';
+          hintTxt = have + ' × ' + rows + ' first reaches ' + (have * rows) + '; one more box goes past ' + need + '.';
+          line = [have + ' × ' + rows + ' = ' + (have * rows) + ', which is not more than ' + need + ' (' + (need - have * rows) + ' still unpacked).',
+            'One more box: ' + have + ' × ' + ans + ' = ' + (have * ans) + ', and ' + (have * ans) + ' > ' + need + '.'];
+        } else if (op === 'div') {
+          var gb = BC.int(rng, 2, 6);
+          ans = need * gb + gb;
+          promptTxt = 'Marbles are shared equally into ' + gb + ' groups. What is the smallest number of marbles that gives more than ' + need + ' in each group? (Hint: ? ÷ ' + gb + ' > ' + need + ')';
+          hintTxt = 'Find the total that gives exactly ' + need + ' in each group, then add ' + gb + ' more.';
+          line = ['Exactly ' + need + ' in each group needs ' + need + ' × ' + gb + ' = ' + (need * gb) + ', and ' + (need * gb) + ' ÷ ' + gb + ' = ' + need + ' — equal, not more.',
+            'Adding one more to each group adds ' + gb + ': ' + (need * gb) + ' + ' + gb + ' = ' + ans + ', and ' + ans + ' ÷ ' + gb + ' = ' + (need + 1) + ' > ' + need + '.'];
+        } else {
+          ans = need + have + 1;
+          promptTxt = who + ' gives away ' + have + ' ' + thing + ' and still has more than ' + need + ' left. What is the smallest number of ' + thing + ' ' + who + ' could have started with? (Hint: ? − ' + have + ' > ' + need + ')';
+          hintTxt = 'A start of ' + (need + have) + ' leaves exactly ' + need + '; one more start leaves more.';
+          line = ['A start of ' + (need + have) + ' leaves exactly ' + need + ': ' + (need + have) + ' − ' + have + ' = ' + need + ', which is not more than ' + need + '.',
+            'One more start leaves ' + ans + ' − ' + have + ' = ' + (ans - have) + ', and ' + (ans - have) + ' > ' + need + '.'];
+        }
+        return I_NUM(promptTxt, ans, {
           explain: line.concat(['So the smallest number is <b>' + ans + '</b>.']),
-          hint: 'Write the inequality ' + have + ' ' + sg + ' ? > ' + need + ' and find the boundary first.',
-          teach: 'A "more than" story is an inequality: find the boundary number, then step past it.',
+          hint: hintTxt,
+          teach: 'A "more than" inequality is won at the boundary: find the number that lands exactly on the goal, then step one past it.',
           b: 0.9
         });
       },
@@ -40938,9 +41077,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!decimal) return null;
         var m = BC.pick(rng, [0.1, 0.01]);
         var n = m === 0.1 ? BC.int(rng, 2, 9) * 10 : BC.int(rng, 2, 9) * 100;
-        var ans = m === 0.1 ? n / 10 : n / 100;
-        return choose(rng, 'Which is ' + n + ' ÷ ' + m + '?', ans, [ans * 10, ans / 10, n], {
-          steps: ['÷ ' + m + ' means × ' + (m === 0.1 ? 10 : 100) + '.', n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + ans + '.'],
+        /* ÷ 0.1 is × 10 — the steps already said so, but the key held n ÷ 10, the
+           value of n × 0.1, so the card's own arithmetic contradicted its answer. */
+        var ans = m === 0.1 ? n * 10 : n * 100;
+        return choose(rng, 'Which is ' + n + ' ÷ ' + m + '?', ans, [ans * 10, n / 10, n], {
+          steps: ['÷ ' + m + ' means × ' + (m === 0.1 ? 10 : 100) + '.', n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + ans + '.',
+            'So ' + n + ' ÷ ' + m + ' = <b>' + ans + '</b>.'],
           hint: 'Dividing by a tenth makes the answer ' + (m === 0.1 ? 'ten' : 'a hundred') + ' times bigger.',
           teach: 'Dividing by a decimal below one makes the answer bigger, not smaller.',
           b: 0.4
@@ -40950,11 +41092,15 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!decimal) return null;
         var m = BC.pick(rng, [0.1, 0.01]);
         var n = m === 0.1 ? BC.int(rng, 2, 9) * 10 : BC.int(rng, 2, 9) * 100;
-        var ans = m === 0.1 ? n / 10 : n / 100;
-        var lie = R.chance(rng, 0.5) ? ans : ans * 10;
+        var ans = m === 0.1 ? n * 10 : n * 100;
+        /* the slip on offer is the usual one — dividing by a tenth instead of
+           multiplying by it — and the worked line now agrees with the key. */
+        var lie = R.chance(rng, 0.5) ? ans : (m === 0.1 ? n / 10 : n / 100);
         var truth = lie === ans;
         return judge('Is ' + n + ' ÷ ' + m + ' = ' + lie + '?', truth, {
-          explain: [n + ' ÷ ' + m + ' = ' + n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + ans + '.', 'The statement says ' + lie + '.'],
+          explain: [n + ' ÷ ' + m + ' is the same as × ' + (m === 0.1 ? 10 : 100) + ': ' + n + ' × ' + (m === 0.1 ? 10 : 100) + ' = ' + ans + '.',
+            'The statement says ' + lie + ', which is ' + (truth ? 'that value' : 'not that value') + '.',
+            'So it is <b>' + (truth ? 'true' : 'false') + '</b>.'],
           hint: 'Turn the division into ' + n + ' × ' + (m === 0.1 ? 10 : 100) + ' and compare.',
           teach: 'Check a decimal quotient by rewriting it as a multiplication.',
           b: 0.5
@@ -45616,12 +45762,22 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     }
     function quadCard(rng) {
       var kind = BC.pick(rng, ['parallelogram', 'trapezoid', 'rectangle', 'rhombus', 'square']);
+      /* The clue has to be a noun phrase — the card reads "Which quadrilateral
+         has …?" — and it has to be true of ONE of the five names, because the
+         other four are printed beside it as choices. "Opposite sides are equal"
+         is a clause (the sentence came out ungrammatical) and "four equal sides"
+         is also true of a square, which would leave two right answers. */
       var facts = {
-        parallelogram: ['two pairs of parallel sides', 'equal opposite angles'],
-        trapezoid: ['exactly one pair of parallel sides', 'the non-parallel pair of sides'],
-        rectangle: ['four right angles', 'opposite sides are equal'],
-        rhombus: ['four equal sides', 'equal opposite angles'],
-        square: ['four equal sides and four right angles', 'the names rectangle and rhombus as well']
+        parallelogram: ['two pairs of parallel sides, no right angles and no pair of equal adjacent sides',
+          'two pairs of parallel sides whose adjacent sides are of different lengths'],
+        trapezoid: ['exactly one pair of parallel sides',
+          'one pair of parallel sides and one pair that is not parallel'],
+        rectangle: ['four right angles and sides that are not all equal',
+          'two long sides, two short sides and four right angles'],
+        rhombus: ['four equal sides and no right angles',
+          'four equal sides and two pairs of equal angles, none of them a right angle'],
+        square: ['four equal sides and four right angles',
+          'being both equilateral and equiangular']
       };
       var clue = BC.pick(rng, facts[kind]);
       var wrongs = ['parallelogram', 'trapezoid', 'rectangle', 'rhombus', 'square']
@@ -47083,7 +47239,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           ans, {
           answerText: UP.comma(ans),
           steps: ['First the product: ' + d.a + ' × ' + d.b + ' = ' + UP.comma(d.p) + '.',
-            (later ? 'Then add ' : 'Then subtract ') + UP.comma(extra) + ': ' + UP.comma(later ? ans : ans + extra) + (later ? ' + ' : ' − ') + UP.comma(extra) + ' = ' + UP.comma(ans) + '.'],
+            /* the second line has to start from the product it just found: it
+               started from the ANSWER, so "600 + 250" was printed as "850 + 250 =
+               850" and the learner watched the wrong sum. */
+            (later ? 'Then add ' : 'Then subtract ') + UP.comma(extra) + ': ' + UP.comma(d.p) + (later ? ' + ' : ' − ') + UP.comma(extra) + ' = ' + UP.comma(ans) + '.'],
           teach: 'A two-step story is one operation at a time: finish the multiplication before the change.',
           b: 0.8
         });
@@ -48843,14 +49002,19 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       function () {                       /* judge a place-value claim */
         var k = pow(), v = powVal(k), m = BC.int(rng, 2, 9);
-        var claim = D(m * v, 1);                       /* 10^k × 0.m style slip */
+        /* m × 10^k is m followed by k zeros, and the slip on offer is the value a
+           place out. The old code put the SLIP into `claim` and printed it as the
+           worked value, so "7 × 10^3 = 700" was explained by "7 × 10^3 = 700" and
+           a card whose statement said 700 was marked correct. */
+        var right = m * v;
+        var slip = BC.pick(rng, [m * powVal(Math.max(1, k - 1)), m * powVal(k + 1)]);
         var truth = R.chance(rng, 0.5);
-        var shown = truth ? claim : D(m * powVal(Math.max(1, k - 1)), 1);
-        var claimStr = m + ' × ' + powStr(k) + ' = ' + dstr(shown);
+        var shown = truth ? right : slip;
+        var claimStr = m + ' × ' + powStr(k) + ' = ' + UP.comma(shown);
         return UP.judge(lead(rng, [claimStr + '. Is that right?', 'Someone wrote: ' + claimStr + '. Do you agree?']), truth, {
-          steps: [m + ' × ' + powStr(k) + ' = ' + dstr(claim) + '.',
-            'The statement says ' + dstr(shown) + '.',
-            'So it is <b>' + (truth ? 'true' : 'false') + '</b>.'],
+          steps: ['A power of ten appends zeros: ' + m + ' × ' + powStr(k) + ' = ' + m + ' × ' + UP.comma(v) + ' = ' + UP.comma(right) + '.',
+            'The statement says ' + UP.comma(shown) + ', which is ' + (truth ? 'that same product' : 'a place ' + (shown > right ? 'too high' : 'too low')) + '.',
+            'So the claim is <b>' + (truth ? 'true' : 'false') + '</b>.'],
           teach: 'A power of ten scales the number; it never changes the digit itself.',
           b: 0.5
         });
@@ -51422,7 +51586,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {                       /* how many of the smaller place */
         var place = BC.pick(rng, [['hundredths', 100], ['thousandths', 1000], ['tenths', 10]]);
         return ask('How many ' + place[0] + ' make 1 whole?', place[1], {
-          explain: ['1 written in that place: 1 = ' + place[1] + ' × 0.0' + (place[0] === 'tenths' ? '1' : place[0] === 'hundredths' ? '01' : '001') + '.',
+          /* the little piece is one divided by the count, and the old line built
+             it by pasting zeros: "1 = 10 × 0.01" for tenths, which is 0.1 ≠ 1. */
+          explain: ['One ' + place[0] + ' is ' + (1 / place[1]) + ', because ' + place[1] + ' of them make up ' + (1 / place[1]) + ' × ' + place[1] + ' = 1.',
             'So <b>' + place[1] + '</b> of them make one whole.'],
           teach: 'The name of the place tells how many of them fit into one whole.',
           b: 0.7
@@ -55050,12 +55216,19 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           });
       },
       function () {
-        var d = BC.pick(rng, [2, 3, 4, 5, 6]), w = BC.int(rng, 2, 6);
-        var ans = BC.int(rng, 2, 6);
-        return frac('A ' + ans + ' × ' + ans + ' ft board of ' + 1 + '/' + d + ' ft wide covers how many square feet?', reduce(ans, d * ans).n, reduce(ans, d * ans).d, {
-          visual: areaFrac(d, ans, ans, ans),
-          explain: ['Area is length × width: ' + ans + ' × ' + 1 + '/' + d + '.',
-            'That is ' + ans + '/' + d + ' = <b>' + f(ans, d).text + '</b> ft².'],
+        /* the card printed a 6 × 6 board that is also 1/3 ft wide, and the key was
+           reduce(ans, d·ans) = 1/d — the WIDTH, not the area the steps computed
+           (6 × 1/3 = 2). Choose a length the width divides, so the covered area is
+           exact, and grade THAT. */
+        var len = BC.int(rng, 2, 12);
+        var ds = [2, 3, 4, 5, 6].filter(function (x) { return len % x === 0; });
+        if (!ds.length) return null;
+        var d = BC.pick(rng, ds), area = len / d;
+        return ask('A garden bed is ' + len + ' ft long and ' + 1 + '/' + d + ' ft wide. How many square feet does it cover?', area, {
+          visual: areaFrac(d, d, area, area),
+          explain: ['Area is length × width: ' + len + ' × ' + 1 + '/' + d + ' = ' + len + '/' + d + '.',
+            len + ' ÷ ' + d + ' = ' + area + ', so the product is a whole number of square feet.',
+            'The bed covers <b>' + area + '</b> square feet.'],
           teach: 'Fraction division and fraction multiplication share the same area model.', b: 0.7
         });
       },
@@ -56436,8 +56609,11 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var ns5 = BC.picks(rng, 3, 1, d5o - 1);
           var lo5 = Math.min.apply(null, ns5);
           return frac('Order ' + ns5.map(function (n) { return n + '/' + d5o; }).join(', ') + ' from greatest to least. What is the LAST one?', lo5, d5o, {
-            explain: ['Same denominator ' + d5o + ', so order the numerators ' + ns5.join(', ') + '.',
-              'Greatest to least ends with the smallest numerator <b>' + lo5 + '</b>.'],
+            /* the blanks on this card are fractions, so the last line names the
+               fraction as the card writes it (2/6), not the bare numerator. */
+            explain: ['All three fractions share the denominator ' + d5o + ', so the order follows the numerators ' + ns5.join(', ') + '.',
+              'From greatest to least the list ends with the smallest numerator, ' + lo5 + ', which stands for ' + lo5 + '/' + d5o + '.',
+              'The last fraction is <b>' + lo5 + '/' + d5o + '</b>.'],
             teach: 'Reversing the order just reverses the list; the last one is the least value.', b: 0.8
           });
         }
@@ -56450,7 +56626,11 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var d = BC.pick(rng, [3, 4, 5, 6, 8]);
         var n1 = BC.int(rng, 1, d - 2), n2 = BC.int(rng, 1, d - 1 - n1);
         return frac(n1 + '/' + d + ' + ? = ' + (n1 + n2) + '/' + d, n2, d, {
-          explain: ['Same denominator, so the numerators add.', (n1 + n2) + ' − ' + n1 + ' = <b>' + n2 + '</b>'],
+          /* the blank is a whole fraction, and the card grades the fraction; the
+             steps used to stop at its numerator. */
+          explain: ['The denominators match, so only the numerators add: ' + n1 + ' + ? = ' + (n1 + n2) + '.',
+            'Undo the addition: ' + (n1 + n2) + ' − ' + n1 + ' = ' + n2 + '.',
+            'The missing fraction is <b>' + n2 + '/' + d + '</b>.'],
           teach: 'In an addition sentence the missing part is the total minus the known part.', b: 0
         });
       },
@@ -60658,7 +60838,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     return BC.pick(rng, list);
   }
   function who(rng) { return BC.pick(rng, BC.WHO); }
-  function signed(n) { return (n < 0 ? '− ' + Math.abs(n) : String(n)); }
+  /* no space after the sign: "x = − 23" reads as two tokens, and the learner has
+     to work out whether the minus belongs to the number. */
+  function signed(n) { return (n < 0 ? '−' + Math.abs(n) : String(n)); }
   function addEq(rng, hard, neg) {
     var x = BC.int(rng, 2, hard ? 30 : 14) * (neg && R.chance(rng, 0.4) ? -1 : 1);
     var a = BC.int(rng, 1, hard ? 24 : 12) * (neg && R.chance(rng, 0.35) ? -1 : 1);
@@ -62707,7 +62889,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var q = { v: -dv, s: nfmt(-dv) };
           return ask('A ' + BC.pick(rng, ['candy bar', 'tape', 'rope']) + ' hangs ' + nfmt(dv) + ' m below the desk edge. Write its position as a rational number.', q.v, {
             answerText: nfmt(q.v),
-            explain: ['Below is negative: ' + nfmt(-Math.abs(q.v)) + '.', 'The opposite is above: <b>' + nfmt(-q.v) + '</b>.'],
+            /* the blank asks for the object's OWN position; the old steps ended on
+               the opposite point (above the desk) and bolded it, so the written
+               answer and the graded answer had different signs. */
+            explain: ['The desk edge is 0, and positions below it are negative.',
+              'This object hangs ' + nfmt(dv) + ' m below, so its position is ' + nfmt(q.v) + '. (The point ' + nfmt(dv) + ' m above would be its opposite, ' + nfmt(dv) + '.)',
+              'Its position is <b>' + nfmt(q.v) + '</b>.'],
             teach: 'Opposite positions describe the same distance on the other side.', b: 0.6
           });
         },
@@ -65439,12 +65626,22 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var base = iint(rng, lvl, 5), pw = BC.int(rng, 2, 3);
         if (base === 0) return null;
         var neg = R.chance(rng, 0.5);
+        /* The printed statement has to be TRUE, and the reader must agree.
+           −(base)^pw is always −|base|^pw. (−base)^pw is +|base|^pw when pw
+           is even and −|base|^pw when pw is odd. The old key ignored the
+           parity of pw for the inside case and printed −(−4)³ = −64, which
+           is wrong: the odd power gives (−4)³ = −64, and the outside minus
+           flips it to +64. */
+        var mag = Math.pow(Math.abs(base), pw);
+        var v = neg ? -mag : (pw % 2 === 0 ? mag : -mag);
         var expr = (neg ? '− ' + br(base) + supExp(pw) : br(-base) + supExp(pw));
-        var v = neg ? -Math.pow(base, pw) : Math.pow(-base, pw);
         return judge(rng, 'Is it true or false that ' + expr + ' = ' + v + '?', true, {
-          steps: [neg ? 'The minus sign sits outside the power, so apply the power first.' : 'The negative base is inside the power.',
-            (neg ? Math.pow(base, pw) : Math.pow(-base, pw)) + ' with the sign handled gives ' + v + '.'],
-          teach: 'A negative base inside the power changes sign by the exponent’s parity.', b: 0.7
+          steps: [neg ? 'The minus sign sits outside the power, so apply the power first: ' + Math.abs(base) + supExp(pw) + ' = ' + mag + ', then take the negative.'
+                      : 'The negative base is inside the power: ' + br(-base) + supExp(pw) + ' = ' + mag + '.',
+            neg ? 'The minus outside the power flips it: ' + mag + ' becomes ' + v + '.'
+                : (pw % 2 === 0 ? 'An even exponent makes a negative base positive, so the value is ' + v + '.'
+                                : 'An odd exponent keeps a negative base negative, so the value is ' + v + '.')],
+          teach: 'A negative base inside the power changes sign by the exponent’s parity; a minus outside the power always flips the result.', b: 0.7
         });
       }
     ]);
@@ -65919,8 +66116,18 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var a = BC.pick(rng, towns), b = BC.pick(rng, towns.filter(function (x) { return x !== a; }));
         var d1 = dec(rng, hard, 3, 9), step = dec(rng, hard, 1, 3);
-        return judge(rng, 'Is it true or false that ' + a + ' is ' + d1 + ' km from the city line and ' + b + ' is ' + BC.fix(d1 + step, 1) + ' km, so the towns are ' + step + ' km apart?', true, {
-          steps: ['Subtract the two odometer-style distances.', nfmt(BC.fix(d1 + step, 1)) + ' − ' + d1 + ' = ' + step + '.'],
+        /* the second reading must be the first plus the gap EXACTLY. The old card
+           rounded the sum to one decimal place, so it printed "9 − 6.87 = 2.08"
+           (the real difference is 2.13) and still asked the learner to call it
+           true. Whole hundredths keep every line of the subtraction honest. */
+        var p1h = Math.round(d1 * 100), sh = Math.round(step * 100), p2h = p1h + sh;
+        var p1 = p1h / 100, p2 = p2h / 100, gap = sh / 100;
+        var lie = R.chance(rng, 0.5);
+        var stated = lie ? (sh + 10) / 100 : gap;      /* the usual slip: a tenth out */
+        return judge(rng, 'Is it true or false that ' + a + ' is ' + nfmt(p1) + ' km from the city line and ' + b + ' is ' + nfmt(p2) + ' km, so the towns are ' + nfmt(stated) + ' km apart?', !lie, {
+          steps: ['Both readings start at the same city line, so the gap between the towns is the difference of the readings.',
+            nfmt(p2) + ' − ' + nfmt(p1) + ' = ' + nfmt(gap) + ' km.',
+            'The claim says ' + nfmt(stated) + ' km, so it is <b>' + (lie ? 'false' : 'true') + '</b>.'],
           teach: 'Two positions on one road subtract to the distance between.', b: 0.6
         });
       }
@@ -76451,16 +76658,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var dif = r2(a - b);
       return I_cmp(r2(a) + ' + ' + r2(b) + ' ○ ' + r2(a) + ' − ' + r2(b), sumA, dif, {
         b: t + 0.1,
-        explain: ['Adding ' + r2(b) + ' moves away from ' + r2(a) + '; subtracting brings it back.', sumA + ' vs ' + dif + '.',
-          'So the answer is <b>></b>.'],
+        /* the symbol was hard-coded as ">": when the two sides are the same
+           number (4.3 + 1.9 and 6.2 are both 6.2) the card graded = while its own
+           last line shouted >. */
+        explain: ['Adding ' + r2(b) + ' to ' + r2(a) + ' gives ' + sumA + '; subtracting the same amount gives ' + dif + '.',
+          sumA === dif ? 'Both sides are ' + sumA + ', so the two quantities are equal.'
+            : (sumA > dif ? sumA + ' is greater than ' + dif : sumA + ' is less than ' + dif) + '.',
+          'So the answer is <b>' + (sumA > dif ? '>' : sumA < dif ? '<' : '=') + '</b>.'],
         teach: 'For positive decimals, a sum beats the matching difference.' });
     }
     if (k === 2) {   /* story compare */
       var w = pick2(rng, WHO.filter(function (n) { return n !== 'Maya' && n !== 'Leo'; }));
       return I_cmp('Maya ran ' + r2(a) + ' km and Leo ran ' + r2(b) + ' km ○ ' + w + ' ran ' + r2(c) + ' km', sumA, c, {
         sub: 'Compare Maya and Leo\u2019s combined distance with ' + w + '\u2019s.', b: t + 0.25,
-        explain: ['Together: ' + r2(a) + ' + ' + r2(b) + ' = ' + sumA + ' km.', sumA + ' vs ' + r2(c) + '.',
-          'So the answer is <b>' + (sumA < c ? '<' : '>') + '</b>.'],
+        explain: ['Maya and Leo together ran ' + r2(a) + ' + ' + r2(b) + ' = ' + sumA + ' km.',
+          sumA === c ? 'That is exactly ' + r2(c) + ' km, the same as ' + w + '.'
+            : (sumA > c ? sumA + ' km is more than ' + r2(c) + ' km' : sumA + ' km is less than ' + r2(c) + ' km') + '.',
+          'So the answer is <b>' + (sumA > c ? '>' : sumA < c ? '<' : '=') + '</b>.'],
         teach: 'Stories with ○ still ask for a computation first.' });
     }
     if (k === 3) {   /* MC which difference is bigger */
@@ -77932,10 +78146,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var q1 = R.int(rng, 2, 3), q2 = R.int(rng, 2, 3);
       var unit = r2(1.2 + R.int(rng, 0, 6) / 10);
       var s1v = r2(unit * q1), s2v = r2(unit * q2);
-      return I_num(w + ' orders ' + q1 + ' chairs and a friend orders ' + q2 + ' chairs at ' + unit + ' dollars each. How much more does the friend NOT pay — the difference between the two bills?', r2(s2v - s1v), {
+      /* "How much more does the friend NOT pay" names no order of subtraction, so
+         the card graded a signed difference while the steps reported the positive
+         gap. The ask now states the order the key uses. */
+      return I_num(w + ' orders ' + q1 + ' chairs and a friend orders ' + q2 + ' chairs at ' + unit + ' dollars each. What is the friend\u2019s bill minus ' + w + '\u2019s bill?', r2(s2v - s1v), {
         b: t + 0.35,
-        explain: ['Bills: ' + q1 + ' × ' + unit + ' = ' + s1v + ' and ' + q2 + ' × ' + unit + ' = ' + s2v + '.',
-          'Difference: ' + s2v + ' − ' + s1v + ' = ' + r2(s2v - s1v) + '.', 'So the answer is <b>' + r2(Math.abs(s2v - s1v)) + '</b>'],
+        explain: ['Bills: ' + w + ' pays ' + q1 + ' × ' + unit + ' = ' + s1v + ' dollars; the friend pays ' + q2 + ' × ' + unit + ' = ' + s2v + ' dollars.',
+          'Subtract in the order the question gives: ' + s2v + ' − ' + s1v + ' = ' + r2(s2v - s1v) + ' dollars.',
+          'So the friend\u2019s bill minus ' + w + '\u2019s bill is <b>' + r2(s2v - s1v) + '</b>.'],
         teach: 'Compare bills by multiplying each, then subtracting.' });
     }
     if (k === 4) {   /* divide then multiply */
@@ -79298,7 +79516,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         hint: 'Both weights are eighths: ' + bN + ' − ' + aN + '.',
         explain: ['Start: ' + mixPrint(w1, n1, 8) + ' = ' + bN + '/8 kg.',
           'Used: ' + mixPrint(w2, n2, 8) + ' = ' + aN + '/8 kg.',
-          bN + ' − ' + aN + ' = ' + dN + '/8, which reduces to ' + dR.n + '/' + dR.d + '.',
+          /* "35 − 17 = 18/8" is not what was done: both weights are eighths, and a
+             learner reading the bare counts cannot see where the /8 comes from. */
+          bN + '/8 − ' + aN + '/8 = ' + dN + '/8, and ' + dN + '/8 reduces to ' + dR.n + '/' + dR.d + '.',
           'So the bag still holds <b>' + dR.n + '/' + dR.d + '</b> kg.'],
         teach: 'Subtracting mixed numbers keeps the parts and subtracts the counts.' });
     }
@@ -79360,7 +79580,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       hint: 'Write ' + nU6 + '/' + dU6 + ' as ' + uN6 + '/8, then subtract.',
       explain: ['Full trail: ' + mixPrint(wA6, nA6, dA6) + ' = ' + bN6 + '/8 km.',
         'Walked: ' + nU6 + '/' + dU6 + ' = ' + uN6 + '/8 km.',
-        bN6 + ' − ' + uN6 + ' = ' + lN6 + '/8, reduced to ' + lR.n + '/' + lR.d + '.',
+        bN6 + '/8 − ' + uN6 + '/8 = ' + lN6 + '/8, and ' + lN6 + '/8 reduces to ' + lR.n + '/' + lR.d + '.',
         'So ' + w + ' still has <b>' + lR.n + '/' + lR.d + '</b> km left.'],
       teach: 'Two fraction amounts in one story are compared in a shared part size.' });
   });
@@ -80306,13 +80526,17 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     }
     if (k === 4) {   /* compare two depths */
       var dA = d18(rng, 30, 70), dB = d18(rng, 10, 29);
-      return MC(rng, 'One diver is at ' + sgnD(-dA) + ' m and another at ' + sgnD(-dB) + ' m. How many metres deeper is the first diver?', sgnD(r2(-dA + dB)),
-        [sgnD(r2(dA + dB)), sgnD(r2(dA - dB))], {
+      /* "How many metres deeper" asks for a DISTANCE, so the key is the positive
+         gap; the signed difference stays on the card as an option because dropping
+         the sign is exactly the mistake being tested. */
+      var gap8 = Math.abs(r2(dA - dB));
+      return MC(rng, 'One diver is at ' + sgnD(-dA) + ' m and another at ' + sgnD(-dB) + ' m. How many metres deeper is the first diver than the second?', String(gap8),
+        [sgnD(r2(dA + dB)), sgnD(r2(-dA + dB)), r2(dB)], {
           b: t + 0.6,
-          hint: 'Find the difference of the two signed elevations.',
+          hint: 'Subtract the two elevations, then report the distance between them.',
           explain: ['Depths below the surface are negative: ' + sgnD(-dA) + ' m and ' + sgnD(-dB) + ' m.',
-            'Difference: ' + sgnD(-dA) + ' − ' + sgnD(-dB) + ' = ' + sgnD(r2(-dA + dB)) + ' m.',
-            'So the first diver is <b>' + Math.abs(r2(dA - dB)) + '</b> m deeper.'],
+            'Subtract the elevations: ' + sgnD(-dA) + ' − ' + sgnD(-dB) + ' = ' + sgnD(r2(-dA + dB)) + ' m.',
+            'That negative result says the first diver lies below the second; the distance between them is ' + gap8 + ' m, so the first diver is <b>' + gap8 + '</b> m deeper.'],
           teach: 'Comparing negative positions measures the gap between them.' });
     }
     /* 5: which expression matches */
@@ -82364,7 +82588,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           b: t, sub: 'A rectangle has two dimensions, so both are scaled.',
           hint: 'Both the width and the height are multiplied, so the ratio is squared.',
           explain: ['Side ratio ' + m + ' : ' + (m + 2) + ' means width and height both change by that ratio.',
-            'Area ratio: ' + m + ' \u00D7 ' + m + ' : ' + (m + 2) + ' \u00D7 ' + (m + 2) + ' = ' + m * m + ' : ' + (m + 2) * (m + 2) + '.',
+            /* one equation written with two colons is not arithmetic a reader can
+               settle (and "2 × 2 : 4 × 4 = 4 : 16" reads as 16 = 4); do each square
+               on its own, then state the ratio. */
+            'Squaring the two parts of the side ratio: ' + m + ' \u00D7 ' + m + ' = ' + (m * m) + ', and ' + (m + 2) + ' \u00D7 ' + (m + 2) + ' = ' + ((m + 2) * (m + 2)) + '.',
             'So the areas are in the ratio <b>' + m * m + ' : ' + (m + 2) * (m + 2) + '</b>.'],
           teach: 'Area ratios are the square of the side ratios.' });
     }
@@ -87132,16 +87359,44 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       return out;
     }
     if (/\bshaded\b/i.test(t)) {
+      /* The ask may only be reworded into a question the GRADED answer can answer.
+         The old rule looked at the single word "shaded" and re-framed every such
+         card as a fraction question, so the half-plane card that grades x > 2 was
+         printed as "What fraction of the coordinate plane is shaded?", and a card
+         asking how many more parts are needed was printed as a fraction question
+         whose answer was a whole number. */
       var nm = modelName(item.visual) || 'the figure';
-      return ['What fraction of ' + nm + ' is shaded?',
-        'Which fraction names the shaded part of ' + nm + '?',
-        'How much of ' + nm + ' is shaded?',
-        'What fraction of ' + nm + ' is NOT shaded?'].slice(0, 3);
+      var optsT = (item.opts || []).map(function (o) { return String(o == null ? '' : o); });
+      var ansTxt = String(item.answerText != null ? item.answerText
+        : (item.opts != null && item.correct != null && item.opts[item.correct] != null ? item.opts[item.correct] : ''));
+      var likeIneq = function (u) { return /^\s*[xy]\s*[<>]/.test(String(u)); };
+      var likePct = function (u) { return /%\s*$/.test(String(u)); };
+      var many = function (test) { var c = 0, i2; for (i2 = 0; i2 < optsT.length; i2++) if (test(optsT[i2])) c++; return c >= 2; };
+      if (likeIneq(ansTxt) || many(likeIneq)) {
+        return ['The points of ' + nm + ' that are shaded are the solutions of one inequality. Which inequality is shown?',
+          'Which inequality describes the shaded part of ' + nm + '?',
+          'The shading of ' + nm + ' stands for a set of points. Which inequality gives that set?'];
+      }
+      var isFrac = kind === 'frac' || /^\s*[-+]?\d+\s*\/\s*\d+\s*$/.test(ansTxt) || /^\s*[-+]?\d+\s+\d+\/\d+\s*$/.test(ansTxt);
+      if (isFrac) {
+        return ['What fraction of ' + nm + ' is shaded?',
+          'Which fraction names the shaded part of ' + nm + '?',
+          'How much of ' + nm + ' is shaded?'];
+      }
+      if (/^\s*[-+]?\d+(?:\.\d+)?\s*%$/.test(ansTxt) || many(likePct)) {
+        return ['What percent of ' + nm + ' is shaded?', 'Which percent names the shaded part of ' + nm + '?'];
+      }
+      /* the answer is a number of parts, a mixed number written another way, or a
+         comparison: the generator wrote the ask for that answer, so leave it. */
+      return null;
     }
     if ((m = t.match(/^(How many\s+.+?\s+(?:are there|in all|in total)\??)\s*$/i))) {
       var nm2 = modelName(item.visual);
+      /* "how many table there are" is not English: the named figure has to sit in
+         a phrase that reads, not be dropped in front of "there are". */
       return [m[1].replace(/\?$/, '') + '?',
-        'Which number tells how many' + (nm2 ? ' ' + nm2.replace(/^the /, '') + ' there are' : ' there are') + '?',
+        nm2 ? 'Which number tells how many are shown in ' + nm2 + '?'
+          : 'Which number tells how many there are in all?',
         'Count. ' + m[1].replace(/\?$/, '') + '?'].slice(0, rank(sk) <= 3 ? 3 : 2);
     }
     var saysSymbols = />\s*[,;]?\s*<|using >|fill in ○|or =\s*:/i.test(t);
@@ -87643,14 +87898,29 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        are the safe ones (u-initial words and "hour" are deliberately left to
        their own devices because the choice depends on pronunciation). */
     var dustFix = function (txt) {
-      return String(txt).replace(/(\d\.\d{5,})/g, function (m0) {
+      /* only float dust is swept: a value with seven or more decimals cannot have
+         been written by hand, so it came out of a division and may be shortened.
+         Five and six decimals stay exactly as the generator wrote them — rounding
+         0.03125 to 0.0313 turned the step "2 × 0.03125 = 0.0625" into a lie. */
+      return String(txt).replace(/(\d\.\d{7,})/g, function (m0) {
         return String(Math.round(parseFloat(m0) * 10000) / 10000);
       });
     };
     var articleFix = function (txt) {
+      /* The vowel direction used to read /\ba (aeioAEIO)/ — a group of the eight
+         literal letters in that order, not a set — so it never matched anything
+         and every "a isosceles trapezoid", "a octagon" and "a equation" in the
+         catalogue kept its slip. A character class fixes it; the two lists after
+         it protect the words whose first sound, not their first letter, decides
+         the article ("a unique value", "an hour"). */
       return dustFix(String(txt))
-        .replace(/\ban ([bcdfghjklmnpqrstvwxyzXZ])/g, 'a $1')
-        .replace(/\ba (aeioAEIO)/g, 'an $1');
+        .replace(/\ban ([bcdfghjklmnpqrstvwxyzXZ])/g, function (whole, letter, off, str) {
+          var after = String(str).slice(off + whole.length, off + whole.length + 6).toLowerCase();
+          if (/^(?:hour|honest|honor|honour|heir)/.test(after)) return whole;
+          return 'a ' + letter;
+        })
+        .replace(/\ba ([aeiouAEIO])/g, 'an $1')
+        .replace(/\ban (u(?:nique|nit|niform|nion|iversal|iverse|seful|sually|tility|ranium)|once|euclid\w*|euler\w*)/gi, 'a $1');
     };
     /* Every string in the card, including the accepted-answer patterns: an
        answer corrected to "a right angle" while the grader still expects
@@ -88204,6 +88474,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (FAM_PAT.sequences.test(t)) return 'sequences';
       /* a reciprocal-trigonometry title names an inverse but means the unit
          triangle, so trig is consulted before the functions bank */
+      /* "Introduction to related rates" and "Linear approximation" are calculus
+         titles that no pattern table named, so they fell through to a ratio card
+         and a one-step equation — and the calculus bank, which now carries the
+         related-rates and tangent-line forms for them, never saw the title. */
+      if (/related rates|linear approximation|linearization|linearisation/.test(t)) return 'calculus';
       if (FAM_PAT.trig.test(t)) return 'trig';
       if (FAM_PAT.funcs.test(t)) return 'funcs';
             if (rank(sk) >= 14 && FAM_PAT.calc2.test(t)) return 'calc2';
@@ -88477,11 +88752,20 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       /* 7 the related fact */
       function () {
         if (op === '+' || op === '−') {
-          var right = a + ' ' + (op === '+' ? '−' : '+') + ' ' + v + ' = ' + b;
-          var bad = [a + ' ' + op + ' ' + b + ' = ' + ov, v + ' ' + op + ' ' + b + ' = ' + a];
-          return askStr(rng, sk, voice(sk, 'family', ['Which equation belongs to the same fact family?', 'Choose the equation that shows the related fact.']) + ' ' + a + ' ' + op + ' ' + b + ' = ' + v + '.', [right], bad, {
+          /* the related fact has to be a TRUE sentence: a + b = v gives v − a = b,
+             and a − b = v gives v + b = a. Writing 'a − v = b' for a + b = v put a
+             false equation on the card as the right answer (89 − 12 = 77 was being
+             answered 89 + 77 = 12), and the worked step repeated the mistake. */
+          var right = op === '+' ? (fmt(v) + ' − ' + fmt(a) + ' = ' + fmt(b)) : (fmt(v) + ' + ' + fmt(b) + ' = ' + fmt(a));
+          var bad = [fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(ov),
+            op === '+' ? fmt(a) + ' + ' + fmt(v) + ' = ' + fmt(b) : fmt(v) + ' − ' + fmt(b) + ' = ' + fmt(a),
+            op === '+' ? fmt(a) + ' − ' + fmt(v) + ' = ' + fmt(b) : fmt(v) + ' + ' + fmt(a) + ' = ' + fmt(b)];
+          return askStr(rng, sk, voice(sk, 'family', ['Which equation belongs to the same fact family?', 'Choose the equation that shows the related fact.']) + ' ' + fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v) + '.', [right], bad, {
             teach: 'Addition and subtraction undo each other with the same three numbers.',
-            explain: explainOk(['The fact family uses ' + a + ', ' + b + ' and ' + v + '.', 'The matching fact is <b>' + right + '</b>.'], right)
+            explain: explainOk(['The fact family uses ' + fmt(a) + ', ' + fmt(b) + ' and ' + fmt(v) + '.',
+              op === '+' ? 'Taking one addend from the total leaves the other: ' + fmt(v) + ' − ' + fmt(a) + ' = ' + fmt(b) + '.'
+                : 'Putting the difference back on the smaller number gives the larger: ' + fmt(v) + ' + ' + fmt(b) + ' = ' + fmt(a) + '.',
+              'The matching fact is <b>' + right + '</b>.'], right)
           });
         }
         if (STORY) return null;
@@ -88503,15 +88787,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       function () {
         if (STORY) return null;
         var cd = pair(rng, sk, op === '×' ? '+' : '×', lvl, cap);
-        var vcd = calc(cd[0], op === '×' ? '+' : '×', cd[1]);
+        var otherOp = op === '×' ? '+' : '×';
+        var vcd = calc(cd[0], otherOp, cd[1]);
         var wantGreater = R.chance(rng, 0.5);
-        var answer = v > vcd ? (a + ' ' + op + ' ' + b) : (cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1]);
         if (v === vcd) return null;
+        var e1 = a + ' ' + op + ' ' + b, e2 = cd[0] + ' ' + otherOp + ' ' + cd[1];
+        /* the ask names WHICH value to report, so the answer has to be chosen by
+           that word. An earlier version always took the greater expression and
+           then sometimes asked for the lesser: the card said 5 × 6 was the lesser
+           of 5 × 6 and 21 + 27 and the worked step named 21 + 27. */
+        var answer = (wantGreater ? v > vcd : v < vcd) ? e1 : e2;
         return askStr(rng, sk, 'Which expression has the ' + (wantGreater ? 'greater' : 'lesser') + ' value?',
-          [(wantGreater ? (v > vcd ? a + ' ' + op + ' ' + b : cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1]) : (v < vcd ? a + ' ' + op + ' ' + b : cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1]))],
-          [a + ' ' + op + ' ' + b === answer ? cd[0] + ' ' + (op === '×' ? '+' : '×') + ' ' + cd[1] : answer, a + ' ' + other + ' ' + b],
+          [answer],
+          [answer === e1 ? e2 : e1, a + ' ' + other + ' ' + b],
           { teach: 'Value each expression first; the words only choose which one to report.',
-            explain: explainOk([fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v) + ' and the other expression = ' + fmt(vcd) + '.', 'The ' + (wantGreater ? 'greater' : 'lesser') + ' value is <b>' + answer + '</b>.'], answer) });
+            explain: explainOk([fmt(a) + ' ' + op + ' ' + fmt(b) + ' = ' + fmt(v) + '.',
+              cd[0] + ' ' + otherOp + ' ' + cd[1] + ' = ' + fmt(vcd) + '.',
+              fmt(Math.min(v, vcd)) + ' is the smaller and ' + fmt(Math.max(v, vcd)) + ' the larger, so the ' + (wantGreater ? 'greater' : 'lesser') + ' value is <b>' + answer + '</b>.'], answer) });
       },
       /* 9 the other kind of story — for '÷' this is measuring out groups of b,
          which is a different idea from sharing a among b friends (form 6) */
@@ -89130,6 +89422,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var sh = pick(rng, SHAPES2), name = sh[0], sides = sh[1], verts = sh[2], prop = sh[3];
     var sh2 = pick(rng, SHAPES2), other = sh2[0];
     var solid = pick(rng, [['cube', 6, 12, 8], ['rectangular prism', 6, 12, 8], ['pyramid', 5, 8, 5], ['cylinder', 3, 2, 0], ['sphere', 1, 0, 0]]);
+    /* A router that cannot place a skill still has to hand it to a deck, and this
+       one was asking "Classify financial decisions" (G3) how many sides an octagon
+       has, because "classify" agreed with a shape card. Classify, identify, sort
+       and model belong to every strand, so a title that is plainly about money,
+       time or data keeps the content that matches its standard. */
+    var offTopic = !/shape|side|angle|vert|face|edge|triang|square|rectang|hexagon|octagon|pentagon|polygon|quadri|circle|prism|cube|cylinder|cone|sphere|pyramid|symmetr|figure|solid|flat|partition|shaded|pattern|fraction|tile/.test(ttl)
+      && /money|coin|dime|nickel|dollar|\bcent\b|price|cost|buy|save|bank|purchase|decision|time|clock|calendar|date|temperature|data|survey|mean|median|mode|outlier|plot|histogram|pictograph|scatter|table/.test(ttl);
 
     return [
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
@@ -89140,6 +89439,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       function () { return tableShape(rng, lvl, sk, ttl, 5); },
 
       function () {
+        if (offTopic) return null;
         var right = 'the ' + name;
         return askStr(rng, sk, 'Which shape has ' + prop + '?', [right],
           [other === name ? 'the circle' : other, name === 'square' ? 'rectangle' : 'square'],
@@ -89147,19 +89447,20 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['A ' + name + ' has ' + prop + '.', 'So the shape is <b>' + right + '</b>.'], right) });
       },
       function () {
-        if (!/side|polygon|shape|attribute|classif|identify|sort/.test(ttl)) return null;
+        if (!/side|polygon|shape|attribute|classif|identify|sort/.test(ttl) || offTopic) return null;
         return ask(rng, sk, 'How many sides does a ' + name + ' have?', sides, [sides + 1, sides - 1, sides + 2], {
           lim: 20, teach: 'Count the sides of the closed figure once around.',
           explain: explainOk(['A ' + name + ' is a closed figure made of straight sides.', 'It has <b>' + sides + '</b> sides.'], sides),
           visual: V.frac([{ n: 1, d: sides, label: name }]) });
       },
       function () {
-        if (!verts) return null;
+        if (!verts || offTopic) return null;
         return ask(rng, sk, 'How many vertices does a ' + name + ' have?', verts, [verts + 1, verts - 1, sides], {
           lim: 20, teach: 'A vertex is a corner where two sides meet.',
           explain: explainOk(['Each pair of sides of a ' + name + ' meets at one corner.', 'That gives <b>' + verts + '</b> vertices.'], verts) });
       },
       function () {
+        if (offTopic) return null;
         var truth = R.chance(rng, 0.5);
         var claim = truth ? prop : SHAPES2.filter(function (x) { return x[0] !== name; })[0][3];
         return I_bool('Is it true that a ' + name + ' has ' + claim + '?', truth, {
@@ -89167,7 +89468,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           explain: explainOk(['A ' + name + ' has ' + prop + '.', 'The statement says ' + claim + ', so it is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
       },
       function () {
-        if (other === name) return null;
+        if (other === name || offTopic) return null;
         return I_cmp('Compare the number of sides. Use >, <, or =: a ' + name + ' ○ a ' + other, sides, sh2[1], {
           teach: 'Name the number of sides of each shape before comparing.',
           explain: explainOk(['A ' + name + ' has ' + sides + ' sides and a ' + other + ' has ' + sh2[1] + ' sides.', 'The symbol is <b>' + (sides > sh2[1] ? '&gt;' : sides < sh2[1] ? '&lt;' : '=') + '</b>.'], sh2[1]) });
@@ -89188,6 +89489,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['A ' + solid[0] + ' has ' + solid[1] + ' faces, ' + solid[2] + ' edges and ' + solid[3] + ' vertices.', 'The solid is <b>the ' + solid[0] + '</b>.'], 'the ' + solid[0]) });
       },
       function () {
+        if (offTopic) return null;
         var q = pick(rng, [['Is a square a rectangle?', true], ['Is a rectangle a square?', false], ['Is a triangle a quadrilateral?', false], ['Is a hexagon a polygon?', true]]);
         return I_bool(q[0], q[1], { teach: 'A shape belongs to a family when it meets that family’s definition.',
           explain: explainOk([q[0].replace('?', '') + ' — check the definition of the second shape.', 'The answer is <b>' + (q[1] ? 'yes' : 'no') + '</b>.'], q[1] ? 'yes' : 'no') });
@@ -89676,6 +89978,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         if (!/slope|line|steep|rate|graph|function/.test(ttl)) return null;
+        /* slope belongs to G7 and up; a G5 "graph points on a coordinate plane"
+           skill was handed "find the slope of the line through two points". */
+        if (rank(sk) < 8) return null;
         if (p1[0] === p2[0]) return null;
         var slope = (p2[1] - p1[1]) / (p2[0] - p1[0]);
         if (slope !== Math.round(slope * 100) / 100) return null;
@@ -89686,6 +89991,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         if (!/translat|rule|image|coordinate|transform|move|point/.test(ttl)) return null;
+        if (rank(sk) < 8) return null;                 /* translation rules: G8 and up */
         var d = int(rng, 1, 5) * (R.chance(rng, 0.5) ? 1 : -1);
         var img = [p1[0], p1[1] + d];
         return askStr(rng, sk, 'The point (' + p1[0] + ', ' + p1[1] + ') is translated to (' + img[0] + ', ' + img[1] + '). Which rule was used?',
@@ -89694,11 +90000,72 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['The x-coordinate did not change; y went from ' + p1[1] + ' to ' + img[1] + '.', 'The rule is <b>(x, y) → (x, y ' + (d > 0 ? '+ ' + d : '− ' + (-d)) + ')</b>.'], '(x, y) → (x, y ' + (d > 0 ? '+ ' + d : '− ' + (-d)) + ')') });
       },
       function () {
+        if (!/symmetr/.test(ttl)) return null;
+        /* A G6 "line symmetry" skill was being handed slope and line-pair cards
+           because the word "line" agreed with its title. A line of symmetry is a
+           fact about a figure: the counts below are the figure's own, and the
+           rectangle's diagonals are named so the usual wrong fold is checked. */
+        var figs = [['equilateral triangle', 3], ['square', 4], ['rectangle that is not a square', 2],
+          ['regular pentagon', 5], ['regular hexagon', 6], ['isosceles trapezoid', 1],
+          ['parallelogram that is not a rectangle', 0]];
+        var f1 = pick(rng, figs);
+        var ws = [];
+        for (var i = 0; i < figs.length && ws.length < 3; i++) if (figs[i][1] !== f1[1]) ws.push(String(figs[i][1]));
+        var optsS = R.shuffle(rng, uniq([String(f1[1])].concat(ws)));
+        return I_choice('How many lines of symmetry does a ' + f1[0] + ' have?',
+          optsS, optsS.indexOf(String(f1[1])), {
+          teach: 'A line of symmetry folds the figure onto itself, so the two halves match exactly.',
+          explain: explainOk(['Fold the ' + f1[0] + ' along a line and see whether the two halves land on each other.',
+            'The folds that work number ' + f1[1] + (f1[1] === 0 ? ' — a ' + f1[0] + ' has none; even its diagonals do not fold it onto itself.' : '.'),
+            'A ' + f1[0] + ' has <b>' + f1[1] + '</b> line' + (f1[1] === 1 ? '' : 's') + ' of symmetry.'], String(f1[1])) });
+      },
+      function () {
+        if (!/symmetr/.test(ttl)) return null;
+        var figs = [['equilateral triangle', 3], ['square', 4], ['rectangle that is not a square', 2],
+          ['regular pentagon', 5], ['regular hexagon', 6], ['isosceles trapezoid', 1],
+          ['parallelogram that is not a rectangle', 0]];
+        var want = pick(rng, [1, 2, 3, 4, 5, 6]);
+        var right = null, wrong = [];
+        for (var i = 0; i < figs.length; i++) {
+          if (!right && figs[i][1] === want) right = figs[i][0];
+          else if (figs[i][1] !== want && wrong.length < 3) wrong.push(figs[i][0]);
+        }
+        if (!right || wrong.length < 2) return null;
+        var opts2 = R.shuffle(rng, uniq([right].concat(wrong)));
+        return I_choice('Which figure has exactly ' + want + ' line' + (want === 1 ? '' : 's') + ' of symmetry?',
+          opts2, opts2.indexOf(right), {
+          teach: 'Test each figure by folding it; a figure can have more than one line of symmetry, or none.',
+          explain: explainOk(['Count the fold lines of each choice.',
+            'A ' + right + ' has exactly ' + want + ', while the others have ' + wrong.map(function (q, i2) { return q + ' (' + figs.filter(function (z) { return z[0] === q; })[0][1] + ')'; }).join(', ') + '.',
+            'The figure with ' + want + ' is <b>' + right + '</b>.'], right) });
+      },
+      function () {
+        if (!/symmetr/.test(ttl)) return null;
+        /* the rule for a regular polygon: n sides, n lines of symmetry */
+        var n = pick(rng, [5, 6, 7, 8, 9, 10, 12]);
+        var names = { 5: 'pentagon', 6: 'hexagon', 7: 'heptagon', 8: 'octagon', 9: 'nonagon', 10: 'decagon', 12: 'dodecagon' };
+        var claim = R.chance(rng, 0.5) ? n : pick(rng, [n - 1, n + 1, 2 * n]);
+        var truth = claim === n;
+        return I_bool('Is it true that a regular ' + names[n] + ' has exactly ' + claim + ' lines of symmetry?', truth, {
+          teach: 'A regular polygon has as many lines of symmetry as it has sides: one through each vertex and the midpoint of the opposite side.',
+          explain: explainOk(['A regular ' + names[n] + ' has ' + n + ' equal sides and ' + n + ' equal angles.',
+            'Each line through a vertex and the midpoint of the opposite side folds it onto itself, giving ' + n + ' lines' + (truth ? ', which is what the statement says.' : ' — the statement said ' + claim + '.'),
+            'The statement is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
+      },
+      function () {
         if (!/quadrant|coordinate|ordered pair|plot|point|plane/.test(ttl)) return null;
-        var truth = R.chance(rng, 0.5);
-        return I_bool('Is it true that the point (3, −4) lies in quadrant IV?', truth, {
-          teach: 'Quadrant IV has positive x and negative y.',
-          explain: explainOk(['x = 3 is positive and y = −4 is negative.', 'The statement is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
+        /* the claim used to be fixed ("(3, −4) lies in quadrant IV") while the
+           verdict was drawn at random, so half the cards marked a true statement
+           false. The named quadrant now varies and the verdict follows the point. */
+        var pt = pick(rng, [[3, -4], [-3, -4], [3, 4], [-3, 4]]);
+        var real = (pt[0] > 0 ? (pt[1] > 0 ? 'I' : 'IV') : (pt[1] > 0 ? 'II' : 'III'));
+        var named = R.chance(rng, 0.5) ? real : pick(rng, ['I', 'II', 'III', 'IV'].filter(function (nq) { return nq !== real; }));
+        var truth = named === real;
+        return I_bool('Is it true that the point (' + pt[0] + ', ' + pt[1] + ') lies in quadrant ' + named + '?', truth, {
+          teach: 'The signs of the two coordinates decide the quadrant: (+, +) is I, (−, +) is II, (−, −) is III and (+, −) is IV.',
+          explain: explainOk(['The point (' + pt[0] + ', ' + pt[1] + ') has x ' + (pt[0] > 0 ? 'positive' : 'negative') + ' and y ' + (pt[1] > 0 ? 'positive' : 'negative') + '.',
+            'That places it in quadrant ' + real + (truth ? ', exactly as the statement says.' : ', not quadrant ' + named + '.'),
+            'The statement is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
       }
     ];
   }
@@ -90000,11 +90367,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk([x + ' = ' + g + ' × ' + m + ' and ' + y + ' = ' + g + ' × ' + n + ', so ' + g + ' is shared.', 'Factoring out ' + g + ' gives <b>' + right + '</b> = ' + (x + y) + '.'], right) });
       },
       function () {
-        var inner = a + b, prod = c * inner;
-        return ask(rng, sk, 'What is the value of ' + c + ' × (' + a + ' + ' + b + ') + ' + b + '?', prod + b,
+        var inner = a + b, prod = c * inner, whole = prod + b;
+        /* the ask is c × (a + b) + b, so the derivation has to finish the + b:
+           stopping at c × (a + b) left the worked steps landing on a number that
+           is not the answer the card grades. */
+        return ask(rng, sk, 'What is the value of ' + c + ' × (' + a + ' + ' + b + ') + ' + b + '?', whole,
           [prod, inner + c, prod - b], {
-          lim: 900, teach: 'Work inside the parentheses first.',
-          explain: explainOk(['The parentheses give ' + a + ' + ' + b + ' = ' + inner + '.', inner + ' × ' + c + ' = <b>' + prod + '</b>.'], prod) });
+          lim: 900, teach: 'Work inside the parentheses first, then finish the operations in order.',
+          explain: explainOk(['The parentheses give ' + a + ' + ' + b + ' = ' + inner + '.',
+            'Multiply: ' + inner + ' × ' + c + ' = ' + prod + '.',
+            'Then add the last term: ' + prod + ' + ' + b + ' = <b>' + whole + '</b>.'], whole) });
       },
       function () {
         var phrase = pick(rng, [[a + ' more than a number n', 'n + ' + a], ['twice a number n', '2n'], [a + ' less than a number n', 'n − ' + a], ['a number n divided by ' + b, 'n ÷ ' + b]]);
@@ -91419,7 +91791,76 @@ function () {
     var SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
     var supT = function (n) { return String(n).replace(/\d/g, function (d) { return SUP.charAt(+d); }); };
     var a = int(rng, 2, 5), bb = int(rng, 1, 6), cc = int(rng, 1, 9), at = int(rng, 1, 5);
+    var rdC = function (x, d) { var pw = Math.pow(10, d); return Math.round(x * pw) / pw; };
     return [
+      function () {
+        if (!/related rates|rates? of change|expanding|inflating|increasing at|growing|linear approximation|approximat|tangent|estimate|differentials/.test(ttl)) return null;
+        /* "Introduction to related rates" and "Linear approximation" had no card
+           of their own — the learner met a ratio table and a glossary entry. The
+           two moves below are the ones the course teaches: differentiate the
+           formula, then substitute the given rate; and f(a + h) ≈ f(a) + f′(a)h. */
+        var s1 = int(rng, 4, 9), ds = pick(rng, [2, 3, 4]);
+        var ansA = 2 * s1 * ds;
+        return ask(rng, sk, 'The side of a square is growing at ' + ds + ' centimetres per second. How fast is the area of the square growing, in square centimetres per second, when the side is ' + s1 + ' centimetres?',
+          ansA, [s1 * ds, ansA + ds, ansA * 2], { lim: 500, tol: 0.5,
+            teach: 'A = s², so dA/dt = 2s · ds/dt: the side and its rate both belong in the answer.',
+            explain: explainOk(['The area of a square is A = s², so dA/ds = 2s.',
+              'Rates linked through time multiply: dA/dt = 2s · ds/dt = 2 × ' + s1 + ' × ' + ds + ' = ' + ansA + '.',
+              'The area is growing at <b>' + ansA + '</b> square centimetres per second.'], ansA) });
+      },
+      function () {
+        if (!/related rates|rates? of change|expanding|inflating|increasing at|growing|volume|sphere/.test(ttl)) return null;
+        var r1 = int(rng, 3, 9), dr = pick(rng, [1, 2, 3]);
+        var rawV = 4 * Math.PI * r1 * r1 * dr, ansV = rdC(rawV, 1);
+        return ask(rng, sk, 'A spherical balloon is being inflated so that its radius increases at ' + dr + ' centimetres per second. How fast is its volume growing, in cubic centimetres per second, when the radius is ' + r1 + ' centimetres?',
+          ansV, [rdC(4 * Math.PI * r1 * dr, 1), rdC(4 * Math.PI * r1 * r1 * r1 * dr / 3, 1), rdC(2 * Math.PI * r1 * dr, 1)], {
+          lim: 100000, tol: 0.5,
+            teach: 'V = 4⁄3πr³, so dV/dt = 4πr² · dr/dt.',
+            explain: explainOk(['The volume of a sphere is V = 4⁄3πr³, so dV/dr = 4πr².',
+              /* the step ends on the number the card grades, not on a second
+                 rounding of it: two decimals here read as a different answer */
+              'Multiply by the rate of the radius: dV/dt = 4 × π × ' + r1 + '² × ' + dr + ' ≈ ' + ansV + '.',
+              'The volume is growing at <b>' + ansV + '</b> cubic centimetres per second.'], ansV) });
+      },
+      function () {
+        if (!/related rates|rates? of change|increasing at|growing|volume|cylinder/.test(ttl)) return null;
+        var rr = int(rng, 4, 10), hh = int(rng, 3, 8), drr = pick(rng, [1, 2]);
+        var rawC = 2 * Math.PI * rr * hh * drr, ansC = rdC(rawC, 1);
+        return ask(rng, sk, 'The radius of a right circular cylinder grows at ' + drr + ' centimetres per second while its height stays ' + hh + ' centimetres. How fast is the volume growing, in cubic centimetres per second, when the radius is ' + rr + ' centimetres?',
+          ansC, [rdC(Math.PI * rr * hh * drr, 1), rdC(2 * Math.PI * rr * drr, 1), rdC(2 * Math.PI * rr * hh, 1)], {
+          lim: 100000, tol: 0.5,
+            teach: 'With the height fixed, V = πr²h gives dV/dt = 2πrh · dr/dt.',
+            explain: explainOk(['Keeping the height fixed, V = πr²h and dV/dr = 2πrh.',
+              'dV/dt = 2πrh · dr/dt = 2 × π × ' + rr + ' × ' + hh + ' × ' + drr + ' ≈ ' + ansC + '.',
+              'The volume grows at <b>' + ansC + '</b> cubic centimetres per second.'], ansC) });
+      },
+      function () {
+        if (!/linear approximation|approximat|tangent|lineariz|differentials|estimate/.test(ttl)) return null;
+        var fa = int(rng, 1, 4), fb = int(rng, 1, 5), fc = int(rng, -4, 4), aa = int(rng, 1, 3);
+        var fA = fa * aa * aa + fb * aa + fc, dA = 2 * fa * aa + fb, hh2 = pick(rng, [0.1, 0.2, 0.3]);
+        var est = rdC(fA + dA * hh2, 3);
+        return ask(rng, sk, 'Let f(x) = ' + fa + 'x² + ' + fb + 'x ' + (fc < 0 ? '− ' + (-fc) : '+ ' + fc) + '. Use the tangent line at x = ' + aa + ' to estimate f(' + rdC(aa + hh2, 1) + ').',
+          est, [rdC(fA, 3), rdC(fA + dA * hh2 + 1, 3), rdC(fA + 2 * dA * hh2, 3)], { lim: 500, tol: 0.01,
+            teach: 'f(a + h) ≈ f(a) + f′(a)h: the tangent line agrees with the curve to first order.',
+            explain: explainOk(['f(' + aa + ') = ' + fa + '·' + aa + '² + ' + fb + '·' + aa + ' ' + (fc < 0 ? '− ' + (-fc) : '+ ' + fc) + ' = ' + fA + '.',
+              'f′(x) = ' + (2 * fa) + 'x + ' + fb + ', so f′(' + aa + ') = ' + dA + '.',
+              'The tangent line gives f(' + rdC(aa + hh2, 1) + ') ≈ ' + fA + ' + ' + dA + ' × ' + hh2 + ' = <b>' + est + '</b>.'], est) });
+      },
+      function () {
+        if (!/linear approximation|approximat|tangent|lineariz|differentials|estimate|root/.test(ttl)) return null;
+        /* the slope of √x at a square is an exact decimal for these four squares,
+           so every number the card prints is the number it means */
+        var sq = pick(rng, [4, 16, 64, 100]), root = Math.round(Math.sqrt(sq));
+        var sl = 1 / (2 * root), stepR = pick(rng, [0.05, 0.1, 0.2]);
+        var hShow = rdC(2 * root * sl * (stepR / sl), 2);
+        var est2 = rdC(root + stepR, 3);
+        return ask(rng, sk, 'Use the tangent line to y = √x at x = ' + sq + ' to estimate √' + rdC(sq + hShow, 2) + '.',
+          est2, [rdC(root + stepR * 2, 3), rdC(root + Math.sqrt(stepR), 3), rdC(root + sl, 3)], { lim: 200, tol: 0.001,
+            teach: 'The slope of y = √x at x = a is 1 ÷ (2√a), so √(a + h) ≈ √a + h ÷ (2√a).',
+            explain: explainOk(['At x = ' + sq + ', y = √' + sq + ' = ' + root + '.',
+              'The slope there is 1 ÷ (2 × ' + root + ') = ' + rdC(sl, 4) + '.',
+              '√' + rdC(sq + hShow, 2) + ' ≈ ' + root + ' + ' + rdC(sl, 4) + ' × ' + rdC(hShow, 2) + ' = <b>' + est2 + '</b>.'], est2) });
+      },
       function () { return tableShape(rng, lvl, sk, ttl, 0); },
       function () { return tableShape(rng, lvl, sk, ttl, 1); },
       function () { return tableShape(rng, lvl, sk, ttl, 2); },
@@ -91545,11 +91986,17 @@ function () {
       function () {
         if (!FAM.test(ttl)) return null;
         var v = int(rng, 2, 6), m = int(rng, 1, 4);
-        var lim = 2 * v + m;
-        return ask(rng, sk, 'Evaluate the limit of (x² + ' + (v + m) + 'x + ' + (v * m) + ') ÷ (x − ' + (-v) + ') as x approaches ' + (-v) + ' — the value the function approaches at the hole.', lim,
-          [v * m, lim + 1, -lim], { lim: 200,
+        /* (x² + (v+m)x + vm) ÷ (x + v) has a hole at x = −v. Cancelling the shared
+           factor (x + v) leaves x + m, so the limit is m − v. The key carried
+           2v + m — the value of the removed factor at the wrong end of the hole —
+           so a learner who did the algebra was marked wrong by a card whose own
+           steps said −5 + 2 = −3. The denominator is also written as x + v:
+           "x − -5" is not something an exam prints. */
+        var lim = m - v;
+        return ask(rng, sk, 'Evaluate the limit of (x² + ' + (v + m) + 'x + ' + (v * m) + ') ÷ (x + ' + v + ') as x approaches ' + (-v) + ' — the value the function approaches at the hole.', lim,
+          [v * m, m + v, m], { lim: 200,
             teach: 'Factor first: the common factor cancels, and the simplified function gives the limit even though the original is undefined there.',
-            explain: explainOk(['x² + ' + (v + m) + 'x + ' + (v * m) + ' = (x + ' + v + ')(x + ' + m + ').', v === m ? 'The numerator and the denominator share the factor (x + ' + v + '), so cancelling it leaves the constant ' + m + '.' : 'The factor (x + ' + v + ') cancels with the denominator, which is allowed because a limit never asks for the value at the point itself, leaving x + ' + m + '.', 'As x approaches −' + v + ', that expression approaches −' + v + ' + ' + m + ' = ' + (m - v) + '.', 'The limit is <b>' + (m - v) + '</b>.'], m - v) });
+            explain: explainOk(['x² + ' + (v + m) + 'x + ' + (v * m) + ' = (x + ' + v + ')(x + ' + m + ').', 'The numerator and the denominator share the factor (x + ' + v + '), and a limit never asks for the value at the point itself, so cancelling it leaves x + ' + m + '.', 'Substitute the value x approaches: −' + v + ' + ' + m + ' = ' + (m - v) + '.', 'The limit is <b>' + (m - v) + '</b>.'], m - v) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
@@ -91819,14 +92266,19 @@ function () {
         var flip = R.chance(rng, 0.5) ? 1 : 0;
         var opp = tri2[flip], adj = tri2[1 - flip], h = tri2[2];
         if (R.chance(rng, 0.5)) {
-          var right3 = opp + '/' + h;
-          var opts3 = R.shuffle(rng, uniq([right3, adj + '/' + h, opp + '/' + adj, h + '/' + opp]));
+          /* cos θ is adjacent ÷ hypotenuse. The key was opposite ÷ hypotenuse —
+             that is sin θ — so the card marked 5/13 right while its own steps
+             derived 12/13. The distractors are the other three ratios of the same
+             triangle, so every option stays plausible. */
+          var right3 = adj + '/' + h;
+          var opts3 = R.shuffle(rng, uniq([right3, opp + '/' + h, opp + '/' + adj, h + '/' + adj]));
           return I_choice('In a right triangle the side opposite an acute angle θ measures ' + opp + ' and the hypotenuse measures ' + h + '. What is the exact value of cos θ?',
             opts3, opts3.indexOf(right3), {
               teach: 'Use the Pythagorean theorem to recover the missing leg, then read cosine as adjacent over hypotenuse.',
               explain: explainOk(['The leg adjacent to θ is √(' + (h * h) + ' − ' + (opp * opp) + ') = √' + (adj * adj) + ' = ' + adj + '.', 'cos θ = adjacent ÷ hypotenuse = ' + adj + '/' + h + '.', 'cos θ = <b>' + adj + '/' + h + '</b>.'], adj + '/' + h) });
         }
-        var right4 = adj + '/' + opp;
+        /* and tan θ is opposite ÷ adjacent, not the other way round */
+        var right4 = opp + '/' + adj;
         var opts4 = R.shuffle(rng, uniq([right4, opp + '/' + adj, opp + '/' + h, adj + '/' + h]));
         return I_choice('A right triangle has legs of ' + opp + ' and ' + adj + ', and a hypotenuse of ' + h + '. The angle θ is opposite the leg of ' + opp + '. What is the exact value of tan θ?',
           opts4, opts4.indexOf(right4), {
@@ -92189,6 +92641,66 @@ function () {
     }
     return [
       function () {
+        if (!/scatter|association|two variables|trend|cluster|outlier|correlat|relationship/.test(ttl)) return null;
+        /* A scatter-plot skill asks the learner to DESCRIBE the association in a
+           set of points. The deck only carried "as x increases by 1, what happens
+           to y?" for a stated rule, so these points are drawn with a real trend
+           and the verdict is read off the numbers the card itself prints. */
+        var ms = pick(rng, [2, 3, 4, -2, -3, -4]), b1 = int(rng, -4, 6), pts = [], i, jit;
+        for (i = 0; i < 8; i++) { jit = pick(rng, [-1, 0, 0, 1]); pts.push({ x: i, y: ms * i + b1 + jit }); }
+        var loSum = 0, hiSum = 0;
+        for (i = 0; i < 4; i++) loSum += pts[i].y;
+        for (i = 4; i < 8; i++) hiSum += pts[i].y;
+        var rise = hiSum - loSum, up = rise > 0;
+        var shown = 'As x increases, y tends to ' + (up ? 'increase' : 'decrease');
+        var optsP = R.shuffle(rng, uniq([shown,
+          'As x increases, y tends to ' + (up ? 'decrease' : 'increase'),
+          'As x increases, y stays the same',
+          'There is no association between x and y']));
+        return I_choice('The scatter plot shows 8 pairs of values. Which statement describes the association between x and y?',
+          optsP, optsP.indexOf(shown), {
+            visual: V.scatter(pts, { xlabel: 'x', ylabel: 'y' }),
+            teach: 'An association is read from the whole set of points: if the points climb to the right, y increases with x.',
+            explain: explainOk(['The x-values run from 0 to 7 and the y-values are ' + pts.map(function (q) { return q.y; }).join(', ') + '.',
+              'Average of the four points with the smallest x: ' + loSum + ' ÷ 4 = ' + (loSum / 4) + '. Average of the four with the largest x: ' + hiSum + ' ÷ 4 = ' + (hiSum / 4) + '.',
+              'The average ' + (up ? 'rises' : 'falls') + ' as x grows, so <b>' + shown + '</b>.'], shown) });
+      },
+      function () {
+        if (!/scatter|association|two variables|table|trend|correlat|relationship/.test(ttl)) return null;
+        var ms = pick(rng, [3, 5, 6, -3, -5, -6]), b2 = int(rng, -5, 5), rows = [], i, yy;
+        for (i = 0; i < 6; i++) { yy = ms * i + b2 + pick(rng, [-2, -1, 0, 1, 2]); rows.push([String(i), String(yy)]); }
+        var first = parseInt(rows[0][1], 10), last = parseInt(rows[rows.length - 1][1], 10);
+        var trendUp = last > first;
+        var claimTxt = 'the variables have a ' + (trendUp ? 'positive' : 'negative') + ' association';
+        var truth = R.chance(rng, 0.5);
+        var said = truth ? claimTxt : 'the variables have a ' + (trendUp ? 'negative' : 'positive') + ' association';
+        return I_bool('The table shows x and y. Is it true that ' + said + '?', truth, {
+          visual: V.table(['x', 'y'], rows),
+          teach: 'A positive association means larger x-values go with larger y-values; a negative one means they go together with smaller ones.',
+          explain: explainOk(['As x runs from 0 to ' + (rows.length - 1) + ', y runs from ' + first + ' to ' + last + '.',
+            'The y-values ' + (trendUp ? 'grow' : 'shrink') + ' with x, so the association is ' + (trendUp ? 'positive' : 'negative') +
+              (truth ? ', as the statement says.' : ', not ' + (trendUp ? 'negative' : 'positive') + ' as the statement claims.'),
+            'The statement is <b>' + (truth ? 'true' : 'false') + '</b>.'], truth ? 'true' : 'false') });
+      },
+      function () {
+        if (!/scatter|association|two variables|trend|relationship/.test(ttl)) return null;
+        /* the same reading, asked of one pair at a time: the learner has to say
+           which description fits the plotted points, not compute a rule */
+        var ms = pick(rng, [2, 4, -2, -4]), b3 = int(rng, -3, 3), pts2 = [], i2;
+        for (i2 = 0; i2 < 6; i2++) pts2.push({ x: i2 + 1, y: ms * (i2 + 1) + b3 });
+        var rising2 = ms > 0;
+        var shown2 = rising2 ? 'a line that rises from left to right' : 'a line that falls from left to right';
+        var optsQ = R.shuffle(rng, uniq([shown2, rising2 ? 'a line that falls from left to right' : 'a line that rises from left to right',
+          'a horizontal line', 'a curve that turns back on itself']));
+        return I_choice('The points (' + pts2.map(function (q) { return q.x + ', ' + q.y; }).join(') and (') + ') are plotted. Which best describes how they lie?',
+          optsQ, optsQ.indexOf(shown2), {
+            visual: V.scatter(pts2, { xlabel: 'x', ylabel: 'y' }),
+            teach: 'Comparing consecutive points shows the direction: y grows with x when the step in y is positive.',
+            explain: explainOk(['Each step adds ' + ms + ' to y while x grows by 1.',
+              'Because ' + ms + ' is ' + (ms > 0 ? 'positive' : 'negative') + ', the points ' + (rising2 ? 'climb' : 'fall') + ' as they move right.',
+              'So the points lie along <b>' + shown2 + '</b>.'], shown2) });
+      },
+      function () {
         if (!/relationship|two variables|rule|table|function/.test(ttl)) return null;
         var m = pick(rng, [2, 3, 4, 5]), b0 = int(rng, 0, 6);
         var shown = 'increases by ' + m;
@@ -92312,13 +92824,17 @@ function () {
       },
       function () {
         if (!FAM.test(ttl)) return null;
-        var A = int(rng, 2, 5), B = int(rng, 2, 7);
-        var right6 = 'h = V ÷ (' + A + 'B)';
-        var opts6 = R.shuffle(rng, uniq([right6, 'h = V · ' + A + 'B', 'h = (V + ' + A + 'B) ÷ ' + A, 'h = V ÷ ' + (A * B * A)]));
-        return I_choice('The volume of a prism is given by V = ' + A * B + 'h. Solve the formula for h.',
+        var A = int(rng, 2, 5), B = int(rng, 2, 7), AB = A * B;
+        /* The card prints one number for the base area ("V = 12h"), so the key has
+           to be the formula solved with that number. It used to print
+           "h = V ÷ (4B)" — a letter that never appears on the card — while the
+           steps said h = V ÷ 12. */
+        var right6 = 'h = V ÷ ' + AB;
+        var opts6 = R.shuffle(rng, uniq([right6, 'h = V · ' + AB, 'h = ' + AB + ' ÷ V', 'h = V − ' + AB]));
+        return I_choice('The volume of a prism is given by V = ' + AB + 'h. Solve the formula for h.',
           opts6, opts6.indexOf(right6), {
             teach: 'Isolate the wanted variable by doing the inverse operation to both sides.',
-            explain: explainOk(['V = ' + (A * B) + 'h multiplies h by ' + (A * B) + '.', 'Divide both sides by ' + (A * B) + ': h = V ÷ ' + (A * B) + '.', 'So <b>h = V ÷ ' + (A * B) + '</b>.'], right6) });
+            explain: explainOk(['V = ' + AB + 'h multiplies h by ' + AB + '.', 'Divide both sides by ' + AB + ': h = V ÷ ' + AB + '.', 'So <b>' + right6 + '</b>.'], right6) });
       }
     ];
   }
@@ -93390,12 +93906,17 @@ function () {
       function () {
         if (!FAM.test(ttl)) return null;
         var j = int(rng, 0, PREC.length - 1), s2 = step(j);
+        /* the error is HALF the precision exactly. Printing it rounded to three
+           places turned 1/32 into 0.031 and left the step "2 · 0.031 = 0.0625"
+           reading as a falsehood; the unit is also named once, because
+           "sixteenth of an inchs" is not an English plural. */
+        var err2 = Math.round(s2 / 2 * 1e6) / 1e6;
         var right2 = String(s2);
-        var opts2 = R.shuffle(rng, uniq([right2, String(s2 / 2), String(s2 * 2), String(Math.round(Math.sqrt(s2) * 1000) / 1000)]));
-        return I_choice('The greatest possible error of a measurement is ' + Math.round(s2 / 2 * 1000) / 1000 + ' ' + unit(j) + '. To what precision was the measurement made, in ' + unit(j) + 's?',
+        var opts2 = R.shuffle(rng, uniq([right2, String(err2), String(Math.round(s2 * 2 * 1e6) / 1e6), String(Math.round(Math.sqrt(s2) * 1e6) / 1e6)]));
+        return I_choice('The greatest possible error of a measurement is ' + err2 + ' ' + unit(j) + '. To what precision was the measurement made, in the same units?',
           opts2, opts2.indexOf(right2), {
             teach: 'The greatest possible error is half the precision, so the precision is twice the error.',
-            explain: explainOk(['Doubling the greatest possible error restores the size of one unit on the scale.', '2 · ' + (Math.round(s2 / 2 * 1000) / 1000) + ' = ' + s2 + '.', 'The measurement was made to the nearest <b>' + s2 + ' ' + unit(j) + '</b>.'], right2) });
+            explain: explainOk(['The greatest possible error is half of one unit on the scale, so one unit — the precision — is twice the error.', 'Double it: 2 × ' + err2 + ' = ' + s2 + '.', 'The measurement was made to the nearest <b>' + s2 + ' ' + unit(j) + '</b>.'], right2) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
@@ -94014,6 +94535,11 @@ function () {
        "complete a function table from a graph" is a table question whatever
        family the classifier chose for it. */
     if (!/table/.test(ttl)) return null;
+    /* a frequency table or a data table is read, not completed from a rule: the
+       function-table forms below would replace "read a table" with "find the
+       rule", a different standard. */
+    if (/frequency table|two-way|read a table|interpret (?:the )?table|complete a table from a graph/.test(String(ttl || sk.name || '').toLowerCase())
+      && !/function table|input[ -]output|rule/.test(String(ttl || sk.name || '').toLowerCase())) return null;
     var kind = pick(rng, ['lin', 'quad', 'exp']);
     var m = pick(rng, [2, 3, -2, 4]), b = pick(rng, [-6, -3, 1, 2, 5]);
     var head = ['x', 'f(x)'], xs = [-2, -1, 0, 1, 2, 3], rows = [], i, v;
@@ -94090,6 +94616,19 @@ function () {
    */
   function graphShape(rng, lvl, sk, ttl, which) {
     if (!/graph|plot|curve|coordinate|line|plane|axis/i.test(ttl)) return null;
+    /* Two guards keep these coordinate forms on the skill that asked for them.
+       (1) A DATA display is not a graph of a line: "interpret line plots",
+       "create bar graphs" and "read a table" were being handed "the curve
+       y = x² − 4" and "the slope perpendicular to y = 3x + 3", because the words
+       line/plot/graph matched. (2) The forms need the mathematics of their band:
+       a crossing of two lines, a shaded half-plane and a perpendicular slope are
+       G8 work, a parabola's zeros are GM/A1 work. Below that the form abstains
+       and the skill keeps its own cards. */
+    var dtl = String(ttl || sk.name || '').toLowerCase();
+    if (/bar graph|picture graph|pictograph|dot plot|line plot|stem-and-leaf|stem and leaf|histogram|scatter|circle graph|pie graph|frequency table|two-way|line graph|read a table|interpret (?:the )?table|data set|mean|median|mode|range|outlier/.test(dtl)) return null;
+    if ((which === 4 || which === 5) && rank(sk) < 14) return null;
+    if ((which === 0 || which === 1 || which === 3) && rank(sk) < 9) return null;
+    if ((which === 2 || which === 6 || which === 7) && rank(sk) < 8) return null;
     var x0 = pick(rng, [-3, -2, -1, 1, 2, 3]), m1 = pick(rng, [2, 3, -2, -3]), m2 = pick(rng, [1, -1, 2]);
     var b1 = pick(rng, [-4, -1, 2, 3]), b2 = b1 + (m2 - m1) * x0;        /* they agree at x0 */
     var line1 = 'y = ' + m1 + 'x ' + (b1 < 0 ? '− ' + (-b1) : '+ ' + b1);
@@ -101301,6 +101840,38 @@ var MW = {
      hour is kept near a third. */
   function rate(p) { return p >= 60 ? 0.26 : (p >= 20 ? 0.34 : (p >= 6 ? 0.4 : 0.45)); }
 
+  /* An enrichment card earns its place by being about the skill it is served to.
+     "What is true about the given pattern?" (G4) was handing out "Hilbert's
+     problems are a set of (originally) unsolved problems…" and "the sandglass
+     conjecture asserts that every recovering pair …", because one word in a
+     Wolfram abstract agreed with the skill title. The numeric enrichment cards
+     (a sequence, a count, a decimal expansion) are arithmetic and stay; a card
+     that is only prose is kept only when the entry shares a topic word with the
+     skill. */
+  var SKB = GLOB.SKILL_BY_ID || {};
+  var STOPW = { the: 1, and: 1, of: 1, or: 1, to: 1, in: 1, is: 1, an: 1, for: 1, with: 1, that: 1, this: 1, by: 1, from: 1, which: 1, each: 1, when: 1, where: 1, whose: 1, has: 1, have: 1, was: 1, were: 1, are: 1, also: 1, known: 1, called: 1, being: 1, such: 1, some: 1, number: 1, numbers: 1, value: 1, values: 1, one: 1, two: 1, three: 1, sets: 1, set: 1 };
+  function topicWords(s) {
+    return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+      .filter(function (w) { return w.length > 3 && !STOPW[w]; });
+  }
+  function onTopic(corpus, row) {
+    /* Same word, or the same word with an ending — "polyhedra" and "polyhedron",
+       "approximation" and "approximate" — are the same topic to a reader, so a
+       shared stem of six letters counts. The corpus is the skill's name AND its
+       strand, because a skill about "Linear approximation" practises tangent
+       lines whatever its title says. */
+    var ws = topicWords(corpus), ws2 = topicWords(String(row[0]) + ' ' + String(row[1]) + ' ' + String(row[2])), i, j, a, b;
+    if (!ws.length || !ws2.length) return false;
+    for (i = 0; i < ws.length; i++) {
+      a = ws[i];
+      for (j = 0; j < ws2.length; j++) {
+        b = ws2[j];
+        if (a === b) return true;
+        if (a.length >= 6 && b.length >= 6 && a.slice(0, 6) === b.slice(0, 6)) return true;
+      }
+    }
+    return false;
+  }
   var HP = {}, gi, gk;
   for (gi = 0; gi < GP.length; gi++) {
     var hp = HP[GP[gi][0]] || (HP[GP[gi][0]] = []), gpl = POOL[gi];
@@ -101311,11 +101882,48 @@ var MW = {
       var pool = HP[hostId], orig = SKILL_GEN[hostId];
       if (typeof orig !== 'function' || !pool.length) return;
       var p = rate(pool.length);
+      var mwSk = SKB[hostId] || {};
+      var skTitle = String(mwSk.name || '') + ' ' + String(mwSk.strand || '') + ' ' + String(mwSk.blurb || '');
+      /* a research entry is reading, and reading belongs higher up the ladder:
+         below G6 the enrichment slots go to the skill's own arithmetic */
+      var MW_BANDS = ['PK', 'K', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12', 'GM', 'A1', 'A2', 'PC', 'MA'];
+      var mwRank = MW_BANDS.indexOf(String((SKB[hostId] || {}).band || '').toUpperCase());
+      if (mwRank < 0) mwRank = 9;
+      /* How many different questions does the skill's own generator ask? A rung
+         with six or more keeps its own practice and only accepts an enrichment
+         card that matches its topic; a rung with two or three would otherwise be
+         left with two or three — the learner then sees the same card over and
+         over, which is a worse lesson than one glossary card. */
+      var ownShapes = (function () {
+        var seen = {}, n = 0, i, q;
+        for (i = 0; i < 14; i++) {
+          /* measured through genFor, because that is what the learner would see:
+             the host's own chain of decks, before this layer was wrapped round it */
+          try { q = (GLOB.genFor || orig)(hostId, GLOB.seedRng(1000 + i * 7919), 1 + (i % 5)); } catch (e) { q = null; }
+          if (!q || !q.prompt) continue;
+          var shape = String(q.prompt).replace(/\d+/g, '#').replace(/\s+/g, ' ').slice(0, 70);
+          if (!seen[shape]) { seen[shape] = 1; n++; }
+        }
+        return n;
+      })();
       SKILL_GEN[hostId] = function (rng, lvl) {
         if (R.chance(rng, p)) {                  /* the dice is rolled once */
-          for (var t = 0; t < 3; t++) {          /* a failed build is retried */
-            var it = card(rng, pool[Math.floor(rng() * pool.length)], lvl);
-            if (it) return it;
+          for (var t = 0; t < 4; t++) {          /* a failed build is retried */
+            var idx = pool[Math.floor(rng() * pool.length)];
+            var it = card(rng, idx, lvl);
+            if (!it) continue;
+            /* a card that carries no numbers at all is a reading task: it has to
+               name the topic the skill practises, or it is trivia about someone
+               else's mathematics */
+            /* A card with no numbers in it is reading. Reading is kept when it is
+               reading ABOUT the skill (the entry shares a word or a word-stem with
+               the skill's name or strand) and when the learner is old enough for
+               encyclopedia vocabulary. A skill with too few questions of its own
+               keeps its enrichment whatever the topic, because repeating one card
+               teaches less than meeting one odd card. */
+            if (!/\d/.test(String(it.prompt || '') + ' ' + String(it.sub || '')) && ownShapes >= 6 &&
+              (mwRank < 6 || !onTopic(skTitle, ROW[idx]))) continue;
+            return it;
           }
         }
         return orig(rng, lvl);
