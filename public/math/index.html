@@ -69835,11 +69835,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     form = forms[form];
     return I_choice(prefix + form, opts, opts.indexOf(shown), {
       visual: visual || null,
-      explain: [
-        concept || ('Identify the rule that applies to this ' + sk.name + ' example.'),
-        method,
-        'Therefore the correct answer is <b>' + esc(shown) + '</b>.'
-      ],
+      /* `method` may be one sentence or the whole working. A card that asks the
+         learner to undo an operation has to SHOW the equations being undone, so
+         the deck can hand over the chain and it is kept step by step. */
+      explain: [concept || ('Identify the rule that applies to this ' + sk.name + ' example.')]
+        .concat(Array.isArray(method) ? method : [method])
+        .concat(['Therefore the correct answer is <b>' + esc(shown) + '</b>.']),
       teach: 'A reliable solution uses the defining rule and checks the result against the information given.',
       b: b == null ? 0.3 : b
     });
@@ -70079,7 +70080,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var k = int(rng, 2, 9), v = int(rng, 12, 30);
       return card(rng, sk, 'If f(x) = x + ' + k + ', what is f inverse of ' + v + '?', String(v - k),
         [String(v + k), String(k), String(v)],
-        'Undo adding ' + k + ' by subtracting ' + k + ' from ' + v + '.',
+        ['f(x) = x + ' + k + ' means x + ' + k + ' = ' + v + '.',
+        'Undo the addition: x = ' + v + ' − ' + k + ' = ' + (v - k) + '.'],
         'An inverse function reverses the operation of the original function.', bFor(lvl));
     }
     if (/domain|range/.test(title)) {
@@ -70130,12 +70132,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (eA < eC) eD = eSol * (eA - eC) + eB;
       return card(rng, sk, 'Solve ' + eA + 'x + ' + eB + ' = ' + eC + 'x + ' + eD + '.', 'x = ' + eSol,
         ['x = ' + (eSol + 1), 'x = ' + (-eSol), 'x = ' + (eSol + 2)],
-        'Move the x terms together: (' + eA + ' - ' + eC + ')x = ' + (eD - eB) + ', then divide.',
+        [eA + 'x + ' + eB + ' = ' + eC + 'x + ' + eD + '.',
+        'Move the x terms left and the numbers right: (' + eA + ' − ' + eC + ')x = ' + eD + ' − ' + eB + ' = ' + (eD - eB) + '.',
+        'Divide both sides by (' + eA + ' − ' + eC + '): x = ' + (eD - eB) + ' ÷ ' + (eA - eC) + ' = ' + eSol + '.'],
         'Equations with variables on both sides are solved by moving like terms.', bFor(lvl));
     }
     return card(rng, sk, 'Solve ' + eA + 'x - ' + eB + ' = ' + (eA * eSol - eB) + '.', 'x = ' + eSol,
       ['x = ' + (eSol + 1), 'x = ' + (eA * eSol - eB), 'x = ' + (eSol - 1)],
-      'Add ' + eB + ' to both sides, then divide both sides by ' + eA + '.',
+      [eA + 'x − ' + eB + ' = ' + (eA * eSol - eB) + '.',
+      'Undo the subtraction: ' + eA + 'x = ' + (eA * eSol - eB) + ' + ' + eB + ' = ' + (eA * eSol) + '.',
+      'Undo the multiplication: x = ' + (eA * eSol) + ' ÷ ' + eA + ' = ' + eSol + '.'],
       'Inverse operations isolate the variable without changing the equality.', bFor(lvl));
   }
 
@@ -70499,7 +70505,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var fR = fA * fSol + fB;
     return card(rng, sk, 'Which value makes ' + fA + 'n + ' + fB + ' equal to ' + fR + '?', String(fSol),
       [String(fSol + 1), String(fSol - 1), String(fR - fB)],
-      'Subtract ' + fB + ' from ' + fR + ', then divide the remaining ' + (fR - fB) + ' by ' + fA + '.',
+      [fA + 'n + ' + fB + ' = ' + fR + '.',
+      'Undo the addition: ' + fA + 'n = ' + fR + ' − ' + fB + ' = ' + (fR - fB) + '.',
+      'Undo the multiplication: n = ' + (fR - fB) + ' ÷ ' + fA + ' = ' + fSol + '.'],
       'Use inverse operations in order to undo multiplication and addition.', bFor(lvl));
   }
 
@@ -87045,10 +87053,42 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         it.spec.opts = sh2;
         it.answerText = right;
       }
-      /* 5. the step budget for this band + level, trimmed from the FRONT so the
-         last step — the one that states the answer — always survives. */
+      /* 5. the step budget for this band + level. It used to cut from the front,
+         which kept the answer sentence and threw away the working: a card that
+         printed three true equations was reduced to the last one and a slogan.
+         The budget is the same size, but the steps it drops are now the least
+         useful ones — the rule-of-thumb sentence before the answer line — and
+         the step that states the answer is still untouchable. */
       var budget = DP.stepsMax(sk, lvl);
-      if (budget != null && it.explain && it.explain.length > budget) it.explain = it.explain.slice(it.explain.length - budget);
+      /* the size of the budget was written for one-sentence methods. A real
+         working — three true equations — needs room for itself, otherwise the
+         derivation is cut off before it reaches the answer. The allowance
+         grows only by the number of genuine working steps, and never past six,
+         so a solution stays readable. */
+      if (budget != null && it.explain) {
+        var workSteps = 0, wi;
+        for (wi = 0; wi < it.explain.length; wi++) {
+          var wt = String(it.explain[wi]).replace(/<[^>]+>/g, '');
+          if (/[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(wt)) workSteps++;
+        }
+        if (workSteps > 0) budget = Math.max(budget, Math.min(workSteps + 1, 6));
+      }
+      if (budget != null && it.explain && it.explain.length > budget) {
+        var steps = it.explain.slice();
+        var worth = function (txt) {
+          var t = String(txt == null ? '' : txt).replace(/<[^>]+>/g, '');
+          if (/[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(t)) return 3;   /* an equation */
+          if (/\b\d/.test(t)) return 2;                                /* names the numbers */
+          if (/^(?:Therefore|So|Hence)\b/.test(t.trim())) return 0;    /* announces the answer */
+          return 1;                                                    /* a rule stated in words */
+        };
+        while (steps.length > budget) {
+          var dropAt = steps.length - 2, i;                            /* the answer line is safe */
+          for (i = steps.length - 3; i >= 0; i--) if (worth(steps[i]) < worth(steps[dropAt])) dropAt = i;
+          steps.splice(dropAt, 1);
+        }
+        it.explain = steps;
+      }
       return it;
     };
     wrapped.__dp = true;
@@ -87920,6 +87960,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var SING = { boxes: 'box', frames: 'frame', groups: 'group',
         quarts: 'quart', pints: 'pint', litres: 'litre', units: 'unit', yards: 'yard', parts: 'part', leaves: 'leaf', numerators: 'numerator', pencils: 'pencil', miles: 'mile', erasers: 'eraser', buttons: 'button', hundreds: 'hundred', shells: 'shell', marbles: 'marble', seeds: 'seed', places: 'place', stones: 'stone', inches: 'inch', names: 'name', stickers: 'sticker', pieces: 'piece', steps: 'step', berries: 'berry', pennies: 'penny', tons: 'ton', wholes: 'whole', responses: 'response', pears: 'pear', circles: 'circle', votes: 'vote', marks: 'mark', students: 'student', crayons: 'crayon', squares: 'square', thousands: 'thousand', hundredths: 'hundredth', kiloliters: 'kiloliter', pairs: 'pair', shelves: 'shelf', cookies: 'cookie', coins: 'coin', bills: 'bill', tickets: 'ticket', stamps: 'stamp', toys: 'toy', blocks: 'block', beads: 'bead', pens: 'pen', notebooks: 'notebook', trays: 'tray', jars: 'jar', bags: 'bag', packets: 'packet', bunches: 'bunch', cookies2: 'cookie', rows: 'row', columns: 'column', counters: 'counter', dots: 'dot', cubes: 'cube', stars: 'star', apples: 'apple', cars: 'car', balls: 'ball', bears: 'bear', books: 'book', cups: 'cup', items: 'item', objects: 'object', pictures: 'picture', sets: 'set', sides: 'side', vertices: 'vertex', edges: 'edge', faces: 'face', angles: 'angle', minutes: 'minute', hours: 'hour', days: 'day', weeks: 'week', months: 'month', years: 'year', dollars: 'dollar', cents: 'cent', gallons: 'gallon', liters: 'liter', kilometres: 'kilometre', kilometers: 'kilometer', metres: 'metre', meters: 'meter', centimetres: 'centimetre', centimeters: 'centimeter', grams: 'gram', kilograms: 'kilogram', pounds: 'pound', ounces: 'ounce', tens: 'ten', ones: 'one', thirds: 'third', fourths: 'fourth', fifths: 'fifth', sixths: 'sixth', eighths: 'eighth', tenths: 'tenth', twelfths: 'twelfth', times: 'time', pies: 'pie', bars: 'bar', strips: 'strip', cards: 'card', frames2: 'frame' };
       return dustFix(String(txt))
+        /* "the array of counters of star stickers" is what happens when a model
+           noun is pasted into a frame that already names the objects; the
+           objects are what the picture shows, so they stay */
+        .replace(/\b(array|row|ring|group|set|tray)\s+of\s+counters\s+of\s+([a-z][a-z -]{1,22}?)(?=[?.,!]|\s|$)/gi, function (whole0, frame0, objects0) {
+          return frame0 + ' of ' + objects0.trim();
+        })
         .replace(/\b1 ([a-z]+)\b/g, function (whole0, noun0) {
           var one = SING[noun0];
           return one ? '1 ' + one : whole0;
@@ -101992,11 +102038,16 @@ var MW = {
      so this pass and the gate agree about what "shows the arithmetic" means. */
   var CALC = /[\d(]\s*(?:[+\-−*/×÷]|is\s+|plus\b|minus\b|times\b|divided\s+by\b|multiplied\s+by\b|added\s+to\b|subtract(?:ed)?\s+from\b|more\s+than\b|less\s+than\b|fewer\s+than\b|out\s+of\b)\s*[-−+]?\s*[\d.]/i;
   var EQ = /[-−\d.]\s*=\s*[-−+]?\s*[\d.,]+|\b=\s*[-−+\d.$]/;
-  var CMP = /[-\d.]\s*(?:<|>|≤|≥|<>|>=|<=|≠)\s*[-−]?[\d.]+/i;
+  /* the comparison wording the gate also accepts, so a card whose step already
+     says "7 is not the same as 5" is not served a second, louder line */
+  var CMP = /[-\d.]\s*(?:<|>|\u2264|\u2265|<>|>=|<=|\u2260)\s*[-\u2212]?[\d.]+|[\d.]+\s*(?:is\s+(?:not\s+)?(?:greater|less|equal|bigger|smaller|larger|fewer|more|the\s+same\s+as|not\s+the\s+same\s+as)|is\s+bigger|is\s+smaller)\b/i;
   var PLACES = /\b\d[\d,]*\s*(?:tens?\b|ones?\b|hundreds?\b|thousands?\b|tenths?\b|hundredths?\b)|\b(?:tens?|ones?|hundreds?|thousands?|tenths?|hundredths?)\s+place\b|=\s*\d+\s*(?:cm|mm|km|in|ft|yd|mi|oz|lb|kg|g|ml|l|°|hours?|minutes?|days?|weeks?|months?|years?|dollars?|cents?|\$)/i;
+  /* the same ordered-place bar src/_work/explainq.js measures: a place listing
+     or a row/column pair is the derivation for a position question */
+  var COUNTS = /(?:\b\d+(?:st|nd|rd|th)\b\W{0,3}){3,}|\brow\s*\d+\b[\s\S]{0,60}\bcolumn\s*\d+\b|\b(?:count|counts|counting|picture shows|shows)\b[^.\n]{0,48}\b\d+(?:\s*,\s*\d+){1,}|\bsay the count\b[^.\n]{0,60}\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b(?:\s*,\s*(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b)+/i;
   function works(step) {
     var s = String(step == null ? '' : step).replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/gi, ' ');
-    return CALC.test(s) || EQ.test(s) || CMP.test(s) || PLACES.test(s);
+    return CALC.test(s) || EQ.test(s) || CMP.test(s) || PLACES.test(s) || COUNTS.test(s);
   }
 
   /* the longest run of "number (op number)+" printed by the card, e.g.
@@ -102023,8 +102074,20 @@ var MW = {
       var list = (sp.opts && sp.opts.length) ? sp.opts : item.choices, t = null;
       if (list && sp.i != null && list[sp.i] != null) t = typeof list[sp.i] === 'object' ? list[sp.i].text : list[sp.i];
       if (t == null && sp.text != null) t = sp.text;
+      /* the mark "−2.34" is written with a typographic minus; if it were thrown
+         away as a non-digit, a positive value would look like a correct result
+         and the card would be shown a statement with the wrong sign */
+      /* an option may read "row 2, column 3" or "12 apples"; taking the first
+         digit out of it is not a value, so only a bare number or a simple
+         fraction counts as the marked value */
       var g = GLOB.parseNumber;
-      if (t != null && typeof g === 'function') { var v = g(String(t).replace(/[^0-9.,\-+/%]/g, ' ')); return isFinite(v) ? v : null; }
+      if (t != null && typeof g === 'function') {
+        var clean = String(t).replace(/−/g, '-').replace(/[^0-9.,\-+/% ]/g, ' ').replace(/\s+/g, '').trim();
+        if (!/^[-+]?(?:\d{1,3}(?:,\d{3})*|\d+)(?:\.\d+)?$/.test(clean) &&
+            !/^[-+]?\d+\s*\/\s*\d+$/.test(clean)) return null;
+        var v = g(clean);
+        return isFinite(v) ? v : null;
+      }
     }
     return null;
   }
@@ -102097,6 +102160,20 @@ var MW = {
      equation is written out and kept only when it comes out true. */
   function numList(s) { return (String(s == null ? '' : s).match(/-?\d+(?:\.\d+)?/g) || []).map(Number); }
 
+  /* Only an answer the arithmetic can PRINT may end an inserted line. A ratio
+     ("1:2"), a power ("10²"), a percent, a surd or a rule with a letter in it
+     ("f(x) = -2x + 2") is graded as a FORM, not as a value: writing
+     "100 ÷ 10 = 10²" looks like a derivation and is simply untrue. */
+  function printableAnswer(shown) {
+    var t = String(shown == null ? '' : shown).trim();
+    if (!t || t.length > 18) return null;
+    if (/^[<>=]$/.test(t)) return t;
+    if (/^[-−+]?\$?\d[\d,]*(?:\.\d+)?$/.test(t)) return t;   /* a plain value, money included */
+    if (/^[-−+]?\d[\d,]*(?:\.\d+)?\s*\/\s*\d[\d,]*(?:\.\d+)?$/.test(t)) return t;
+    if (/^[-−+]?\d[\d,]*(?:\.\d+)?(?:\s*,\s*[-−+]?\d[\d,]*(?:\.\d+)?)+$/.test(t)) return t;
+    return null;
+  }
+
   function rowsLine(text, shown, ok) {
     var m = /(\d+)\s*(?:rows?|columns?|groups?|batches?|trays?|frames?|packs?)\s+of\s+(\d+)/i.exec(text);
     if (!m || shown == null) return null;
@@ -102128,6 +102205,8 @@ var MW = {
     var ns = numList(all), i, a, b, c;
     for (i = 0; i + 2 < ns.length; i++) {
       a = ns[i]; b = ns[i + 1]; c = ns[i + 2];
+      /* "0 + -2 = -2" is true and teaches nothing, so a zero in the triple ends it */
+      if (a === 0 || c === 0) continue;
       if (a + c === b && (ok(a) || ok(b) || ok(c))) return a + ' + ' + c + ' = ' + b + '.';
       if (a - c === b && (ok(a) || ok(b) || ok(c))) return a + ' − ' + c + ' = ' + b + '.';
     }
@@ -102179,6 +102258,7 @@ var MW = {
     var ns = numList(text);
     if (ns.length !== 2 || shown == null || shown.length > 16) return null;
     var a = ns[0], b = ns[1], cands = [];
+    if (a === 0 || b === 0) return null;                 /* no-op arithmetic */
     if (ok(a + b)) cands.push(a + ' + ' + b);
     if (ok(a - b)) cands.push(a + ' − ' + b);
     if (ok(b - a)) cands.push(b + ' − ' + a);
@@ -102201,6 +102281,114 @@ var MW = {
     return line.length <= 64 ? line : null;
   }
 
+  /* A place word ("third") and a grid cell ("row 3, column 3") are graded on a
+     position, not on a value, so no equation exists to show. The derivation at
+     that level is the ordered count itself, and it is readable from the card:
+     the position number, or the one filled cell of the grid. */
+  var ORD = { 1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth', 11: 'eleventh', 12: 'twelfth' };
+  function ordinalSuffix(n) { return (n % 100 === 11 || n % 100 === 12 || n % 100 === 13) ? 'th' : (n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th'); }
+
+  function ordinalLine(shown) {
+    var word = String(shown == null ? '' : shown).trim().toLowerCase(), n = null, k;
+    for (k in ORD) if (ORD[k] === word) n = +k;
+    if (!n) return null;
+    var list = '', i;
+    for (i = 1; i <= (n <= 4 ? n : 4); i++) list += (i > 1 ? ', ' : '') + i + ordinalSuffix(i);
+    if (n > 4) list += ', …, ' + n + ordinalSuffix(n);
+    var line = 'Count the places in order: ' + list + ', so the place is ' + word + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  function gridLine(item, shown) {
+    var v = item.visual;
+    if (!v || v.k !== 'grid' || !v.opts || !Object.prototype.hasOwnProperty.call(v.opts, 'cells') || shown == null) return null;
+    var cells = v.opts.cells, r = -1, c = -1, i, j;
+    for (i = 0; i < cells.length && r < 0; i++) {
+      var rowCells = cells[i] || [];
+      for (j = 0; j < rowCells.length; j++) {
+        var cell = String(rowCells[j] || '');
+        if (cell && cell !== '⬜' && cell !== '🔲' && cell.indexOf('⬜') < 0) { r = i + 1; c = j + 1; break; }
+      }
+    }
+    if (r < 0) return null;
+    var t = String(shown).toLowerCase();
+    if (!new RegExp('row\\s*' + r + '\\b', 'i').test(t) || !new RegExp('column\\s*' + c + '\\b', 'i').test(t)) return null;
+    var line = 'Count down the rows to it: row ' + r + '. Count across: column ' + c + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The counting cards on the first rungs print a model (counters, an array, a
+     ten-frame, a grid) and then say only "the last number you say is the
+     number to pick". The count is readable from the model, and it has to equal
+     the mark, so the count-out that a teacher would say aloud can be written:
+     "Count them: 1, 2, 3, 4 — that is 4." */
+  function modelCount(item) {
+    var v = item.visual; if (!v) return null;
+    if ((v.k === 'tenframe' || v.k === 'tally' || v.k === 'dots' || v.k === 'frame' || v.k === 'numframe') && isFinite(v.n)) return Math.round(v.n);
+    /* the array renderer draws rows x cols PLUS opts.extra loose objects
+       (20-ui.js:354), so the picture's total has to include them or a count read
+       off the model would be short by the remainder */
+    if (v.k === 'array' && isFinite(v.rows) && isFinite(v.cols)) {
+      return Math.round(v.rows * v.cols) + Math.max(0, Math.round(+(v.opts && v.opts.extra) || 0));
+    }
+    if (v.k === 'grid' && v.opts && v.opts.cells) {
+      var cells = v.opts.cells, total = 0, i, j;
+      for (i = 0; i < cells.length; i++) for (j = 0; j < (cells[i] || []).length; j++) {
+        var cell = String((cells[i] || [])[j] == null ? '' : (cells[i] || [])[j]);
+        if (cell && cell !== '⬜' && cell.indexOf('⬜') < 0 && !/^[a-zA-Z]$/.test(cell)) total++;
+      }
+      return total > 0 ? total : null;
+    }
+    return null;
+  }
+
+  function countOutLine(item, shown, want) {
+    if (shown == null || want == null) return null;
+    var n = modelCount(item);
+    if (n == null || n !== Math.round(want) || n < 1 || n > 20) return null;
+    var list = '', i;
+    for (i = 1; i <= n && list.length <= 52; i++) list += (i > 1 ? ', ' : '') + i;
+    if (i <= n) list += ', …, ' + n;
+    var line = 'Count them: ' + list + ' — that is ' + n + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Does the picture show exactly 1 cube?" answered "They do not match" never
+     says WHAT does not match. The picture's count is readable (modelCount) and
+     the question states its number, so the comparison can be written out and
+     only kept when the mark agrees with it. */
+  function matchLine(item, text, shown) {
+    var m = /\bexactly\s+(\d+)\b/i.exec(text);
+    if (!m) return null;
+    var asked = +m[1], have = modelCount(item);
+    if (have == null) return null;
+    var ans = String(shown == null ? '' : shown).trim().toLowerCase();
+    var yes = /^(true|yes)$/.test(ans), no = /^(false|no)$/.test(ans);
+    if (!yes && !no) return null;
+    if (yes && asked !== have) return null;
+    if (no && asked === have) return null;
+    var rel = asked === have ? 'is the same as' : 'is not the same as';
+    var line = 'The picture shows ' + have + ', and ' + have + ' ' + rel + ' ' + asked + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A number word is a NAME for a quantity; the derivation a teacher uses is to
+     say the count and stop on it, which also shows which numeral matches. */
+  var WORDNUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+
+  function wordCountLine(text, shown) {
+    var m = /(?:written as|spelled as|the word)\s+["']?([a-z]+)["']?/i.exec(text);
+    if (!m) return null;
+    var word = String(m[1]).toLowerCase(), n = WORDNUM.indexOf(word);
+    if (n < 1) return null;
+    var mark = String(shown == null ? '' : shown).trim();
+    if (mark !== String(n)) return null;              /* must agree with the mark */
+    var list = WORDNUM.slice(1, n + 1).join(', ');
+    var line = 'Say the count: ' + list + ' — that is ' + n + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   function addWorkLine(item) {
     if (!item || item.type === 'bool' || (item.spec && item.spec.k === 'bool')) return item;
     var field = null, steps = null, f;
@@ -102220,7 +102408,9 @@ var MW = {
       /* a true/false card is graded on a judgement, not a number, so the
          sources above cannot run — but a stated comparison can still be shown */
       if (shownAns == null) return item;
-      var bl = claimLine(item, plain(item.prompt) + ' ' + plain(item.sub), shownAns);
+      var ptext = plain(item.prompt) + ' ' + plain(item.sub);
+      var bl = claimLine(item, ptext, shownAns) || matchLine(item, ptext, shownAns) ||
+        ordinalLine(shownAns) || gridLine(item, shownAns);
       if (!bl) return item;
       var bo = steps.slice();
       bo.splice(0, 0, bl);
@@ -102228,6 +102418,7 @@ var MW = {
       return item;
     }
     if (shownAns == null) return item;
+    var canPrint = printableAnswer(shownAns) != null;
     var tol = (item.spec && typeof item.spec.tol === 'number' && item.spec.tol > 0) ? Math.max(item.spec.tol, 1e-9) : 1e-6;
     var ok = function (value) {
       return value != null && isFinite(value) &&
@@ -102240,26 +102431,40 @@ var MW = {
       if (typeof ev === 'function') { try { value = ev(machine, {}); } catch (e) { value = null; } }
       return ok(value) ? value : null;
     };
-    var line = null, m2, printed2, src;
-    var sources = [text, wordsToExpression(text)];
-    for (src = 0; src < sources.length && !line; src++) {
-      m2 = EXPR.exec(sources[src]);
-      if (!m2) continue;
-      printed2 = String(m2[0]).replace(/[=\s?]+$/, '').trim();
-      if (!printed2 || printed2.length > 46) continue;
-      if (evalIt(printed2) == null) continue;
-      line = printed2 + ' = ' + shownAns + '.';
+    var line = null, m2, printed2, src, from = null;
+    /* every source below PRINTS the marked value, so none of them may run when
+       the mark is a form ("10²", "1:2") instead of a value */
+    if (canPrint) {
+      var sources = [text, wordsToExpression(text)];
+      for (src = 0; src < sources.length && !line; src++) {
+        m2 = EXPR.exec(sources[src]);
+        if (!m2) continue;
+        printed2 = String(m2[0]).replace(/[=\s?]+$/, '').trim();
+        if (!printed2 || printed2.length > 46) continue;
+        if (evalIt(printed2) == null) continue;
+        line = printed2 + ' = ' + shownAns + '.'; from = 'expr' + src;
+      }
+      if (!line) { line = rowsLine(text, shownAns, ok); if (line) from = 'rows'; }
+      if (!line) { line = cmpLine(text, symOf(shownAns) ? String(shownAns).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<') : shownAns); if (line) from = 'cmp'; }
+      if (!line) { line = orderLine(text, shownAns); if (line) from = 'order'; }
+      if (!line) {
+        var st = statLine(item, text, want);
+        if (st && st.length <= 88) { line = st; from = 'stat'; }
+      }
+      if (!line) { line = pairLine(text, shownAns, ok); if (line) from = 'pair'; }
+      if (!line) { line = countOnLine(text + ' ' + steps.join(' '), ok); if (line) from = 'countOn'; }
     }
-    if (!line) line = rowsLine(text, shownAns, ok);
-    if (!line) line = cmpLine(text, symOf(shownAns) ? String(shownAns).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<') : shownAns);
-    if (!line) line = orderLine(text, shownAns);
+    /* an ordinal word or a grid cell names a place, not a value; its derivation
+       is the ordered count, which the card itself supplies */
+    if (!line) { line = matchLine(item, text, shownAns); if (line) from = 'match'; }
+    if (!line) { line = countOutLine(item, shownAns, want); if (line) from = 'countOut'; }
+    if (!line) { line = wordCountLine(text, shownAns); if (line) from = 'wordCount'; }
     if (!line) {
-      var st = statLine(item, text, want);
-      if (st && st.length <= 88) line = st;
+      line = ordinalLine(shownAns) || gridLine(item, shownAns);
+      if (line) from = 'place';
     }
-    if (!line) line = pairLine(text, shownAns, ok);
-    if (!line) line = countOnLine(text + ' ' + steps.join(' '), ok);
     if (!line || line.length > 88) return item;
+    item.__wc = from || 'unknown';
     var out = steps.slice();
     out.splice(0, 0, line);
     item[field] = out;
@@ -102291,6 +102496,44 @@ var MW = {
     return item;
   }
 
+  /* A picture draws the objects the card NAMES (20-ui.js:369 uses opts.noun), so
+     a model left holding another noun shows fish under a question about
+     counters. The question is the authority and the model is made to agree. */
+  function askedNoun(text) {
+    var m = /(?:array|row|ring|group|set|tray|frame|line)\s+of\s+([a-z][a-z -]{2,22}?)(?=\s*(?:[,.?!]|$|\s+(?:on|in|is|are|that|shows|show|how|each|were)))/i.exec(text)
+      || /how many\s+([a-z][a-z -]{2,22}?)\s+(?:are|is|were|was|does|did|can|could|there)/i.exec(text)
+      || /\bcount (?:the\s+)?([a-z][a-z -]{2,22}?)(?=\s*(?:[,.?!]|$|\s+(?:are|is|in|on|that|shows)))/i.exec(text);
+    if (!m) return null;
+    var w = String(m[1]).trim().replace(/\s+/g, ' ');
+    /* "the array of counters of stickers" names the stickers, so the last noun
+       of a chain wins */
+    var tail = /\bof\s+([a-z -]+)$/i.exec(w);
+    if (tail) w = String(tail[1]).trim();
+    w = w.replace(/\s+/g, ' ').trim();
+    if (!w || w.length > 22 || /\d|\b(?:many|much|this|that|these|those|what|which|who|whom|the|and|or|of)\b/.test(w)) return null;
+    return w;
+  }
+
+  function syncModelNoun(item) {
+    var v = item.visual, o = v && v.opts;
+    if (!o || o.noun == null) return item;
+    var asked = askedNoun(plain(item.prompt) + ' ' + plain(item.sub));
+    if (!asked) return item;
+    var have = String(o.noun).trim().toLowerCase();
+    if (have === asked.toLowerCase()) return item;
+    /* a generator may hand out one shared opts object, so it is copied before
+       the picture is re-labelled rather than written through the reference */
+    o = v.opts = Object.assign({}, o);
+    o.noun = asked;
+    /* the label is re-worded, not blanked: smoke reads the visual as JSON and a
+       literal null there is reported as a broken model */
+    if (o.label != null && String(o.label).toLowerCase().indexOf(asked.toLowerCase()) < 0) {
+      if (/^count the /i.test(String(o.label))) o.label = 'count the ' + asked;
+      else delete o.label;
+    }
+    return item;
+  }
+
   /* chain onto the writing pass so the words are settled before a line is added
      (diction may re-print a number, and the inserted line has to survive that) */
   (function hook() {
@@ -102298,9 +102541,10 @@ var MW = {
     var prev = GLOB.DP.polish;
     GLOB.DP.polish = function (item, sk, lvl) {
       var out = prev(item, sk, lvl);
-      return attachModel(addWorkLine(out || item));
+      return syncModelNoun(attachModel(addWorkLine(out || item)));
     };
     GLOB.__workcheck = addWorkLine;
+    GLOB.__wcDbg = { gridLine: gridLine, ordinalLine: ordinalLine, printableAnswer: printableAnswer, graded: graded, answerShown: answerShown, works: works };
   })();
 })();
 
