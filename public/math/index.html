@@ -102038,6 +102038,12 @@ var MW = {
      so this pass and the gate agree about what "shows the arithmetic" means. */
   var CALC = /[\d(]\s*(?:[+\-−*/×÷]|is\s+|plus\b|minus\b|times\b|divided\s+by\b|multiplied\s+by\b|added\s+to\b|subtract(?:ed)?\s+from\b|more\s+than\b|less\s+than\b|fewer\s+than\b|out\s+of\b)\s*[-−+]?\s*[\d.]/i;
   var EQ = /[-−\d.]\s*=\s*[-−+]?\s*[\d.,]+|\b=\s*[-−+\d.$]/;
+  /* the left side of a real derivation is often a SYMBOL, not a number:
+       "sin²θ + cos²θ = 1", "x = 5", "5⁵ ÷ 5⁵ = 5⁰". Requiring a digit before the
+       "=" threw away whole high-school decks. The right side still has to be a
+       number, so a bare formula restated with no values ("A = πr²") is not
+       credited as working. */
+    var EQ_SYM = /[-\d.)\w_θ²-⁹]\s*=\s*[-−+]?\s*\d/;
   /* the comparison wording the gate also accepts, so a card whose step already
      says "7 is not the same as 5" is not served a second, louder line */
   var CMP = /[-\d.]\s*(?:<|>|\u2264|\u2265|<>|>=|<=|\u2260)\s*[-\u2212]?[\d.]+|[\d.]+\s*(?:is\s+(?:not\s+)?(?:greater|less|equal|bigger|smaller|larger|fewer|more|the\s+same\s+as|not\s+the\s+same\s+as)|is\s+bigger|is\s+smaller)\b/i;
@@ -102047,7 +102053,7 @@ var MW = {
   var COUNTS = /(?:\b\d+(?:st|nd|rd|th)\b\W{0,3}){3,}|\brow\s*\d+\b[\s\S]{0,60}\bcolumn\s*\d+\b|\b(?:count|counts|counting|picture shows|shows)\b[^.\n]{0,48}\b\d+(?:\s*,\s*\d+){1,}|\bsay the count\b[^.\n]{0,60}\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b(?:\s*,\s*(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b)+/i;
   function works(step) {
     var s = String(step == null ? '' : step).replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/gi, ' ');
-    return CALC.test(s) || EQ.test(s) || CMP.test(s) || PLACES.test(s) || COUNTS.test(s);
+    return CALC.test(s) || EQ.test(s) || EQ_SYM.test(s) || CMP.test(s) || PLACES.test(s) || COUNTS.test(s);
   }
 
   /* the longest run of "number (op number)+" printed by the card, e.g.
@@ -102389,6 +102395,36 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* "Is this fact true? 2 + 0 = 3" is answered "They do not match" without ever
+     working the left side out. Both sides are printed by the card, so the left
+     side is evaluated and the line is kept only when the verdict agrees with
+     the mark the card grades. */
+  function claimEqLine(item, text, shown) {
+    /* find the claim as "left = right" by splitting on the equals sign: the left
+       side has to be an actual computation, and the verdict the card grades has to
+       agree with what the arithmetic comes out to */
+    var eqAt = /[-\d.)]\s*[=＝]\s*[-+]?\d/.exec(text);
+    if (!eqAt) return null;
+    var leftM = /[-−+]?[\d.,]+(?:\s*[+\-−×÷*\/^]\s*[-−+]?[\d.,]+)+\s*$/.exec(text.slice(0, eqAt.index));
+    var rightM = /^\s*[=＝]\s*([-+]?\d[\d,.]*)/.exec(text.slice(eqAt.index));
+    if (!leftM || !rightM) return null;
+    var left = String(leftM[0]).trim();
+    var claimed = parseFloat(String(rightM[1]).replace(/,/g, ''));
+    if (!isFinite(claimed)) return null;
+    var machine = left.replace(/−/g, '-').replace(/×/g, '*').replace(/÷/g, '/')
+      .replace(/(\d),(\d)/g, '$1$2').replace(/\s+/g, '');
+    var val = null;
+    if (typeof GLOB.evalExpr === 'function') { try { val = GLOB.evalExpr(machine, {}); } catch (e) { val = null; } }
+    if (val == null || !isFinite(val)) return null;
+    var holds = Math.abs(val - claimed) <= Math.max(1e-6, Math.abs(claimed) * 1e-6);
+    var ans = String(shown == null ? '' : shown).trim().toLowerCase();
+    var yes = /^(true|yes)$/.test(ans), no = /^(false|no)$/.test(ans);
+    if (!yes && !no) return null;
+    if (yes !== holds) return null;
+    var line = left + ' = ' + rd(val) + ', and ' + rd(val) + (holds ? ' is the same as ' : ' is not the same as ') + rd(claimed) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   function addWorkLine(item) {
     if (!item || item.type === 'bool' || (item.spec && item.spec.k === 'bool')) return item;
     var field = null, steps = null, f;
@@ -102409,8 +102445,8 @@ var MW = {
          sources above cannot run — but a stated comparison can still be shown */
       if (shownAns == null) return item;
       var ptext = plain(item.prompt) + ' ' + plain(item.sub);
-      var bl = claimLine(item, ptext, shownAns) || matchLine(item, ptext, shownAns) ||
-        ordinalLine(shownAns) || gridLine(item, shownAns);
+      var bl = claimLine(item, ptext, shownAns) || claimEqLine(item, ptext, shownAns) ||
+        matchLine(item, ptext, shownAns) || ordinalLine(shownAns) || gridLine(item, shownAns);
       if (!bl) return item;
       var bo = steps.slice();
       bo.splice(0, 0, bl);
@@ -102465,8 +102501,29 @@ var MW = {
     }
     if (!line || line.length > 88) return item;
     item.__wc = from || 'unknown';
-    var out = steps.slice();
-    out.splice(0, 0, line);
+    /* The line REPLACES talk that carries no numbers. Appending it to a slogan
+       only makes a longer answer, and the band's step budget then cuts the
+       working away anyway — a card was left saying "The question asks about 3.
+       So the answer is Yes." with the comparison thrown out. Number-bearing
+       steps and the answer sentence are never touched. */
+    var pruned = [], pi;
+    for (pi = 0; pi < steps.length; pi++) {
+      var txt = String(steps[pi]).replace(/<[^>]+>/g, '');
+      var saysAnswer = /^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(String(txt).trim());
+      var carriesNumbers = /[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(txt) || /\b\d/.test(txt);
+      if (saysAnswer || carriesNumbers || pruned.length === 0) pruned.push(steps[pi]);
+    }
+    var out = pruned;
+    /* the working belongs where a working belongs: after whatever the card has
+       already said, and immediately before the line that announces the answer.
+       Gluing it to the front of a card that already narrates the setup read as
+       "2 + 3 = 5.  Start with 2.  So the answer is 5." */
+    var at = out.length, ai;
+    for (ai = out.length - 1; ai >= 0; ai--) {
+      var tail = String(out[ai]).replace(/<[^>]+>/g, '').trim();
+      if (/^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(tail)) { at = ai; break; }
+    }
+    out.splice(at, 0, line);
     item[field] = out;
     return item;
   }
