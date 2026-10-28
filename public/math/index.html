@@ -464,7 +464,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-27 — 102 modules inlined:
+/* MathPath 2026-10-28 — 102 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 99-gen-zzzz-workcheck.js, 99-gen-zzzzz-models.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -102084,6 +102084,21 @@ var MW = {
       .replace(/\s+/g, ' ').trim();
   }
 
+  /* The words a card printed, with the markup taken out but the UNITS left in.
+     plain() strips unit words so that its number tests are not fooled by "3 cm",
+     and that same strip eats letters out of a child's name — "Lin collected 3"
+     becomes "L collected 3" — so the rules that hang amounts on names have to
+     read the sentence before the units are removed. */
+  function words(txt) {
+    return String(txt == null ? '' : txt)
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&gt;/gi, '>').replace(/&lt;/gi, '<')
+      .replace(/&times;/gi, '×').replace(/&divide;/gi, '÷')
+      .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+      .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
+      .replace(/\s+/g, ' ').trim();
+  }
+
   /* the answer the card actually grades, as a number when it has one */
   function graded(item) {
     var sp = item && item.spec; if (!sp) return null;
@@ -102170,6 +102185,13 @@ var MW = {
   }
 
   function rd(v) { return Math.round(v * 1000) / 1000; }
+  /* write a computed value the way the deck writes its own: 218374 as 218,374 */
+  function fmt(n) {
+    var t = String(n), bits = t.split('.'), body = bits[0], neg = false, out = '', cnt = 0, i;
+    if (body.charAt(0) === '-') { neg = true; body = body.slice(1); }
+    for (i = body.length - 1; i >= 0; i--) { out = body.charAt(i) + out; cnt++; if (cnt % 3 === 0 && i > 0) out = ',' + out; }
+    return (neg ? '−' : '') + out + (bits[1] ? '.' + bits[1] : '');
+  }
 
   /* ---- the other three ways a card already contains its own arithmetic ----
      A PK card says "Count on from 1 to 5: 4 more" and never prints 1 + 4 = 5;
@@ -102311,7 +102333,7 @@ var MW = {
             line = (numOf(aTxt) != null && numOf(bTxt) != null)
               ? (digitReason(aTxt, bTxt, a, b) || (aTxt + ' ' + relSym(a, b) + ' ' + bTxt + '.'))
               : (aTxt + ' = ' + rd(a) + ' and ' + bTxt + ' = ' + rd(b) + ', so ' + rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.');
-            if (line.length > 88) line = rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.';
+            if (line.length > 88) line = fmt(a) + ' ' + relSym(a, b) + ' ' + fmt(b) + '.';
             if (line.length <= 88) return line;
           }
         }
@@ -102662,7 +102684,7 @@ var MW = {
     if (!sym) return null;
     var cand = [], k, i, ph, marks = ['○', '◯', '?'];
     var lre = new RegExp('(' + OPAND + ')\\s*(?:[a-z]{1,14}\\s*)?$', 'i');
-    var rre = new RegExp('^\\s*(?:\\(\\s*)?(' + NUMTOK + ')(?:\\s*\\))?');
+    var rre = new RegExp('^\\s*(?:\\(\\s*)?(' + OPAND + ')(?:\\s*\\))?');
     for (k = 0; k < marks.length; k++) {
       ph = marks[k]; i = 0;
       while (true) {
@@ -102671,7 +102693,12 @@ var MW = {
         i = at + ph.length;
         var lm = lre.exec(text.slice(0, at));
         var rm = rre.exec(text.slice(i));
-        if (lm && rm) cand.push([String(lm[1]).trim(), String(rm[1]).trim()]);
+        /* a lone number beside the circle that belongs to a "4 by 11" phrase is
+           one FACTOR of the quantity, not the quantity: comparing factors is not
+           comparing the areas, so that candidate is dropped rather than printed. */
+        var byPhrase = /\bby\s*[-+−]?\d+(?:,\d{3})*(?:\.\d+)?\s*(?:[a-z]{1,14}\s*)?$/i.test(text.slice(0, at)) ||
+          /^\s*[-+−]?\d+(?:,\d{3})*(?:\.\d+)?\s*\bby\b/i.test(text.slice(i));
+        if (lm && rm && !byPhrase) cand.push([String(lm[1]).trim(), String(rm[1]).trim()]);
       }
       if (cand.length) break;                       /* a circle beats a question mark */
     }
@@ -102688,9 +102715,9 @@ var MW = {
       if (numOf(aTxt) != null && numOf(bTxt) != null) {
         line = digitReason(aTxt, bTxt, a, b) || (aTxt + ' ' + relSym(a, b) + ' ' + bTxt + '.');
       } else {
-        line = aTxt + ' = ' + rd(a) + ' and ' + bTxt + ' = ' + rd(b) + ', so ' + rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.';
+        line = aTxt + ' = ' + fmt(a) + ' and ' + bTxt + ' = ' + fmt(b) + ', so ' + fmt(a) + ' ' + relSym(a, b) + ' ' + fmt(b) + '.';
       }
-      if (line.length > 88) line = rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.';
+      if (line.length > 88) line = fmt(a) + ' ' + relSym(a, b) + ' ' + fmt(b) + '.';
       if (line.length <= 88) return line;
     }
     return null;
@@ -102700,23 +102727,36 @@ var MW = {
      more stickers than Ava?" — the amounts hang on two names and the question
      asks which way round they go. Both names and both numbers are on the card,
      so the working can say who has what and then compare the two amounts. */
+  /* "In the garden, Lin collected 3 stickers and Ava collected 9. Does Lin have
+     more stickers than Ava?" — the amounts hang on two names and the question
+     asks which way round they go. The two names are read out of the question
+     itself, then each amount is looked up where its own name appears: one long
+     pattern would let any word in the sentence pass for a name, and the amounts
+     would be attached to the wrong children. */
+  function askPair(text) {
+    var m = /\bdoes\s+([A-Za-z][a-z]{1,12})\s+(?:have|has|had|got|collect[sd]?|saved?|picked\s+up|counted)\s+(more|fewer|less|greater)\b[^?]{0,48}?than\s+([A-Za-z][a-z]{1,12})/i.exec(text);
+    if (!m) return null;
+    var ask = String(m[1]), other = String(m[3]);
+    if (ask.toLowerCase() === other.toLowerCase()) return null;
+    return { ask: ask, other: other, up: /more|greater/.test(String(m[2])) };
+  }
+  function amountFor(name, hay) {
+    var m = new RegExp('\\b' + name + '\\b[^.?!?]{0,60}?(\\d+(?:,\\d{3})*(?:\\.\\d+)?)', 'i').exec(hay);
+    if (!m) return null;
+    var v = numOf(m[1]);
+    return v == null ? null : [v, String(m[1]).trim()];
+  }
   function whoMoreLine(item, text, shown) {
     var low = String(shown == null ? '' : shown).trim().toLowerCase();
     if (!/^(true|false|yes|no)$/.test(low)) return null;
     var said = /^(true|yes)$/.test(low);
-    var m = /([A-Z][a-z]{1,12})[^.?]{0,44}?(\d+(?:,\d{3})*(?:\.\d+)?)\b[^.?]{0,44}?([A-Z][a-z]{1,12})[^.?]{0,44}?(\d+(?:,\d{3})*(?:\.\d+)?)\b[^.]{0,90}?does\s+([A-Z][a-z]{1,12})\s+(?:have|has|had|got|collected|saved)\s+(more|fewer|less|greater)\b[^?]{0,44}?than\s+([A-Z][a-z]{1,12})/i.exec(text);
-    if (!m) return null;
-    var ask = String(m[5]).toLowerCase(), want = String(m[6]).toLowerCase(), other = String(m[7]).toLowerCase();
-    var v1 = numOf(m[2]), v2 = numOf(m[4]);
-    if (v1 == null || v2 == null || v1 === v2) return null;
-    var av = null, bv = null, avTxt = null, bvTxt = null;
-    if (String(m[1]).toLowerCase() === ask) { av = v1; bv = v2; avTxt = String(m[2]).trim(); bvTxt = String(m[4]).trim(); }
-    else if (String(m[3]).toLowerCase() === ask) { av = v2; bv = v1; avTxt = String(m[4]).trim(); bvTxt = String(m[2]).trim(); }
-    else return null;
-    if (String(m[1]).toLowerCase() !== other && String(m[3]).toLowerCase() !== other) return null;
-    var up = /more|greater/.test(want);
-    if ((up ? av > bv : av < bv) !== said) return null;
-    var line = ask + ' has ' + avTxt + ' and ' + other + ' has ' + bvTxt + ', so ' + avTxt + ' ' + relSym(av, bv) + ' ' + bvTxt + '.';
+    var who = askPair(text);
+    if (!who) return null;
+    var av = amountFor(who.ask, text), bv = amountFor(who.other, text);
+    if (av == null || bv == null || av[0] === bv[0]) return null;
+    if ((who.up ? av[0] > bv[0] : av[0] < bv[0]) !== said) return null;
+    var line = who.ask + ' has ' + av[1] + ' and ' + who.other + ' has ' + bv[1] +
+      ', so ' + av[1] + ' ' + relSym(av[0], bv[0]) + ' ' + bv[1] + '.';
     return line.length <= 88 ? line : null;
   }
 
@@ -102848,6 +102888,197 @@ var MW = {
     line = a1[1] + ' &lt; ' + a2[1] + ', so ' + markTxt + ' is the ' + (less ? 'least' : 'greatest') + ' of them.';
     return line.length <= 88 ? line : null;
   }
+  /* Two count-adjacency shapes and one rounding shape, all of which the card
+     itself supplies the numbers for:
+       · "Write the smallest number that is greater than 8." — after a whole
+         number comes the one that is one more, and the mark has to be it;
+       · "What number is one less than 6?" and "the number that is one more than
+         2 is 4. Is Noah right?" — one step along the count, checked against what
+         the card states;
+       · "Round 1,147 to the nearest hundred." — the two ends and the middle come
+         out of the number and the place the card printed, and the mark has to be
+         the nearer end.
+     Nothing here is invented: every line is arithmetic on the card's own numbers,
+     and a mark that disagrees with them means no line at all. */
+  var STEPWORD = { one: 1, '1': 1, two: 2, '2': 2, three: 3, '3': 3, four: 4, '4': 4, five: 5, '5': 5 };
+  function successorLine(item, text, shown) {
+    var markTxt = String(shown == null ? '' : shown).trim();
+    var low = markTxt.toLowerCase();
+    var verdict = /^(true|false|yes|no)$/.test(low);
+    var m = new RegExp('\\b(smallest|least|minimum)\\b[^.?]{0,34}?\\b(greater|larger|bigger)\\s+than\\s+(?:the number\\s+)?\\(?\\s*(' + NUMTOK + ')\\s*\\)?', 'i').exec(text) ||
+      new RegExp('\\b(greatest|largest|maximum)\\b[^.?]{0,34}?\\b(less|smaller|fewer)\\s+than\\s+(?:the number\\s+)?\\(?\\s*(' + NUMTOK + ')\\s*\\)?', 'i').exec(text);
+    if (m) {
+      var baseTxt = String(m[3]).trim(), base = numOf(baseTxt);
+      if (base != null && base === Math.round(base)) {
+        var up = /greater|larger|bigger/i.test(m[2]);
+        var mark0 = numOf(markTxt);
+        if (mark0 === base + (up ? 1 : -1)) {
+          var line = baseTxt + (up ? ' + 1 = ' : ' − 1 = ') + markTxt +
+            ', which is the ' + (up ? 'smallest number greater' : 'greatest number less') + ' than ' + baseTxt + '.';
+          if (line.length <= 88) return line;
+        }
+      }
+    }
+    /* one step along the count, with the answer marked as a number */
+    m = new RegExp('\\b(one|1|two|2|three|3|four|4|five|5)\\s+(less|fewer|smaller|more|greater|larger)\\s+than\\s+(?:the\\s+number\\s+)?\\(?\\s*(' + NUMTOK + ')\\s*\\)?', 'i').exec(text);
+    if (!m) return null;
+    var step = STEPWORD[String(m[1]).toLowerCase()];
+    var base2 = numOf(m[3]);
+    if (!step || base2 == null) return null;
+    var up2 = /more|greater|larger/i.test(m[2]);
+    var truth = base2 + (up2 ? step : -step);
+    var expr = String(m[3]).trim() + (up2 ? ' + ' : ' − ') + step;
+    if (!verdict) {
+      if (numOf(markTxt) !== truth) return null;
+      var line2 = expr + ' = ' + markTxt + '.';
+      return line2.length <= 88 ? line2 : null;
+    }
+    /* a judgement card states a number as well: "one more than 2 is 4" — the
+       count says 3, and saying so (with the number the card claimed) is the
+       whole reason Noah is not right */
+    var said = /^(true|yes)$/.test(low);
+    var sm = new RegExp('(one|1|two|2|three|3|four|4|five|5)\\s+(?:more|greater|larger|less|fewer|smaller)\\s+than\\s+(?:the\\s+number\\s+)?\\(?\\s*(' +
+      NUMTOK + ')\\s*\\)?[^.?]{0,30}?\\b(?:is|are|equals?|comes\\s+out\\s+to|will\\s+be|makes)\\s+\\(?\\s*(' + NUMTOK + ')', 'i').exec(text);
+    if (!sm) return null;
+    var sb = numOf(sm[2]), st = STEPWORD[String(sm[1]).toLowerCase()] || 0;
+    var upv = /more|greater|larger/i.test(String(sm[0]).slice(0, String(sm[0]).indexOf('than')));
+    if (sb == null || !st) return null;
+    var truthv = sb + (upv ? st : -st), stated = numOf(sm[3]);
+    if (stated == null) return null;
+    if ((stated === truthv) !== said) return null;
+    var line3 = String(sm[2]).trim() + (upv ? ' + ' : ' − ') + st + ' = ' + truthv +
+      (stated === truthv ? '.' : ', not ' + String(sm[3]).trim() + '.');
+    return line3.length <= 88 ? line3 : null;
+  }
+
+  var PLACEWORD = {
+    ten: 10, tens: 10, hundred: 100, hundreds: 100, thousand: 1000, thousands: 1000,
+    'ten thousand': 10000, 'ten thousands': 10000, 'hundred thousand': 100000, 'hundred thousands': 100000,
+    million: 1000000, millions: 1000000
+  };
+  /* Rounding is a decision about which end of an interval a number sits nearer:
+     1,147 lies between 1,100 and 1,200, its middle is 1,150, and below the
+     middle it rounds down. The card prints the number and the place, so the
+     ends, the middle and the choice are all readable — and the mark has to be
+     the end that comes out, or nothing is said. */
+  function roundingLine(item, text, shown) {
+    if (!/\bround\b/i.test(text)) return null;
+    var mark = numOf(String(shown == null ? '' : shown).trim());
+    if (mark == null) return null;
+    var m = new RegExp('\\b(?:round|rounding|rounded)\\b[^.!?]{0,60}?\\(?\\s*(' + NUMTOK + ')\\s*\\)?[^.!?]{0,60}?nearest\\s+(ten(?:\\s+thousand)?|hundred(?:\\s+thousand)?|thousand|millions?|\\d+)', 'i').exec(text);
+    if (!m) return null;
+    var placeTxt = String(m[2]).toLowerCase().replace(/\s+/g, ' ');
+    var place = PLACEWORD[placeTxt];
+    if (!place) place = numOf(placeTxt);   /* the decks also print the place as a numeral: "nearest 100" */
+    var vTxt = String(m[1]).trim(), v = numOf(vTxt);
+    if (!place || v == null || v <= 0 || v !== Math.round(v)) return null;
+    var lower = Math.floor(v / place) * place, upper = lower + place, middle = lower + place / 2;
+    if (v === lower || v === upper) return null;             /* already exact: nothing to decide */
+    var expected = v >= middle ? upper : lower;
+    if (mark !== expected) return null;
+    var markTxt = String(shown).trim();
+    var way = v >= middle ? 'up' : 'down';
+    /* the interval and its middle are written with comparison signs, because
+       that is the sentence a learner can check: the number is on one side of the
+       middle, so it goes to the nearer end */
+    var line = fmt(lower) + ' &lt; ' + vTxt + ' &lt; ' + fmt(upper) + ', and ' + vTxt +
+      ' is ' + (v >= middle ? 'at or over' : 'under') + ' the middle ' + fmt(middle) + ', so it rounds ' + way + ' to ' + markTxt + '.';
+    if (line.length <= 88) return line;
+    var short = fmt(lower) + ' &lt; ' + vTxt + ' &lt; ' + fmt(upper) + ', so it rounds ' + way + ' to ' + markTxt + '.';
+    return short.length <= 88 ? short : null;
+  }
+
+
+  /* Sometimes the pair is not in the question at all but in the working the card
+     already shows: "The first rectangle has area 44. / The second has area 36."
+     The two quantities have been computed and only the comparison between them
+     is missing, which is the part the card is graded on. Both numbers come out
+     of the card's own steps, and the relation has to equal the mark. */
+  function stepPairLine(item, steps, shown) {
+    var raw = String(shown == null ? '' : shown).trim();
+    var sym = symOf(raw) || (/^[<>=]$/.test(raw) ? raw : null);
+    if (!sym) return null;
+    var vals = [], i, j, pairs = numPairs2(steps.join(' '));
+    if (pairs.length !== 2) return null;
+    var a = pairs[0], b = pairs[1];
+    var big = a[0] > b[0] ? a : b, small = a[0] > b[0] ? b : a;
+    if (a[0] === b[0]) { if (sym !== '=') return null; big = a; small = b; }
+    if (relNum(big[0], small[0]) !== sym) return null;
+    var line = big[1] + ' ' + relSym(big[0], small[0]) + ' ' + small[1] + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The same question with the amounts NOT in the words but in the count the card
+     already made: "Does Sam have more money than Diego?" over "Count Sam's
+     coins: 110¢ / Count Diego's coins: 130¢". The names come from the question,
+     the amounts from the card's own count, and the verdict has to agree with the
+     comparison that comes out. */
+  function whoStepLine(item, text, steps, shown) {
+    var low = String(shown == null ? '' : shown).trim().toLowerCase();
+    if (!/^(true|false|yes|no)$/.test(low)) return null;
+    var said = /^(true|yes)$/.test(low);
+    var who = askPair(text);
+    if (!who) return null;
+    var hay = String(text) + ' ' + steps.join(' ').replace(/<[^>]+>/g, ' ');
+    var av = amountFor(who.ask, hay), bv = amountFor(who.other, hay);
+    if (av == null || bv == null || av[0] === bv[0]) return null;
+    if ((who.up ? av[0] > bv[0] : av[0] < bv[0]) !== said) return null;
+    var line = who.ask + ' has ' + av[1] + ' and ' + who.other + ' has ' + bv[1] +
+      ', so ' + av[1] + ' ' + relSym(av[0], bv[0]) + ' ' + bv[1] + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Solve 5x + 7 < 2." and "Which number line shows the solution of
+     -2x - 1 < 3?" — the two moves are taking the constant off both sides and
+     dividing by the number in front of x, and a negative number in front of x
+     turns the sign round. The card prints the coefficients and its mark states
+     where the solution ends, so the line is only written when the moves arrive
+     at exactly that mark: the arithmetic is done here and checked against the
+     card, never copied from it. */
+  function ineqLine(item, text, shown) {
+    var mark = String(shown == null ? '' : shown).trim();
+    var mm = /^([xy])\s*([<>≤≥])\s*\(?\s*([-+−]?\d+(?:,\d{3})*(?:\.\d+)?)\s*\)?$/.exec(mark);
+    if (!mm) return null;
+    var vName = String(mm[1]), mRel = String(mm[2]), mTxt = String(mm[3]).trim(), mVal = numOf(mTxt);
+    if (mVal == null) return null;
+    var rel = /([<>≤≥])/.exec(text);
+    if (!rel) return null;
+    var left = text.slice(0, rel.index), right = text.slice(rel.index + 1);
+    var vm = /([-+−]?\d+(?:\.\d+)?)?\s*([xy])\b/i.exec(left);
+    if (!vm || String(vm[2]).toLowerCase() !== vName.toLowerCase()) return null;
+    var a = numOf(String(vm[1]).trim());
+    if (a == null) a = /[-−]\s*$/.test(left.slice(0, vm.index)) ? -1 : 1;
+    if (!a) return null;
+    var rest = left.slice(vm.index + vm[0].length);
+    var bm = /^\s*([+\-−])\s*(\d+(?:,\d{3})*(?:\.\d+)?)/.exec(rest), b = 0;
+    if (bm) {
+      b = numOf(String(bm[2]).trim());
+      if (b == null) return null;
+      if (/[-−]/.test(bm[1])) b = -b;
+    }
+    var cm = /([-+−]?\d+(?:,\d{3})*(?:\.\d+)?)/.exec(right);
+    var c = cm ? numOf(String(cm[1]).trim()) : null;
+    if (c == null) return null;
+    var moved = c - b;                                   /* the constant leaves both sides */
+    var value = moved / a;
+    if (!isFinite(value) || Math.abs(value - Math.round(value * 1000) / 1000) > 1e-9) return null;
+    if (Math.abs(value - mVal) > 1e-9) return null;      /* the moves must reach the mark */
+    var endRel = a < 0 ? flipRel(String(rel[1])) : String(rel[1]);
+    if (endRel !== mRel) return null;
+    var q = relEnt(String(rel[1])), e = relEnt(endRel);
+    /* the mark writes its minus with a plain hyphen; one sentence should not mix
+       that with the minus sign the deck prints everywhere else */
+    var mShow = mTxt.charAt(0) === '-' ? '−' + mTxt.slice(1) : mTxt;
+    var term = a === 1 ? vName : a === -1 ? '−' + vName : fmt(a) + vName;
+    var line = term + ' ' + q + ' ' + fmt(moved) + ', and dividing by ' + fmt(a) +
+      (a < 0 ? ' turns the sign, so ' : ' gives ') + vName + ' ' + e + ' ' + mShow + '.';
+    if (line.length <= 88) return line;
+    var shortLine = term + ' ' + q + ' ' + fmt(moved) + ', so ' + vName + ' ' + e + ' ' + mShow + '.';
+    return shortLine.length <= 88 ? shortLine : null;
+  }
+  function flipRel(r) { return r === '<' ? '>' : r === '>' ? '<' : r === '≤' ? '≥' : r === '≥' ? '≤' : r; }
+  function relEnt(r) { return r === '<' ? '&lt;' : r === '>' ? '&gt;' : r; }
+
   function staleSteps(item, steps) {
     var card = (String(item.prompt || '') + ' ' + String(item.sub || '') + ' ' +
       ((item.choices || []).join(' ')) + ' ' + JSON.stringify(item.visual || {}))
@@ -102925,6 +103156,7 @@ var MW = {
     }
     out.splice(at, 0, line);
     item[field] = out;
+    item.__wcLine = line;   /* what got inserted, for the dev probes */
     return item;
   }
 
@@ -102936,6 +103168,19 @@ var MW = {
       if (Array.isArray(item[key]) && item[key].length) { field = key; steps = item[key]; break; }
     }
     if (!steps) return exit(item, 'noSteps');
+    /* Two decks print the same sentence twice in a row — "The sentence is
+       12 − 9 = 3." on two lines — which reads as a misprint rather than as a
+       second step, and it spends a step of the solution's budget. Removing an
+       exact repeat helps a card that already computes as well, so it happens
+       before anything is decided about the card. */
+    var dedup = [], di, lastFlat = null;
+    for (di = 0; di < steps.length; di++) {
+      var dFlat = String(String(steps[di]).replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().toLowerCase();
+      if (dFlat && dFlat === lastFlat) continue;
+      dedup.push(steps[di]);
+      lastFlat = dFlat;
+    }
+    if (dedup.length !== steps.length && dedup.length >= 1) { steps = dedup; item[field] = steps; }
     var i, any = false;
     for (i = 0; i < steps.length; i++) if (works(steps[i])) { any = true; break; }
     /* The solution already computes, so nothing is owed to it. A judgement card
@@ -102948,6 +103193,9 @@ var MW = {
     if (any) return exit(item, 'alreadyWorks');
 
     var text = plain(item.prompt) + ' ' + plain(item.sub);
+    /* the same sentence with its units left in: plain() takes unit words out, and a
+       child's name loses letters that way ("Lin collected" becomes "L collected") */
+    var wtext = words(item.prompt) + ' ' + words(item.sub);
     var want = graded(item);
     var shownAns = answerShown(item);
     if (want == null) {
@@ -102958,8 +103206,11 @@ var MW = {
       if (shownAns == null) return exit(item, 'noAnswer');
       var ptext = plain(item.prompt) + ' ' + plain(item.sub);
       var bl = claimLine(item, ptext, shownAns) || claimEqLine(item, ptext, shownAns) ||
-        cmpMarkLine(item, ptext, shownAns) || orderLine(ptext, shownAns) ||
-        whoMoreLine(item, ptext, shownAns) || numberWordLine(item, ptext, shownAns) ||
+        cmpMarkLine(item, ptext, shownAns) || stepPairLine(item, steps, shownAns) ||
+        ineqLine(item, ptext, shownAns) || ineqLine(item, wtext, shownAns) ||
+        orderLine(ptext, shownAns) ||
+        whoMoreLine(item, wtext, shownAns) || whoStepLine(item, wtext, steps, shownAns) ||
+        numberWordLine(item, wtext, shownAns) ||
         matchLine(item, ptext, shownAns) || ordinalLine(shownAns) || gridLine(item, shownAns);
       if (!bl) return exit(item, 'judgementNoLine');
       item.__wc = 'judgement';
@@ -103002,8 +103253,12 @@ var MW = {
         if (st && st.length <= 88) { line = st; from = 'stat'; }
       }
       if (!line) { line = pairLine(text, shownAns, ok); if (line) from = 'pair'; }
+      if (!line) { line = roundingLine(item, text, shownAns); if (line) from = 'round'; }
+      if (!line) { line = roundingLine(item, wtext, shownAns); if (line) from = 'roundW'; }
       if (!line) { line = countOnLine(text + ' ' + steps.join(' '), ok); if (line) from = 'countOn'; }
       if (!line) { line = compareAnswerLine(item, text, shownAns); if (line) from = 'cmpAns'; }
+      if (!line) { line = successorLine(item, text, shownAns); if (line) from = 'successor'; }
+      if (!line) { line = successorLine(item, wtext, shownAns); if (line) from = 'successorW'; }
       if (!line) { line = sequenceLine(item, text, shownAns); if (line) from = 'sequence'; }
     }
     /* an ordinal word or a grid cell names a place, not a value; its derivation
@@ -103014,6 +103269,15 @@ var MW = {
     if (!line) {
       line = ordinalLine(shownAns) || gridLine(item, shownAns);
       if (line) from = 'place';
+    }
+    /* a mark such as "x > −2" is not a value, so none of the sources above — each
+       of which has to PRINT the marked value — could say anything. The judgement
+       rules do not print a value: they write the move or the ordering the marked
+       statement comes from, and they check it against that statement. */
+    if (!line) {
+      line = ineqLine(item, text, shownAns) || ineqLine(item, wtext, shownAns) ||
+        claimLine(item, text, shownAns) || orderLine(text, shownAns);
+      if (line) from = 'judge';
     }
     if (!line) return exit(item, canPrint ? 'noSource' : 'notPrintable');
     if (line.length > 88) return exit(item, 'lineTooLong');
@@ -103100,6 +103364,9 @@ var MW = {
     DBG.gridLine = gridLine; DBG.ordinalLine = ordinalLine; DBG.printableAnswer = printableAnswer;
     DBG.graded = graded; DBG.answerShown = answerShown; DBG.works = works;
     DBG.addWorkLine = addWorkLine; DBG.cmpMarkLine = cmpMarkLine; DBG.claimLine = claimLine;
+    DBG.whoMoreLine = whoMoreLine; DBG.whoStepLine = whoStepLine; DBG.successorLine = successorLine;
+    DBG.stepPairLine = stepPairLine; DBG.askPair = askPair; DBG.amountFor = amountFor; DBG.symOf = symOf;
+    DBG.ineqLine = ineqLine; DBG.roundingLine = roundingLine; DBG.sequenceLine = sequenceLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
