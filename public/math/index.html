@@ -8663,10 +8663,19 @@ GLOB.SKILL_TOPIC_NAME = TOPIC_NAME; GLOB.SKILL_ALIAS = SKILL_ALIAS;
   }
 
   /* ----------------------------------------------------- html helpers ---- */
+  /* An ampersand that already NAMES an entity is left alone.
+     Every card string this app builds is pre-escaped on purpose — a step says
+     "So the answer is &lt;." and the answer of a compare card is "&lt;" — because
+     it is dropped into innerHTML. Escaping that ampersand a second time turns it
+     into "&amp;lt;", which a browser shows as the literal text "&lt;": the
+     learner read "So the answer is &lt;." instead of "So the answer is <." and
+     the compare cards showed "&lt;" as the answer. Only an ampersand that names
+     nothing ("Q & A") is a real character that has to be escaped. */
+  var RAWAMP = /&(?!(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{1,9};))/g;
   function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
-    });
+    return String(s == null ? '' : s).replace(RAWAMP, '&amp;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   /* ------------------------------------------------- emoji-shape marks -----
      Early-band cards mark cells and options with colored chips ("🔵 next to
@@ -22989,10 +22998,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
 
   /* ------------------------------------------------ item-level helpers ----- */
   /* Answer text is inserted into worked steps as HTML. Symbols such as `<`
-     must be escaped before they are wrapped in a formatting tag. */
+     must be escaped before they are wrapped in a formatting tag.
+     An ampersand that already names an entity is left alone: an answer written
+     "&lt;" is the sign "<", and escaping that ampersand again makes the step
+     print the letters "&lt;" instead of the sign (MathPathTeX.esc, 30-tex.js). */
   BC.html = function (value) {
     return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      .replace(/&(?!(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{1,9};))/g, '&amp;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;');
   };
   /* multiple choice with deduplicated distractors, shuffled, index recomputed.
      `wrongs` may contain the answer or duplicates — they are dropped. */
@@ -102232,33 +102245,138 @@ var MW = {
   }
 
   function orderLine(text, shown) {
-    if (!/in order|least to greatest|smallest to largest|from least|from smallest|ascending/i.test(text)) return null;
-    var listed = numList(text), shownNums = numList(shown);
-    if (listed.length < 2 || shownNums.length !== listed.length) return null;
-    var sorted = listed.slice().sort(function (x, y) { return x - y; }), i;
-    for (i = 0; i < sorted.length; i++) if (sorted[i] !== shownNums[i]) return null;
-    for (i = 1; i < sorted.length; i++) if (sorted[i] <= sorted[i - 1]) return null;
-    if (shown.length > 34) return null;
-    var chain = String(sorted[0]);
-    for (i = 1; i < sorted.length; i++) chain += ' < ' + sorted[i];
+    var asc = /least to greatest|smallest to largest|from least|from smallest|shortest to longest|lightest to heaviest|coldest to warmest|ascending/i.test(text);
+    var desc = /greatest to least|largest to smallest|from greatest|from largest|longest to shortest|heaviest to lightest|warmest to coldest|descending/i.test(text);
+    var asked = /\border\b|in order/i.test(text);
+    if (!asc && !desc && !asked) return null;
+    /* The numbers being ordered usually live in the options, not in the words,
+       so the marked answer IS the list. It is checked rather than trusted: the
+       list has to run strictly one way, and that way has to be the one the
+       question asked for. Then the chain of comparisons is printed, which is
+       what makes the order an order instead of a string of numbers. */
+    var pairs = numPairs2(shown), listed = numList2(text), i;
+    var shownNums = [];
+    for (i = 0; i < pairs.length; i++) shownNums.push(pairs[i][0]);
+    if (shownNums.length < 2) return null;
+    if (listed.length >= 2 && listed.length !== shownNums.length) return null;
+    var up = 0, down = 0;
+    for (i = 1; i < shownNums.length; i++) {
+      if (shownNums[i] > shownNums[i - 1]) up++;
+      else if (shownNums[i] < shownNums[i - 1]) down++;
+      else return null;
+    }
+    if (up && down) return null;                    /* neither straight up nor straight down */
+    if (asc && down) return null;
+    if (desc && up) return null;
+    /* the chain is written with the numbers as the card printed them, so the
+       learner reads the same numerals twice instead of hunting for new ones */
+    var sorted = pairs.slice().sort(function (x, y) { return x[0] - y[0]; });
+    var chain = sorted[0][1];
+    for (i = 1; i < sorted.length; i++) chain += ' &lt; ' + sorted[i][1];
+    var phrase = asc ? 'from smallest to largest' : desc ? 'from largest to smallest' : 'smallest to largest';
+    var line = chain + ', which is the order ' + phrase + '.';
+    if (line.length <= 88) return line;
     return chain.length <= 46 ? chain + '.' : null;
   }
 
   function claimLine(item, text, shown) {
     var kind = String((item.spec && item.spec.k) || item.type || '').toLowerCase();
+    var low = String(shown == null ? '' : shown).trim().toLowerCase();
+    var verdict = /^(true|false|yes|no)$/.test(low);
     /* most of these cards are not a bool spec: they are a choice whose two
        options are True / False (or Yes / No). The judgement is the same card, so
        the working is owed to it as well. */
-    var verdict = /^(true|false|yes|no)$/.test(String(shown == null ? '' : shown).trim().toLowerCase());
     if (!verdict && kind !== 'bool' && kind !== 'boolean' && item.type !== 'bool') return null;
-    var m = /(-?\d+(?:\.\d+)?)\s*(?:is\s+)?\s*(larger|bigger|greater|smaller|less)\s+than\s+(-?\d+(?:\.\d+)?)/i.exec(text);
-    if (!m) return null;
-    var a = +m[1], rel = String(m[2]).toLowerCase(), b = +m[3];
-    var up = (rel === 'larger' || rel === 'bigger' || rel === 'greater');
-    var truth = up ? (a > b) : (a < b);
-    var said = /^(true|yes)$/.test(String(shown == null ? '' : shown).trim().toLowerCase());
-    if (truth !== said) return null;                  /* the mark must agree */
-    return a + ' ' + (up ? '&gt;' : '&lt;') + ' ' + b + '.';
+    var said = /^(true|yes)$/.test(low);
+    var m, a, b, line;
+
+    /* "Is 20 − 17 > 20 − 18 true?" and "Is 2,414,381 > 9,006,252 a true
+       statement?" — the claim is written with the sign itself and BOTH sides are
+       printed by the card, so each side is worked out and the line says what
+       they come to. That is the reasoning the card is asking for. The verdict
+       has to agree with what the numbers come to, so a card whose mark
+       contradicts its own claim keeps showing that disagreement. */
+    var sm = /[<>≤≥≠]/.exec(text);
+    if (sm) {
+      var lm = new RegExp('(' + OPAND + ')\\s*$').exec(text.slice(0, sm.index));
+      var rm = new RegExp('^\\s*(' + OPAND + ')').exec(text.slice(sm.index + 1));
+      if (lm && rm) {
+        a = evalSide(lm[1]); b = evalSide(rm[1]);
+        if (a != null && b != null) {
+          var op = sm[0];
+          var holds = op === '>' ? a > b : op === '<' ? a < b
+            : op === '≥' ? a >= b : op === '≤' ? a <= b : (a !== b);
+          if (holds === said) {
+            var aTxt = String(lm[1]).trim(), bTxt = String(rm[1]).trim();
+            line = (numOf(aTxt) != null && numOf(bTxt) != null)
+              ? (digitReason(aTxt, bTxt, a, b) || (aTxt + ' ' + relSym(a, b) + ' ' + bTxt + '.'))
+              : (aTxt + ' = ' + rd(a) + ' and ' + bTxt + ' = ' + rd(b) + ', so ' + rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.');
+            if (line.length > 88) line = rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.';
+            if (line.length <= 88) return line;
+          }
+        }
+      }
+      return null;
+    }
+
+    /* "Is it true or false that (-20) is greater than 2?" — the claim in words,
+       with the negative printed inside brackets. What gets written down is the
+       relation that is actually TRUE, which is exactly why a False verdict is a
+       False verdict; reprinting the claim's own sign would have taught a lie. */
+    m = new RegExp(NUMB + '\\s*(?:is\\s+)?\\s*(larger|bigger|greater|smaller|less)\\s+than\\s+' + NUMB, 'i').exec(text);
+    if (m) {
+      a = numOf(m[1]); b = numOf(m[3]);
+      if (a != null && b != null) {
+        var up = /larger|bigger|greater/i.test(m[2]);
+        if ((up ? a > b : a < b) === said) {
+          /* printed as the card printed it, commas and minus sign included */
+          var aTxt2 = String(m[1]).trim(), bTxt2 = String(m[3]).trim();
+          line = (Math.abs(a) >= 100 && Math.abs(b) >= 100)
+            ? (digitReason(aTxt2, bTxt2, a, b) || (aTxt2 + ' ' + relSym(a, b) + ' ' + bTxt2 + '.'))
+            : (aTxt2 + ' ' + relSym(a, b) + ' ' + bTxt2 + '.');
+          if (line.length <= 88) return line;
+        }
+      }
+      return null;
+    }
+
+    /* "Is 1 larger than itself?" — both sides are the same number, so the claim
+       can only ever be false, and 1 = 1 is the whole of the working. */
+    m = new RegExp(NUMB + '\\s+(?:larger|bigger|greater|smaller|less)\\s+than\\s+itself', 'i').exec(text);
+    if (m) {
+      a = numOf(m[1]);
+      if (a != null && said === false) {
+        var word2 = /smaller|less/i.test(m[0]) ? 'smaller' : 'larger';
+        line = a + ' = ' + a + ', so ' + a + ' is not ' + word2 + ' than itself.';
+        if (line.length <= 88) return line;
+      }
+      return null;
+    }
+
+    /* "Is 5 the largest of 4, 3, 5?" — a claim about a list. The list is sorted
+       and the chain of comparisons is the proof. */
+    m = new RegExp(NUMB + '\\s*(?:is\\s+)?(?:the\\s+)?(largest|biggest|greatest|smallest|least)\\s+of\\s+(' +
+      NUMTOK + '(?:\\s*(?:,|and)\\s*' + NUMTOK + '){1,5})', 'i').exec(text);
+    if (m) {
+      a = numOf(m[1]);
+      var nums = numList2(m[3]), oi;
+      if (a != null && nums.length >= 2) {
+        var hi = nums[0], lo = nums[0];
+        for (oi = 1; oi < nums.length; oi++) { if (nums[oi] > hi) hi = nums[oi]; if (nums[oi] < lo) lo = nums[oi]; }
+        var isTop = /largest|biggest|greatest/i.test(m[2]);
+        if ((isTop ? a === hi : a === lo) !== said) return null;
+        var sorted = nums.slice().sort(function (x, y) { return x - y; }), uniq = [];
+        for (oi = 0; oi < sorted.length; oi++) if (!uniq.length || sorted[oi] !== uniq[uniq.length - 1]) uniq.push(sorted[oi]);
+        if (uniq.length >= 2) {
+          var chain = String(uniq[0]);
+          for (oi = 1; oi < uniq.length; oi++) chain += ' &lt; ' + uniq[oi];
+          line = chain + ', so ' + (isTop ? hi : lo) + ' is the ' + (isTop ? 'largest' : 'smallest') + '.';
+          if (line.length <= 88) return line;
+        }
+      }
+      return null;
+    }
+    return null;
   }
 
   /* Two numbers and a mark: the operation has to be the one the question asks
@@ -102275,18 +102393,19 @@ var MW = {
     if (ok(a * b)) cands.push(a + ' × ' + b);
     if (b && ok(a / b)) cands.push(a + ' ÷ ' + b);
     if (a && ok(b / a)) cands.push(b + ' ÷ ' + a);
-    if (cands.length !== 1) return null;              /* ambiguous: say nothing */
+    var ambig = cands.length !== 1;
     var asked = /minus|difference|fewer|less|how many more|left over|remain|change|owes?|gap|spent/i.test(text) ? ' − '
       : /times|product|rows? of|groups? of|each|arrang|multiplied/i.test(text) ? ' × '
         : /divid|share|quotient|equal parts|per/i.test(text) ? ' ÷ '
-          : /add|plus|total|in all|sum|together|join|both/i.test(text) ? ' + ' : null;
+          : /add|plus|total|in all|sum|together|join|both|how many now|gives?|gave|gets?|is given/i.test(text) ? ' + ' : null;
     var chosen = cands[0];
-    if (asked && chosen.indexOf(asked.trim()) < 0) {
+    if (asked && (ambig || chosen.indexOf(asked.trim()) < 0)) {
       var agree = null, i;
       for (i = 0; i < cands.length; i++) if (cands[i].indexOf(asked.trim()) >= 0) agree = cands[i];
       if (!agree) return null;                        /* the asked operation misses */
       chosen = agree;
     }
+    if (ambig && !asked) return null;   /* two operations land on the answer and nothing says which */
     var line = chosen + ' = ' + shown + '.';
     return line.length <= 64 ? line : null;
   }
@@ -102407,10 +102526,19 @@ var MW = {
     /* find the claim as "left = right" by splitting on the equals sign: the left
        side has to be an actual computation, and the verdict the card grades has to
        agree with what the arithmetic comes out to */
-    var eqAt = /[-\d.)]\s*[=＝]\s*[-+]?\d/.exec(text);
-    if (!eqAt) return null;
-    var leftM = /[-−+]?[\d.,]+(?:\s*[+\-−×÷*\/^]\s*[-−+]?[\d.,]+)+\s*$/.exec(text.slice(0, eqAt.index));
-    var rightM = /^\s*[=＝]\s*([-+]?\d[\d,.]*)/.exec(text.slice(eqAt.index));
+    /* Find the equals sign itself. Matching it together with the number in
+       front of it ate the last digit of the left side, so the claim
+       "Is 840 + 73 = 1,013 true or false?" was read as "840 + 7" and the whole
+       card was thrown away. */
+    var eqAt = -1, qi;
+    for (qi = 0; qi < text.length; qi++) {
+      if (text.charAt(qi) !== '=' && text.charAt(qi) !== '＝') continue;
+      if (/[-\d.)]\s*$/.test(text.slice(0, qi)) && /^\s*[-+]?\d/.test(text.slice(qi + 1))) { eqAt = qi; break; }
+    }
+    if (eqAt < 0) return null;
+    var leftM = /[-−+]?[\d.,]+(?:\s*[+\-−×÷*\/]\s*[-−+]?[\d.,]+)+\s*$/.exec(text.slice(0, eqAt));
+    var rightM = /^\s*[=＝]\s*([-+]?\d[\d,.]*)/.exec(text.slice(eqAt));
+
     if (!leftM || !rightM) return null;
     var left = String(leftM[0]).trim();
     var claimed = parseFloat(String(rightM[1]).replace(/,/g, ''));
@@ -102434,6 +102562,292 @@ var MW = {
      The gate calls that F_STALE, and it is worse than a plain step because it
      teaches the wrong thing. These are the steps that mention numbers found
      nowhere on the card and carry no computation — the same test the gate uses. */
+  /* ---------- reading the numbers a card printed ------------------------
+     Two printing habits make a comparison card unreadable to anything that
+     checks it:
+       · a negative number is wrapped in brackets — "(-20) is greater than 2",
+         "(-14) ○ 18" — because a bare minus at the start of a clause reads as a
+         dash. A match that stops at the bracket compares 20 with 2 and puts the
+         wrong sign into the working line;
+       · a big number carries its thousands commas — "9,006,252" — and a match
+         that stops at the comma compares 9.
+     Both are printed FORMS of the number, so every reader below takes the
+     bracket and the comma out before it compares anything. */
+  var NUMTOK = '[-+−]?\\d+(?:,\\d{3})*(?:\\.\\d+)?';
+  var NUMB = '(?:\\(\\s*)?(' + NUMTOK + ')(?:\\s*\\))?';
+  var OPAND = NUMTOK + '(?:\\s*[+−\\-*/×÷^]\\s*' + NUMTOK + ')*';
+
+  function numOf(tok) {
+    var t = String(tok == null ? '' : tok).replace(/−/g, '-').replace(/\s+/g, '');
+    if (/^\+/.test(t)) t = t.slice(1);
+    if (/^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
+    if (!/^-?\d+(?:\.\d+)?$/.test(t)) return null;
+    var v = parseFloat(t);
+    return isFinite(v) ? v : null;
+  }
+  function numList2(s) {
+    var toks = String(s == null ? '' : s).match(/[-+−]?\d+(?:,\d{3})*(?:\.\d+)?/g) || [];
+    var out = [], i, v;
+    for (i = 0; i < toks.length; i++) { v = numOf(toks[i]); if (v != null) out.push(v); }
+    return out;
+  }
+  /* the same numbers, kept as the card PRINTED them next to the value they stand
+     for: a working line that writes 2658445 where the card wrote 2,658,445 makes
+     the learner look twice for a number that is not there. */
+  function numPairs2(s) {
+    var toks = String(s == null ? '' : s).match(/[-+−]?\d+(?:,\d{3})*(?:\.\d+)?/g) || [];
+    var out = [], i, v, j;
+    for (i = 0; i < toks.length; i++) {
+      v = numOf(toks[i]);
+      if (v == null) continue;
+      var seen = false;
+      for (j = 0; j < out.length; j++) if (out[j][0] === v) { seen = true; break; }
+      if (!seen) out.push([v, String(toks[i]).trim()]);
+    }
+    return out;
+  }
+  /* one side of a comparison: a plain number, or an expression the card printed
+     ("24 + 21"), worked out with the app's own evaluator. */
+  function evalSide(s) {
+    var t = String(s == null ? '' : s).trim();
+    if (!t) return null;
+    var flat = numOf(t);
+    if (flat != null) return flat;
+    var machine = t.replace(/−/g, '-').replace(/×/g, '*').replace(/÷/g, '/')
+      .replace(/(\d),(\d{3})\b/g, '$1$2').replace(/\s+/g, '');
+    if (!/\d/.test(machine)) return null;
+    var ev = GLOB.evalExpr, v = null;
+    if (typeof ev === 'function') { try { v = ev(machine, {}); } catch (e) { v = null; } }
+    return (v != null && isFinite(v)) ? v : null;
+  }
+  function relSym(a, b) { return a > b ? '&gt;' : (a < b ? '&lt;' : '='); }
+  function relNum(a, b) { return a > b ? '>' : (a < b ? '<' : '='); }
+
+  /* Grade 4 compares multi-digit numbers by how many digits they have and then
+     place by place from the left, and that is exactly the reasoning those cards
+     teach. Both facts are readable off the two numbers the card printed, so the
+     working says which place decides instead of announcing the sign. */
+  function digitReason(aTxt, bTxt, a, b) {
+    var sa = String(aTxt).replace(/,/g, ''), sb = String(bTxt).replace(/,/g, '');
+    /* Grade 4 is where 'how many digits, then from the left' is the taught
+       method; a two-digit comparison is simply written down. */
+    if (!/^\d{3,}$/.test(sa) || !/^\d{3,}$/.test(sb) || a === b) return null;
+    var rel = relSym(a, b), i;
+    if (sa.length !== sb.length) {
+      var more = sa.length > sb.length;
+      var big = more ? aTxt : bTxt, small = more ? bTxt : aTxt;
+      return 'More digits is the greater number: ' + small + ' has ' + Math.min(sa.length, sb.length) +
+        ' and ' + big + ' has ' + Math.max(sa.length, sb.length) + ', so ' + small + ' ' + rel + ' ' + big + '.';
+    }
+    for (i = 0; i < sa.length; i++) if (sa.charAt(i) !== sb.charAt(i)) {
+      return 'Compare from the left: ' + sa.charAt(i) + ' against ' + sb.charAt(i) + ', and ' + sa.charAt(i) +
+        ' ' + rel + ' ' + sb.charAt(i) + ', so ' + aTxt + ' ' + rel + ' ' + bTxt + '.';
+    }
+    return null;
+  }
+
+  /* A card whose graded mark IS a comparison sign ("<", ">", "=") is owed that
+     sign between the two quantities it printed. The decks hide the pair in four
+     different prints and all four have to be read:
+        "(-14) ○ 18"                                  brackets, circle to fill
+        "6 blocks ○ 6 blocks"                         objects named between them
+        "24 + 21 ○ 24 − 21"                           both sides are expressions
+        "Compare the groups: 6 circles and 4 squares"  no circle between them
+     Every candidate pair is evaluated from the card's own numbers and the
+     relation has to equal the mark the card grades, so the working is never
+     contradicted by the answer — a pair that does not fit is dropped, not guess. */
+  function cmpMarkLine(item, text, shown) {
+    var raw = String(shown == null ? '' : shown).trim();
+    var sym = symOf(raw) || (/^[<>=]$/.test(raw) ? raw : null);
+    if (!sym) return null;
+    var cand = [], k, i, ph, marks = ['○', '◯', '?'];
+    var lre = new RegExp('(' + OPAND + ')\\s*(?:[a-z]{1,14}\\s*)?$', 'i');
+    var rre = new RegExp('^\\s*(?:\\(\\s*)?(' + NUMTOK + ')(?:\\s*\\))?');
+    for (k = 0; k < marks.length; k++) {
+      ph = marks[k]; i = 0;
+      while (true) {
+        var at = text.indexOf(ph, i);
+        if (at < 0) break;
+        i = at + ph.length;
+        var lm = lre.exec(text.slice(0, at));
+        var rm = rre.exec(text.slice(i));
+        if (lm && rm) cand.push([String(lm[1]).trim(), String(rm[1]).trim()]);
+      }
+      if (cand.length) break;                       /* a circle beats a question mark */
+    }
+    if (!cand.length) {
+      var toks = text.match(new RegExp(NUMTOK, 'g')) || [], kept = [];
+      for (i = 0; i < toks.length; i++) if (numOf(toks[i]) != null) kept.push(String(toks[i]).trim());
+      if (kept.length === 2) cand.push([kept[0], kept[1]]);
+    }
+    for (i = 0; i < cand.length; i++) {
+      var aTxt = cand[i][0], bTxt = cand[i][1];
+      var a = evalSide(aTxt), b = evalSide(bTxt);
+      if (a == null || b == null || relNum(a, b) !== sym) continue;   /* never contradict the mark */
+      var line;
+      if (numOf(aTxt) != null && numOf(bTxt) != null) {
+        line = digitReason(aTxt, bTxt, a, b) || (aTxt + ' ' + relSym(a, b) + ' ' + bTxt + '.');
+      } else {
+        line = aTxt + ' = ' + rd(a) + ' and ' + bTxt + ' = ' + rd(b) + ', so ' + rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.';
+      }
+      if (line.length > 88) line = rd(a) + ' ' + relSym(a, b) + ' ' + rd(b) + '.';
+      if (line.length <= 88) return line;
+    }
+    return null;
+  }
+
+  /* "In the garden, Lin collected 3 stickers and Ava collected 9. Does Lin have
+     more stickers than Ava?" — the amounts hang on two names and the question
+     asks which way round they go. Both names and both numbers are on the card,
+     so the working can say who has what and then compare the two amounts. */
+  function whoMoreLine(item, text, shown) {
+    var low = String(shown == null ? '' : shown).trim().toLowerCase();
+    if (!/^(true|false|yes|no)$/.test(low)) return null;
+    var said = /^(true|yes)$/.test(low);
+    var m = /([A-Z][a-z]{1,12})[^.?]{0,44}?(\d+(?:,\d{3})*(?:\.\d+)?)\b[^.?]{0,44}?([A-Z][a-z]{1,12})[^.?]{0,44}?(\d+(?:,\d{3})*(?:\.\d+)?)\b[^.]{0,90}?does\s+([A-Z][a-z]{1,12})\s+(?:have|has|had|got|collected|saved)\s+(more|fewer|less|greater)\b[^?]{0,44}?than\s+([A-Z][a-z]{1,12})/i.exec(text);
+    if (!m) return null;
+    var ask = String(m[5]).toLowerCase(), want = String(m[6]).toLowerCase(), other = String(m[7]).toLowerCase();
+    var v1 = numOf(m[2]), v2 = numOf(m[4]);
+    if (v1 == null || v2 == null || v1 === v2) return null;
+    var av = null, bv = null, avTxt = null, bvTxt = null;
+    if (String(m[1]).toLowerCase() === ask) { av = v1; bv = v2; avTxt = String(m[2]).trim(); bvTxt = String(m[4]).trim(); }
+    else if (String(m[3]).toLowerCase() === ask) { av = v2; bv = v1; avTxt = String(m[4]).trim(); bvTxt = String(m[2]).trim(); }
+    else return null;
+    if (String(m[1]).toLowerCase() !== other && String(m[3]).toLowerCase() !== other) return null;
+    var up = /more|greater/.test(want);
+    if ((up ? av > bv : av < bv) !== said) return null;
+    var line = ask + ' has ' + avTxt + ' and ' + other + ' has ' + bvTxt + ', so ' + avTxt + ' ' + relSym(av, bv) + ' ' + bvTxt + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "What number comes NEXT? 4, 5, 6, 7." — what the card teaches is the step
+     between the terms, and the next term is the last one plus that step. All of
+     it is printed by the card and the mark has to be the number that comes out,
+     so the count-out cannot be a guess. */
+  function sequenceLine(item, text, shown) {
+    if (!/\bnext\b|what follows|continue the (?:pattern|count|list)|\bpattern\b/i.test(text)) return null;
+    var mark = numOf(String(shown == null ? '' : shown).trim());
+    if (mark == null) return null;
+    var vals = numList2(text), i;
+    if (vals.length < 3) return null;
+    var d = vals[1] - vals[0];
+    if (d === 0) return null;
+    for (i = 2; i < vals.length; i++) if (vals[i] - vals[i - 1] !== d) return null;
+    if (vals[vals.length - 1] + d !== mark) return null;
+    /* the last three terms are enough to see the step, and printing the whole
+       list would push the answer past what a line can hold */
+    var fromIdx = Math.max(0, vals.length - 3), list = vals.slice(fromIdx).join(', ');
+    var line = (d > 0 ? 'The count goes up by ' + d + ': ' : 'The count goes down by ' + (-d) + ': ') +
+      list + ', so the next number is ' + mark + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A number word is a NAME for a quantity, and these cards ask whether the name
+     and the numeral agree: Does "seventy-three" stand for a number greater than
+     73? Saying what the word stands for, then comparing, is the working. */
+  var ONESW = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+  var TENSW = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  function wordNum(s) {
+    var parts = String(s == null ? '' : s).toLowerCase().replace(/\band\b/g, '-').split(/[-\s]+/);
+    var i, p, v = null;
+    for (i = 0; i < parts.length; i++) {
+      p = parts[i];
+      if (!p) continue;
+      if (TENSW[p] != null) { if (v != null) return null; v = TENSW[p]; continue; }
+      if (ONESW[p] != null) {
+        if (v == null) v = ONESW[p];
+        else { if (v < 10 || ONESW[p] > 9) return null; v += ONESW[p]; }
+        continue;
+      }
+      if (p === 'hundred') { if (v == null) return null; v *= 100; continue; }
+      return null;
+    }
+    return v;
+  }
+  function numberWordLine(item, text, shown) {
+    var low = String(shown == null ? '' : shown).trim().toLowerCase();
+    if (!/^(true|false|yes|no)$/.test(low)) return null;
+    var said = /^(true|yes)$/.test(low);
+    var m = /["“']([a-z][a-z -]{2,23})["”']|the (?:number )?word\s+([a-z][a-z -]{2,23})\b/i.exec(text);
+    if (!m) return null;
+    var word = String(m[1] || m[2] || '').trim();
+    var value = wordNum(word);
+    if (value == null) return null;
+    var rel = /(greater|larger|bigger|less|smaller|fewer|equal to|the same as)\s*(?:than\s*)?\(?\s*([-+−]?\d+(?:,\d{3})*(?:\.\d+)?)/i.exec(text);
+    if (!rel) return null;
+    var other = numOf(rel[2]);
+    if (other == null) return null;
+    var up = /greater|larger|bigger/.test(String(rel[1]));
+    var same = /equal to|the same as/.test(String(rel[1]));
+    var holds = same ? (value === other) : up ? (value > other) : (value < other);
+    if (holds !== said) return null;
+    var line = word + ' is ' + value + ', and ' + value + ' ' + relSym(value, other) + ' ' + other + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The mark is one of the card's own numbers and the question names the end of
+     the comparison it wants: "Which number is smaller than 3?", "How many shells
+     did the person with fewer collect?" (14 and 2). Writing the comparison down
+     IS the working, and both numbers come off the card. */
+  function compareAnswerLine(item, text, shown) {
+    var mark = numOf(String(shown == null ? '' : shown).trim());
+    if (mark == null) return null;
+    var more = /\b(more|greater|larger|largest|biggest|greatest|longer|taller|heavier|most|highest)\b/i.test(text);
+    var less = /\b(fewer|less|smallest|smaller|least|shorter|lighter|lowest|cheaper)\b/i.test(text);
+    if (more === less) return null;                 /* both words or neither: say nothing */
+    /* "Priya gives Noah 2 more" is an add-to story, not a comparison, even
+       though it says more. The question itself has to name the end of the
+       comparison, or the card wants an amount and not a judgement about one. */
+    var asksEnd = /\b(which|who|what|whose)\b[^?]{0,60}\b(greater|larger|largest|greatest|least|smallest|smaller|fewer|most|longest|shortest|tallest|heaviest|lightest|highest|lowest|cheaper)\b/i.test(text) ||
+      /the person with (fewer|less|more|greater)/i.test(text) ||
+      /\b(how many|how much)\b[^?]{0,44}\b(fewer|less)\b/i.test(text);
+    if (!asksEnd) return null;
+    var markTxt = String(shown == null ? '' : shown).trim();
+
+    /* Two prints carry the pair: the words print the other number ("Which number
+       is smaller than 3?"), or the words print none and the OPTIONS are the
+       numbers ("Which number is the greatest?" over four numerals). Either way
+       the mark has to be the end the question asked for, so what gets written
+       down is the card's own comparison and never a new one. */
+    var cards = numPairs2(text), pair = null, i, line = null;
+    if (cards.length === 1) pair = [[mark, markTxt], cards[0]];
+    else if (cards.length === 2 && (cards[0][0] === mark || cards[1][0] === mark)) pair = [cards[0], cards[1]];
+    if (pair && pair[0][0] !== pair[1][0]) {
+      var plo = pair[0][0] < pair[1][0] ? pair[0] : pair[1];
+      var phi = pair[0][0] < pair[1][0] ? pair[1] : pair[0];
+      if ((!less || mark === plo[0]) && (!more || mark === phi[0])) {
+        line = plo[1] + ' &lt; ' + phi[1] + ', so ' + markTxt + ' is the ' + (less ? 'smaller' : 'greater') + ' one.';
+        if (line.length <= 88) return line;
+        line = null;
+      }
+    }
+
+    var os = (item && item.choices ? item.choices : []), ov = [];
+    for (i = 0; i < os.length; i++) {
+      var oTxt = String(os[i]).replace(/<[^>]+>/g, '').trim();
+      var val = numOf(oTxt), j, dup = false;
+      if (val == null) { ov = null; break; }
+      for (j = 0; j < ov.length; j++) if (ov[j][0] === val) { dup = true; break; }
+      if (!dup) ov.push([val, oTxt]);
+    }
+    if (!ov || ov.length < 2 || ov.length > 5) return null;
+    var lo = ov[0], hi = ov[0];
+    for (i = 1; i < ov.length; i++) { if (ov[i][0] < lo[0]) lo = ov[i]; if (ov[i][0] > hi[0]) hi = ov[i]; }
+    if (less && mark !== lo[0]) return null;
+    if (more && mark !== hi[0]) return null;
+    var ord = ov.slice().sort(function (x, y) { return x[0] - y[0]; }), chain = ord[0][1];
+    for (i = 1; i < ord.length; i++) chain += ' &lt; ' + ord[i][1];
+    line = chain + ', so ' + markTxt + ' is the ' + (less ? 'least' : 'greatest') + ' of them.';
+    if (line.length <= 88) return line;
+    /* Four eight-digit numerals do not fit on one line. Only one of the other
+       numbers decides the question — for "the least" it is the smallest of the
+       rest, for "the greatest" the largest of the rest — so that one comparison
+       is both a complete reason and short enough to read. */
+    var a1 = less ? ord[0] : ord[ord.length - 2];
+    var a2 = less ? ord[1] : ord[ord.length - 1];
+    line = a1[1] + ' &lt; ' + a2[1] + ', so ' + markTxt + ' is the ' + (less ? 'least' : 'greatest') + ' of them.';
+    return line.length <= 88 ? line : null;
+  }
   function staleSteps(item, steps) {
     var card = (String(item.prompt || '') + ' ' + String(item.sub || '') + ' ' +
       ((item.choices || []).join(' ')) + ' ' + JSON.stringify(item.visual || {}))
@@ -102458,35 +102872,101 @@ var MW = {
     return out;
   }
 
+  /* Why did a card leave this pass without a working line? The metric said
+     "nothing moved" for a whole family while the pass looked right, and the only
+     honest way to find out is to count every exit. One property per card, and it
+     is how the compare / True-False family got located instead of guessed at:
+     read GLOB.__wcDbg.count after any run; set GLOB.__wcDbg.trace = 1 to stamp
+     item.__wcStop for a card-by-card look. */
+  var DBG = GLOB.__wcDbg || (GLOB.__wcDbg = {});
+  var COUNT = DBG.count || (DBG.count = {});
+  function exit(item, reason) {
+    COUNT[reason] = (COUNT[reason] || 0) + 1;
+    if (item && DBG.trace) item.__wcStop = reason;
+    return item;
+  }
+
+  /* Put the working where a working belongs: after whatever the card has
+     already said, and immediately before the line that announces the answer.
+     Gluing it to the front of a card that already narrates the setup read as
+     "2 + 3 = 5.  Start with 2.  So the answer is 5."
+     The line REPLACES talk that carries no numbers — a card was left saying
+     "The question asks about 3. So the answer is Yes." with the comparison
+     thrown out — and it takes over the room the stale numbers were using, so a
+     card does not explain last week's problem next to this one. At least one
+     earlier step is always left, so a solution never collapses to one line. */
+  function finishWith(item, field, steps, line, from) {
+    var pruned = [], pi, said = null;
+    for (pi = 0; pi < steps.length; pi++) {
+      var txt = String(steps[pi]).replace(/<[^>]+>/g, '');
+      var saysAnswer = /^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(String(txt).trim());
+      var carriesNumbers = /[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(txt) || /\b\d/.test(txt);
+      /* Some decks print the same sentence twice in a row — "The sentence is
+         12 − 9 = 3." appearing on two lines reads as a misprint, not as a
+         second step of working, and it costs a step of the budget. */
+      var flat = String(txt).replace(/\s+/g, ' ').trim().toLowerCase();
+      if (flat && flat === said) continue;
+      if (saysAnswer || carriesNumbers || pruned.length === 0) {
+        pruned.push(steps[pi]);
+        said = flat;
+      }
+    }
+    var stale = staleSteps(item, pruned);
+    if (stale.length) {
+      var fresh = [], fi, drop = {};
+      for (fi = 0; fi < stale.length; fi++) drop[stale[fi]] = 1;
+      for (fi = 0; fi < pruned.length; fi++) if (!drop[fi]) fresh.push(pruned[fi]);
+      if (fresh.length >= 1) pruned = fresh;
+    }
+    var out = pruned, at = out.length, ai;
+    for (ai = out.length - 1; ai >= 0; ai--) {
+      var tail = String(out[ai]).replace(/<[^>]+>/g, '').trim();
+      if (/^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(tail)) { at = ai; break; }
+    }
+    out.splice(at, 0, line);
+    item[field] = out;
+    return item;
+  }
+
   function addWorkLine(item) {
-    if (!item || item.type === 'bool' || (item.spec && item.spec.k === 'bool')) return item;
+    if (!item) return item;
     var field = null, steps = null, f;
     for (f = 0; f < 2; f++) {
       var key = f === 0 ? 'explain' : 'steps';
       if (Array.isArray(item[key]) && item[key].length) { field = key; steps = item[key]; break; }
     }
-    if (!steps) return item;
+    if (!steps) return exit(item, 'noSteps');
     var i, any = false;
     for (i = 0; i < steps.length; i++) if (works(steps[i])) { any = true; break; }
-    if (any) return item;                        /* the solution already computes */
+    /* The solution already computes, so nothing is owed to it. A judgement card
+       — a bool spec, or a choice whose two options are True/False (Yes/No) — is
+       exempt only while that is true: a sentence ABOUT a comparison is not the
+       comparison, and "the claim is false" teaches nothing until −20 &lt; 2 is
+       written down. This layer used to skip every bool card before any of it
+       could run, which is why a family of 13–15 cards per compare skill never
+       got a line and no metric moved. */
+    if (any) return exit(item, 'alreadyWorks');
 
     var text = plain(item.prompt) + ' ' + plain(item.sub);
     var want = graded(item);
     var shownAns = answerShown(item);
     if (want == null) {
-      /* a true/false card is graded on a judgement, not a number, so the
-         sources above cannot run — but a stated comparison can still be shown */
-      if (shownAns == null) return item;
+      /* graded on a judgement or on a sign rather than on a number, so the
+         numeric sources below cannot run — but the comparison the judgement
+         rests on can still be written out, and an ordered answer already IS a
+         chain of comparisons. */
+      if (shownAns == null) return exit(item, 'noAnswer');
       var ptext = plain(item.prompt) + ' ' + plain(item.sub);
       var bl = claimLine(item, ptext, shownAns) || claimEqLine(item, ptext, shownAns) ||
+        cmpMarkLine(item, ptext, shownAns) || orderLine(ptext, shownAns) ||
+        whoMoreLine(item, ptext, shownAns) || numberWordLine(item, ptext, shownAns) ||
         matchLine(item, ptext, shownAns) || ordinalLine(shownAns) || gridLine(item, shownAns);
-      if (!bl) return item;
-      var bo = steps.slice();
-      bo.splice(0, 0, bl);
-      item[field] = bo;
-      return item;
+      if (!bl) return exit(item, 'judgementNoLine');
+      item.__wc = 'judgement';
+      return finishWith(item, field, steps, bl, 'judgement');
     }
-    if (shownAns == null) return item;
+    if (shownAns == null) return exit(item, 'noAnswer');
+
     var canPrint = printableAnswer(shownAns) != null;
     var tol = (item.spec && typeof item.spec.tol === 'number' && item.spec.tol > 0) ? Math.max(item.spec.tol, 1e-9) : 1e-6;
     var ok = function (value) {
@@ -102515,6 +102995,7 @@ var MW = {
       }
       if (!line) { line = rowsLine(text, shownAns, ok); if (line) from = 'rows'; }
       if (!line) { line = cmpLine(text, symOf(shownAns) ? String(shownAns).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<') : shownAns); if (line) from = 'cmp'; }
+      if (!line) { line = cmpMarkLine(item, text, shownAns); if (line) from = 'cmpMark'; }
       if (!line) { line = orderLine(text, shownAns); if (line) from = 'order'; }
       if (!line) {
         var st = statLine(item, text, want);
@@ -102522,6 +103003,8 @@ var MW = {
       }
       if (!line) { line = pairLine(text, shownAns, ok); if (line) from = 'pair'; }
       if (!line) { line = countOnLine(text + ' ' + steps.join(' '), ok); if (line) from = 'countOn'; }
+      if (!line) { line = compareAnswerLine(item, text, shownAns); if (line) from = 'cmpAns'; }
+      if (!line) { line = sequenceLine(item, text, shownAns); if (line) from = 'sequence'; }
     }
     /* an ordinal word or a grid cell names a place, not a value; its derivation
        is the ordered count, which the card itself supplies */
@@ -102532,44 +103015,12 @@ var MW = {
       line = ordinalLine(shownAns) || gridLine(item, shownAns);
       if (line) from = 'place';
     }
-    if (!line || line.length > 88) return item;
+    if (!line) return exit(item, canPrint ? 'noSource' : 'notPrintable');
+    if (line.length > 88) return exit(item, 'lineTooLong');
     item.__wc = from || 'unknown';
-    /* The line REPLACES talk that carries no numbers. Appending it to a slogan
-       only makes a longer answer, and the band's step budget then cuts the
-       working away anyway — a card was left saying "The question asks about 3.
-       So the answer is Yes." with the comparison thrown out. Number-bearing
-       steps and the answer sentence are never touched. */
-    var pruned = [], pi;
-    for (pi = 0; pi < steps.length; pi++) {
-      var txt = String(steps[pi]).replace(/<[^>]+>/g, '');
-      var saysAnswer = /^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(String(txt).trim());
-      var carriesNumbers = /[-\d.)]\s*[=≈]\s*[-−+]?\s*[\d.]/.test(txt) || /\b\d/.test(txt);
-      if (saysAnswer || carriesNumbers || pruned.length === 0) pruned.push(steps[pi]);
-    }
-    /* the working also takes over the room the stale numbers were using, so a
-       card does not explain last week's problem next to this one. At least one
-       earlier step is always left, so a solution never collapses to one line. */
-    var stale = staleSteps(item, pruned);
-    if (stale.length) {
-      var fresh = [], fi, drop = {};
-      for (fi = 0; fi < stale.length; fi++) drop[stale[fi]] = 1;
-      for (fi = 0; fi < pruned.length; fi++) if (!drop[fi]) fresh.push(pruned[fi]);
-      if (fresh.length >= 1) pruned = fresh;
-    }
-    var out = pruned;
-    /* the working belongs where a working belongs: after whatever the card has
-       already said, and immediately before the line that announces the answer.
-       Gluing it to the front of a card that already narrates the setup read as
-       "2 + 3 = 5.  Start with 2.  So the answer is 5." */
-    var at = out.length, ai;
-    for (ai = out.length - 1; ai >= 0; ai--) {
-      var tail = String(out[ai]).replace(/<[^>]+>/g, '').trim();
-      if (/^(?:So|Therefore|Hence|Thus|The answer|Answer)\b/i.test(tail)) { at = ai; break; }
-    }
-    out.splice(at, 0, line);
-    item[field] = out;
-    return item;
+    return finishWith(item, field, steps, line, from);
   }
+
 
   /* A PK card asks "which number shows the array of counters?" and sometimes
      draws no counters at all: the learner is told to read something that is not
@@ -102644,7 +103095,12 @@ var MW = {
       return syncModelNoun(attachModel(addWorkLine(out || item)));
     };
     GLOB.__workcheck = addWorkLine;
-    GLOB.__wcDbg = { gridLine: gridLine, ordinalLine: ordinalLine, printableAnswer: printableAnswer, graded: graded, answerShown: answerShown, works: works };
+    /* ONE object, not a new one: the counters live in the DBG the pass closed
+       over, so a sampler that sets __wcDbg.trace has to be handed that object. */
+    DBG.gridLine = gridLine; DBG.ordinalLine = ordinalLine; DBG.printableAnswer = printableAnswer;
+    DBG.graded = graded; DBG.answerShown = answerShown; DBG.works = works;
+    DBG.addWorkLine = addWorkLine; DBG.cmpMarkLine = cmpMarkLine; DBG.claimLine = claimLine;
+    GLOB.__wcDbg = DBG;
   })();
 })();
 
@@ -102760,10 +103216,15 @@ var MW = {
   }
   function clear(n) { while (n && n.firstChild) n.removeChild(n.firstChild); return n; }
   function $(sel, ctx) { return (ctx || doc).querySelector(sel); }
+  /* Same rule as MathPathTeX.esc: an ampersand that already names an entity
+     ("&lt;", "&times;") is left as it is, because these strings are read back as
+     markup. Escaping that ampersand again is what put the literal "&lt;" on the
+     screen where the learner should read "<". */
+  var RAWAMP = /&(?!(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{1,9};))/g;
   function esc(x) {
-    return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
-    });
+    return String(x == null ? '' : x).replace(RAWAMP, '&amp;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function clamp(x, a, b) { return x < a ? a : (x > b ? b : x); }
 
@@ -105196,12 +105657,32 @@ var MW = {
   }
 
   /* ------------------------------------------------ words for the ear ----- */
+  /* "&lt;" is the sign "<" wearing its markup clothes. Stripped as an entity it
+     leaves a hole in the sentence, and that hole is what the learner heard:
+     "So the answer is ." on every compare card, "3 vs 1 → ." on every symbol
+     card. So the names that stand for a mathematical sign are turned back into
+     the sign FIRST — the rules at the bottom of this function then say "less
+     than", "times", "not equal to" out loud. A name nobody recognises still
+     falls through to the strip below and becomes a space, as before. */
+  var SAY_ENT = {
+    lt: '<', gt: '>', amp: '&', le: '≤', leq: '≤', ge: '≥', geq: '≥',
+    ne: '≠', neq: '≠', times: '×', div: '÷', divide: '÷', plusmn: '±', pm: '±',
+    deg: '°', pi: 'π', hellip: '…', cdot: '·', middot: '·',
+    prime: '′', alpha: 'α', beta: 'β', theta: 'θ', lambda: 'λ', mu: 'μ',
+    sigma: 'σ', omega: 'ω', delta: 'δ', gamma: 'γ', phi: 'φ', rho: 'ρ', tau: 'τ',
+    degree: '°', sup2: '²', sup3: '³', times_: '×'
+  };
+  function decodeSay(s) {
+    return String(s == null ? '' : s).replace(/&([a-zA-Z]+);/g, function (m, w) {
+      var k = String(w).toLowerCase();
+      return SAY_ENT[k] != null ? SAY_ENT[k] : m;
+    });
+  }
   function humanWords(t) {
-    var s = String(t == null ? '' : t)
-      /* Strip HTML tags, but keep comparison signs such as "<" in an option.
-         The old broad tag matcher deleted everything through the next ">" and
-         made absolute-value comparison choices vanish from spoken cards. */
-      .replace(/<\/?[a-z][^>]*>/gi, ' ').replace(/&[a-z]+;|&#\d+;|&nbsp;/gi, ' ')
+    /* The tag pass runs while the entities are still safely encoded: decoding
+       first could turn "x&lt;y" into "<y…>" and let the tag matcher eat a sign. */
+    var s = decodeSay(String(t == null ? '' : t).replace(/<\/?[a-z][^>]*>/gi, ' '))
+      .replace(/&[a-z]+;|&#\d+;|&nbsp;/gi, ' ')
       .replace(/\s+/g, ' ');
     /* the numero sign: "No." is read as "number" by every engine tried, and an
        option list joined with periods puts it there. The dot is swapped for a
