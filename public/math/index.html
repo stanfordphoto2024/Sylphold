@@ -103079,6 +103079,255 @@ var MW = {
   function flipRel(r) { return r === '<' ? '>' : r === '>' ? '<' : r === '≤' ? '≥' : r === '≥' ? '≤' : r; }
   function relEnt(r) { return r === '<' ? '&lt;' : r === '>' ? '&gt;' : r; }
 
+  /* ------------------------------------------------------------------------
+     Six families that were landing on a give-up exit. Each rule reads only the
+     numbers and names the card itself printed, works them out, and compares the
+     result with the mark the card is graded on — if the card's own numbers do
+     not arrive at that mark, the rule says nothing at all.
+     ------------------------------------------------------------------------ */
+
+  /* Yes/No and True/False as one three-way value: null means the card is not
+     graded on a judgement, and the judgement rules below then stay out of the way. */
+  function boolMark(shown) {
+    var low = String(shown == null ? '' : shown).trim().toLowerCase();
+    if (/^(true|yes)$/.test(low)) return true;
+    if (/^(false|no)$/.test(low)) return false;
+    return null;
+  }
+
+  /* "If 10 objects are sorted into cars and trucks, can one group have 11
+     objects?" — the two groups together are the whole pile, so a group larger
+     than the pile cannot exist. That one comparison is the entire reason. */
+  function groupOverLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = new RegExp('(\\d+)\\s+(?:objects?|items?|students?|children?|candies?|cookies?|marbles?|stickers?|blocks?|cubes?|counters?|seeds?|shells?|cards?)\\s+(?:are|is|were|can\\s+be)?\\s*(?:sorted|split|divided|made|separated|partitioned|shared)[^.?]{0,60}?group\\s+have\\s+(\\d+)', 'i').exec(text);
+    if (!m) return null;
+    var total = numOf(m[1]), claim = numOf(m[2]);
+    if (total == null || claim == null) return null;
+    var fits = claim <= total;
+    if (fits !== said) return null;
+    var line = 'The whole pile is ' + total + ', and ' + claim + ' ' + (fits ? '≤' : '&gt;') + ' ' + total +
+      ', so one group ' + (fits ? 'can' : 'cannot') + ' have ' + claim + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Without adding, is 4 + 19 an even number?" — the shortcut is real, but the
+     card still has to say what the sum IS, because that is what settles it. */
+  function parityLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = new RegExp('is\\s+(' + NUMTOK + '\\s*[+\\-−×÷*/]\\s*' + NUMTOK + ')\\s+(?:an?\\s+)?(even|odd)', 'i').exec(text);
+    if (!m) return null;
+    var printed = String(m[1]).replace(/\s+/g, ' ').trim();
+    var wantEven = /even/i.test(m[2]);
+    var machine = printed.replace(/−/g, '-').replace(/×/g, '*').replace(/÷/g, '/')
+      .replace(/(\d),(\d)/g, '$1$2').replace(/\s+/g, '');
+    var value = null, ev = GLOB.evalExpr;
+    if (typeof ev === 'function') { try { value = ev(machine, {}); } catch (e) { value = null; } }
+    if (value == null || !isFinite(value) || value !== Math.round(value)) return null;
+    var isEven = value % 2 === 0;
+    if (isEven !== wantEven) { if (said !== false) return null; } else if (said !== true) return null;
+    var line = printed + ' = ' + fmt(value) + ', and ' + fmt(value) + ' is ' + (isEven ? 'even' : 'odd') + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The word for one share comes out of how many equal shares there are: cut a
+     pan into 4 and one part is 1 of 4, which is called a fourth. */
+  var PARTWORD = {
+    'half': 2, 'halves': 2, 'third': 3, 'fourth': 4, 'quarter': 4, 'fifth': 5, 'sixth': 6,
+    'seventh': 7, 'eighth': 8, 'ninth': 9, 'tenth': 10, 'eleventh': 11, 'twelfth': 12
+  };
+  var PARTNAME = { 2: 'half', 3: 'third', 4: 'fourth', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth', 11: 'eleventh', 12: 'twelfth' };
+  function fracNameLine(item, text, shown) {
+    var m = new RegExp('(\\d+)\\s+equal\\s+parts[^!?]{0,60}?what\\s+is\\s+one\\s+part\\s+called', 'i').exec(text);
+    if (!m) return null;
+    var n = numOf(m[1]), name = PARTNAME[n == null ? 0 : n];
+    if (!name) return null;
+    var mark = String(shown == null ? '' : shown).trim().toLowerCase().replace(/^a\s+|^one\s+/, '');
+    if (mark !== name) return null;
+    var line = 'The whole is cut into ' + n + ' equal parts, so one part is 1 of ' + n + ', called a ' + name + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* The other direction: "each piece is a sixth — how many pieces?" */
+  function partsWordLine(item, text, shown) {
+    var m = /each\s+(?:one|piece|part)\s+a\s+(half|halves|third|fourth|quarter|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)/i.exec(text);
+    if (!m) return null;
+    var n = PARTWORD[String(m[1]).toLowerCase()];
+    if (!n) return null;
+    if (numOf(String(shown == null ? '' : shown).trim()) !== n) return null;
+    var line = 'Each part is 1 of ' + n + ' equal parts, so the whole is cut into ' + n + ' parts.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Split into 4 equal parts and 2 are taken — what fraction is taken?" The
+     two counts are on the card; the fraction that comes out has to reduce to
+     the marked one. */
+  function fracTakenLine(item, text, shown) {
+    var m = new RegExp('into\\s+(\\d+)\\s+equal\\s+parts?[^.?!]{0,30}?(\\d+)\\s+(?:are|is)\\s+taken', 'i').exec(text);
+    if (!m) return null;
+    var n = numOf(m[1]), t = numOf(m[2]);
+    if (!n || t == null || t > n) return null;
+    var g = gcd(t, n), rn = n / g, rt = t / g;
+    var mark = String(shown == null ? '' : shown).trim();
+    var want = mark === '1' ? '1' : mark.replace(/\s+/g, '');
+    var got = rt === 0 ? '0' : (rt === rn ? '1' : rt + '/' + rn);
+    if (want !== got) return null;
+    var line = t + ' taken of ' + n + ' equal parts leaves ' + t + ' of ' + n + ', which is ' + got +
+      (got === '1' ? ' whole' : '') + '.';
+    return line.length <= 88 ? line : null;
+  }
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = b; b = a % b; a = t; } return a || 1; }
+
+  /* "Which number comes right before 14?", "Is it true that 39 comes right
+     before 40?", "the even number just before 5" — all of them are one step
+     along a count, so the step is written out and the mark has to agree. */
+  function beforeAfterLine(item, text, shown) {
+    var said = boolMark(shown);
+    var base = null, up = null, parity = null;
+    var m = /(\d+)\s+comes\s+right\s+(before|after)\s+(\d+)/i.exec(text);
+    if (m) {
+      /* only the CLAIM — "which number comes right before 14" has no number in
+         front of "comes" and is taken by the last pattern below */
+      if (said === null) return null;
+      var low = numOf(m[1]), high = numOf(m[3]), before = /before/i.test(m[2]);
+      if (low == null || high == null) return null;
+      var arrived = low + (before ? 1 : -1);
+      if ((arrived === high) !== said) return null;
+      var line = arrived === high
+        ? low + (before ? ' + 1 = ' : ' − 1 = ') + arrived + ', so ' + low + ' comes right ' +
+          (before ? 'before' : 'after') + ' ' + high + '.'
+        : low + (before ? ' + 1 = ' : ' − 1 = ') + arrived + ', not ' + high + ', so ' + low +
+          ' does not come right ' + (before ? 'before' : 'after') + ' ' + high + '.';
+      return line.length <= 88 ? line : null;
+    }
+    m = new RegExp('the\\s+(even|odd)\\s+number\\s+just\\s+(before|after)\\s+(\\d+)', 'i').exec(text);
+    if (!m) {
+      /* "Count by twos from 14: what is the even number just before it?" — the
+         number the count starts from is the one the sentence is standing next to */
+      var cb = new RegExp('count\\s+by\\s+twos?\\s+from\\s+(\\d+)[^!?]{0,60}?the\\s+(even|odd)\\s+number\\s+just\\s+(before|after)\\s+it', 'i').exec(text);
+      if (cb) m = [cb[0], cb[2], cb[3], cb[1]];
+    }
+    if (m) {
+      parity = m[1].toLowerCase(); base = numOf(m[3]);
+      if (base == null) return null;
+      up = /after/i.test(m[2]);
+      var step = ((base % 2 === 0) === (parity === 'even')) ? 2 : 1;
+      var near = base + (up ? step : -step);
+      if (near < 0) return null;
+      if (said === null) {
+        if (numOf(String(shown == null ? '' : shown).trim()) !== near) return null;
+        var line2 = base + (near > base ? ' + ' : ' − ') + Math.abs(near - base) + ' = ' + near +
+          ', and ' + near + ' is ' + parity + '.';
+        return line2.length <= 88 ? line2 : null;
+      }
+      return null;
+    }
+    m = new RegExp('comes\\s+right\\s+(before|after)\\s+(\\d+)(?:\\s+in\\s+the\\s+list\\s+of\\s+(even|odd)\\s+numbers?)?', 'i').exec(text);
+    if (!m) return null;
+    up = /after/i.test(m[1]); base = numOf(m[2]);
+    if (base == null) return null;
+    if (m[3]) {
+      parity = String(m[3]).toLowerCase();
+      var jump = (base % 2 === 0) === (parity === 'even') ? 2 : 1;
+      var out = base + (up ? jump : -jump);
+      if (numOf(String(shown == null ? '' : shown).trim()) !== out) return null;
+      var line3 = base + (up ? ' + ' : ' − ') + jump + ' = ' + out + ', and ' + out + ' is ' + parity + '.';
+      return line3.length <= 88 ? line3 : null;
+    }
+    var value2 = base + (up ? 1 : -1);
+    if (said !== null) {
+      /* the sentence was tried above; a judgement over a blank is a different
+         shape and the patterns here have already had their turn */
+      return null;
+    }
+    if (numOf(String(shown == null ? '' : shown).trim()) !== value2) return null;
+    var line4 = base + (up ? ' + 1 = ' : ' − 1 = ') + value2 + ', which is the number that comes right ' +
+      (up ? 'after' : 'before') + ' ' + base + '.';
+    return line4.length <= 88 ? line4 : null;
+  }
+
+  /* A table of pairs and a rule: the rule is only right if it works on every
+     pair the card printed, so it is tried on the pairs and the two attempts are
+     what the learner sees. */
+  function tableRuleLine(item, text, shown) {
+    var mark = String(shown == null ? '' : shown).trim();
+    var rm = /^y\s*=\s*(?:(\d+)\s*[×*]?\s*)?x(?:\s*([+\-−])\s*(\d+(?:\.\d+)?))?$/i.exec(mark.replace(/\s+/g, ' '));
+    if (!rm) return null;
+    var a = rm[1] == null ? 1 : numOf(rm[1]);
+    var sign = rm[2] ? (/[-−]/.test(rm[2]) ? -1 : 1) : 0;
+    var b = rm[2] ? numOf(rm[3]) : 0;
+    if (a == null || (rm[2] && b == null)) return null;
+    b = b * sign;
+    var pr = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g, pm, pairs = [];
+    while ((pm = pr.exec(text))) {
+      var x = numOf(pm[1]), y = numOf(pm[2]);
+      if (x != null && y != null) pairs.push([x, y, String(pm[1]).trim(), String(pm[2]).trim()]);
+    }
+    if (pairs.length < 2) return null;
+    var i;
+    for (i = 0; i < pairs.length; i++) {
+      if (a * pairs[i][0] + b !== pairs[i][1]) return null;         /* the rule does not fit */
+    }
+    var say = function (p) {
+      var left = (a === 1 ? '' : a + ' × ') + p[2];
+      if (b !== 0) left += (b > 0 ? ' + ' + b : ' − ' + Math.abs(b));
+      return left + ' = ' + p[3];
+    };
+    var fixed = say(pairs[0]) + ' and ' + say(pairs[1]) + ', so every pair fits ' + mark + '.';
+    if (fixed.length <= 88) return fixed;
+    var short2 = '(' + pairs[0][2] + ', ' + pairs[0][3] + ') fits: ' + say(pairs[0]) + '.';
+    return short2.length <= 88 ? short2 : null;
+  }
+
+  /* "y = 4x + 6. As x goes up by 1, what happens to y?" — the number in front of
+     x is the rate, and trying one step shows it. */
+  function slopeStepLine(item, text, shown) {
+    var m = new RegExp('y\\s*=\\s*(\\d+)\\s*[×*]?\\s*x[^!?]{0,60}?x\\s+(?:increases|goes up|rises|is\\s+increased)\\s+by\\s+(\\d+)', 'i').exec(text);
+    if (!m) return null;
+    var rate = numOf(m[1]), step = numOf(m[2]);
+    if (!rate || step == null) return null;
+    if (/decrease|go down|fall|drop/i.test(String(shown == null ? '' : shown))) return null;
+    var up = rate > 0;
+    var markNum = numOf(String(shown == null ? '' : shown).replace(/[^0-9.]/g, ''));
+    if (markNum !== rate * step) return null;
+    var line = rate + ' × ' + step + ' = ' + fmt(rate * step) + ', so y ' + (up ? 'increases' : 'decreases') + ' by ' + fmt(rate * step) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* Two lines with the same slope and different starting values never meet. The
+     two slopes and the two intercepts are on the card, and the marked answer has
+     to be the one that says the slopes match. */
+  function sameSlopeLine(item, text, shown) {
+    var mark = String(shown == null ? '' : shown).toLowerCase();
+    if (!/same slope/.test(mark)) return null;
+    var eq = /y\s*=\s*(\d+)\s*[×*]?\s*x\s*([+\-−])\s*(\d+)/gi, em, lines = [];
+    while ((em = eq.exec(text))) {
+      var a = numOf(em[1]), b = numOf(em[3]);
+      if (a == null || b == null) continue;
+      lines.push([a, /[-−]/.test(em[2]) ? -b : b]);
+    }
+    if (lines.length !== 2) return null;
+    if (lines[0][0] !== lines[1][0] || lines[0][1] === lines[1][1]) return null;
+    var line = 'The slopes are the same, ' + fmt(lines[0][0]) + ' = ' + fmt(lines[1][0]) +
+      ', but ' + fmt(lines[0][1]) + ' ≠ ' + fmt(lines[1][1]) + ', so the lines never meet.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* All nine rules above have the same shape — take the numbers the card
+     printed, do the one step the question asks for, and only speak when the
+     result is the mark — so they are offered as a group wherever a card is
+     stuck, and the sentence is tried with its units intact first. */
+  function familyLine(item, text, wtext, shown) {
+    var hay = [wtext, text], i, fns = [groupOverLine, parityLine, fracNameLine, partsWordLine,
+      fracTakenLine, beforeAfterLine, tableRuleLine, slopeStepLine, sameSlopeLine], fi;
+    for (i = 0; i < hay.length; i++) {
+      for (fi = 0; fi < fns.length; fi++) {
+        var line = fns[fi](item, hay[i] || '', shown);
+        if (line) return line;
+      }
+    }
+    return null;
+  }
   function staleSteps(item, steps) {
     var card = (String(item.prompt || '') + ' ' + String(item.sub || '') + ' ' +
       ((item.choices || []).join(' ')) + ' ' + JSON.stringify(item.visual || {}))
@@ -103208,6 +103457,7 @@ var MW = {
       var bl = claimLine(item, ptext, shownAns) || claimEqLine(item, ptext, shownAns) ||
         cmpMarkLine(item, ptext, shownAns) || stepPairLine(item, steps, shownAns) ||
         ineqLine(item, ptext, shownAns) || ineqLine(item, wtext, shownAns) ||
+        familyLine(item, ptext, wtext, shownAns) ||
         orderLine(ptext, shownAns) ||
         whoMoreLine(item, wtext, shownAns) || whoStepLine(item, wtext, steps, shownAns) ||
         numberWordLine(item, wtext, shownAns) ||
@@ -103255,6 +103505,7 @@ var MW = {
       if (!line) { line = pairLine(text, shownAns, ok); if (line) from = 'pair'; }
       if (!line) { line = roundingLine(item, text, shownAns); if (line) from = 'round'; }
       if (!line) { line = roundingLine(item, wtext, shownAns); if (line) from = 'roundW'; }
+      if (!line) { line = familyLine(item, text, wtext, shownAns); if (line) from = 'family'; }
       if (!line) { line = countOnLine(text + ' ' + steps.join(' '), ok); if (line) from = 'countOn'; }
       if (!line) { line = compareAnswerLine(item, text, shownAns); if (line) from = 'cmpAns'; }
       if (!line) { line = successorLine(item, text, shownAns); if (line) from = 'successor'; }
@@ -103276,6 +103527,7 @@ var MW = {
        statement comes from, and they check it against that statement. */
     if (!line) {
       line = ineqLine(item, text, shownAns) || ineqLine(item, wtext, shownAns) ||
+        familyLine(item, text, wtext, shownAns) ||
         claimLine(item, text, shownAns) || orderLine(text, shownAns);
       if (line) from = 'judge';
     }
@@ -103367,6 +103619,10 @@ var MW = {
     DBG.whoMoreLine = whoMoreLine; DBG.whoStepLine = whoStepLine; DBG.successorLine = successorLine;
     DBG.stepPairLine = stepPairLine; DBG.askPair = askPair; DBG.amountFor = amountFor; DBG.symOf = symOf;
     DBG.ineqLine = ineqLine; DBG.roundingLine = roundingLine; DBG.sequenceLine = sequenceLine;
+    DBG.familyLine = familyLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
+    DBG.fracNameLine = fracNameLine; DBG.partsWordLine = partsWordLine; DBG.fracTakenLine = fracTakenLine;
+    DBG.beforeAfterLine = beforeAfterLine; DBG.tableRuleLine = tableRuleLine;
+    DBG.slopeStepLine = slopeStepLine; DBG.sameSlopeLine = sameSlopeLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
