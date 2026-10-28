@@ -7733,6 +7733,7 @@ G.cams = (() => {
       const L = M.len;                                  // vehicle length in scene units
       const t = performance.now() * 0.001;
       let wantPos = _t, wantLook = _d.clone();
+      let dist = L * 3;                                 // chase distance (chase branch refines it)
       const posV = M.pos;
 
       if (mode === 'pad' && G.world.active === 'pad') {
@@ -7751,7 +7752,7 @@ G.cams = (() => {
       } else {  // chase / track / surface
         const hint = G.mission.viewHint || {};
         const vFac = U.clamp((M.vel || 0) / 7500, 0, 1);
-        let dist = U.clamp(L * 2.15 + (M.vel || 0) * 0.006 * L * 0.012 + L * 0.8, L * 1.15, L * 14);
+        dist = U.clamp(L * 2.15 + (M.vel || 0) * 0.006 * L * 0.012 + L * 0.8, L * 1.15, L * 14);
         if (hint.dist) dist *= hint.dist;
         dist *= zoom;
         let azBase = M.downAz || 0;
@@ -8207,6 +8208,7 @@ G.mission = (() => {
         G.cams.snap();
         M.warpCapPhase();
       }));
+      M.arriveT = tmi + Tcoast; // nominal plan (arrival event must exist before TMI fires)
       schedAt(M.arriveT - 24 * 3600, () => { logEvent(M.met, 'MARS ENCOUNTER — 24 HOURS OUT', true); M.sayIf('Mars encounter in 24 hours. Cabin to entry configuration.'); });
       schedAt(M.arriveT, () => {
         M.phase = 'marsApproach';
@@ -8292,7 +8294,7 @@ G.mission = (() => {
   /* warp + phase caps                                          */
   /* ========================================================= */
   const CAPS = { prelaunch: 1, countdown: 1, ascent: 10, hotstage: 10, parking: 1000000, burn: 5, tliCoast: 1000000, lunarOrbit: 3600, moonDescent: 60, moonLanded: 1, heliCruise: 1000000, marsApproach: 1000, marsEntry: 1, marsLanding: 1, marsLanded: 1 };
-  M.warpCap = () => CAPS[M.phase] || 10;
+  M.warpCap = () => (CAPS[M.phase] || 10) * (M._capMul || 1);
   M.setWarpIdx = i => {
     M.warpIdx = U.clamp(i, 0, cfg.WARP.length - 1);
     M.warp = Math.min(cfg.WARP[M.warpIdx], M.warpCap());
@@ -9049,11 +9051,7 @@ G.main = (() => {
     }
   };
 
-  MAIN.loop = function (now) {
-    requestAnimationFrame(MAIN.loop);
-    let dt = (now - prev) / 1000; prev = now;
-    if (dt > 0.08) dt = 0.08;
-    if (!MAIN.ready) return;
+  MAIN.frame = function (dt) {
     const m = M();
     if (!MAIN.paused) {
       m.update(dt);
@@ -9072,8 +9070,17 @@ G.main = (() => {
         trailTimer = 0; G.mission.updateTrail();
       }
     }
+    if (MAIN.noRender) return;
     try { G.world.composer.render(); }
     catch (e) { console.warn('render glitch', e); G.world.renderer.render(G.world.scenes[G.world.active], G.world.cam); }
+  };
+
+  MAIN.loop = function (now) {
+    requestAnimationFrame(MAIN.loop);
+    let dt = (now - prev) / 1000; prev = now;
+    if (dt > 0.08) dt = 0.08;
+    if (!MAIN.ready) return;
+    MAIN.frame(dt);
   };
 
   MAIN.togglePause = function () {
@@ -9103,25 +9110,41 @@ G.main = (() => {
     MAIN.err = (MAIN.err || '') + '|' + e.message;
   });
 
-  /* ---------- headless autotest hook: starship.html?autotest ---------- */
+  /* ---------- headless autotest hook: starship.html?autotest[&mars] ---------- */
   if (location.search.includes('autotest')) {
-    const probe = (tag) => {
-      const m = G.mission;
-      const row = `${tag}:met=${Math.round(m.met)},ph=${m.phase},w=${m.warp},alt=${Math.round(m.T.alt)},v=${Math.round(m.T.vel)},pos=${m.view.pos.toArray().map(n => n.toFixed(1)).join(' ')}${MAIN.err ? ',ERR' + MAIN.err : ''}`;
+    const isMars = location.search.includes('mars');
+    MAIN.noRender = true;
+    const m = () => G.mission;
+    const probe = tag => {
+      const mm = m();
+      const row = `${tag}:met=${Math.round(mm.met)}d${Math.round(mm.met % 86400)}s,ph=${mm.phase},w=${mm.warp},alt=${Math.round(mm.T.alt)},v=${Math.round(mm.T.vel)},r=${mm.T.targetRange ? Math.round(mm.T.targetRange / 1000) : 0}km,ph2=${mm.viewFrame}${MAIN.err ? ',ERR' + MAIN.err : ''}`;
       const el = document.documentElement;
       el.dataset.test = (el.dataset.test ? el.dataset.test + ' ;; ' : '') + row;
     };
-    const at = (ms, fn) => setTimeout(fn, ms);
+    const step = (n, dt, tag) => {
+      for (let i = 0; i < n; i++) {
+        try { MAIN.frame(dt); }
+        catch (e) { MAIN.err = (MAIN.err || '') + '|' + tag + '#' + i + ':' + e.message; break; }
+      }
+      probe(tag);
+    };
     const waitBoot = setInterval(() => {
       if (!MAIN.ready) return;
       clearInterval(waitBoot);
       probe('boot');
-      at(800, () => { $(`card-${location.search.includes('mars') ? 'mars' : 'moon'}`).click(); $('btn-launch').click(); });
-      at(14000, () => probe('t14'));
-      at(40000, () => { G.mission.setWarpIdx(9); probe('t40'); });
-      at(90000, () => probe('t90'));
-      at(130000, () => probe('t130'));
-      at(170000, () => probe('t170'));
+      $(`card-${isMars ? 'mars' : 'moon'}`).click();
+      $('btn-launch').click();
+      m().setWarpIdx(10);
+      if (isMars) { m()._capMul = 100; m().setWarpIdx(9); }
+      step(200, 0.05, 'count');                       // countdown + early ascent
+      step(1200, 0.05, 'ascent');                     // to SECO (warp cap 10)
+      step(120, 0.05, 'park');
+      step(900, 0.05, 'maneuver');
+      if (isMars) m().setWarpIdx(9);
+      step(1500, 0.05, 'coast');
+      step(3000, 0.05, 'approach');
+      step(8000, 0.05, 'final');
+      setTimeout(() => probe('end'), 500);
     }, 300);
   }
 
