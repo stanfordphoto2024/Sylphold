@@ -11290,8 +11290,11 @@ return MC(rng, 'A ' + thing + ' starts at the ' + from + ' mark on the ruler and
     /* mode 7 — order by length */
     var l = shuffle(rng, [['string', R.int(rng, 20, 80)], ['ribbon', R.int(rng, 20, 80)], ['lace', R.int(rng, 20, 80)]])
       .sort(function (p, q) { return p[1] - q[1]; });
-    return MC(rng, 'String ' + l[0][1] + ' ' + un.u + ', ribbon ' + l[1][1] + ' ' + un.u + ', lace ' + l[2][1] +
-      ' ' + un.u + '. Which is the longest?', 'the ' + l[2][0], ['the ' + l[0][0], 'the ' + l[1][0], 'the ' + l[0][0] + ' and ' + l[1][0] + ' tie'], {
+    var named = function (p) {
+      return String(p[0]).charAt(0).toUpperCase() + String(p[0]).slice(1) + ' ' + p[1] + ' ' + un.u;
+    };
+    return MC(rng, named(l[0]) + ', ' + named(l[1]) + ', ' + named(l[2]) + '. Which is the longest?',
+      'the ' + l[2][0], ['the ' + l[0][0], 'the ' + l[1][0], 'the ' + l[0][0] + ' and ' + l[1][0] + ' tie'], {
         teach: 'Order measurements by their numbers when the unit is the same.',
         explain: ['Sort: ' + l.map(function (p) { return p[1]; }).join(', ') + '.',
           'Biggest is ' + l[2][1] + ', so <b>the ' + l[2][0] + '</b> is longest.']
@@ -76577,6 +76580,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
   }
   function r2(x) { return Math.round(x * 100) / 100; }
+  /* Three places left of the point is a thousandths answer; rounding that to
+     hundredths turns 32 ÷ 1000 into 0.03, which is not the card's own answer. */
+  function x4(x) { return Math.round(x * 10000) / 10000; }
   function tenthStr(n) { return String(r2(n / 10)); }          /* 37 → 3.7 */
   function nearWhole(x) { return Math.round(x); }               /* never x.5 draws */
   function notHalfHund(rng) { return pick2(rng, [1, 2, 3, 6, 7, 8, 9]); } /* tenth-round */
@@ -77255,11 +77261,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         explain: ['0.48 is 480 shifted three places left.', 'Three places is 10^3.', 'So the answer is <b>10^3</b>.'],
         teach: 'The exponent counts the places the point moved.' });
     }
-    if (k === 2) {   /* ÷ 10^3 */
+    if (k === 2) {   /* ÷ 10^3 — three places, so the quotient is written
+                        to the thousandths: 32 ÷ 1000 = 0.032, not 0.03 */
       var v2 = R.int(rng, 25, 95) * 10;
-      return MC(rng, r2(v2 / 10) + ' ÷ 10^3 = ?', r2(v2 / 10 / 1000), [r2(v2 / 10 / 100), r2(v2 / 10 / 10000), r2(v2 / 1000)], {
+      var q3 = x4(v2 / 10 / 1000);
+      return MC(rng, r2(v2 / 10) + ' ÷ 10^3 = ?', q3,
+        [x4(v2 / 10 / 100), x4(v2 / 10 / 10000), x4(v2 / 10)], {
         b: t + 0.3,
-        explain: ['10^3 = 1000.', r2(v2 / 10) + ' ÷ 1000 shifts three places left: ' + r2(v2 / 10 / 1000) + '.', 'So the answer is <b>' + r2(v2 / 10 / 1000) + '</b>.'],
+        explain: ['10^3 = 1000.', r2(v2 / 10) + ' ÷ 1000 shifts three places left: ' + q3 + '.', 'So the answer is <b>' + q3 + '</b>.'],
         teach: 'The exponent says how far the point travels.' });
     }
     if (k === 3) {   /* story */
@@ -103313,13 +103322,203 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
-  /* All nine rules above have the same shape — take the numbers the card
+  /* Six more families from the same exit survey, same discipline: the numbers are
+     the card's, the step is the one the question asks for, and the mark has to be
+     what the step arrives at. */
+
+  /* "Is 212 closer to 210 than to 220?" — closeness is two subtractions and one
+     comparison, and the card prints all three numbers. */
+  function closerThanLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = new RegExp('is\\s+(' + NUMTOK + ')\\s+closer\\s+to\\s+(' + NUMTOK + ')\\s+than\\s+(?:to\\s+)?(' + NUMTOK + ')', 'i').exec(text);
+    if (!m) return null;
+    var n = numOf(m[1]), a = numOf(m[2]), b = numOf(m[3]);
+    if (n == null || a == null || b == null) return null;
+    var ga = Math.abs(n - a), gb = Math.abs(n - b);
+    var holds = ga < gb;
+    if (holds !== said) return null;
+    var line = fmt(n) + ' − ' + fmt(a) + ' = ' + fmt(ga) + ' and ' + fmt(b) + ' − ' + fmt(n) + ' = ' + fmt(gb) +
+      ', so it is nearer ' + fmt(a) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "The number 93 is even because its ones digit is even." — the only thing that
+     decides even or odd is the ones digit, so the place value is written out and
+     the digit is judged; a claim that does not survive that is marked wrong. */
+  function parityClaimLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = new RegExp('(?:the\\s+number\\s+)?(' + NUMTOK + ')\\s+is\\s+(even|odd)\\b', 'i').exec(text);
+    if (!m) return null;
+    var n = numOf(m[1]);
+    if (n == null || n !== Math.round(n) || n < 0) return null;
+    var wantEven = /even/i.test(m[2]);
+    var ones = Math.round(n) % 10, isEven = Math.round(n) % 2 === 0;
+    var tens = (Math.round(n) - ones) / 10;
+    if (isEven !== wantEven) { if (said !== false) return null; } else if (said !== true) return null;
+    var line = fmt(n) + ' is ' + fmt(tens) + ' tens and ' + ones + ' ones, and ' + ones + ' is ' +
+      (ones % 2 === 0 ? 'even' : 'odd') + ', so ' + fmt(n) + ' is ' + (isEven ? 'even' : 'odd') + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "String 30 inches, ribbon 54 inches, lace 62 inches. Which is the longest?" —
+     the numbers are hung on names, so the ordering is written with the names
+     attached and the marked name has to be the one the ordering puts last. */
+  function superlativeLine(item, text, shown) {
+    var mark = String(shown == null ? '' : shown).trim().toLowerCase().replace(/^the\s+/, '').replace(/\.$/, '');
+    if (!mark || /\d/.test(mark)) return null;
+    var up = /longest|heaviest|tallest|biggest|largest|most|greatest|most expensive|widest|furthest|farthest/i.test(text);
+    var down = /shortest|lightest|smallest|least|cheapest|closest|narrowest/i.test(text);
+    if (!up && !down) return null;
+    var wordM = /(longest|shortest|tallest|heaviest|lightest|biggest|smallest|largest|widest|narrowest|furthest|farthest|closest|cheapest|most expensive)/i.exec(text);
+    var word = wordM ? String(wordM[1]).toLowerCase() : (up ? 'most' : 'least');
+    var re = /([a-z][a-z -]{1,22}?)\s+(-?\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:(?:square\s+)?(?:centimeters?|centimetres?|cm|millimeters?|mm|meters?|m|inches?|in\.?|feet|ft|yards?|yd|miles?|mi|kilometers?|km|grams?|g|kilograms?|kg|pounds?|lb|oz|liters?|l|milliliters?|ml|degrees?|°|seconds?|minutes?|hours?|dollars?|\$))?/gi,
+      pm, items2 = [], seen = {};
+    while ((pm = re.exec(text))) {
+      var nm = String(pm[1]).trim().toLowerCase().replace(/\b(the|a|an|and|plus|then)\b.*/i, '').replace(/^the\s+/, '').trim();
+      var v = numOf(pm[2]);
+      if (!nm || nm.length < 2 || v == null || seen[nm] !== undefined) continue;
+      seen[nm] = 1;
+      items2.push([nm, v, String(pm[2]).trim()]);
+    }
+    if (items2.length < 2) return null;
+    items2.sort(function (p, q) { return p[1] - q[1]; });
+    var i;
+    for (i = 0; i < items2.length; i++) if (items2[i][0] === mark) break;
+    if (i === items2.length) return null;
+    var atEnd = (up && i === items2.length - 1) || (down && i === 0);
+    if (!atEnd) return null;
+    if (items2.length === 2) {
+      var lo = items2[0], hi = items2[1];
+      var two = lo[2] + ' &lt; ' + hi[2] + ', so ' + (up ? hi[0] : lo[0]) + ' is the ' + word + ', at ' +
+        (up ? hi[2] : lo[2]) + '.';
+      if (two.length <= 88) return two;
+    }
+    var a = items2[0], b = items2[items2.length - 1];
+    var chain = up ? a[2] + ' &lt; ' + b[2] : b[2] + ' &lt; ' + a[2];
+    var line = chain + ', so ' + mark + ' is the ' + word + ', at ' + (up ? b[2] : a[2]) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A row with a blank: "___, 19, 20, 21, 22", "30, 35, ___", "14, 15, ___, 17,
+     18". The printed terms fix the step and the step fixes the blank, which is
+     the whole working; the mark has to be the number that comes out. */
+  function seqBlankLine(item, text, shown) {
+    var mark = numOf(String(shown == null ? '' : shown).trim());
+    if (mark == null) return null;
+    var re = /(-?\d+(?:,\d{3})*(?:\.\d+)?|_{3,}|\?{1,3}|\[\s*\])(?:\s*,\s*|-|\s+to\s+)(-?\d+(?:,\d{3})*(?:\.\d+)?|_{3,}|\?{1,3}|\[\s*\])(?:\s*,\s*|-|\s+to\s+)(-?\d+(?:,\d{3})*(?:\.\d+)?|_{3,}|\?{1,3}|\[\s*\])(?:(?:\s*,\s*|-|\s+to\s+)(-?\d+(?:,\d{3})*(?:\.\d+)?|_{3,}|\?{1,3}|\[\s*\]))?/g,
+      sm, term;
+    while ((sm = re.exec(text))) {
+      var got = [sm[1], sm[2], sm[3], sm[4]].filter(function (x) { return x !== undefined; });
+      var blank = -1, vals = [], i;
+      for (i = 0; i < got.length; i++) {
+        if (/^(?:_{3,}|\?{1,3}|\[\s*\])$/.test(String(got[i]).trim())) { if (blank < 0) { blank = i; } vals.push(null); }
+        else vals.push(numOf(got[i]));
+      }
+      if (blank < 0) continue;
+      var prev = null, step = null, k;
+      for (k = 0; k < vals.length; k++) {
+        if (vals[k] == null) continue;
+        if (prev !== null) { var d = vals[k] - prev; if (step === null) step = d; else if (step !== d) { step = null; break; } }
+        prev = vals[k];
+      }
+      /* the step comes from two printed neighbours; when the blank sits between
+         two terms there is only one jump either side, so half the gap is the step */
+      if (step === null && blank > 0 && blank < vals.length - 1 && vals[blank - 1] != null && vals[blank + 1] != null) {
+        var half = (vals[blank + 1] - vals[blank - 1]) / 2;
+        if (half !== 0) step = half;
+      }
+      if (step === null || step === 0) continue;
+      var anchorIdx = blank > 0 ? blank - 1 : blank + 1;
+      if (vals[anchorIdx] == null) continue;
+      term = vals[anchorIdx] + (blank > anchorIdx ? step : -step);
+      if (term !== mark) continue;
+      /* the blank sits to one side of the term it is read from, and the
+         printed sign is the direction of that jump, not of the count itself */
+      var jumpUp = blank > anchorIdx;
+      var go = fmt(vals[anchorIdx]) + (jumpUp ? ' + ' : ' − ') + fmt(Math.abs(step)) + ' = ' + fmt(mark);
+      var line = 'The count ' + (step > 0 ? 'goes up' : 'goes down') + ' by ' + fmt(Math.abs(step)) + ', so ' + go + '.';
+      if (line.length <= 88) return line;
+      var short = go + '.';
+      return short.length <= 88 ? short : null;
+    }
+    return null;
+  }
+
+  /* "(4, 1) is translated to (4, 3). Which rule was used?" — the two points give
+     the shifts, and the marked rule has to be the pair of shifts that comes out. */
+  /* "y − 4" as one signed amount: the operator and the digits are separate pieces
+     of the written rule, and neither means the shift on its own. */
+  function signed(opChunk) {
+    if (opChunk == null) return 0;
+    var v = numOf(String(opChunk).replace(/[+\-−]/g, ''));
+    if (v == null) return null;
+    return /[-−]/.test(String(opChunk)) ? -v : v;
+  }
+
+  function translateRuleLine(item, text, shown) {
+    var mark = String(shown == null ? '' : shown).trim();
+    var mm = /\(\s*x\s*,\s*y\s*\)\s*(?:→|->)\s*\(\s*x\s*,\s*y\s*([+\-−]\s*(\d+))?\s*\)(?:\s*(?:,|and)?\s*x\s*([+\-−]\s*(\d+))?)?/i.exec(mark);
+    if (!mm) return null;
+    var pm = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)\s*(?:is\s+)?(?:translated|reflected|moved|shifted|mapped)\s*(?:to|into)\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/i.exec(text);
+    if (!pm) return null;
+    var x1 = numOf(pm[1]), y1 = numOf(pm[2]), x2 = numOf(pm[3]), y2 = numOf(pm[4]);
+    if (x1 == null || y1 == null || x2 == null || y2 == null) return null;
+    var dx = x2 - x1, dy = y2 - y1;
+    var markDy = signed(mm[1]), markDx = signed(mm[3]);
+    if (markDy == null || markDx == null) return null;
+    if (/reflect/i.test(text) || dx !== markDx || dy !== markDy) return null;
+    var line = 'x: ' + fmt(x1) + (dx === 0 ? ' does not change' : (dx > 0 ? ' + ' + dx + ' = ' : ' − ' + (-dx) + ' = ') + fmt(x2)) +
+      ', y: ' + fmt(y1) + (dy === 0 ? ' does not change' : (dy > 0 ? ' + ' + dy + ' = ' : ' − ' + (-dy) + ' = ') + fmt(y2)) +
+      ', which is ' + mark + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A band of 18 players marches 2 abreast. Which rule shows it divides
+     evenly?" — the rows of the array ARE the division, and the last digit is the
+     test the marked rule names, so both are written and compared with the mark. */
+  function divisibleRuleLine(item, text, shown) {
+    var mark = String(shown == null ? '' : shown).trim();
+    var m = new RegExp('(\\d+)\\s+(?:players?|people?|tiles?|cubes?|counters?|marbles?|dots?|squares?|students?|cookies?|candies?)[^.?!]{0,40}?(?:marches|arranged|rows|groups?|abreast|shared|divided|packed)[^.?!]{0,30}?(\\d+)\\s+(?:abreast|rows?|groups?|each|at a time|a row|equal)', 'i').exec(text);
+    if (!m) return null;
+    var n = numOf(m[1]), d = numOf(m[2]);
+    if (!d || n == null) return null;
+    var exact = n % d === 0;
+    var last = Math.abs(Math.round(n)) % 10;
+    var wantsEven = /last digit is even|even\b/i.test(mark);
+    var wantsOdd = /last digit is odd|odd\b/i.test(mark);
+    var wantsSum = /digits (?:add|sum)/i.test(mark);
+    if (wantsEven) {
+      if (!exact || !wantsEven || last % 2 !== 0) return null;
+      var line = fmt(n) + ' ÷ ' + d + ' = ' + fmt(n / d) + ' rows with none left over, and the last digit ' + last + ' is even.';
+      return line.length <= 88 ? line : null;
+    }
+    if (wantsOdd) {
+      if (exact || last % 2 === 0) return null;
+      var line2 = fmt(n) + ' ÷ ' + d + ' = ' + fmt(Math.floor(n / d)) + ' with ' + (n % d) + ' left over, and the last digit ' + last + ' is odd.';
+      return line2.length <= 88 ? line2 : null;
+    }
+    if (wantsSum && exact) {
+      var digs = String(Math.round(n)).replace(/[^0-9]/g, '').split(''), sum = 0, i;
+      for (i = 0; i < digs.length; i++) sum += numOf(digs[i]);
+      var named = new RegExp('add(?:s)? to (\\d+)|sum of.{0,12}?(\\d+)', 'i').exec(mark);
+      if (named && numOf(named[1] || named[2]) !== sum) return null;
+      var line3 = fmt(n) + ' ÷ ' + d + ' = ' + fmt(n / d) + ', and the digits add to ' + fmt(sum) + '.';
+      return line3.length <= 88 ? line3 : null;
+    }
+    return null;
+  }
+
+  /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
      stuck, and the sentence is tried with its units intact first. */
   function familyLine(item, text, wtext, shown) {
     var hay = [wtext, text], i, fns = [groupOverLine, parityLine, fracNameLine, partsWordLine,
-      fracTakenLine, beforeAfterLine, tableRuleLine, slopeStepLine, sameSlopeLine], fi;
+      fracTakenLine, beforeAfterLine, tableRuleLine, slopeStepLine, sameSlopeLine,
+      closerThanLine, parityClaimLine, superlativeLine, seqBlankLine, translateRuleLine,
+      divisibleRuleLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -103623,6 +103822,9 @@ var MW = {
     DBG.fracNameLine = fracNameLine; DBG.partsWordLine = partsWordLine; DBG.fracTakenLine = fracTakenLine;
     DBG.beforeAfterLine = beforeAfterLine; DBG.tableRuleLine = tableRuleLine;
     DBG.slopeStepLine = slopeStepLine; DBG.sameSlopeLine = sameSlopeLine;
+    DBG.closerThanLine = closerThanLine; DBG.parityClaimLine = parityClaimLine;
+    DBG.superlativeLine = superlativeLine; DBG.seqBlankLine = seqBlankLine;
+    DBG.translateRuleLine = translateRuleLine; DBG.divisibleRuleLine = divisibleRuleLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
