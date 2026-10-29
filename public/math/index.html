@@ -53240,9 +53240,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var n = BC.int(rng, 4, 8);
         var A = pattern(a0, sA, n), B = pattern(a0, sB, n);
         return UP.cmp(rng, {
-          prompt: 'Choose >, < or =.   term ' + n + ' of A  ○  term ' + (n - 1) + ' of B',
+          prompt: 'Pattern A starts at ' + a0 + ' and adds ' + sA + ' each step. Pattern B starts at ' + a0 + ' and adds ' + sB + ' each step. Choose >, < or =.   term ' + n + ' of A  ○  term ' + (n - 1) + ' of B',
           left: A[n - 1], right: B[n - 2],
-          steps: ['Term ' + n + ' of A is ' + A[n - 1] + '.', 'Term ' + (n - 1) + ' of B is ' + B[n - 2] + '.'],
+          steps: ['Term ' + n + ' of A: ' + sA + ' × ' + (n - 1) + ' = ' + (sA * (n - 1)) + ', plus the start ' + a0 + ' = ' + A[n - 1] + '.',
+            'Term ' + (n - 1) + ' of B: ' + sB + ' × ' + (n - 2) + ' = ' + (sB * (n - 2)) + ', plus the start ' + a0 + ' = ' + B[n - 2] + '.'],
           teach: 'Compare terms only after working each pattern rule out.',
           b: 0.8
         });
@@ -106022,6 +106023,78 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* ------------------------------------------------------------------------
+     Three more: the division a sorting card prints but never works out, the
+     multiply-then-divide a "what is a fraction of a number" card skips, and the
+     decimal values behind an absolute-value comparison. Each recomputes from the
+     card's own numbers and stays quiet unless its result is the card's own mark.
+     ------------------------------------------------------------------------ */
+
+  /* "Sort this fact by its divisor: 5 ÷ 1." — the fact is on the card; doing the
+     division is what shows which group it belongs in. */
+  function divisorSortLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var m = /(\d+)\s*÷\s*(\d+)/.exec(t);
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[2]);
+    if (a == null || !b) return null;
+    var q = a / b;
+    if (Math.abs(Math.round(q) - q) > 1e-9) return null;
+    if (!new RegExp('divided\\s+by\\s+' + b + '\\b', 'i').test(String(shown == null ? '' : shown))) return null;
+    var line = fmt(a) + ' ÷ ' + fmt(b) + ' = ' + fmt(Math.round(q)) + ', and the divisor is ' + fmt(b) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "What is 1/2 of 8?" — multiply by the numerator, divide by the denominator;
+     the card states both numbers and the answer but shows neither move. */
+  function fractionOfNumberLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var m = /what is\s+(\d+)\/(\d+)\s+of\s+(\d+(?:\.\d+)?)/i.exec(t);
+    if (!m) return null;
+    var n = numOf(m[1]), d = numOf(m[2]), whole = numOf(m[3]);
+    if (!n || !d || whole == null) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
+    if (mark == null || Math.abs(whole * n / d - mark) > 1e-6) return null;
+    var step1 = whole * n;
+    var line = fmt(whole) + ' × ' + fmt(n) + ' = ' + fmt(step1) + ', and ' + fmt(step1) + ' ÷ ' + fmt(d) + ' = ' + fmt(mark) + '.';
+    if (line.length > 88) line = fmt(whole) + ' × ' + fmt(n) + ' ÷ ' + fmt(d) + ' = ' + fmt(mark) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "|-1/3| ○ |-3/6|" — the card's own fractions, written as decimals so the
+     comparison it asks for can actually be seen. */
+  function absValueCompareLine(item, text, shown) {
+    var sym = symOf(shown);
+    if (!sym) return null;
+    var t = String(text == null ? '' : text);
+    var m = /\|\s*(-?\d+(?:\/\d+)?(?:\.\d+)?)\s*\|[^○◯]{0,12}[○◯][^|]{0,12}\|\s*(-?\d+(?:\/\d+)?(?:\.\d+)?)\s*\|/i.exec(t);
+    if (!m) return null;
+    var val = function (s) { var p = String(s).split('/'); return Math.abs(p.length === 2 ? Number(p[0]) / Number(p[1]) : Number(p[0])); };
+    var a = val(m[1]), b = val(m[2]);
+    if (!isFinite(a) || !isFinite(b) || a === b) return null;
+    var truth = a > b ? '>' : '<';
+    if (truth !== sym) return null;
+    var line = fmt(Math.round(a * 1000) / 1000) + ' ' + (sym === '>' ? '&gt;' : '&lt;') + ' ' + fmt(Math.round(b * 1000) / 1000) + ' once both are written as decimals.';
+    if (line.length > 88) line = fmt(Math.round(a * 1000) / 1000) + ' ' + (sym === '>' ? '&gt;' : '&lt;') + ' ' + fmt(Math.round(b * 1000) / 1000) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The base-ten card counts its tens and its ones in separate lines and never
+     writes the sum the learner has to give; joining them is the step it skipped. */
+  function baseTenJoinLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v) return null;
+    var tens = numOf(String(v.tens == null ? '' : v.tens));
+    var ones = numOf(String(v.ones == null ? '' : v.ones));
+    if (tens == null || ones == null) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
+    if (mark == null) return null;
+    if (tens * 10 + ones !== mark) return null;
+    var line = (tens ? fmt(tens) + ' × 10 = ' + fmt(tens * 10) : 'no tens') + ', and ' + fmt(ones) +
+      ' ones, ' + fmt(tens * 10) + ' + ' + fmt(ones) + ' = ' + fmt(mark) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106054,7 +106127,8 @@ var MW = {
       areaCompareProductsLine, orderedPairsLine, powerOfTenLine, determinant2x2Line, percentWordOrderLine,
       payCheckLine, moneyMoreThanLine, shapeCountCompareLine, statCompareLine, sameUnitCompareLine,
       moneyEnoughLine, unitRateCompareLine, missingFactorCompareLine, claimedCountCheckLine,
-      putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine], fi;
+      putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
+      divisorSortLine, fractionOfNumberLine, absValueCompareLine, baseTenJoinLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -106419,6 +106493,10 @@ var MW = {
     DBG.howManyMoreLine = howManyMoreLine;
     DBG.groupsOfLine = groupsOfLine;
     DBG.equalSharesLine = equalSharesLine;
+    DBG.divisorSortLine = divisorSortLine;
+    DBG.fractionOfNumberLine = fractionOfNumberLine;
+    DBG.absValueCompareLine = absValueCompareLine;
+    DBG.baseTenJoinLine = baseTenJoinLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
