@@ -103719,7 +103719,9 @@ var MW = {
   /* A drawn array is a multiplication the learner can see but is never told. */
   function arrayRowsLine(item, text, shown) {
     var v = item && item.visual;
-    if (!v || (v.k !== 'array' && v.k !== 'area')) return null;
+    /* a grid is an array the learner is asked to count: the rows and columns
+       are the two factors either way */
+    if (!v || (v.k !== 'array' && v.k !== 'area' && v.k !== 'grid')) return null;
     var r = numOf(String(v.rows)), c = numOf(String(v.cols));
     if (!r || !c) return null;
     var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
@@ -104989,6 +104991,137 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* A written name is only right if the number underneath it is the one on
+     the card; reading the number through its places is the work the card asks
+     for, and it works whatever picture the number arrived in. */
+  function wordNameVisualLine(item, text, shown) {
+    var markTxt = String(shown == null ? '' : shown).trim();
+    if (!markTxt || /\d/.test(markTxt)) return null;
+    if (!/word name|name the number|number name|written in words|in words/i.test(text)) return null;
+    var v = item && item.visual;
+    if (!v) return null;
+    var found = JSON.stringify(v).match(/\b\d+\b/);
+    if (!found) return null;
+    var value = numOf(found[0]);
+    if (value == null || value < 10 || value > 999) return null;
+    if (wordNum(markTxt) !== value) return null;
+    if (value < 100) {
+      var ones = value % 10, tens = (value - ones) / 10;
+      var line = fmt(value) + ' is ' + fmt(tens) + (tens === 1 ? ' ten' : ' tens') + ' and ' + fmt(ones) +
+        (ones === 1 ? ' one' : ' ones') + ', which is written ' + markTxt + '.';
+      return line.length <= 88 ? line : null;
+    }
+    var hun = Math.floor(value / 100), rest = value % 100;
+    var line2 = fmt(hun) + ' hundreds and ' + fmt(rest) + ' is ' + fmt(value) + ', which is written ' + markTxt + '.';
+    return line2.length <= 88 ? line2 : null;
+  }
+
+  /* ------------------------------------------------------------------------
+     Five rules written against what the pictures actually carry: a frame's
+     counters and its capacity, a number line whose marks are labelled, a Venn
+     diagram whose two lists can be compared, and a point described from the
+     origin. Each computes; none of them just re-reads the answer.
+     ------------------------------------------------------------------------ */
+
+  /* A five- or ten-frame: the counters plus the empty squares are the frame. */
+  function frameFillLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'grid') return null;
+    var have = numOf(String(v.data)), cap = numOf(String(v.rows)) * numOf(String(v.cols));
+    if (have == null || !cap || cap < 2 || have > cap) return null;
+    if (!/frame|how many|blank|empty|counter|dot/i.test(text)) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (mark == null || mark !== have) return null;
+    var empty = cap - have;
+    if (!empty) return null;
+    var line = fmt(have) + ' + ' + fmt(empty) + ' = ' + fmt(cap) + ', so ' + fmt(have) + ' are filled and ' + fmt(empty) + ' are empty.';
+    if (line.length > 88) line = fmt(have) + ' + ' + fmt(empty) + ' = ' + fmt(cap) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A number line whose marks carry labels: an unlabelled arrow can be reached
+     from a labelled mark by the same steps the line is drawn in. */
+  function numlineArrowLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'numline' || !v.marks || v.marks.length < 3) return null;
+    if (!/arrow|what number/i.test(text)) return null;
+    var arrow = null, anchor = null, i, m;
+    for (i = 0; i < v.marks.length; i++) {
+      m = v.marks[i];
+      if (!m) return null;
+      var lab = String(m.label == null ? '' : m.label);
+      if (m.arrow || /^\?\w*$/.test(lab)) { if (arrow) return null; arrow = m; continue; }
+      if (/^-?\d+$/.test(lab) && numOf(lab) === numOf(String(m.x))) { if (!anchor) anchor = m; }
+    }
+    if (!arrow || !anchor) return null;
+    var ax = numOf(String(arrow.x)), an = numOf(String(anchor.label));
+    if (ax == null || an == null || ax === an) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (mark == null || mark !== ax) return null;
+    var steps = ax - an;
+    if (Math.abs(steps) > 12) return null;
+    var line = fmt(an) + ' ' + (steps > 0 ? '+ ' + fmt(steps) : '− ' + fmt(-steps)) + ' = ' + fmt(ax) +
+      ', and that is where the arrow points.';
+    if (line.length > 88) line = fmt(an) + ' ' + (steps > 0 ? '+ ' + fmt(steps) : '− ' + fmt(-steps)) + ' = ' + fmt(ax) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* Two lists that overlap: the middle holds what appears in both, and counting
+     the shared entries is the work. */
+  function vennSharedLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'table' || !v.rows || !v.rows.length || !v.rows[0] || v.rows[0].length < 2) return null;
+    if (!/middle|both|where does|intersection|goes/i.test(text)) return null;
+    var a = String(v.rows[0][0]).toLowerCase().split(/,\s*/);
+    var b = String(v.rows[0][1]).toLowerCase().split(/,\s*/);
+    var shared = [], i, j;
+    for (i = 0; i < a.length; i++) for (j = 0; j < b.length; j++) if (a[i].trim() === b[j].trim()) shared.push(a[i].trim());
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (mark == null || shared.length < 2 || shared.length !== mark) return null;
+    if (shared.length > 4) return null;
+    var chain = shared.map(function () { return '1'; }).join(' + ');
+    var line = chain + ' = ' + fmt(shared.length) + ' — one for each word in both lists.';
+    if (line.length > 88) line = chain + ' = ' + fmt(shared.length) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A point stated from the origin: the two moves are additions from zero, and
+     that is exactly what "the point is (x, y)" means. */
+  function originPointLine(item, text, shown) {
+    var m = /(\d+)\s+units?\s+(right|left)\s+and\s+(\d+)\s+units?\s+(up|down)\s+from\s+the\s+origin/i.exec(text);
+    if (!m) return null;
+    if (!/true|false|correct|agree/i.test(text)) return null;
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var x = Number(m[1]) * (m[2].toLowerCase() === 'left' ? -1 : 1);
+    var y = Number(m[3]) * (m[4].toLowerCase() === 'down' ? -1 : 1);
+    if (x !== x || y !== y) return null;
+    var line = '0 + ' + fmt(x) + ' = ' + fmt(x) + ' and 0 + ' + fmt(y) + ' = ' + fmt(y) + ', so the point is (' + fmt(x) + ', ' + fmt(y) + ').';
+    if (line.length > 88) line = '0 + ' + fmt(x) + ' = ' + fmt(x) + ', and 0 + ' + fmt(y) + ' = ' + fmt(y) + '.';
+    if (line.length > 88) return null;
+    /* the card's own numbers have to agree with the point it says it is */
+    var pm = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(text);
+    if (pm) { if (numOf(pm[1]) !== x || numOf(pm[2]) !== y) return null; }
+    else if (!said) return null;                       /* the short form only speaks for a true statement */
+    return line;
+  }
+
+  /* "Who comes after 4 when you count the squares?" — the count on by one is the
+     whole method, and the card has the starting number. */
+  function countOnAfterLine(item, text, shown) {
+    var m = /comes?\s+(after|before)\s+(\d+)/i.exec(text);
+    if (!m) return null;
+    var n = numOf(m[2]);
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (n == null || mark == null) return null;
+    var after = /after/i.test(m[1]);
+    var got = after ? n + 1 : n - 1;
+    if (got !== mark) return null;
+    var line = fmt(n) + ' ' + (after ? '+ 1' : '− 1') + ' = ' + fmt(mark) + ', which is the number that comes ' + (after ? 'after' : 'before') + ' it.';
+    if (line.length > 88) line = fmt(n) + ' ' + (after ? '+ 1' : '− 1') + ' = ' + fmt(mark) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -105011,7 +105144,9 @@ var MW = {
       lateStatementLine, countOnJumpsLine, roundedToLine, decimalProductLine,
       ratioNotEquivalentLine, inequalityCheckLine, letterIsProductLine, tableReadLine,
       coinsCanBuyLine, percentOfLine, factorProductLine, midpointLine, solutionCountLine,
-      partsSumLine, notFunctionLine, simplifyCheckLine, translateLandingLine], fi;
+      partsSumLine, notFunctionLine, simplifyCheckLine, translateLandingLine,
+      wordNameVisualLine,
+      frameFillLine, numlineArrowLine, vennSharedLine, originPointLine, countOnAfterLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -105345,7 +105480,10 @@ var MW = {
     DBG.factorProductLine = factorProductLine; DBG.midpointLine = midpointLine;
     DBG.solutionCountLine = solutionCountLine;
     DBG.partsSumLine = partsSumLine; DBG.notFunctionLine = notFunctionLine;
-    DBG.simplifyCheckLine = simplifyCheckLine; DBG.translateLandingLine = translateLandingLine;
+    DBG.simplifyCheckLine = simplifyCheckLine;     DBG.translateLandingLine = translateLandingLine; DBG.wordNameVisualLine = wordNameVisualLine;
+    DBG.frameFillLine = frameFillLine; DBG.numlineArrowLine = numlineArrowLine;
+    DBG.vennSharedLine = vennSharedLine; DBG.originPointLine = originPointLine;
+    DBG.countOnAfterLine = countOnAfterLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
