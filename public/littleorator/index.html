@@ -1763,27 +1763,7 @@ class SpeechEngine {
     clear(host);
     const d = this.session.data;
 
-    if (this.opts.scenarioPicker) {
-      const card = el('div', 'card');
-      card.appendChild(el('div', 'card-title', '🎬 Your scenario'));
-      const row = el('div', 'row');
-      SCENARIOS.forEach(function (s) {
-        const b = el('button', 'chip', s.emoji + ' ' + s.name);
-        b.type = 'button';
-        if (d.scenario === s.id) { b.setAttribute('aria-pressed', 'true'); b.classList.add('green'); }
-        b.addEventListener('click', async function () {
-          if (d.phase === PHASE.SPEAK) { toast('Finish your speech first.', 'warn'); return; }
-          d.scenario = s.id; d.topic = null; d.topics = [];
-          await self.refreshScenarioTopics(true);
-          self.render();
-        });
-        row.appendChild(b);
-      });
-      card.appendChild(row);
-      host.appendChild(card);
-    }
-
-    /* Topic area (cards for topic mode, chips for scenarios) */
+    /* Topic area: generated topics (plus quick picks in Scenario Speaking) */
     if (this.opts.topicArea) {
       const card = el('div', 'card');
       card.appendChild(el('div', 'card-title', '📌 Your topic'));
@@ -2578,7 +2558,7 @@ MODE_HOOKS.scenario = {
     const d = appState.modes[mode].data;
     d.topic = null; d.feedback = null; d.transcript = ''; d.interim = '';
     if (speechEngines[mode]) speechEngines[mode].render();
-    toast('Blank page — pick a topic chip above.', 'ok');
+    toast('Pick another idea from the list.', 'ok');
   },
   reset: function (mode) {
     resetSession(mode, { phase: PHASE.PICK });
@@ -2889,6 +2869,30 @@ function wireComposers() {
 }
 function $$all(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
 
+function renderScenarioChips() {
+  const host = $('#scenarioChips');
+  if (!host) return;
+  clear(host);
+  const cur = appState.modes.scenario.data.scenario;
+  SCENARIOS.forEach(function (s) {
+    const b = el('button', 'chip', s.emoji + ' ' + s.name);
+    b.type = 'button';
+    b.title = s.blurb;
+    if (cur === s.id) { b.setAttribute('aria-pressed', 'true'); b.classList.add('green'); }
+    b.addEventListener('click', function () {
+      const d = appState.modes.scenario.data;
+      if (d.phase === PHASE.SPEAK && d.speaking) { toast('Finish your speech first.', 'warn'); return; }
+      d.scenario = s.id;
+      d.topic = null;
+      d.topics = [];
+      renderScenarioChips();
+      if (speechEngines.scenario) speechEngines.scenario.render();
+      toast('Pick one of the ideas below, or press Generate topics.', 'ok');
+    });
+    host.appendChild(b);
+  });
+}
+
 function wireGlobalChrome() {
   $('#dlgOk').addEventListener('click', function () { closeDialog(true); });
   $('#dlgCancel').addEventListener('click', function () { closeDialog(false); });
@@ -2950,6 +2954,7 @@ function boot() {
   renderNav();
   renderGuidedChips();
   renderExplainChips();
+  renderScenarioChips();
   renderCriticalStatic();
   populateDebateSelects();
   renderDebateStatic();
