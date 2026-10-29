@@ -1615,15 +1615,15 @@ async function debateCoachTurn(userLine, isOpening) {
   if (!d.active) { toast('Press Start the debate first.', 'warn'); return; }
   if (d.finished) { toast('This debate is finished. Press Start Over or pick a new topic.', 'warn'); return; }
   if (!isOpening) {
-    if (!String($('#debateInput').value || '').trim()) { toast('Type your argument first.', 'warn'); return; }
-    d.round = Number(d.round || 0) + 1;                       // app-side round counter
-    if (d.round > DEBATE_MAX_ROUNDS) { toast('That is the third round already — press the summary button.', 'warn'); return; }
+    if (!String(userLine || '').trim()) { toast('Type your argument first.', 'warn'); return; }
+    d.round = Number(d.round || 0) + 1;                       // app-side round counter, enforced here
+    if (d.round > DEBATE_MAX_ROUNDS) { d.round = DEBATE_MAX_ROUNDS; toast('Three rounds is the limit. The coach has already given the summary.', 'warn'); return; }
   }
   const p = PROMPTS.debate + '\n\nAPPLICATION STATE (authoritative):\nTopic: ' + d.topic +
     '\nYour position (say this side): ' + d.aiSide + '\nChild position: ' + d.childSide +
     '\nCurrent round: ' + d.round + ' of ' + DEBATE_MAX_ROUNDS +
     (d.round >= DEBATE_MAX_ROUNDS && !isOpening ? '\nThis is the final round. Give your reply, then summarise the strongest point from each side and finish with one thoughtful question.' : '');
-  const ok = await sendAssistantTurn(mode, isOpening ? userLine : $('#debateInput').value, { system: p });
+  const ok = await sendAssistantTurn(mode, userLine, { system: p });
   if (ok) {
     logActivity(mode, 'turn', 'Round ' + d.round + ' — ' + d.childSide);
     if (d.round >= DEBATE_MAX_ROUNDS && !isOpening) { d.finished = true; logActivity(mode, 'complete', 'Debate summary reached.'); }
@@ -1734,12 +1734,12 @@ class SpeechEngine {
     this.hostSel = hostSel;
     this.opts = opts || {};
     this.session = appState.modes[mode];
-    this.session.data = Object.assign({
+    Object.assign(this.session.data, {
       phase: PHASE.PICK, scenario: null, topic: null, topics: [],
       transcript: '', interim: '', attempts: [],
       startedAt: null, endedAt: null, elapsedMs: 0, targetSec: null,
       feedback: null, feedbackLocal: false, silencePrompts: 0, micLabel: null
-    }, this.session.data || {});
+    });
     this.dom = {};
     this.micCtx = null;
     this.analyser = null;
@@ -1968,7 +1968,7 @@ class SpeechEngine {
     if (!d.cdRunning) return;
     const now = Date.now();
     if (!d.cdAnchor) d.cdAnchor = now;
-    const drained = Math.max(0, Math.round((now - d.cdAnchor) / 1000) * 1000);
+    const drained = Math.max(0, now - d.cdAnchor);          // exact elapsed, never rounded per tick
     d.cdAnchor = now;
     d.cdRemaining = Math.max(0, (d.cdRemaining || 0) - drained);
     this.dom.cdNum.textContent = fmtClock(d.cdRemaining);
@@ -2258,15 +2258,18 @@ class SpeechEngine {
 
   fullReset() {
     const d = this.session.data;
+    const scenarioKept = d.scenario;
+    const keptSettings = d.settings || null;
     if (this.clockTimer) { clearInterval(this.clockTimer); this.clockTimer = null; }
     if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = null; }
     this.stopRecognition(); this.stopMicActivity();
     if (this.silenceFallbackTimer) { clearInterval(this.silenceFallbackTimer); this.silenceFallbackTimer = null; }
-    this.session.data = {
-      phase: PHASE.PICK, scenario: this.opts.keepScenario ? d.scenario : null, topic: null, topics: [],
+    Object.keys(d).forEach(function (k) { delete d[k]; });
+    Object.assign(d, {
+      phase: PHASE.PICK, scenario: this.opts.keepScenario ? scenarioKept : null, topic: null, topics: [],
       transcript: '', interim: '', attempts: [], startedAt: null, endedAt: null, elapsedMs: 0,
-      targetSec: null, feedback: null, feedbackLocal: false, silencePrompts: 0, settings: d.settings || null
-    };
+      targetSec: null, feedback: null, feedbackLocal: false, silencePrompts: 0, settings: keptSettings
+    });
     if (this.dom.cdNum) this.dom.cdNum.textContent = '0:00';
     if (this.dom.elapsedLabel) this.dom.elapsedLabel.textContent = '0:00';
     this.render();
@@ -2300,21 +2303,142 @@ SpeechEngine.prototype.render = function () {
   else if (!d.attempts.length) this.dom.fbArea.classList.add('hidden');
 };
 
-/* Parse the coach reply into its labelled sections. */
+
+SpeechEngine.prototype.renderFeedbackArea = function (payload) {
+  const self = this;
+  const d = this.session.data;
+  const host = this.dom.fbArea;
+  if (!host) return;
+  host.classList.remove('hidden');
+  clear(host);
+  host.appendChild(el('div', 'card-title', '🏅 Coach feedback'));
+
+  if (payload && payload.error) {
+    const b = el('div', 'banner err');
+    b.appendChild(el('span', 'e', '⚠️'));
+    const box = el('div');
+    box.appendChild(el('div', null, payload.error));
+    const rb = el('button', 'btn ghost sm', '🔁 Try again');
+    rb.type = 'button'; rb.style.marginTop = '8px';
+    rb.addEventListener('click', function () { payload.retry(); });
+    box.appendChild(rb);
+    b.appendChild(box);
+    host.appendChild(b);
+    return;
+  }
+
+  /* Earlier attempts stay on screen so the child can compare them. */
+  if (d.attempts && d.attempts.length) {
+    const prev = el('div');
+    prev.appendChild(el('div', 'card-title', '📚 Your earlier tries'));
+    d.attempts.forEach(function (a, i) {
+      const box = el('div', 'attempt');
+      box.appendChild(el('div', 'meta', 'Try ' + (i + 1) + ' • ' + fmtClock(a.elapsedMs || 0) + (a.targetSec ? ' of ' + fmtClock(a.targetSec * 1000) : '') + ' • ' + new Date(a.at).toLocaleTimeString()));
+      box.appendChild(el('p', 'small muted', '“' + String(a.transcript || '').slice(0, 300) + (a.transcript && a.transcript.length > 300 ? '…' : '') + '”'));
+      if (a.feedback) {
+        const f = el('p', 'small', a.feedback);
+        f.style.marginTop = '6px';
+        box.appendChild(f);
+      }
+      prev.appendChild(box);
+    });
+    host.appendChild(prev);
+  }
+
+  const sections = parseFeedbackSections(payload ? payload.text : '');
+  if (!sections.length) {
+    const b = el('div', 'banner info');
+    b.appendChild(el('span', 'e', '🤖'));
+    b.appendChild(el('div', null, payload && payload.text ? payload.text : 'The coach has not answered yet.'));
+    host.appendChild(b);
+  } else {
+    const grid = el('div', 'fb-grid');
+    sections.forEach(function (sec) {
+      const cls = sec.key === 'STRENGTH' ? 'fb green' : (sec.key === 'NEXT STEP' ? 'fb blue' : 'fb plain');
+      const card = el('div', cls);
+      card.appendChild(el('div', 'h', sec.emoji + ' ' + sec.key));
+      card.appendChild(el('p', null, sec.body));
+      grid.appendChild(card);
+    });
+    host.appendChild(grid);
+  }
+
+  const row = el('div', 'btn-row');
+  const listen = el('button', 'btn', '🔊 Listen to Your Coach');
+  const replay = el('button', 'btn ghost', '🔁 Replay');
+  const stopVoice = el('button', 'btn ghost', '⏹️ Stop voice');
+  listen.type = replay.type = stopVoice.type = 'button';
+  listen.addEventListener('click', function () { ttsSpeak(stripFeedbackEmoji(payload ? payload.text : '')); });
+  replay.addEventListener('click', function () { ttsSpeak(stripFeedbackEmoji(payload ? payload.text : '')); });
+  stopVoice.addEventListener('click', function () { ttsStop(); });
+  if (!ttsAvailable()) {
+    listen.disabled = replay.disabled = true;
+    listen.title = 'This browser has no speech engine. The written feedback still works.';
+  }
+  const tryAgain = el('button', 'btn green', '🔁 Try Again');
+  const another = el('button', 'btn ghost', '📌 Choose Another Topic');
+  tryAgain.type = another.type = 'button';
+  tryAgain.addEventListener('click', async function () {
+    const go = await uiConfirm({ title: 'Try this topic again?', message: 'This attempt is saved so you can compare them. Your transcript starts fresh.', confirmLabel: 'Yes, try again' });
+    if (!go) return;
+    self.archiveAttempt(payload ? payload.text : null, false);
+    d.transcript = ''; d.interim = ''; d.feedback = null; d.speaking = false;
+    d.startedAt = null; d.endedAt = null; d.elapsedMs = 0; d.cdRemaining = 60000; d.phase = PHASE.PREP;
+    d.reminderAt = {}; d.silencePrompts = 0;
+    if (self.dom.cdNum) self.dom.cdNum.textContent = '1:00';
+    self.render();
+    toast('Same topic, clean page. Have another go!', 'ok');
+  });
+  another.addEventListener('click', async function () {
+    const go = await uiConfirm({ title: 'Choose another topic?', message: 'This attempt is saved. You will go back to the topic list.', confirmLabel: 'Yes, change topic' });
+    if (!go) return;
+    self.archiveAttempt(payload ? payload.text : null, false);
+    d.transcript = ''; d.interim = ''; d.feedback = null; d.speaking = false;
+    d.startedAt = null; d.endedAt = null; d.elapsedMs = 0; d.phase = PHASE.PICK;
+    self.dom.fbArea.classList.add('hidden');
+    self.render();
+    toast('Pick your next topic from the list.', 'ok');
+  });
+  [listen, replay, stopVoice].forEach(function (b) { row.appendChild(b); });
+  row.appendChild(el('span', 'spacer'));
+  row.appendChild(tryAgain); row.appendChild(another);
+  host.appendChild(row);
+
+  const speedRow = el('div', 'row');
+  speedRow.style.marginTop = '10px';
+  const sl = el('label', 'tiny muted', 'Voice speed');
+  sl.setAttribute('for', this.mode + '-rate');
+  speedRow.appendChild(sl);
+  const range = el('input');
+  range.type = 'range'; range.id = this.mode + '-rate';
+  range.min = '0.6'; range.max = '1.5'; range.step = '0.1'; range.value = String(appState.prefs.rate);
+  range.style.maxWidth = '220px';
+  range.addEventListener('input', function () { appState.prefs.rate = clampNum(range.value, 0.6, 1.5, 1); savePrefs(); });
+  speedRow.appendChild(range);
+  host.appendChild(speedRow);
+};
+
+/* Parse the coach reply into its labelled sections (position based, no fragile anchors). */
+function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function parseFeedbackSections(text) {
   const s = String(text || '');
   const keys = [
     { k: 'STRENGTH', e: '🏆' }, { k: 'NEXT STEP', e: '🔧' }, { k: 'STRUCTURE', e: '🧠' },
     { k: 'WORD CHOICE', e: '🗣️' }, { k: 'LOGIC', e: '🔎' }, { k: 'TIMING', e: '⏱️' }
   ];
-  const out = [];
-  keys.forEach(function (item) {
-    const re = new RegExp(item.e + '\\s*' + item.k + '\\s*:?[ \\t]*([\\s\\S]*?)(?=(?:' + keys.map(function (x) { return x.e; }).join('|') + ')\\s*[A-Z ]+\\s*:|$)', 'm');
-    const m = s.match(re);
-    if (m && m[1] && m[1].trim()) out.push({ key: item.k, emoji: item.e, body: m[1].trim().replace(/^[#*\s]+/, '') });
+  const found = [];
+  keys.forEach(function (k) {
+    const i = s.indexOf(k.e);
+    if (i >= 0) found.push({ i: i, k: k.k, e: k.e });
   });
-  if (!out.length && s.trim()) return [];
-  return out;
+  found.sort(function (a, b) { return a.i - b.i; });
+  return found.map(function (f, idx) {
+    const stop = idx + 1 < found.length ? found[idx + 1].i : s.length;
+    let body = s.slice(f.i, stop);
+    const head = new RegExp('^' + escapeRe(f.e) + '\\s*' + escapeRe(f.k) + '\\s*:?\\s*');
+    body = body.replace(head, '').replace(/^[#*\s]+/, '').trim();
+    return { key: f.k, emoji: f.e, body: body };
+  }).filter(function (x) { return x.body; });
 }
 function stripFeedbackEmoji(t) {
   return String(t || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').trim();
@@ -2829,6 +2953,10 @@ function boot() {
   renderCriticalStatic();
   populateDebateSelects();
   renderDebateStatic();
+  renderModeControls('#guidedControls', 'guided');
+  renderModeControls('#criticalControls', 'critical');
+  renderModeControls('#debateControls', 'debate');
+  renderModeControls('#explainControls', 'explain');
   wireComposers();
   wireGlobalChrome();
   wireTopicSelects();
