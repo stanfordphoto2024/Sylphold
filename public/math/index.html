@@ -105869,6 +105869,159 @@ var MW = {
   /* "Is 3 the number?" over an array — the picture holds the counters, so the
      honest working is the count-out that lands on the picture's own total. */
 
+  /* moneyEnoughLine, wide enough for the real sentences: the earlier version
+     allowed only 30 characters between the two amounts and the cards write
+     "saved $6 and wants to buy something that costs $11". */
+  function moneyEnoughLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = /saved\s+\$?\s*(\d+(?:\.\d+)?)[^.]{0,60}?costs\s+\$?\s*(\d+(?:\.\d+)?)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var have = numOf(m[1]), cost = numOf(m[2]);
+    if (have == null || cost == null || have === cost) return null;
+    var truth = have >= cost;
+    if (truth !== said) return null;
+    var line = fmt(have) + (truth ? ' ≥ ' : ' &lt; ') + fmt(cost) + ', so there ' + (truth ? 'is enough.' : 'is not enough.');
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "2 seeds at 4.14 each ○ 2 at 4.46 each" — the card's own steps already state
+     both totals; the multiplications that produce them are the working it left
+     out, and both factors are printed on the card. */
+  function unitRateCompareLine(item, text, shown) {
+    var sym = symOf(shown);
+    if (!sym) return null;
+    var t = String(text == null ? '' : text);
+    var m = /(\d+)\s*[^○◯?]{0,24}?at\s+(\d+(?:\.\d+)?)\s*each[^○◯]{0,24}?[○◯]\s*(\d+)\s*(?:at|for)\s+(\d+(?:\.\d+)?)/i.exec(t);
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[2]), c = numOf(m[3]), d = numOf(m[4]);
+    if (!a || !c || b == null || d == null) return null;
+    var p1 = Math.round(a * b * 1000) / 1000, p2 = Math.round(c * d * 1000) / 1000;
+    if (p1 === p2) return null;
+    var truth = p1 > p2 ? '>' : '<';
+    if (truth !== sym) return null;
+    var line = fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(p1) + ', and ' + fmt(c) + ' × ' + fmt(d) + ' = ' + fmt(p2) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "1/2 × ___ = 1/4 ○ 1/2" — the missing factor is a division the card can
+     answer, and the comparison then follows from it. Both fractions are the
+     card's own; only the quotient is computed. */
+  function missingFactorCompareLine(item, text, shown) {
+    var sym = symOf(shown);
+    if (!sym) return null;
+    var t = String(text == null ? '' : text);
+    var m = /(\d+\/\d+)\s*[×x*]\s*_+\s*=\s*(\d+\/\d+)\s*[○◯]\s*(\d+\/\d+)/i.exec(t);
+    if (!m) return null;
+    var frac = function (s) { var p = String(s).split('/'); return Number(p[0]) / Number(p[1]); };
+    var f1 = frac(m[1]), f2 = frac(m[2]), f3 = frac(m[3]);
+    if (!f1 || !f2 || !f3) return null;
+    var got = Math.round((f2 / f1) * 10000) / 10000;
+    var truth = got > f3 ? '>' : got < f3 ? '<' : '=';
+    if (truth !== sym) return null;
+    var line = 'the missing factor is ' + fmt(f2) + ' ÷ ' + fmt(f1) + ' = ' + fmt(got) + ', and that ' +
+      (truth === '=' ? 'equals ' : truth === '>' ? 'is more than ' : 'is less than ') + fmt(f3) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Is this statement true? A square has 5 sides." — the card's own earlier
+     line already counts the real number of sides; the difference between that
+     and the claim is the check the learner is being asked to make. */
+  function claimedCountCheckLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var t = String(text == null ? '' : text);
+    var claim = (t.match(/has\s+(\d+)\s+(?:sides|vertices|angles|faces|edges|corners)/i) || [])[1];
+    if (claim == null) return null;
+    var real = null;
+    var ex = (item && item.explain) || [];
+    for (var i = 0; i < ex.length; i++) {
+      /* the card states the real count either before or after the word —
+         "Count the sides of a square: 4" puts it after */
+      var w = String(ex[i]).match(/(\d+)\s+(?:sides|vertices|angles|faces|edges|corners)|(?:sides|vertices|angles|faces|edges|corners)\D{0,20}(\d+)/i);
+      if (!w) continue;
+      var v = Number(w[1] !== undefined && w[1] !== '' ? w[1] : w[2]);
+      if (v !== Number(claim) && v > 0) { real = v; break; }
+    }
+    if (real == null) return null;
+    if (said) return null;                        /* equal counts are the "yes" case, and nothing is left to compute */
+    var diff = Number(claim) - real;
+    /* the name of the shape and the name of the attribute are the card's own
+       words, and they are what ties this line to this card */
+    var noun = (t.match(/a\s+([a-z]{3,12})\s+has\s+\d+/i) || [])[1] || '';
+    var word = (t.match(/has\s+\d+\s+([a-z]+)/i) || [])[1] || '';
+    if (!noun || !word) return null;
+    var line = 'A ' + noun.toLowerCase() + ' has ' + fmt(real) + ' ' + word.toLowerCase() + ', and ' +
+      fmt(Math.max(Number(claim), real)) + ' − ' + fmt(Math.min(Number(claim), real)) + ' = ' + fmt(Math.abs(diff)) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "In a race you finished in position 2. Which word tells your position?" —
+     counting the places in order is the working; the card prints the number and
+     the answer is its ordinal name. */
+
+  /* ------------------------------------------------------------------------
+     Four sentence shapes where the card prints BOTH operands and the answer is
+     their combination — but the steps name the numbers without ever doing the
+     arithmetic. Each rule matches one shape, does the sum, and only speaks when
+     its own result is the card's own marked answer.
+     ------------------------------------------------------------------------ */
+
+  /* "Owen has 5 blocks. Owen gets 3 more blocks. How many in all?" */
+  function putTogetherLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var m = /(\d+(?:\.\d+)?)[^.\n]{0,40}?(?:gets|gets?|is given|gets)\s+(\d+(?:\.\d+)?)\s*(?:more|additional)?[^.\n]{0,30}?(?:in all|altogether|\?)/i.exec(t);
+    if (!m) m = /has\s+(\d+(?:\.\d+)?)[^.\n]{0,40}?(?:gets|finds|buys|is given)\s+(\d+(?:\.\d+)?)\s+more/i.exec(t);
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[2]);
+    if (a == null || b == null) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
+    if (mark == null || a + b !== mark) return null;
+    var line = fmt(a) + ' + ' + fmt(b) + ' = ' + fmt(mark) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Sam is showing 3 stickers and has 1 sticker so far. How many more does he
+     need?" — the gap between the goal and what is laid out. */
+  function howManyMoreLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var m = /showing\s+(\d+(?:\.\d+)?)[\s\S]{0,50}?has\s+(\d+(?:\.\d+)?)[\s\S]{0,50}?how many more/i.exec(t);
+    if (!m) return null;
+    var goal = numOf(m[1]), have = numOf(m[2]);
+    if (goal == null || have == null) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
+    if (mark == null || goal - have !== mark) return null;
+    var line = fmt(goal) + ' − ' + fmt(have) + ' = ' + fmt(mark) + ' more to reach the goal.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "How many groups of 4 make 8?" — the division the question is asking for. */
+  function groupsOfLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var m = /how many groups of\s+(\d+(?:\.\d+)?)(?:\s+make|\s+=|\s+are)\s+(\d+(?:\.\d+)?)/i.exec(t);
+    if (!m) return null;
+    var size = numOf(m[1]), total = numOf(m[2]);
+    if (!size || total == null) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
+    if (mark == null || Math.abs(total / size - mark) > 1e-9) return null;
+    var line = fmt(total) + ' ÷ ' + fmt(size) + ' = ' + fmt(mark) + ' groups.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "12 apples are shared equally among 4 friends" — both numbers are in the
+     sentence and the answer is the size of one share. */
+  function equalSharesLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var m = /(\d+(?:\.\d+)?)\s+\w+[^.\n]{0,30}?shared\s+(?:equally\s+)?(?:among|between|with)\s+(\d+(?:\.\d+)?)\s*(?:friends|children|people|kids|children|plates|groups)?/i.exec(t);
+    if (!m) return null;
+    var total = numOf(m[1]), shares = numOf(m[2]);
+    if (total == null || !shares) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
+    if (mark == null || Math.abs(total / shares - mark) > 1e-9) return null;
+    var line = fmt(total) + ' ÷ ' + fmt(shares) + ' = ' + fmt(mark) + ' in each share.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -105899,7 +106052,9 @@ var MW = {
       distributeTermLine, coordOffLineLine, coordIneqPointLine, topExponentLine,
       factorLeadingCoefLine, areaPerimeterCompareLine, perimeterSumLine,
       areaCompareProductsLine, orderedPairsLine, powerOfTenLine, determinant2x2Line, percentWordOrderLine,
-      payCheckLine, moneyMoreThanLine, shapeCountCompareLine, statCompareLine, sameUnitCompareLine], fi;
+      payCheckLine, moneyMoreThanLine, shapeCountCompareLine, statCompareLine, sameUnitCompareLine,
+      moneyEnoughLine, unitRateCompareLine, missingFactorCompareLine, claimedCountCheckLine,
+      putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -106256,6 +106411,14 @@ var MW = {
     DBG.shapeCountCompareLine = shapeCountCompareLine;
     DBG.statCompareLine = statCompareLine;
     DBG.sameUnitCompareLine = sameUnitCompareLine;
+    DBG.moneyEnoughLine = moneyEnoughLine;
+    DBG.unitRateCompareLine = unitRateCompareLine;
+    DBG.missingFactorCompareLine = missingFactorCompareLine;
+    DBG.claimedCountCheckLine = claimedCountCheckLine;
+    DBG.putTogetherLine = putTogetherLine;
+    DBG.howManyMoreLine = howManyMoreLine;
+    DBG.groupsOfLine = groupsOfLine;
+    DBG.equalSharesLine = equalSharesLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
