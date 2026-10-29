@@ -104458,7 +104458,10 @@ var MW = {
   function functionMachineLine(item, text, shown) {
     var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
     if (mark == null) return null;
-    var m = /rule\s*[“"']?\s*(?:multiply by|times|add|plus|subtract|minus|divide by)\s*(\d+)[^.!?“'"]{0,30}?(?:then|and)?\s*(multiply by|times|add|plus|subtract|minus|divide by)\s*(\d+)/i.exec(text);
+    /* the first operator word has to be a CAPTURE group: the code below reads
+       m[1..4] as op, number, op, number, and a non-capturing group there made
+       this rule read the number as an operator and quit on every card. */
+    var m = /rule(?:\s+is)?\s*[“"']?\s*(multiply by|times|add|plus|subtract|minus|divide by)\s*(\d+)[^.!?“'"]{0,30}?(?:then|and)?\s*(multiply by|times|add|plus|subtract|minus|divide by)\s*(\d+)/i.exec(text);
     if (!m) return null;
     var im = /input is\s*(\d+)|input\s+(\d+)/i.exec(text);
     if (!im) return null;
@@ -104955,7 +104958,8 @@ var MW = {
   /* A simplification is right when a number put through the original lands on the
      same answer as the simplified form. */
   function simplifyCheckLine(item, text, shown) {
-    var m = new RegExp('\\(\\s*(\\d+)(?:\\s*[²^2])?\\s*([+\\-−])\\s*(\\d+)\\s*\\)\\s*(?:÷|/)\\s*\\(\\s*x\\s*([+\\-−])\\s*(\\d+)\\s*\\)', 'i').exec(text);
+    var m = new RegExp('\\(\\s*(x|\\d+)(?:\\s*[²^2])\\s*([+\\-−])\\s*(\\d+)\\s*\\)\\s*(?:÷|/)\\s*\\(\\s*x\\s*([+\\-−])\\s*(\\d+)\\s*\\)', 'i').exec(text);
+    if (!/[²^2]/.test(String(m && m[0]))) return null;
     if (!m) return null;
     var sq = /[²^2]/.test(m[1] === undefined ? '' : m[0]);
     if (!sq) return null;
@@ -104983,7 +104987,7 @@ var MW = {
     var dx = Number(tm[1]) * (tm[2].toLowerCase() === 'left' ? -1 : 1);
     var dy = Number(tm[3]) * (tm[4].toLowerCase() === 'down' ? -1 : 1);
     var inMark = new RegExp('[(\\[(]\\s*x\\s*' + (dx < 0 ? '\\+' : '−') + '\\s*' + Math.abs(dx)).test(mark);
-    var outMark = new RegExp('(\\)|]|$)[\\s]*' + (dy < 0 ? '−' : '+') + '\\s*' + Math.abs(dy)).test(mark);
+    var outMark = new RegExp('(\\)|\\]|²|\\^2|$)[\\s]*' + (dy < 0 ? '−' : '+') + '\\s*' + Math.abs(dy)).test(mark);
     if (!inMark || !outMark) return null;
     var line = '0 ' + (dx < 0 ? '− ' + Math.abs(dx) : '+ ' + dx) + ' = ' + fmt(dx) + ' and 0 ' +
       (dy < 0 ? '− ' + Math.abs(dy) : '+ ' + dy) + ' = ' + fmt(dy) + ', so the origin goes to (' + fmt(dx) + ', ' + fmt(dy) + ').';
@@ -105122,6 +105126,513 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* ------------------------------------------------------------------------
+     Five rules for the ratio / fraction-model cards the pass gives up on. The
+     two ratio ones print the arithmetic their own step only announces: the
+     first shows the subtractions that come down to 1 (so the child SEES that
+     nothing bigger is shared), the second prints both products of the scaling.
+     The three model ones read the picture — shaded parts + unshaded parts are
+     the whole — and let the name of the unit part follow from that count; when
+     the card puts a name or a fraction up as a claim, the counts are written
+     first and the line only speaks if they decide the claim the card grades.
+     Every number is the card's own or falls out of the card's own by one
+     written step, and the sum always lands on the card's own mark.
+     ------------------------------------------------------------------------ */
+
+  /* "A bag holds 5 red beads and 9 blue beads. Write the ratio of red to blue
+     in simplest form." — the GCF is 1, so there is nothing to divide by and the
+     card only says so. Subtracting the card's own two counts down to 1 shows it. */
+  var AF_COLOURS = '(red|blue|green|yellow|purple|orange|pink|white|black|brown)';
+  function ratioCoprimeChainLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var mm = /^(\d+)\s*:\s*(\d+)$/.exec(String(shown == null ? '' : shown).trim());
+    if (!mm) return null;
+    var a = numOf(mm[1]), b = numOf(mm[2]);
+    if (!a || !b || a < 1 || b < 1) return null;
+    if (gcd(a, b) !== 1) return null;                  /* a real GCF keeps its own rule */
+    /* the two counts must be the card's own: either printed next to the colours
+       it asked about and in the order it asked for them, or — when the question
+       prints the ratio itself — the only two numbers the question prints */
+    var wr = new RegExp('(\\d+)\\s+' + AF_COLOURS, 'gi'), wm, list = [], i;
+    while ((wm = wr.exec(t)) !== null) list.push([numOf(wm[1]), String(wm[2]).toLowerCase()]);
+    var cm = new RegExp('ratio of ' + AF_COLOURS + '\\s+to\\s+' + AF_COLOURS, 'i').exec(t);
+    if (list.length >= 2 && cm) {
+      var ca = null, cb = null;
+      for (i = 0; i < list.length; i++) {
+        if (list[i][1] === String(cm[1]).toLowerCase()) ca = list[i][0];
+        if (list[i][1] === String(cm[2]).toLowerCase()) cb = list[i][0];
+      }
+      if (ca == null || cb == null || ca !== a || cb !== b) return null;
+    } else if (list.length >= 2) {
+      if (!(list[0][0] === a && list[1][0] === b)) return null;
+    } else {
+      if (!/ratio|rate|lowest terms|simplest form/i.test(t)) return null;
+      var nums = (t.match(/\d+(?:\.\d+)?/g) || []);
+      if (nums.length !== 2) return null;
+      if (numOf(nums[0]) !== a || numOf(nums[1]) !== b) return null;
+    }
+    /* subtract the smaller from the bigger until the subtractions reach 1 */
+    var hi = Math.max(a, b), lo = Math.min(a, b), chain = [], guard = 0, step;
+    while (hi !== lo && guard++ < 8) {
+      step = hi - lo;
+      if (step < 1) return null;
+      chain.push(fmt(hi) + ' − ' + fmt(lo) + ' = ' + fmt(step));
+      if (step === 1) break;
+      hi = Math.max(lo, step); lo = Math.min(lo, step);
+    }
+    if (!chain.length || chain[chain.length - 1].slice(-1) !== '1') return null;
+    var chainTxt = chain.length <= 3 ? chain.join(', ') : chain[0] + ' … ' + chain[chain.length - 1];
+    var line = chainTxt + ', so only 1 divides both — ' + fmt(a) + ':' + fmt(b) + ' is already simplest.';
+    if (line.length > 88) line = chainTxt + ', so only 1 divides both.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which ratio is equivalent to 8:7?" marked "32:28" — the step says multiply
+     both parts by 4 and never prints the two multiplications. Both are written
+     out here, and the line only speaks when they land on the marked pair. */
+  function ratioScaleBothPartsLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    if (!/which ratio is equivalent/i.test(t)) return null;
+    var pm = /(\d+)\s*:\s*(\d+)/.exec(t);
+    var mm = /^(\d+)\s*:\s*(\d+)$/.exec(String(shown == null ? '' : shown).trim());
+    if (!pm || !mm) return null;
+    var a = numOf(pm[1]), b = numOf(pm[2]), c = numOf(mm[1]), d = numOf(mm[2]);
+    if (!a || !b || !c || !d) return null;
+    var k = c / a;
+    if (k == null || Math.round(k) !== k || k < 2) return null;
+    if (b * k !== d) return null;                      /* both parts must land on the mark */
+    var line = fmt(a) + ' × ' + fmt(k) + ' = ' + fmt(c) + ', and ' + fmt(b) + ' × ' + fmt(k) + ' = ' + fmt(d) +
+      ', so both parts are multiplied by ' + fmt(k) + '.';
+    if (line.length > 88) line = fmt(a) + ' × ' + fmt(k) + ' = ' + fmt(c) + ' and ' + fmt(b) + ' × ' + fmt(k) + ' = ' + fmt(d) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Does this fraction model show 2/3?" — the picture holds the two counts, the
+     question prints the claim, and the answer is decided by comparing them. The
+     counts are written as their sum first so the name of the parts, and so the
+     fraction, follows from them; the line only speaks when that comparison is
+     the verdict the card grades. */
+  function fracModelClaimLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var v = item && item.visual;
+    if (!v || v.k !== 'frac' || !v.bars || v.bars.length !== 1) return null;
+    var b = v.bars[0] || {};
+    var n = numOf(String(b.n)), d = numOf(String(b.d));
+    if (n == null || d == null || d < 2 || d > 12 || n < 0 || n > d) return null;
+    var t = String(text == null ? '' : text);
+    var fr = (t.match(/\b\d+\s*\/\s*\d+\b/g) || []);
+    if (fr.length !== 1) return null;
+    var fm = /(\d+)\s*\/\s*(\d+)/.exec(fr[0]);
+    var cn = numOf(fm[1]), cd = numOf(fm[2]);
+    if (cn == null || cd == null || !cd) return null;
+    if (n === 0) return null;                      /* an empty shading count says nothing to compare */
+    var shows = (cn === n && cd === d);             /* the picture shows the claimed form or it does not */
+    if (shows !== said) return null;
+    var unit = AF_UNIT[d];
+    if (!unit) return null;
+    var an = /^[aeiou]/.test(unit) ? 'an ' : 'a ';
+    var un = d - n;
+    var line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ', so each part is ' + an + unit + ' and ' +
+      fmt(n) + ' shaded is ' + fmt(n) + '/' + fmt(d) + (said ? '.' : ', not ' + fmt(cn) + '/' + fmt(cd) + '.');
+    if (line.length > 88) line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ', so the shaded part is ' +
+      fmt(n) + '/' + fmt(d) + (said ? '.' : ', not ' + fmt(cn) + '/' + fmt(cd) + '.');
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A circle is cut into 4 parts that are all the same size. Are these fourths?"
+     and its lie — "…and one part is much bigger than the others…". The count comes
+     off the picture, the size comes from the card's own sentence, and the name is
+     kept only when it is the name the card's own verdict gives it. */
+  var AF_PLURAL = { 2: 'halves', 3: 'thirds', 4: 'fourths', 5: 'fifths', 6: 'sixths', 7: 'sevenths', 8: 'eighths', 9: 'ninths', 10: 'tenths', 11: 'elevenths', 12: 'twelfths' };
+  var AF_SING = { half: 2, halves: 2, third: 3, thirds: 3, fourth: 4, fourths: 4, fifth: 5, fifths: 5, sixth: 6, sixths: 6, seventh: 7, sevenths: 7, eighth: 8, eighths: 8, ninth: 9, ninths: 9, tenth: 10, tenths: 10, eleventh: 11, elevenths: 11, twelfth: 12, twelfths: 12 };
+  function fracPartsNameLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var v = item && item.visual;
+    if (!v || v.k !== 'frac' || !v.bars || v.bars.length !== 1) return null;
+    var b = v.bars[0] || {};
+    var n = numOf(String(b.n)), d = numOf(String(b.d));
+    if (n == null || d == null || d < 2 || d > 12 || n < 0 || n > d) return null;
+    var t = String(text == null ? '' : text);
+    var nm = /\b(halves|thirds|fourths|fifths|sixths|sevenths|eighths|ninths|tenths|elevenths|twelfths|half|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\b/i.exec(t);
+    if (!nm) return null;
+    if (AF_SING[String(nm[1]).toLowerCase()] !== d) return null;   /* the name must be the picture's own count */
+    var unfair = /much bigger|bigger than the others|different sizes/i.test(t);
+    var equal = /all the same size|same size/i.test(t);
+    if (unfair && said !== false) return null;
+    if (!unfair && said !== true) return null;
+    var un = d - n, line;
+    if (unfair) line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ' parts, but one is bigger, so they are not ' + AF_PLURAL[d] + '.';
+    else if (equal) line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ' parts, all the same size, so they are ' + AF_PLURAL[d] + '.';
+    else line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ', so each part is ' + (/^[aeiou]/.test(AF_UNIT[d]) ? 'an ' : 'a ') + AF_UNIT[d] + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The picture is a whole cut into d equal parts with n of them shaded, so the
+     shaded count and the unshaded count together are the whole. The name of the
+     unit part has to follow from that count, so the addition is printed first. */
+  var AF_UNIT = { 2: 'half', 3: 'third', 4: 'fourth', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth', 11: 'eleventh', 12: 'twelfth' };
+  function fracPartsModelLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'frac' || !v.bars || v.bars.length !== 1) return null;
+    var b = v.bars[0] || {};
+    var n = numOf(String(b.n)), d = numOf(String(b.d));
+    if (n == null || d == null || d < 2 || d > 12 || n < 0 || n > d) return null;
+    if (!/shaded|equal parts|cut into/i.test(String(text == null ? '' : text)) &&
+        !/^\d+\s+equal parts with\s*\d+\s+shaded$/i.test(String(shown == null ? '' : shown).trim())) return null;
+    var unit = AF_UNIT[d];
+    if (!unit) return null;
+    var an = /^[aeiou]/.test(unit) ? 'an ' : 'a ';
+    var un = d - n, line;
+    if (/^(true|false|yes|no)$/i.test(String(shown == null ? '' : shown).trim())) return null;
+    /* the mark is either the choice that states both counts or the count itself,
+       and which count it grades decides which side the line lands on */
+    var cm2 = /^(\d+)\s+equal parts with\s*(\d+)\s+shaded$/i.exec(String(shown == null ? '' : shown).trim());
+    if (cm2) {
+      if (numOf(cm2[1]) !== d || numOf(cm2[2]) !== n) return null;
+      line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ', so each part is ' + an + unit + ' — ' + fmt(n) + ' shaded.';
+      if (line.length > 88) line = fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ', so each part is ' + an + unit + '.';
+      return line.length <= 88 ? line : null;
+    }
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (mark === d) {
+      return fmt(n) + ' + ' + fmt(un) + ' = ' + fmt(d) + ' parts, so each part is ' + an + unit + '.';
+    }
+    if (mark === n) {
+      line = fmt(d) + ' − ' + fmt(un) + ' = ' + fmt(n) + ' shaded, so each part is ' + an + unit + '.';
+      return line.length <= 88 ? line : null;
+    }
+    return null;
+  }
+
+  /* ------------------------------------------------------------------------
+     Three rules for the number-name and digit families. The card already prints
+     the number and the name; what it never shows is the place value underneath,
+     which is the thing the skill is actually about. Each rule reads the number
+     off the card, decomposes it, and only speaks when the decomposition lands on
+     the card's own mark.
+     ------------------------------------------------------------------------ */
+
+  /* "Which word name matches 68?" / "Which pair matches: the number and its word
+     name? — 80 = eighty". */
+  function wordNamePromptLine(item, text, shown) {
+    if (!/word name|number name|in words|says .{0,24} in words|pair matches/i.test(String(text == null ? '' : text))) return null;
+    var mark = String(shown == null ? '' : shown).trim();
+    if (!mark) return null;
+    var digits = null, name = null, m;
+    m = /^(\d[\d,]*)\s*=\s*([a-z][a-z -]+)$/i.exec(mark);
+    if (m) { digits = numOf(m[1]); name = m[2]; }
+    else {
+      if (/\d/.test(mark)) return null;
+      name = mark;
+      var pm = /\b(\d[\d,]*)\b/.exec(String(text == null ? '' : text));
+      if (!pm) return null;
+      digits = numOf(pm[1]);
+    }
+    if (digits == null || digits < 10 || digits > 9999 || !name) return null;
+    if (wordNum(name) !== digits) return null;
+    if (digits < 100) {
+      var ones = digits % 10, tens = (digits - ones) / 10;
+      var line = fmt(digits) + ' is ' + fmt(tens) + (tens === 1 ? ' ten' : ' tens') + ' and ' + fmt(ones) +
+        (ones === 1 ? ' one' : ' ones') + ', which is ' + name + '.';
+      return line.length <= 88 ? line : null;
+    }
+    var hun = Math.floor(digits / 100), rest = digits % 100;
+    var ro = rest % 10, rt = (rest - ro) / 10;
+    var l2 = fmt(digits) + ' is ' + fmt(hun) + ' hundreds, ' + fmt(rt) + (rt === 1 ? ' ten' : ' tens') +
+      ' and ' + fmt(ro) + (ro === 1 ? ' one' : ' ones') + ', which is ' + name + '.';
+    if (l2.length <= 88) return l2;
+    var l3 = fmt(hun) + ' hundreds and ' + fmt(rest) + ' ones is ' + fmt(digits) + ', which is ' + name + '.';
+    return l3.length <= 88 ? l3 : null;
+  }
+
+  /* "Which is the largest digit in 725?" — the digits are the card's own, and
+     the working is the comparison between them. */
+  function digitCompareLine(item, text, shown, words2) {
+    var t = String(text == null ? '' : text);
+    var superl = /largest|greatest|biggest|highest/i.test(t) ? 'max' : /smallest|least|lowest/i.test(t) ? 'min' : null;
+    if (!superl) return null;
+    if (!/digit/i.test(t)) return null;
+    var m = /\b(\d[\d,]{1,})\b/.exec(t);
+    if (!m) return null;
+    var n = numOf(m[1]);
+    if (n == null || n < 10) return null;
+    var digs = String(m[1]).replace(/[^0-9]/g, '').split('').map(Number);
+    if (digs.length < 2) return null;
+    var want = superl === 'max' ? Math.max.apply(null, digs) : Math.min.apply(null, digs);
+    var mark = numOf(String(shown == null ? '' : shown).trim());
+    if (mark == null || mark !== want) return null;
+    /* a tie would make the question ambiguous — say nothing rather than pick */
+    var ties = digs.filter(function (d) { return d === want; }).length;
+    if (ties !== 1) return null;
+    var others = digs.filter(function (d) { return d !== want; }).sort(function (a, b) { return superl === 'max' ? b - a : a - b; });
+    var line = fmt(want) + ' ' + relSym(want, others[0]) + ' ' + fmt(others[0]);
+    if (others.length > 1) line += ' and ' + fmt(want) + ' ' + relSym(want, others[others.length - 1]) + ' ' + fmt(others[others.length - 1]);
+    line += ', so ' + fmt(want) + ' is the ' + (superl === 'max' ? 'largest' : 'smallest') + ' digit in ' + m[1] + '.';
+    if (line.length > 88) {
+      var short2 = fmt(want) + ' ' + relSym(want, others[0]) + ' ' + fmt(others[0]) + ', so ' + fmt(want) + ' is the answer.';
+      return short2.length <= 88 ? short2 : null;
+    }
+    return line;
+  }
+
+  /* 'How many tens are in the number "thirty-five"?' — write the number out of
+     the words, then read the place the question asks about off the decomposition. */
+  function wordToPlaceLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    var ask = /how many\s+(tens?|ones?|hundreds?)\b/i.exec(t);
+    if (!ask) return null;
+    var wm = /["“']([a-z][a-z -]{2,28})["”']/.exec(t);
+    if (!wm) return null;
+    var value = wordNum(wm[1]);
+    if (value == null || value < 10 || value > 9999) return null;
+    var place = ask[1].toLowerCase().replace(/s$/, '');
+    var digit;
+    if (place === 'ones') digit = value % 10;
+    else if (place === 'tens') digit = Math.floor((value % 100) / 10);
+    else digit = Math.floor((value % 1000) / 100);
+    var mark = numOf(String(shown == null ? '' : shown).trim());
+    if (mark == null || mark !== digit) return null;
+    var o = value % 10, rem = value - o;
+    var line;
+    if (place === 'tens') line = fmt(value) + ' is ' + fmt(digit) + (digit === 1 ? ' ten' : ' tens') + ' and ' + fmt(o) + (o === 1 ? ' one' : ' ones') + ', so ' + fmt(digit) + '.';
+    else if (place === 'ones') line = fmt(value) + ' is ' + fmt(Math.floor(value / 10) * 10) + ' tens-worth and ' + fmt(digit) + ' ones, so ' + fmt(digit) + '.';
+    else line = fmt(value) + ' has ' + fmt(digit) + ' in the hundreds place.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which solution set satisfies 2x + 2 < 12?" — the card narrates the inverse
+     operations but never does them. Both moves are arithmetic on the card's own
+     numbers, and the answer only follows if they are done in order. */
+  function twoStepSolveLine(item, text, shown) {
+    if (!/solution (set )?(that )?(satisfies|is)/i.test(String(text == null ? '' : text))) return null;
+    var m = /(\d+)\s*x\s*([+\-−])\s*(\d+)\s*([<>≤≥])\s*(\d+)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[3]), c = numOf(m[5]);
+    var rel = m[4];
+    if (a == null || b == null || c == null || !a) return null;
+    var undoAdd = rel === '<' ? c - b : rel === '>' ? c - b : c - b;   /* subtract the added term */
+    if (m[2] === '-' || m[2] === '−') undoAdd = c + b;                 /* add back the subtracted term */
+    var divided = undoAdd / a;
+    if (!isFinite(divided) || divided !== Math.round(divided)) return null;
+    /* the mark states the same relation the card asked with, at the value the two
+       moves produce */
+    var mark = String(shown == null ? '' : shown).trim();
+    var mm = new RegExp('^x\\s*(' + rel + ')\\s*(\\d+)$', 'i').exec(mark);
+    if (!mm) return null;
+    if (numOf(mm[2]) !== divided || mm[1] !== rel) return null;
+    var first = m[2] === '-' || m[2] === '−'
+      ? fmt(c) + ' + ' + fmt(b) + ' = ' + fmt(undoAdd)
+      : fmt(c) + ' − ' + fmt(b) + ' = ' + fmt(undoAdd);
+    var line = first + ', then ' + fmt(undoAdd) + ' ÷ ' + fmt(a) + ' = ' + fmt(divided) + ', so x ' + rel + ' ' + fmt(divided) + '.';
+    if (line.length > 88) {
+      line = first + ' and ' + fmt(undoAdd) + ' ÷ ' + fmt(a) + ' = ' + fmt(divided) + '.';
+      if (line.length > 88) line = fmt(undoAdd) + ' ÷ ' + fmt(a) + ' = ' + fmt(divided) + ', so x ' + rel + ' ' + fmt(divided) + '.';
+    }
+    return line.length <= 88 ? line : null;
+  }
+
+  /* ------------------------------------------------------------------------
+     Four rules for the algebra cards where the picture or the printed equation
+     already contains the test: a point checked against the line, a point checked
+     against an inequality, a distribution whose constant is a multiplication,
+     and a degree that is a comparison of the exponents on the card. Each one
+     does the arithmetic and only speaks when its own result is the card's mark.
+     ------------------------------------------------------------------------ */
+
+  /* "Which expression is equivalent to 4(x + 4)?" — the card narrates the
+     distribution in words and never multiplies. The two numbers are its own. */
+  function distributeTermLine(item, text, shown) {
+    var m = /equivalent to\s+(\d+)\s*\(\s*x\s*([+\-−])\s*(\d+)\s*\)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[3]);
+    if (a == null || b == null || a < 1 || b < 1) return null;
+    var neg = m[2] === '-' || m[2] === '−';
+    var prod = a * b;
+    var mark = String(shown == null ? '' : shown).trim();
+    var mm = /^(\d+)\s*x\s*([+\-−])\s*(\d+)$/.exec(mark);
+    if (!mm) return null;
+    if (numOf(mm[1]) !== a) return null;
+    var mneg = mm[2] === '-' || mm[2] === '−';
+    if (mneg !== neg || numOf(mm[3]) !== prod) return null;
+    var line = fmt(a) + ' × ' + fmt(b) + ' = ' + fmt(prod) + ', so ' + fmt(a) + 'x ' + (neg ? '− ' : '+ ') + fmt(prod) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A point the card says is OFF the line: the line's own slope and intercept
+     disagree with the point's own y, and writing both is the whole test. */
+  function coordOffLineLine(item, text, shown) {
+    if (!/not lie|does not|doesn.t lie|not on the line|off the line/i.test(String(text == null ? '' : text))) return null;
+    var v = item && item.visual, o = v && v.k === 'coord' ? v.opts || {} : null;
+    if (!o || !o.lines || !o.lines.length || !o.pts) return null;
+    var m = numOf(String(o.lines[0].m)), b = numOf(String(o.lines[0].b));
+    if (m == null || b == null) return null;
+    var mm = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(String(shown == null ? '' : shown));
+    if (!mm) return null;
+    var px = numOf(mm[1]), py = numOf(mm[2]);
+    if (px == null || py == null) return null;
+    var got = m * px + b;
+    if (got === py) return null;                       /* this point is ON the line, so it is not the answer */
+    /* every other point the card offers must lie on the line, or the card is
+       not the simple "one point is off" shape this rule speaks to */
+    var others = 0, seen = 0;
+    for (var i = 0; i < (o.pts || []).length; i++) {
+      var p = o.pts[i]; if (!p) continue;
+      if (numOf(String(p.x)) === px && numOf(String(p.y)) === py) continue;
+      seen++;
+      if (m * numOf(String(p.x)) + b === numOf(String(p.y))) others++;
+    }
+    if (seen && others !== seen) return null;
+    var line = fmt(m) + ' × ' + fmt(px) + ' + ' + fmt(b) + ' = ' + fmt(got) + ', not ' + fmt(py) + ' — that point is off the line.';
+    if (line.length > 88) line = fmt(m) + ' × ' + fmt(px) + ' + ' + fmt(b) + ' = ' + fmt(got) + ', not ' + fmt(py) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which ordered pair is a solution of y > 2x + 3?" — substitute the point's
+     own x, get the line's own y, and compare it with the point's own y. */
+  function coordIneqPointLine(item, text, shown) {
+    var im = /[<>≤≥]/.exec(String(text == null ? '' : text));
+    if (!im) return null;
+    var v = item && item.visual, o = v && v.k === 'coord' ? v.opts || {} : null;
+    if (!o || !o.lines || !o.lines.length || !o.pts) return null;
+    var m = numOf(String(o.lines[0].m)), b = numOf(String(o.lines[0].b));
+    if (m == null || b == null) return null;
+    var mm = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(String(shown == null ? '' : shown));
+    if (!mm) return null;
+    var px = numOf(mm[1]), py = numOf(mm[2]);
+    if (px == null || py == null) return null;
+    var got = m * px + b;
+    var sym = im[0];
+    var holds = sym === '>' ? py > got : sym === '<' ? py < got
+      : sym === '≥' ? py >= got : py <= got;
+    if (!holds) return null;
+    var ent = (sym === '>' || sym === '≥') ? '&gt;' : '&lt;';
+    var line = fmt(m) + ' × ' + fmt(px) + ' + ' + fmt(b) + ' = ' + fmt(got) + ', and ' + fmt(py) + ' ' + ent + ' ' + fmt(got) + '.';
+    if (line.length > 88) line = fmt(py) + ' ' + ent + ' ' + fmt(got) + ', from ' + fmt(m) + ' × ' + fmt(px) + ' + ' + fmt(b) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The degree is the biggest exponent the card itself printed, so the working
+     is the comparison between the exponents that appear. */
+  function topExponentLine(item, text, shown) {
+    if (!/degree of/i.test(String(text == null ? '' : text))) return null;
+    var SUP = { '⁰': 0, '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
+    var t = String(text == null ? '' : text);
+    var exps = [], m;
+    var su = /x\s*([⁰¹²³⁴⁵⁶⁷⁸⁹]{1,2})/g;
+    while ((m = su.exec(t)) !== null) {
+      var d = String(m[1]).split('').map(function (c) { return SUP[c]; });
+      if (d.some(function (c) { return c == null; })) continue;
+      exps.push(Number(d.join('')));
+    }
+    var cm = /x\s*\^\s*(\d+)/g;
+    while ((m = cm.exec(t)) !== null) exps.push(Number(m[1]));
+    if (exps.length < 2) return null;
+    var sorted = exps.slice().sort(function (a, b) { return b - a; });
+    var ans = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (ans == null || sorted[0] !== ans) return null;
+    if (sorted[1] == null) return null;
+    var line = fmt(sorted[0]) + ' &gt; ' + fmt(sorted[1]) + ', so ' + fmt(sorted[0]) + ' is the highest exponent on the card.';
+    if (line.length > 88) line = fmt(sorted[0]) + ' &gt; ' + fmt(sorted[1]) + ', so the highest exponent is ' + fmt(sorted[0]) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* The same test as factorProductLine, for the factorizations with a leading
+     coefficient — the current rule only reads two plain binomials, so every
+     "2(x − 1)(x − 5)" answer left with nothing said. A root of the quadratic
+     makes both factors zero at once, and that is the test: evaluate the marked
+     product and the printed quadratic at the same x, and speak only when they
+     agree AND a non-zero x is used, so a missing coefficient cannot hide. */
+  function factorLeadingCoefLine(item, text, shown) {
+    if (!/product of linear factors|factoris|factoriz/i.test(String(text == null ? '' : text))) return null;
+    /* the coefficient may be absent — the card prints "x² − 4x − 5" when it is 1 */
+    var qm = new RegExp('(\\d*)\\s*x\\s*[²^2]\\s*([+\\-−])\\s*(\\d*)\\s*x\\s*([+\\-−])\\s*(\\d+)', 'i').exec(String(text == null ? '' : text));
+    if (!qm) return null;
+    var A = qm[1] === '' ? 1 : Number(qm[1]);
+    if (!A) return null;
+    var sign1 = qm[2] === '-' || qm[2] === '−' ? -1 : 1;
+    var B = qm[3] === '' ? 0 : sign1 * Number(qm[3]);
+    var sign2 = qm[4] === '-' || qm[4] === '−' ? -1 : 1;
+    var C = sign2 * Number(qm[5]);
+    var mark = String(shown == null ? '' : shown).trim();
+    /* the number inside a factor may itself be negative — "(x − -6)" is the
+       card's own way of writing a root at -6, and a rule that cannot read it
+       says nothing on exactly the cards that need it most */
+    var pm = new RegExp('^(\\d*)\\s*[(\\[]\\s*x\\s*([+\\-−])\\s*(-?\\d+)\\s*[)\\]][(\\[]\\s*x\\s*([+\\-−])\\s*(-?\\d+)\\s*[)\\]]$').exec(mark);
+    if (!pm) return null;
+    var a2 = pm[1] === '' ? 1 : Number(pm[1]);
+    if (a2 !== A) return null;                          /* the leading coefficient has to be in the answer */
+    /* group 1 is the leading coefficient, then sign/number of each factor */
+    var f1 = pm[2] === '-' || pm[2] === '−' ? -Number(pm[3]) : Number(pm[3]);
+    var f2 = pm[4] === '-' || pm[4] === '−' ? -Number(pm[5]) : Number(pm[5]);
+    var roots = [-f1, -f2];
+    var x = roots[0] !== 0 ? roots[0] : (roots[1] !== 0 ? roots[1] : null);
+    if (x == null) return null;
+    var product = a2 * (x + f1) * (x + f2);
+    var rhs = A * x * x + B * x + C;
+    if (product !== rhs) return null;
+    var line = 'at x = ' + fmt(x) + ': ' + fmt(a2) + ' × ' + fmt(x + f1) + ' × ' + fmt(x + f2) +
+      ' = ' + fmt(product) + ', and the quadratic gives ' + fmt(rhs) + '.';
+    if (line.length > 88) line = 'at x = ' + fmt(x) + ' the marked product and the quadratic both give ' + fmt(rhs) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "For a 5 by 4 rectangle, which is bigger: its area or its perimeter?" — the
+     grid states the two side lengths, and both answers are one multiplication
+     away. The card asserts both and compares in words without ever computing. */
+  function areaPerimeterCompareLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'area') return null;
+    var r = numOf(String(v.rows)), c = numOf(String(v.cols));
+    if (!r || !c || r < 2 || c < 2 || r * c > 200) return null;
+    var area = r * c, per = 2 * (r + c);
+    if (area === per) return null;                      /* "they are equal" needs no working */
+    var t = String(text == null ? '' : text);
+    if (!/bigger|greater|larger|more|which/i.test(t)) return null;
+    var mark = String(shown == null ? '' : shown).toLowerCase();
+    var mnum = (mark.match(/\d[\d.]*/g) || []).map(Number);
+    if (!mnum.length) return null;
+    var wantsArea = /area/.test(mark), wantsPer = /perimeter|perimeter/.test(mark);
+    if (!wantsArea && !wantsPer) return null;
+    if (wantsArea && mnum.indexOf(area) < 0) return null;
+    if (wantsPer && mnum.indexOf(per) < 0) return null;
+    var line = fmt(r) + ' × ' + fmt(c) + ' = ' + fmt(area) + ' square units, and ' + fmt(r) + ' + ' + fmt(c) +
+      ' = ' + fmt(r + c) + ', × 2 = ' + fmt(per) + ' units round.';
+    if (line.length > 88) line = fmt(r) + ' × ' + fmt(c) + ' = ' + fmt(area) + ' and 2 × ' + fmt(r + c) + ' = ' + fmt(per) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A square has side length s. Which expression gives its perimeter?" — the
+     card says which shape it is and names its side, and the answer is what you
+     get when the sides are actually added. The addition is the working the card
+     skips; the rectangle version collects the same addition. */
+  function perimeterSumLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    if (!/which expression|write an expression|expression gives/i.test(t)) return null;
+    var mark = String(shown == null ? '' : shown).trim();
+    var m;
+    m = /a square has side length ([a-z])\b/i.exec(t);
+    if (m && /perimeter/i.test(t)) {
+      var v = m[1].toLowerCase();
+      var sm = new RegExp('^4\\s*' + v + '$', 'i').exec(mark);
+      if (!sm) return null;
+      var line = v + ' + ' + v + ' + ' + v + ' + ' + v + ' = 4' + v + ', one for each side of the square.';
+      if (line.length > 88) line = v + ' + ' + v + ' + ' + v + ' + ' + v + ' = 4' + v + '.';
+      return line.length <= 88 ? line : null;
+    }
+    m = /a rectangle has width ([a-z]) and length \1 \+ (\d+)/i.exec(t);
+    if (m && /perimeter/i.test(t)) {
+      var w = m[1].toLowerCase(), k = Number(m[2]);
+      if (!k) return null;
+      var cm = new RegExp('^4\\s*' + w + '\\s*\\+\\s*' + (2 * k) + '$', 'i').exec(mark);
+      if (!cm) return null;
+      var l2 = w + ' + ' + w + ' + (' + w + ' + ' + fmt(k) + ') + (' + w + ' + ' + fmt(k) + ') = 4' + w + ' + ' + fmt(2 * k) + '.';
+      return l2.length <= 88 ? l2 : null;
+    }
+    return null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -105146,7 +105657,11 @@ var MW = {
       coinsCanBuyLine, percentOfLine, factorProductLine, midpointLine, solutionCountLine,
       partsSumLine, notFunctionLine, simplifyCheckLine, translateLandingLine,
       wordNameVisualLine,
-      frameFillLine, numlineArrowLine, vennSharedLine, originPointLine, countOnAfterLine], fi;
+      frameFillLine, numlineArrowLine, vennSharedLine, originPointLine, countOnAfterLine,
+      ratioCoprimeChainLine, ratioScaleBothPartsLine, fracModelClaimLine, fracPartsNameLine,
+      fracPartsModelLine, wordNamePromptLine, digitCompareLine, wordToPlaceLine, twoStepSolveLine,
+      distributeTermLine, coordOffLineLine, coordIneqPointLine, topExponentLine,
+      factorLeadingCoefLine, areaPerimeterCompareLine, perimeterSumLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -105484,6 +105999,15 @@ var MW = {
     DBG.frameFillLine = frameFillLine; DBG.numlineArrowLine = numlineArrowLine;
     DBG.vennSharedLine = vennSharedLine; DBG.originPointLine = originPointLine;
     DBG.countOnAfterLine = countOnAfterLine;
+    DBG.ratioCoprimeChainLine = ratioCoprimeChainLine; DBG.ratioScaleBothPartsLine = ratioScaleBothPartsLine;
+    DBG.fracModelClaimLine = fracModelClaimLine; DBG.fracPartsNameLine = fracPartsNameLine;
+    DBG.fracPartsModelLine = fracPartsModelLine; DBG.wordNamePromptLine = wordNamePromptLine;
+    DBG.digitCompareLine = digitCompareLine; DBG.wordToPlaceLine = wordToPlaceLine;
+    DBG.twoStepSolveLine = twoStepSolveLine; DBG.distributeTermLine = distributeTermLine;
+    DBG.coordOffLineLine = coordOffLineLine; DBG.coordIneqPointLine = coordIneqPointLine;
+    DBG.topExponentLine = topExponentLine;
+    DBG.factorLeadingCoefLine = factorLeadingCoefLine; DBG.areaPerimeterCompareLine = areaPerimeterCompareLine;
+    DBG.perimeterSumLine = perimeterSumLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
