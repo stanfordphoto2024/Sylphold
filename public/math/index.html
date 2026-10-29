@@ -91350,7 +91350,9 @@ function () {
       },
       function () {
         if (!FAM.test(ttl)) return null;
-        var rightTxt = '(x − ' + r1 + ')(x − ' + r2 + ')';
+        /* when the leading coefficient is not 1 it belongs in the answer —
+           (x − 1)(x − 5) does not expand to 2x² − 12x + 10, only 2 of it does */
+        var rightTxt = (a === 1 ? '' : a) + '(x − ' + r1 + ')(x − ' + r2 + ')';
         var opts = R.shuffle(rng, [rightTxt, '(x + ' + r1 + ')(x + ' + r2 + ')', '(x − ' + r1 + ')(x + ' + r2 + ')', '(x + ' + r1 + ')(x − ' + r2 + ')']);
         return I_choice('Which product of linear factors is equivalent to ' + tri() + '?',
           opts, opts.indexOf(rightTxt), {
@@ -104853,15 +104855,20 @@ var MW = {
     if (!m) return null;
     var pm = new RegExp('[([]\\s*(\\w+)\\s*([+\\-−])\\s*(\\d+)\\s*[)\\]][(\\[]\\s*(\\w+)\\s*([+\\-−])\\s*(\\d+)\\s*[)\\]]', 'i').exec(String(shown == null ? '' : shown));
     if (!pm) return null;
-    var x = 1;
+    /* a test point has to be squared, or a missing leading coefficient slips
+       through at x = 1 where everything is itself */
+    var x = 2;
     var v1 = applyOp(pm[2] === '-' ? '−' : pm[2], x, numOf(pm[3]));
     var v2 = applyOp(pm[5] === '-' ? '−' : pm[5], x, numOf(pm[6]));
     if (v1 == null || v2 == null) return null;
     var product = v1 * v2;
-    var rhs = evalSide(m[1].replace(/[²^2]/g, '').replace(/^[a-z]/, String(x)));
+    var qm = new RegExp('(\\d*)\\s*x\\s*[²^2]\\s*([+\\-−])\\s*(\\d*)\\s*x\\s*([+\\-−])\\s*(\\d+)', 'i').exec(m[1]);
+    if (!qm) return null;
+    var A = qm[1] === '' ? 1 : Number(qm[1]), B = Number(qm[3]), C = Number(qm[5]);
+    var rhs = A * x * x + (qm[2] === '-' || qm[2] === '−' ? -B : B) * x + C;
     if (rhs == null) return null;
     if (product !== rhs) return null;
-    var line = fmt(v1) + ' × ' + fmt(v2) + ' = ' + fmt(product) + ', and the card’s expression gives ' + fmt(rhs) + ' at x = 1.';
+    var line = fmt(v1) + ' × ' + fmt(v2) + ' = ' + fmt(product) + ', and the card’s expression gives ' + fmt(rhs) + ' at x = 2.';
     if (line.length > 88) line = fmt(v1) + ' × ' + fmt(v2) + ' = ' + fmt(product) + '.';
     return line.length <= 88 ? line : null;
   }
@@ -104898,6 +104905,90 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* Four rules for the biggest shapes still standing, plus the correction the
+     factor rule needed when the leading coefficient is not 1. */
+
+  /* How many equal parts: the shaded ones and the unshaded ones together are the
+     whole, and that sum is what the card is graded on. */
+  function partsSumLine(item, text, shown) {
+    var v = item && item.visual, o = v && v.k === 'frac' ? v.opts || {} : null;
+    if (!o || !o.slices || o.slices.length < 2) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9]/g, ''));
+    if (!mark) return null;
+    var shaded = 0, i, sl;
+    for (i = 0; i < o.slices.length; i++) {
+      sl = o.slices[i];
+      if (sl && (sl.shaded || sl.fill || sl.filled || sl.part === true)) shaded++;
+    }
+    var un = o.slices.length - shaded;
+    if (shaded === 0 || un === 0) return null;
+    if (shaded + un !== mark) return null;
+    var line = fmt(shaded) + ' shaded and ' + fmt(un) + ' not, and ' + fmt(shaded) + ' + ' + fmt(un) + ' = ' + fmt(mark) + ' parts.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* Which relation is not a function: the one input that pays out two different
+     outputs is the one that breaks it. */
+  function notFunctionLine(item, text, shown) {
+    if (!/not a function|isn.?t a function/i.test(text)) return null;
+    var pairs = String(shown == null ? '' : shown).match(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g) || [];
+    if (pairs.length < 3) return null;
+    var seen = {}, i, m, k, val;
+    for (i = 0; i < pairs.length; i++) {
+      m = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(pairs[i]);
+      k = numOf(m[1]); val = numOf(m[2]);
+      if (seen[k] != null && seen[k] !== val) {
+        var line = 'the input ' + fmt(k) + ' pays out ' + fmt(seen[k]) + ' and ' + fmt(val) + ', and ' +
+          (seen[k] > val ? fmt(seen[k]) + ' &gt; ' + fmt(val) : fmt(val) + ' &gt; ' + fmt(seen[k])) + ', so it is not a function.';
+        if (line.length > 88) {
+          line = fmt(k) + ' pays ' + fmt(seen[k]) + ' and ' + fmt(val) + ' — ' + (seen[k] > val ? fmt(seen[k]) + ' &gt; ' : fmt(val) + ' &gt; ') + (seen[k] > val ? fmt(val) : fmt(seen[k])) + '.';
+        }
+        return line.length <= 88 ? line : null;
+      }
+      seen[k] = val;
+    }
+    return null;
+  }
+
+  /* A simplification is right when a number put through the original lands on the
+     same answer as the simplified form. */
+  function simplifyCheckLine(item, text, shown) {
+    var m = new RegExp('\\(\\s*(\\d+)(?:\\s*[²^2])?\\s*([+\\-−])\\s*(\\d+)\\s*\\)\\s*(?:÷|/)\\s*\\(\\s*x\\s*([+\\-−])\\s*(\\d+)\\s*\\)', 'i').exec(text);
+    if (!m) return null;
+    var sq = /[²^2]/.test(m[1] === undefined ? '' : m[0]);
+    if (!sq) return null;
+    var mark = String(shown == null ? '' : shown).trim();
+    var mm = new RegExp('^x\\s*([+\\-−])\\s*(\\d+)$', 'i').exec(mark);
+    if (!mm) return null;
+    var x = numOf(m[3]) + 2;                              /* a number the card did not use */
+    var top = (x * x) + (m[2] === '-' || m[2] === '−' ? -numOf(m[3]) : numOf(m[3]));
+    var den = x + (m[4] === '-' || m[4] === '−' ? -numOf(m[5]) : numOf(m[5]));
+    if (!den || top % den !== 0) return null;
+    var got = top / den;
+    var want = x + (mm[1] === '-' || mm[1] === '−' ? -numOf(mm[2]) : numOf(mm[2]));
+    if (got !== want) return null;
+    var line = 'at x = ' + fmt(x) + ': ' + fmt(top) + ' ÷ ' + fmt(den) + ' = ' + fmt(got) + ', and ' + fmt(x) +
+      ' ' + (mm[1] === '-' || mm[1] === '−' ? '− ' + fmt(mm[2]) : '+ ' + fmt(mm[2])) + ' = ' + fmt(want) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* A translation moves the origin the way the card says; the marked equation has
+     to land there too. */
+  function translateLandingLine(item, text, shown) {
+    var tm = /translated\s+(\d+)\s+units?\s+(left|right)[^.!?]{0,20}?(?:and|then)\s+(\d+)\s+units?\s+(up|down)/i.exec(text);
+    if (!tm) return null;
+    var mark = String(shown == null ? '' : shown);
+    var dx = Number(tm[1]) * (tm[2].toLowerCase() === 'left' ? -1 : 1);
+    var dy = Number(tm[3]) * (tm[4].toLowerCase() === 'down' ? -1 : 1);
+    var inMark = new RegExp('[(\\[(]\\s*x\\s*' + (dx < 0 ? '\\+' : '−') + '\\s*' + Math.abs(dx)).test(mark);
+    var outMark = new RegExp('(\\)|]|$)[\\s]*' + (dy < 0 ? '−' : '+') + '\\s*' + Math.abs(dy)).test(mark);
+    if (!inMark || !outMark) return null;
+    var line = '0 ' + (dx < 0 ? '− ' + Math.abs(dx) : '+ ' + dx) + ' = ' + fmt(dx) + ' and 0 ' +
+      (dy < 0 ? '− ' + Math.abs(dy) : '+ ' + dy) + ' = ' + fmt(dy) + ', so the origin goes to (' + fmt(dx) + ', ' + fmt(dy) + ').';
+    if (line.length > 88) line = '0 ' + (dx < 0 ? '− ' + Math.abs(dx) : '+ ' + dx) + ' = ' + fmt(dx) + ', and 0 ' + (dy < 0 ? '− ' + Math.abs(dy) : '+ ' + dy) + ' = ' + fmt(dy) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -104919,7 +105010,8 @@ var MW = {
       ratioSimpleLine,
       lateStatementLine, countOnJumpsLine, roundedToLine, decimalProductLine,
       ratioNotEquivalentLine, inequalityCheckLine, letterIsProductLine, tableReadLine,
-      coinsCanBuyLine, percentOfLine, factorProductLine, midpointLine, solutionCountLine], fi;
+      coinsCanBuyLine, percentOfLine, factorProductLine, midpointLine, solutionCountLine,
+      partsSumLine, notFunctionLine, simplifyCheckLine, translateLandingLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -105252,6 +105344,8 @@ var MW = {
     DBG.coinsCanBuyLine = coinsCanBuyLine; DBG.percentOfLine = percentOfLine;
     DBG.factorProductLine = factorProductLine; DBG.midpointLine = midpointLine;
     DBG.solutionCountLine = solutionCountLine;
+    DBG.partsSumLine = partsSumLine; DBG.notFunctionLine = notFunctionLine;
+    DBG.simplifyCheckLine = simplifyCheckLine; DBG.translateLandingLine = translateLandingLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
