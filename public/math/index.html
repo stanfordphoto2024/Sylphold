@@ -90775,7 +90775,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         var sets = [[[1, 2], [2, 4], [3, 6]], [[1, 2], [1, 5], [2, 3]]];
-        var which = int(rng, 0, 1), right = which === 0 ? 'the first set, because each input has one output' : 'the second set, because one input has two outputs';
+        var which = 1;  /* the set with a repeated input is the only one that is not a
+           function, and the explanation below says exactly that */
         return askStr(rng, sk, 'Which relation is NOT a function?', [sets[which].map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ')],
           [sets[1 - which].map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', '), 'neither set'],
           { teach: 'A function gives exactly one output for each input.',
@@ -91304,7 +91305,7 @@ function () {
         return ask(rng, sk, 'The zeros of a quadratic function are the values of x for which f(x) = 0. What is the smaller zero of f(x) = x² ' + (bb < 0 ? '− ' + (-bb) : '+ ' + bb) + 'x ' + (cc < 0 ? '− ' + (-cc) : '+ ' + cc) + '?', small,
           [Math.max(r1, r2), small + 1, -small], { lim: 40,
             teach: 'Factor the quadratic: each factor set equal to zero gives one zero of the function.',
-            explain: explainOk(['x² ' + (bb < 0 ? '− ' + (-bb) : '+ ' + bb) + 'x ' + (cc < 0 ? '− ' + (-cc) : '+ ' + cc) + ' = (x − ' + r1 + ')(x − ' + r2 + ').', 'Setting each factor equal to zero gives x = ' + r1 + ' and x = ' + r2 + '.', 'The smaller zero is <b>' + small + '</b>.'], small) });
+            explain: explainOk(['x² ' + (bb < 0 ? '− ' + (-bb) : '+ ' + bb) + 'x ' + (cc < 0 ? '− ' + (-cc) : '+ ' + cc) + ' = ' + (r1 < 0 ? '(x + ' + (-r1) + ')' : '(x − ' + r1 + ')') + ' ' + (r2 < 0 ? '(x + ' + (-r2) + ')' : '(x − ' + r2 + ')') + ').', 'Setting each factor equal to zero gives x = ' + r1 + ' and x = ' + r2 + '.', 'The smaller zero is <b>' + small + '</b>.'], small) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
@@ -91341,19 +91342,25 @@ function () {
             explain: explainOk(['Look for two numbers with sum ' + bb2 + ' and product ' + cc2 + ': they are ' + w1 + ' and ' + w2 + '.', 'So x² + ' + bb2 + 'x + ' + cc2 + ' = (x + ' + w1 + ')(x + ' + w2 + ').', 'The length is <b>' + right3 + '</b>.'], right3) });
       },
       function () {
+        var fM2 = function (rv) { return rv === 0 ? 'x' : '(x ' + (rv < 0 ? '+' : '−') + ' ' + Math.abs(rv) + ')'; };
         var opts = R.shuffle(rng, uniq([rootsTxt, wrongRoots[0], wrongRoots[1], wrongRoots[2]]));
         return I_choice('The solutions of ' + tri() + ' = 0 are which pair of values of x?',
           opts, opts.indexOf(rootsTxt), {
             teach: 'Factor the quadratic, then set each factor equal to zero.',
-            explain: explainOk(['Look for two numbers whose product is ' + (a * r1 * r2) + ' and whose sum is ' + b + '.', 'They are ' + r1 + ' and ' + r2 + ', so the factors are (x − ' + r1 + ')(x − ' + r2 + ') = 0.', 'The solutions are <b>' + rootsTxt + '</b>.'], rootsTxt),
+            explain: explainOk(['Look for two numbers whose product is ' + (a * r1 * r2) + ' and whose sum is ' + b + '.', 'They are ' + r1 + ' and ' + r2 + ', so the factors are ' + fM2(r1) + ' ' + fM2(r2) + ' = 0.', 'The solutions are <b>' + rootsTxt + '</b>.'], rootsTxt),
             visual: V.graph([{ expr: String(a) + '*x^2 + ' + b + '*x + ' + c, label: tri(), color: 1 }]) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
         /* when the leading coefficient is not 1 it belongs in the answer —
            (x − 1)(x − 5) does not expand to 2x² − 12x + 10, only 2 of it does */
-        var rightTxt = (a === 1 ? '' : a) + '(x − ' + r1 + ')(x − ' + r2 + ')';
-        var opts = R.shuffle(rng, [rightTxt, '(x + ' + r1 + ')(x + ' + r2 + ')', '(x − ' + r1 + ')(x + ' + r2 + ')', '(x + ' + r1 + ')(x − ' + r2 + ')']);
+        /* a factor is printed with the sign it really carries: a root at −2 is
+           (x + 2), and a root at 0 is just x. The options are deduped after,
+           since a zero root makes the two spellings collapse to one factor. */
+        var fM = function (rv) { return rv === 0 ? 'x' : '(x ' + (rv < 0 ? '+' : '−') + ' ' + Math.abs(rv) + ')'; };
+        var fP = function (rv) { return rv === 0 ? 'x' : '(x ' + (rv < 0 ? '−' : '+') + ' ' + Math.abs(rv) + ')'; };
+        var rightTxt = (a === 1 ? '' : a) + fM(r1) + fM(r2);
+        var opts = R.shuffle(rng, uniq([rightTxt, fP(r1) + fP(r2), fM(r1) + fP(r2), fP(r1) + fM(r2)]));
         return I_choice('Which product of linear factors is equivalent to ' + tri() + '?',
           opts, opts.indexOf(rightTxt), {
             teach: 'Multiply the factors back out to check a factorization.',
@@ -105633,6 +105640,235 @@ var MW = {
     return null;
   }
 
+  /* ------------------------------------------------------------------------
+     Five rules for the stale bucket: cards whose steps already STATE a number
+     the card never printed — a product, a median, a determinant — because the
+     step jumped straight to the result. The working the step skipped is pure
+     arithmetic on the card's own numbers, so writing it out both teaches the
+     step and makes the number the step quotes earn its place. Each rule
+     recomputes and only speaks when its result is what the card's own step
+     quoted and the mark agrees.
+     ------------------------------------------------------------------------ */
+
+  /* "Compare the two rectangles: the area of a 6 by 5 rectangle ○ the area of a
+     7 by 9 rectangle" — both areas are one multiplication each. */
+  function areaCompareProductsLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    if (!/compare/i.test(t)) return null;
+    var sym = symOf(shown);
+    if (!sym) return null;
+    var ms = [];
+    var re = /(\d+)\s*by\s*(\d+)/gi, m;
+    while ((m = re.exec(t)) !== null) ms.push([numOf(m[1]), numOf(m[2])]);
+    if (ms.length !== 2) return null;
+    var wantsPerimeter = /perimeter/i.test(t);
+    var p = [wantsPerimeter ? 2 * (ms[0][0] + ms[0][1]) : ms[0][0] * ms[0][1],
+             wantsPerimeter ? 2 * (ms[1][0] + ms[1][1]) : ms[1][0] * ms[1][1]];
+    if (p.some(function (x) { return x == null || !isFinite(x); })) return null;
+    var truth = p[0] > p[1] ? '>' : p[0] < p[1] ? '<' : '=';
+    if (truth !== sym) return null;
+    var line = fmt(ms[0][0]) + ' × ' + fmt(ms[0][1]) + ' = ' + fmt(p[0]) + ', ' +
+      fmt(ms[1][0]) + ' × ' + fmt(ms[1][1]) + ' = ' + fmt(p[1]) + ', so ' + (sym === '=' ? 'they are equal.' : sym === '>' ? 'the first is bigger.' : 'the second is bigger.');
+    if (line.length > 88) line = fmt(p[0]) + ' ' + (sym === '>' ? '&gt;' : '&lt;') + ' ' + fmt(p[1]) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Three objects are measured with cubes: pencil 3, skip rope 8, string 5.
+     Which list goes from least to most?" — the pairs are the card's own; the
+     ordering is the comparison between them, written out. */
+  function orderedPairsLine(item, text, shown) {
+    var t = String(text == null ? '' : text);
+    if (!/which list|from least|from greatest|least to most|greatest to least/i.test(t)) return null;
+    var asc = /from least|least to most|shortest|lightest|fewest/i.test(t);
+    /* "least to most" also contains the word most, so the descending reading
+       has to be an actual greatest-first phrase */
+    var desc = /from greatest|greatest to (?:least|most)|largest to (?:least|smallest)|longest to|heaviest to|warmest to|coldest to|fewest to|descending/i.test(t);
+    if (asc === desc) return null;
+    var pairs = [], re = /([a-z][a-z -]{2,20}?)\s+(\d+(?:\.\d+)?)(?=[.,;]|\s+\w+\s+\d|\s*$)/gi, m;
+    while ((m = re.exec(t)) !== null) { var v = numOf(m[2]); if (v != null) pairs.push([m[1].trim().toLowerCase(), v]); }
+    if (pairs.length < 3) return null;
+    var sorted = pairs.slice().sort(function (a, b) { return asc ? a[1] - b[1] : b[1] - a[1]; });
+    var mark = String(shown == null ? '' : shown).toLowerCase().replace(/\b(and|then)\b/g, '').trim();
+    var want = sorted.map(function (p) { return p[0]; });
+    var have = mark.split(/,\s*/);
+    if (have.length !== want.length) return null;
+    for (var i = 0; i < want.length; i++) if (have[i].trim() !== want[i]) return null;
+    var chain = [];
+    for (i = 0; i + 1 < sorted.length; i++) {
+      chain.push(fmt(sorted[i][1]) + ' ' + (asc ? '&lt;' : '&gt;') + ' ' + fmt(sorted[i + 1][1]));
+      if (chain.join(', and ').length > 60) break;
+    }
+    var line = chain.join(', and ') + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "What ordinary number is 7.87 × 10⁶?" — the exponent says multiply by a
+     power of ten; doing the multiplication is the whole working. */
+  function powerOfTenLine(item, text, shown) {
+    var SUP = { '⁰': 0, '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
+    var m = /(\d+(?:\.\d+)?)\s*(?:×|x|\*)\s*10\s*([⁰¹²³⁴⁵⁶⁷⁸⁹]+|\^\s*\d+)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var e = String(m[2]).replace('^', '').trim();
+    var exp = /^[0-9]+$/.test(e) ? Number(e) : e.split('').map(function (c) { return SUP[c]; }).reduce(function (a, c) { return a == null || c == null ? null : a * 10 + c; }, 0) / (e.length > 1 ? 1 : 1);
+    if (e.length > 1) { var acc = ''; for (var q = 0; q < e.length; q++) { if (SUP[e[q]] == null) return null; acc += SUP[e[q]]; } exp = Number(acc); }
+    if (exp == null || exp < 1 || exp > 9) return null;
+    var mant = numOf(m[1]);
+    if (mant == null) return null;
+    var got = Math.round(mant * Math.pow(10, exp) * 1000) / 1000;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/,/g, ''));
+    if (mark == null || Math.abs(mark - got) > 1e-6) return null;
+    var line = fmt(mant) + ' × ' + fmt(Math.pow(10, exp)) + ' = ' + fmt(got) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Is the matrix [[3, 6], [3, 6]] invertible?" — a 2×2 has an inverse exactly
+     when ad − bc is not zero, and both products are right there in the card. */
+  function determinant2x2Line(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = /\[\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]\s*,\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]\s*\]/.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var a = Number(m[1]), b = Number(m[2]), c = Number(m[3]), d = Number(m[4]);
+    var p1 = a * d, p2 = b * c, det = p1 - p2;
+    if ((det !== 0) !== said) return null;
+    var line = fmt(a) + ' × ' + fmt(d) + ' = ' + fmt(p1) + ' and ' + fmt(b) + ' × ' + fmt(c) + ' = ' + fmt(p2) +
+      (det === 0 ? ', so the determinant is 0.' : ', and the difference is ' + fmt(det) + '.');
+    if (line.length > 88) line = fmt(p1) + ' − ' + fmt(p2) + ' = ' + fmt(det) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "40 is some percent of 200. What percent?" — the division and the × 100 are
+     the two moves, and both numbers come off the card. */
+  function percentWordOrderLine(item, text, shown) {
+    var m = /(\d+(?:\.\d+)?)\s+is\s+(?:some|what)\s+percent\s+of\s+(\d+(?:\.\d+)?)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var part = numOf(m[1]), whole = numOf(m[2]);
+    if (part == null || whole == null || !whole) return null;
+    var got = Math.round((part / whole) * 10000) / 100;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/%/g, '').trim());
+    if (mark == null || Math.abs(mark - got) > 1e-6) return null;
+    var line = fmt(part) + ' ÷ ' + fmt(whole) + ' = ' + fmt(Math.round((part / whole) * 10000) / 10000) +
+      ', and ' + fmt(Math.round((part / whole) * 10000) / 10000) + ' × 100 = ' + fmt(got) + '%.';
+    if (line.length > 88) line = fmt(part) + ' ÷ ' + fmt(whole) + ' × 100 = ' + fmt(got) + '%.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* ------------------------------------------------------------------------
+     Seven rules for the money and judgement clusters. These cards already say
+     the right thing in prose but never write the arithmetic or the comparison
+     down, and the meter cannot see a sum with a currency sign glued to the
+     numbers. Each rule takes the numbers the card itself printed, does the step
+     for real, and only speaks when its own result agrees with the mark.
+     ------------------------------------------------------------------------ */
+
+  /* "$224.00 in gross pay and $58.24 withheld leaves $165.76 net. Is this true?"
+     — the subtraction is right there; writing it without the dollar signs is the
+     working the card skipped. */
+  function payCheckLine(item, text, shown) {
+    if (boolMark(shown) === null) return null;
+    var m = /\$?\s*(\d+(?:\.\d+)?)\s*(?:in gross pay|gross pay of)\D{0,20}?\$?\s*(\d+(?:\.\d+)?)\s*(?:withheld|deductions of|deducted)\D{0,20}?\$?\s*(\d+(?:\.\d+)?)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var gross = numOf(m[1]), cut = numOf(m[2]), net = numOf(m[3]);
+    if (gross == null || cut == null || net == null) return null;
+    if (Math.abs(gross - cut - net) > 0.005) return null;
+    var said = boolMark(shown);
+    var line = fmt(gross) + ' − ' + fmt(cut) + ' = ' + fmt(Math.round((gross - cut) * 100) / 100) +
+      (said ? ', so the statement is right.' : ', not ' + fmt(net) + ', so it is wrong.');
+    if (said === false) {                      /* only assert a mismatch we proved */
+      if (Math.abs(gross - cut - net) < 0.005) return null;
+    }
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Is it true that $9.33 is more than $8.43?" — the comparison is the working,
+     and the card printed both amounts. */
+  function moneyMoreThanLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = /\$?\s*(\d+(?:\.\d+)?)\s+(?:is|were)?\s*(more|less|greater|fewer)\s+than\s+\$?\s*(\d+(?:\.\d+)?)/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[3]);
+    if (a == null || b == null || a === b) return null;
+    var moreThan = /more|greater|fewer/.test(m[2]) ? /more|greater/.test(m[2]) : false;
+    var fewer = /fewer/.test(m[2]);
+    var truth = fewer ? (a < b) : (a > b);
+    if (truth !== said) return null;
+    var sym = a > b ? '&gt;' : '&lt;';
+    var line = fmt(a) + ' ' + sym + ' ' + fmt(b) + ', so the statement is ' + (said ? 'true.' : 'false.');
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Ivy has saved $6 and wants to buy something that costs $11. Is there
+     enough?" — the comparison decides it, and both numbers are the card's. */
+
+
+  /* "Compare the number of sides: a rectangle ○ an octagon" — the card's own
+     earlier line states both counts; the comparison between them is what the
+     learner is being asked to see. */
+  function shapeCountCompareLine(item, text, shown) {
+    var sym = symOf(shown);
+    if (!sym) return null;
+    var ex = (item && item.explain) || [];
+    var a = null, b = null;
+    for (var i = 0; i < ex.length; i++) {
+      var m = /(\d+)\s+sides?[^.]{0,40}?(\d+)\s+sides?/i.exec(String(ex[i]));
+      if (m) { a = numOf(m[1]); b = numOf(m[2]); break; }
+    }
+    if (a == null || b == null || a === b) return null;
+    var truth = a > b ? '>' : '<';
+    if (truth !== sym) return null;
+    var line = fmt(a) + ' ' + (sym === '>' ? '&gt;' : '&lt;') + ' ' + fmt(b) + ', so the second shape has more sides.';
+    if (line.length > 88) line = fmt(a) + ' ' + (sym === '>' ? '&gt;' : '&lt;') + ' ' + fmt(b) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "the median of 11, 13, 16 … ○ the median of 44, 50 …" — both lists are on
+     the card, so finding each middle and comparing them is real work. */
+  function statCompareLine(item, text, shown) {
+    var sym = symOf(shown);
+    if (!sym) return null;
+    var t = String(text == null ? '' : text);
+    var kind = /median/i.test(t) ? 'median' : /mean|average/i.test(t) ? 'mean' : /range/i.test(t) ? 'range' : null;
+    if (!kind) return null;
+    var lists = [], re = /(?:median|mean|average|range)\s+of\s+([\d.,\s]+?)(?=\s*(?:○|◯|\?|$))/gi, m;
+    while ((m = re.exec(t)) !== null) {
+      var ns = (m[1].match(/\d+(?:\.\d+)?/g) || []).map(Number);
+      if (ns.length >= 3) lists.push(ns);
+    }
+    if (lists.length !== 2) return null;
+    var statOf = function (ns) {
+      var s = ns.slice().sort(function (x, y) { return x - y; });
+      if (kind === 'median') return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+      if (kind === 'range') return s[s.length - 1] - s[0];
+      var tot = 0; s.forEach(function (x) { tot += x; }); return Math.round(tot / s.length * 1000) / 1000;
+    }
+    var a = statOf(lists[0]), b = statOf(lists[1]);
+    if (a == null || b == null || a === b) return null;
+    var truth = a > b ? '>' : '<';
+    if (truth !== sym) return null;
+    var line = 'the ' + kind + ' ' + fmt(a) + ' ' + (sym === '>' ? '&gt;' : '&lt;') + ' ' + fmt(b) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "The crayon was measured with cubes and then with cubes. Can those two
+     answers be compared directly?" — the card names both units; saying which
+     ones they were, and whether they match, is the reason for this card. */
+  function sameUnitCompareLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = /measured with ([a-z ]{3,20}?)\s+and then with\s+([a-z ]{3,20}?)[.?]/i.exec(String(text == null ? '' : text));
+    if (!m) return null;
+    var u1 = m[1].trim().toLowerCase(), u2 = m[2].trim().toLowerCase();
+    if ((u1 === u2) !== said) return null;
+    var line = u1 === u2
+      ? 'Both were measured in ' + u1 + ', so the two numbers count the same size of step.'
+      : 'One was counted in ' + u1 + ', the other in ' + u2 + ' — different sizes of step.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Is 3 the number?" over an array — the picture holds the counters, so the
+     honest working is the count-out that lands on the picture's own total. */
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -105661,7 +105897,9 @@ var MW = {
       ratioCoprimeChainLine, ratioScaleBothPartsLine, fracModelClaimLine, fracPartsNameLine,
       fracPartsModelLine, wordNamePromptLine, digitCompareLine, wordToPlaceLine, twoStepSolveLine,
       distributeTermLine, coordOffLineLine, coordIneqPointLine, topExponentLine,
-      factorLeadingCoefLine, areaPerimeterCompareLine, perimeterSumLine], fi;
+      factorLeadingCoefLine, areaPerimeterCompareLine, perimeterSumLine,
+      areaCompareProductsLine, orderedPairsLine, powerOfTenLine, determinant2x2Line, percentWordOrderLine,
+      payCheckLine, moneyMoreThanLine, shapeCountCompareLine, statCompareLine, sameUnitCompareLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -106008,6 +106246,16 @@ var MW = {
     DBG.topExponentLine = topExponentLine;
     DBG.factorLeadingCoefLine = factorLeadingCoefLine; DBG.areaPerimeterCompareLine = areaPerimeterCompareLine;
     DBG.perimeterSumLine = perimeterSumLine;
+    DBG.areaCompareProductsLine = areaCompareProductsLine;
+    DBG.orderedPairsLine = orderedPairsLine;
+    DBG.powerOfTenLine = powerOfTenLine;
+    DBG.determinant2x2Line = determinant2x2Line;
+    DBG.percentWordOrderLine = percentWordOrderLine;
+    DBG.payCheckLine = payCheckLine;
+    DBG.moneyMoreThanLine = moneyMoreThanLine;
+    DBG.shapeCountCompareLine = shapeCountCompareLine;
+    DBG.statCompareLine = statCompareLine;
+    DBG.sameUnitCompareLine = sameUnitCompareLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
