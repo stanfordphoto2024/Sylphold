@@ -90291,7 +90291,11 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       function () {
         if (sum % n) return null;
         var known = data.slice(0, n - 1), ksum = known.reduce(function (a, b) { return a + b; }, 0);
-        var missing = mean * (n - 1) - ksum;
+        /* the total the FIRST step prints is mean × n (all n values), so the gap
+           between that total and the values already named IS the missing value —
+           it was being computed against mean × (n − 1), which left every card in
+           this family stating a total it could not reach. */
+        var missing = mean * n - ksum;
         if (missing < 1 || missing > 60) return null;
         return ask(rng, sk, 'The mean of ' + known.join(', ') + ' and one more number is ' + nfmt(mean) + '. What is the missing number?', missing,
           [mean, ksum, missing + n], { lim: 200, teach: 'Total = mean × count, then subtract the numbers you know.',
