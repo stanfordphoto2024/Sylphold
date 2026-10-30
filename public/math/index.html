@@ -106155,6 +106155,40 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* "Is a triangle a quadrilateral?" — the answer IS a count, and the card already
+     names both shapes, so the count and the test the definition performs can both
+     be said out loud. A name-to-count table is the one piece of knowledge this
+     rule carries, and it still refuses to speak unless the test it has just done
+     lands on the card's own answer. The pair it cannot serve is "Is a rectangle a
+     square?": both have 4 sides, so a count cannot tell them apart, and the rule
+     says nothing rather than invent a reason that the card cannot show. */
+  var WC_SHAPE_SIDES = { square: 4, rectangle: 4, triangle: 3, hexagon: 6, quadrilateral: 4, polygon: 3 };
+  function shapeFamilyLine(item, text, shown) {
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var m = /\bis a (square|rectangle|triangle|hexagon|quadrilateral|polygon) a (square|rectangle|triangle|hexagon|quadrilateral|polygon)\b/i.exec(String(text || ''));
+    if (!m) return null;
+    var shape = String(m[1]).toLowerCase(), family = String(m[2]).toLowerCase();
+    var have = WC_SHAPE_SIDES[shape], needs = WC_SHAPE_SIDES[family];
+    if (!have || !needs) return null;
+    var test = '', answer;
+    if (family === 'quadrilateral' && shape !== 'quadrilateral') {
+      if (have === needs) return null;                     /* the count agrees: nothing to test */
+      test = fmt(have) + ' is not the same as ' + fmt(needs);
+      answer = false;
+    } else if (family === 'polygon') {
+      if (have <= needs) return null;                      /* equal is not "more than" */
+      test = fmt(have) + ' is more than ' + fmt(needs);
+      answer = true;
+    } else if (family === 'rectangle' && shape === 'square') {
+      test = fmt(have) + ' is the same as ' + fmt(needs);
+      answer = true;
+    } else return null;
+    if (answer !== said) return null;                      /* never contradict the card's own mark */
+    var line = test + ', so a ' + shape + ' ' + (answer ? 'is' : 'is not') + ' a ' + family + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106189,7 +106223,7 @@ var MW = {
       moneyEnoughLine, unitRateCompareLine, missingFactorCompareLine, claimedCountCheckLine,
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
       divisorSortLine, fractionOfNumberLine, absValueCompareLine,
-      rowLabelCountLine, sayCountWordsLine], fi;
+      rowLabelCountLine, sayCountWordsLine, shapeFamilyLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
