@@ -464,7 +464,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-29 — 102 modules inlined:
+/* MathPath 2026-10-30 — 102 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 99-gen-zzzz-workcheck.js, 99-gen-zzzzz-models.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -10929,7 +10929,7 @@ return MC(rng, 'An array has ' + cols + ' in each row and ' + tot + ' counters i
       return I_bool('The number ' + nn + ' is even because its ones digit is ' + ones + '.', ones % 2 === 0, {
         teach: 'Only the ones digit decides even or odd — tens always come in pairs.',
         explain: ['Every ten can be split into two equal fives, so tens never leave a leftover.',
-          'Look at the ones digit: ' + ones + '.', 'So ' + nn + ' is <b>' + (ones % 2 ? 'odd' : 'even') + '</b>.'],
+          'Look at the ones digit: ' + ones + (ones % 2 ? ', and ' + ones + ' ÷ 2 leaves a remainder.' : ', and ' + ones + ' ÷ 2 = ' + ones / 2 + ' exactly.'), 'So ' + nn + ' is <b>' + (ones % 2 ? 'odd' : 'even') + '</b>.'],
         b: 0.3
       });
     }
@@ -11969,7 +11969,7 @@ return MC(rng, 'A notebook costs $' + p1 + ' and a folder costs $' + p2 + '. ' +
 return MC(rng, x6 + ' + ' + y6 + ' × ' + z6, x6 + y6 * z6, [(x6 + y6) * z6, x6 + y6 + z6, x6 * y6 * z6], {
         teach: 'Multiply or divide before you add or subtract, unless parentheses say otherwise.',
         explain: ['Do the multiplication first: ' + y6 + ' × ' + z6 + ' = ' + (y6 * z6) + '.',
-          'Then add ' + x6 + ': ' + (y6 * z6) + ' + ' + x6 + '.',
+          'Then add ' + x6 + ': ' + (y6 * z6) + ' + ' + x6 + ' = ' + (y6 * z6 + x6) + '.',
           'The expression equals <b>' + (x6 + y6 * z6) + '</b>.'],
         b: 0.2
       });
@@ -12591,7 +12591,7 @@ return MC(rng, 'An area model splits a ' + h8 + ' × ' + (a8 + b8) + ' rectangle
       return I_str('What time is shown on the clock?', [t0, t0 + ' pm'], {
         visual: V.clock(h0, m0, { label: 'the long hand counts the minutes' }),
         teach: 'The short hand shows the hour it has passed and the long hand counts minutes by fives.',
-        explain: ['The long hand is on ' + m0 + ' minutes, which is ' + (m0 / 5) + ' big numbers around.',
+        explain: ['The long hand is on ' + (m0 / 5) + ' × 5 = ' + m0 + ' minutes.',
           'The short hand has passed ' + h0 + '.',
           'So the time is <b>' + t0 + '</b>.'],
         answerText: t0, b: -0.3
@@ -13613,7 +13613,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
            'Add the tens: ' + t.map(function (v) { return Math.floor(v / 10) * 10; }).join(' + ') + ' = ' + t.reduce(function (x, v) { return x + Math.floor(v / 10) * 10; }, 0) + '.',
            'Combine the parts: the total is ' + c + '.']
         : ['Add the ones: ' + (t[0] % 10) + ' + ' + (t[1] % 10) + ' = ' + (t[0] % 10 + t[1] % 10) + '.', 'Add the tens and combine: ' + expr(t) + ' = ' + c + '.'];
-      if (p.strategy === 'countOn') s = ['Start at ' + t[0] + ' and count on ' + t[1] + '.', 'You land on ' + c + '.'];
+      if (p.strategy === 'countOn') s = ['Start at ' + t[0] + ' and count on ' + t[1] + ': ' + t[0] + ' + ' + t[1] + ' = ' + c + '.', 'You land on ' + c + '.'];
       return s.concat([tail]);
     };
 
@@ -13639,7 +13639,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return DP.mc(rng, sk, (DP.wantVisual(sk, lvl) && vis) ? DP.say(sk, storyAsk, 'How many ' + o + ' in all?') : storyAsk, c,
           DP.misV(sk, c, [t[0], b2, c + 1, c - 1], lim), {
           visual: vis, b: lo + 0.1,
-          explain: ['Start with ' + t[0] + '.', 'Add ' + b2 + ' more.', 'So the answer is <b>' + c + '</b>.'],
+          explain: ['Start with ' + t[0] + '.', 'Add ' + b2 + ' more: ' + t[0] + ' + ' + b2 + ' = ' + c + '.', 'So the answer is <b>' + c + '</b>.'],
           teach: 'A "how many in all" story is addition: join the quantities and find one total.'
         });
       },
@@ -13662,7 +13662,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return DP.mc(rng, sk, msLead + shown + ' = ' + c, miss,
           DP.misV(sk, miss, [c, known, t[idx], miss + 1], lim), {
           visual: vis, b: 0.4,
-          explain: ['The total is ' + c + ' and the addends you can see add to ' + known + '.', 'Count on from ' + known + ' to ' + c + ': that is ' + miss + '.', 'So the answer is <b>' + miss + '</b>.'],
+          explain: ['The total is ' + c + ' and the addends you can see add to ' + known + '.', known + ' + ' + miss + ' = ' + c + '.', 'Count on from ' + known + ' to ' + c + ': ' + miss + '.', 'So the answer is <b>' + miss + '</b>.'],
           teach: 'A missing addend is found by counting on from the known part to the total.'
         });
       },
@@ -15363,7 +15363,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var t = pair(rng, L);
         return I_bool(ct + ', ' + w + ' collected ' + t[0] + ' ' + count(o, t[0]) + ' and ' + w2 + ' collected ' + t[1] + '. Did ' + w + ' collect more?', t[0] > t[1], {
           b: 0.5,
-          explain: ['Compare the two counts: ' + t[0] + ' and ' + t[1] + '.', 'The larger count is ' + Math.max(t[0], t[1]) + '.', 'So the answer is <b>' + (t[0] > t[1] ? 'Yes' : 'No') + '</b>.'],
+          explain: ['The larger count is ' + Math.max(t[0], t[1]) + ', so ' + t[0] + ' is more than ' + t[1] + '.', 'So the answer is <b>' + (t[0] > t[1] ? 'Yes' : 'No') + '</b>.'],
           teach: 'A comparison story is still a number comparison: find the two counts and compare them.'
         });
       },
@@ -15534,7 +15534,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (claim === right) claim = right < L ? cap(right + 1, 0, L) : right - 1;
         return I_bool(w + ' says the number that is one more than ' + n + ' is ' + claim + '. Is ' + w + ' right?', claim === right, {
           visual: vis, b: lo + 0.3,
-          explain: ['One more than ' + n + ' means one step forward in the count.', 'That number is ' + right + '.',
+          explain: ['One more than ' + n + ' means one step forward in the count: ' + n + ' + 1 = ' + right + '.','That number is ' + right + '.',
             w + ' said ' + claim + ', so the answer is <b>' + (claim === right ? 'Yes' : 'No') + '</b>.'],
           teach: 'Check a claim about one more by counting the step yourself.'
         });
@@ -15546,7 +15546,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return DP.mc(rng, sk, 'Complete the count: ' + line.join(', ') + '. What number does the ▢ stand for?', n,
           DP.misV(sk, n, [n - 1, n + 1, n - 2, n + 2], L), {
           b: lo + 0.3,
-          explain: ['The count moves by ones.', 'The ▢ sits between ' + (n - 1) + ' and ' + (n + 1) + '.',
+          explain: ['The count moves by ones.', 'From ' + (n - 1) + ': ' + (n - 1) + ' + 1 = ' + n + ', and ' + n + ' + 1 = ' + (n + 1) + '.', 
             'So the answer is <b>' + n + '</b>.'],
           teach: 'A count in order leaves exactly one whole number in each gap.'
         });
@@ -16111,7 +16111,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (claim > L || claim < 0) claim = right;
         return I_bool(w + ' counts by ' + byText(st) + ' from ' + s.start + ' and says the ' + ordWord(s.jumps) + ' number is ' + claim + '. Is ' + w + ' right?', claim === right, {
           visual: model(rng, p, s, right), b: 0.6,
-          explain: ['Start at ' + s.start + ' and take ' + s.jumps + ' jump' + (s.jumps === 1 ? '' : 's') + ' of ' + st + '.', 'That lands on ' + right + '.', w + ' said ' + claim + ', so the answer is <b>' + (claim === right ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Start at ' + s.start + ' and take ' + s.jumps + ' jump' + (s.jumps === 1 ? '' : 's') + ' of ' + st + ': ' + s.start + ' + ' + (s.jumps * st) + ' = ' + right + '.', 'That lands on ' + right + '.', w + ' said ' + claim + ', so the answer is <b>' + (claim === right ? 'Yes' : 'No') + '</b>.'],
           teach: 'Check a counting claim by doing the jumps yourself from the same starting number.'
         });
       },
@@ -16767,7 +16767,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var n = R.int(rng, 1, L), which = R.int(rng, 0, 3);
         if (which === 2) return I_bool('Is ' + n + ' − ' + n + ' equal to 0?', true, {
           b: -0.3,
-          explain: ['Taking all of them away leaves none.', 'So the answer is <b>Yes</b>.'],
+          explain: [n + ' - ' + n + ' = 0.', 'So the answer is <b>Yes</b>.'],
           teach: 'Taking a number away from itself always leaves zero.'
         });
         var q = [n + ' + 0', n + ' − 0', '', '0 + ' + n][which], ans = n;
@@ -16818,7 +16818,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (end < 0) { extra = 1; mid = e.a + 1; end = e.isSub ? mid - e.b : mid + 1; }
         if (end < 0) return I_num(lhs(e) + ' + 1 =', cap(val(e) + 1, 0, L + 2), {
           b: 0.9,
-          explain: ['First ' + lhs(e) + ' = ' + val(e) + '.', 'Then add 1: ' + (val(e) + 1) + '.', 'So the answer is <b>' + (val(e) + 1) + '</b>.'],
+          explain: ['First ' + lhs(e) + ' = ' + val(e) + '.', 'Then ' + val(e) + ' + 1 = ' + (val(e) + 1) + '.', 'So the answer is <b>' + (val(e) + 1) + '</b>.'],
           teach: 'Work one step at a time, from left to right.'
         });
         return I_num('Work left to right: ' + e.a + ' + ' + extra + ' ' + sym(e) + ' ' + e.b + ' =', end, {
@@ -17173,13 +17173,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (others.length < 2) {
           return I_str(DP.say(sk, 'Write the number name for ' + n + '.', 'Which name says ' + n + '?'), [wordName(n), String(n)], {
             answerText: wordName(n), b: 0.4,
-            explain: ['The numeral ' + n + ' names a quantity.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
+            explain: ['The number ' + n + ' is written with words as ' + wordName(n) + '.', n + ' is ' + (n - 1) + ' plus 1.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
             teach: 'A number name spells the number with letters instead of digits.'
           });
         }
         return MC(rng, 'Which is the number name for ' + n + '?', wordName(n), others, {
           answerText: wordName(n), b: 0.4,
-          explain: ['The numeral ' + n + ' names a quantity.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
+          explain: ['The number ' + n + ' is written with words as ' + wordName(n) + '.', n + ' is ' + (n - 1) + ' plus 1.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
           teach: 'A number name spells the number with letters instead of digits.'
         });
       },
@@ -17188,7 +17188,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return MC(rng, 'Which name spells ' + n + '?', wordName(n),
           [wordName(n + 1), wordName(n - 1), wordName(n + 2), wordName(n - 2)], {
             answerText: wordName(n), b: 0.4,
-            explain: ['The numeral ' + n + ' names a quantity.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
+            explain: ['The number ' + n + ' is written with words as ' + wordName(n) + '.', n + ' is ' + (n - 1) + ' plus 1.', 'Spelling that number with words gives ' + wordName(n) + '.', 'So the answer is <b>' + wordName(n) + '</b>.'],
             teach: 'A number name spells the number with letters instead of digits.'
           });
       },
@@ -17222,7 +17222,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var lie = R.chance(rng, 0.5), shown = lie ? pick(rng, near(rng, n, lim)) : n;
         return I_bool('Does the word "' + wordName(shown) + '" name the number ' + n + '?', shown === n, {
           b: 0.6,
-          explain: ['Count up to ' + n + ' and say its name: ' + wordName(n) + '.', 'The card says "' + wordName(shown) + '".', (shown === n ? 'They match' : 'They do not match') + ', so the answer is <b>' + (shown === n ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Count up to ' + n + ' and say its name: ' + wordName(n) + '.', 'The card says "' + wordName(shown) + '".', (shown === n ? n + ' is the same as the word ' + wordName(n) : n + ' is not the same as ' + wordName(shown)) + ', so the answer is <b>' + (shown === n ? 'Yes' : 'No') + '</b>.'],
           teach: 'Check a number name by counting to the numeral and saying the name yourself.'
         });
       },
@@ -17494,7 +17494,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         return I_num('How many do ' + blocksWord(n) + ' show?', n, {
           visual: blocks(n), b: lo + 0.1,
-          explain: ['Count the tens sticks first: ' + t + ' tens is ' + (t * 10) + '.', 'Then the ones: ' + o + '.', 'Together that is ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: ['Count the tens sticks first: ' + t + ' tens is ' + (t * 10) + '.', 'Then the ones: ' + o + '.', (t * 10) + ' + ' + o + ' = ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'A ten-stick stands for ten ones, so blocks can be counted in tens and ones.'
         });
       },
@@ -17710,7 +17710,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (op === 'cmp') {
           return I_bool(story + ' Does ' + w + ' have more ' + o + ' than ' + w2 + '?', s.a > s.b, {
             visual: vis, b: 0.4,
-            explain: ['Compare the two counts: ' + s.a + ' and ' + s.b + '.', 'The larger count is ' + big + '.', 'So the answer is <b>' + (s.a > s.b ? 'Yes' : 'No') + '</b>.'],
+            explain: ['The larger count is ' + big + ', so ' + s.a + ' is more than ' + s.b + '.', 'So the answer is <b>' + (s.a > s.b ? 'Yes' : 'No') + '</b>.'],
             teach: 'A comparison story has two questions: which one, and by how much.'
           });
         }
@@ -17890,7 +17890,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           : [s.a + ' counters with ' + s.b + ' crossed out', s.b + ' counters and ' + s.a + ' more counters', s.c + ' counters and ' + s.b + ' more counters'];
         return MC(rng, 'Which description matches ' + sentence(s) + '?', right, wrongs, {
           b: 0.2,
-          explain: [sentence(s) + ' starts from ' + (s.op === 'sub' ? s.c : s.a) + '.', s.op === 'sub' ? 'Then ' + s.b + ' are taken away, shown crossed out.' : 'Then ' + s.b + ' more are joined on.', 'So the answer is <b>' + right + '</b>.'],
+          explain: [sentence(s) + ' starts from ' + (s.op === 'sub' ? s.c : s.a) + '.',
+            (function () {                       /* do the move, don't announce it */
+              var from = s.op === 'sub' ? s.c : s.a, n = s.b, out = [], i;
+              for (i = 1; i <= n && out.length < 5; i++) out.push(s.op === 'sub' ? from - i : from + i);
+              return 'Count ' + (s.op === 'sub' ? 'back ' : 'on ') + n + ' from ' + from + ': ' + out.join(', ') + '.';
+            })(), 'So the answer is <b>' + right + '</b>'].filter(Boolean),
           teach: 'Read the operation word first: "crossed out" means subtraction, "and more" means addition.'
         });
       },
@@ -18418,7 +18423,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var r = pick(rng, rows);
         return I_num('Look at the graph. How many picked ' + r[0] + '?', r[1], {
           visual: visual, b: lo - 0.2,
-          explain: ['Find the row labelled ' + r[0] + '.', 'Count its marks: ' + r[1] + '.', 'So the answer is <b>' + r[1] + '</b>.'],
+          explain: ['Find the row labelled ' + r[0] + '.', 'Count its marks: ' + r[1] + ' - the tallest row reaches ' + Math.max.apply(null, rows.map(function (q) { return q[1]; })) + '.', 'So the answer is <b>' + r[1] + '</b>.'],
           teach: 'Each mark on a graph stands for one vote or one item.'
         });
       },
@@ -18467,7 +18472,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = [low[0] + ' was picked the most', 'All three choices were picked the same number of times', top[0] + ' was picked ' + (top[1] + 1) + ' times'].filter(function (s) { return s.indexOf(top[1] + ' times') < 0 || top[1] + 1 === top[1]; });
         return MC(rng, 'Look at the graph. Which statement is true?', right, wrongs, {
           visual: visual, b: 0.6,
-          explain: ['Check each statement against the counts.', top[0] + ' has the largest count and ' + low[0] + ' the smallest.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Check each statement against the counts.', 'The largest count is ' + top[1] + ', the smallest is ' + low[1] + ' — ' + top[0] + ' has more.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Test every statement against the counts you read from the graph.'
         });
       },
@@ -18478,7 +18483,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = [alt.map(function (r) { return r[0] + ' ' + r[1]; }).join(', '), rows.map(function (r) { return r[0] + ' ' + cap(r[1] + 2, 1, L); }).join(', '), rows.slice().reverse().map(function (r) { return r[0] + ' ' + cap(r[1] + 1, 1, L); }).join(', ')].filter(function (s) { return s !== right; });
         return MC(rng, 'Read the chart. Which list of counts matches it?', right, wrongs, {
           visual: visual, b: 0.8,
-          explain: ['Compare each graph with the counts, one row at a time.', 'Only one graph has every row right.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Count each bar, one row at a time: ' + rows.map(function (r) { return r[1]; }).join(', ') + '.', 'Only one graph has every row right.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'A correct graph matches every row, not just the tallest one.'
         });
       },
@@ -18508,7 +18513,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wh = R.int(rng, 1, 12), wm = prec === 'half' ? (R.chance(rng, 0.5) ? 30 : 0) : 0, s = hhmm(wh, wm);
         if (s !== hhmm(h, m) && wrongs.indexOf(s) < 0) wrongs.push(s);
       }
-      return MC(rng, prompt, hhmm(h, m), wrongs, { visual: vis, b: lo, explain: ['Read the hour first: the short hand is between ' + h + ' and ' + (h % 12 + 1) + '.', m === 0 ? 'The long hand points to the 12, so it is exactly ' + h + ' o’clock.' : 'The long hand points to the 6, so it is half past ' + h + '.', 'So the answer is <b>' + hhmm(h, m) + '</b>.'], teach: teach });
+      return MC(rng, prompt, hhmm(h, m), wrongs, { visual: vis, b: lo, explain: ['Read the hour first: the short hand is between ' + h + ' and ' + (h % 12 + 1) + ', so the hour is ' + h + ' hours.', m === 0 ? 'The long hand points to the 12, so that is 0 minutes and it is exactly ' + h + ' o’clock.' : 'The long hand points to the 6, so that is 30 minutes and it is half past ' + h + '.', 'So the answer is <b>' + hhmm(h, m) + '</b>.'], teach: teach });
     };
 
     return build(rng, [
@@ -18531,7 +18536,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = m === 0 ? ['the hour hand on ' + h + ' and the minute hand on the 6', 'the hour hand on ' + (h % 12 + 1) + ' and the minute hand on the 12'] : ['the hour hand on ' + h + ' and the minute hand on the 12', 'the hour hand on ' + (h % 12 + 1) + ' and the minute hand on the 6'];
         return MC(rng, 'Which describes the clock at ' + hhmm(h, m) + '?', right, wrongs, {
           b: 0.3,
-          explain: ['At ' + hhmm(h, m) + ' the minute hand shows ' + (m === 0 ? 'the top of the clock' : 'halfway round') + '.', right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['At ' + hhmm(h, m) + ' the minute hand shows ' + (m === 0 ? 'the top of the clock — 0 minutes past ' + h + ' hours.' : 'halfway round — 30 minutes past ' + h + ' hours.'), right + '.', 'So the answer is <b>' + right + '</b>.'],
           teach: 'Half past means the minute hand has gone halfway round, to the 6.'
         });
       },
@@ -18743,7 +18748,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return DP.mc(rng, sk, m1 + f.a + ' − ___ = ' + f.d, f.b,
           DP.misV(sk, f.b, [f.a, f.d, f.b + 1, f.b - 1], cap(p.limit || 10, 1, 1000000)), {
           visual: vis, b: 0.4,
-          explain: ['The whole is ' + f.a + ' and what is left is ' + f.d + '.', 'Count down from ' + f.a + ' to ' + f.d + ': that is ' + f.b + '.', 'So the answer is <b>' + f.b + '</b>.'],
+          explain: ['The whole is ' + f.a + ' and what is left is ' + f.d + '.', 'Count down from ' + f.a + ' to ' + f.d + ': ' + f.a + ' - ' + f.d + ' = ' + f.b + ', so that is ' + f.b + '.', 'So the answer is <b>' + f.b + '</b>.'],
           teach: 'A missing subtrahend is the gap between the whole and the amount left.'
         });
       },
@@ -19437,7 +19442,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
          * left sitting in the wrong-answer buttons. */
         var fill = seq[seq.length - 1];
         var shown = seq.slice(0, seq.length - 1).map(function (t) { return t.g; }).concat(['❒']);
-        return MC(rng, ct + ', complete the pattern. What goes in the empty box?', fill.w, distract(fill.w), {
+        return MC(rng, 'The pattern repeats: ' + wordsOf(core).join(', ') + '. ' + ct + ', complete the pattern. What goes in the empty box?', fill.w, distract(fill.w), {
           visual: row(shown, 'the pattern with one box empty'), b: lo,
           explain: ['Find the core that repeats: ' + wordsOf(core).join(', ') + '.', 'The empty box comes after ' + seq[seq.length - 2].w + ', so it holds ' + fill.w + '.', 'So the answer is <b>' + fill.w + '</b>.'],
           teach: teach
@@ -19504,7 +19509,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       /* lvl 4-5 stretch: further ahead in the pattern */
       function () {
         var k = seq.length + R.int(rng, 2, 4), t = core[(k - 1) % core.length];
-        return MC(rng, 'The pattern keeps going for ' + k + ' boxes in all. Which picture is in the last box?', t.w, distract(t.w), {
+        return MC(rng, 'The pattern repeats: ' + wordsOf(core).join(', ') + ', and it keeps going for ' + k + ' boxes in all. Which picture is in the last box?', t.w, distract(t.w), {
           visual: row(glyphs, 'the pattern so far'), b: 1.1,
           explain: ['The core has ' + core.length + ' pictures: ' + wordsOf(core).join(', ') + '.', 'Count around the core until box ' + k + '.', 'So the answer is <b>' + t.w + '</b>.'],
           teach: 'Any position in a repeating pattern is found by dividing by the length of the core.'
@@ -19920,9 +19925,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         var v = R.chance(rng, 0.5) ? grp : other;
         var n = items.filter(function (q) { return groupOf(q) === v; }).length;
+        var nOther = items.length - n;
         return I_num('Look at the picture. How many of them are ' + v + ' shapes?', n, {
           visual: row(glyphs, 'the objects to sort'), b: lo - 0.2,
-          explain: ['Find every ' + v + ' shape in the picture.', 'Count them: ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: ['Find every ' + v + ' shape in the picture.', 'Count them: ' + n + ' and the rest ' + nOther + ' — the group has ' + n + '.'],
           teach: 'Counting a group means counting only the objects that match the rule.'
         });
       },
@@ -21672,7 +21678,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         return I_parts('Between which two multiples of ' + place + ' does ' + fmt(n) + ' lie?', ['lower', 'higher'], [{ k: 'n', v: lo10 }, { k: 'n', v: hi10 }], {
           visual: line, b: 0.3,
-          explain: ['Count down to the next multiple below: ' + fmt(lo10) + '.', 'Count up to the next multiple above: ' + fmt(hi10) + '.', 'So the pair is <b>' + fmt(lo10) + ' and ' + fmt(hi10) + '</b>.'],
+          explain: ['Count the multiples around ' + fmt(n) + ': ' + fmt(lo10) + ', ' + fmt(hi10) + ' — it lies between them.', 'So the pair is <b>' + fmt(lo10) + ' and ' + fmt(hi10) + '</b>.'],
           teach: 'Every number sits between two consecutive multiples of the place.'
         });
       },
@@ -21845,7 +21851,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       }
       return six(rng, [
         function () { return MC(rng, 'Is ' + n + ' even or odd?', isEven ? 'even' : 'odd', [isEven ? 'odd' : 'even'], { visual: pairVis(n), b: lo, explain: ['Share the ' + n + ' counters into pairs.', isEven ? 'Nothing is left over.' : 'One counter is left over.', 'So ' + n + ' is <b>' + (isEven ? 'even' : 'odd') + '</b>.'], teach: teach }); },
-        function () { var m = R.int(rng, 1, maxN); return I_bool('Is ' + m + ' an even number?', m % 2 === 0, { b: lo + 0.2, explain: ['Look at the ones digit of ' + m + ': ' + (m % 10) + '.', (m % 10) % 2 === 0 ? 'It can be shared into pairs.' : 'A pair is left over.', 'So the answer is <b>' + (m % 2 === 0 ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
+        function () { var m = R.int(rng, 1, maxN); return I_bool('Is ' + m + ' an even number?', m % 2 === 0, { b: lo + 0.2, explain: ['Look at the ones digit of ' + m + ': ' + (m % 10) + '.', (m % 10) % 2 === 0 ? 'It can be shared into pairs: ' + (m % 10) + ' ÷ 2 = ' + (m % 10) / 2 + '.' : 'A pair is left over: ' + (m % 10) + ' ÷ 2 = ' + Math.floor((m % 10) / 2) + ' remainder 1.', 'So the answer is <b>' + (m % 2 === 0 ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
         function () { var right = isEven ? n : (n + 1 <= maxN ? n + 1 : n - 1); if (right % 2 !== 0 || right < 1 || right > maxN) right = 2; return MC(rng, 'Which of these numbers is even?', String(right), oppParity(rng, right).map(String), { b: 0.4, explain: ['Check each ones digit.', right + ' ends in ' + (right % 10) + ', which pairs exactly.', 'So the answer is <b>' + right + '</b>.'], teach: 'Even numbers end in 0, 2, 4, 6 or 8.' }); },
         function () { var right = isEven ? (n + 1 <= maxN ? n + 1 : n - 1) : n; if (right % 2 !== 1 || right < 1 || right > maxN) right = 1; return MC(rng, 'Which of these numbers is odd?', String(right), oppParity(rng, right).map(String), { b: 0.5, explain: ['Check each ones digit.', right + ' ends in ' + (right % 10) + ', which leaves one over.', 'So the answer is <b>' + right + '</b>.'], teach: 'Odd numbers end in 1, 3, 5, 7 or 9.' }); },
         function () {
@@ -21881,7 +21887,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return six(rng, [
         function () { var right = a + ' ' + sym + ' ' + b + ' = ' + c; return MC(rng, 'Which sentence is true?', right, [falseSent(), falseSent(), falseSent()], { b: lo, explain: ['Solve ' + a + ' ' + sym + ' ' + b + '.', 'The value is ' + c + '.', 'So the answer is <b>' + right + '</b>.'], teach: teach }); },
         function () { var off = R.chance(rng, 0.5) ? cap(c + 1, 0, maxN + 10) : c; return I_bool('Is this sentence true?   ' + a + ' ' + sym + ' ' + b + ' = ' + off, off === c, { b: lo + 0.2, explain: ['Solve the left side: ' + a + ' ' + sym + ' ' + b + ' = ' + c + '.', 'The card claims ' + off + '.', 'So the answer is <b>' + (off === c ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
-        function () { return I_num('Find the value:   ' + a + ' ' + sym + ' ' + b + ' = ___', c, { b: 0.3, explain: ['Compute ' + a + ' ' + sym + ' ' + b + '.', 'The answer is ' + c + '.', 'So the answer is <b>' + c + '</b>.'], teach: teach }); },
+        function () { return I_num('Find the value:   ' + a + ' ' + sym + ' ' + b + ' = ___', c, { b: 0.3, explain: ['' + a + ' ' + sym + ' ' + b + ' = ' + c + '.', 'So the answer is <b>' + c + '</b>.'], teach: teach }); },
         function () { return MC(rng, 'Which sign makes ' + a + ' ○ ' + b + ' = ' + c + ' true?', sym, [sym === '+' ? '−' : '+'], { b: 0.4, explain: ['Try both signs.', a + ' ' + sym + ' ' + b + ' = ' + c + '.', 'So the answer is <b>' + sym + '</b>.'], teach: 'Test each sign in the sentence.' }); },
         function () {
           /* "Which sentence has the same answer as 6 − 3?" used to offer
@@ -22134,7 +22140,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () { return I_num(ct + ', ' + g + ' groups of ' + each + ' ' + o + '. How many in all?', tot, { visual: vis, b: lo, explain: ['Each group holds ' + each + '.', 'There are ' + g + ' groups.', add.join(' + ') + ' = ' + tot + '.', 'So the answer is <b>' + tot + '</b>.'], teach: teach }); },
         function () { return MC(rng, 'Which repeated addition matches ' + g + ' groups of ' + each + '?', sum, [add.slice(0, g - 1).join(' + ') + ' = ' + (tot - each), add.concat([each]).join(' + ') + ' = ' + (tot + each), each + ' + ' + each + ' = ' + each * 2], { visual: vis, b: lo + 0.2, explain: ['Write ' + each + ' once for each group.', 'There are ' + g + ' groups, so ' + each + ' appears ' + g + ' times.', 'So the answer is <b>' + sum + '</b>.'], teach: teach }); },
         function () { return I_num('How many ' + o + ' in ' + g + ' rows of ' + each + '?', tot, { visual: vis, b: 0.3, explain: ['Count row by row: ' + each + ' in each row.', g + ' rows give ' + tot + '.', 'So the answer is <b>' + tot + '</b>.'], teach: 'An array is equal groups drawn in rows.' }); },
-        function () { return I_bool('Are these groups equal — ' + g + ' groups of ' + each + '?', true, { visual: vis, b: 0.2, explain: ['Count the objects in each group.', 'Every group has ' + each + '.', 'So the answer is <b>Yes</b>.'], teach: 'Groups are equal when every group has the same number.' }); },
+        function () { return I_bool('Are these groups equal — ' + g + ' groups of ' + each + '?', true, { visual: vis, b: 0.2, explain: ['Count the objects in each group.', g + ' groups with ' + each + ' in each is ' + (g * each) + ' in all.', 'So the answer is <b>Yes</b>.'], teach: 'Groups are equal when every group has the same number.' }); },
         function () { return MC(rng, w + ' has ' + tot + ' ' + o + ' in equal groups. Which story matches?', g + ' bags with ' + each + ' ' + o + ' each', [g + ' bags with ' + (each + 1) + ' ' + o + ' each', (g + 1) + ' bags with ' + each + ' ' + o + ' each'], { visual: vis, b: 0.5, explain: ['Look for ' + g + ' groups with ' + each + ' in each.', 'That story has ' + g + ' × ' + each + ' = ' + tot + '.', 'So the answer is <b>' + g + ' bags with ' + each + ' ' + o + ' each</b>.'], teach: 'A repeated-addition story names the groups and the size.' }); },
         function () { return I_num('How many groups of ' + each + ' make ' + tot + '?', g, { visual: vis, b: 0.6, explain: ['Count off groups of ' + each + ' until ' + tot + '.', 'That takes ' + g + ' groups.', 'So the answer is <b>' + g + '</b>.'], teach: 'Counting groups is the reverse of counting the total.' }); },
         function () { var other = each + 1, t2 = g * other; return MC(rng, 'Which array shows ' + g + ' rows of ' + each + '?', g + ' rows of ' + each, [g + ' rows of ' + other, other + ' rows of ' + each], { visual: vis, b: 0.8, explain: ['Rows tell the groups, the count in a row tells the size.', 'So the array is ' + g + ' rows of ' + each + '.', 'So the answer is <b>' + g + ' rows of ' + each + '</b>.'], teach: teach }); },
@@ -22648,7 +22654,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var wrongs = [names.slice().reverse().join(', ') + ' ' + read].filter(function (s) { return s !== right; });
           return MC(rng, 'Which list matches the picture ' + read + '?', right, wrongs.concat([names[0] + ', ' + names[0] + ' ' + read]), {
             visual: vis, b: 0.5,
-            explain: ['Read the picture ' + read + '.', 'That gives ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+            explain: ['The picture, read ' + read + ': ' + names.join(', ') + '.', 'So the answer is <b>' + right + '</b>.'],
             teach: 'Reading in one direction keeps the description straight.'
           });
         },
@@ -25679,7 +25685,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       if (HS.leaks(p, [real])) return null;
       return HS.numExact(p, real, {
         explain: ['Non-real roots come in pairs, so ' + pairs + ' pairs use ' + (2 * pairs) + ' roots.',
-          'The remaining ' + real + ' roots may all be real.',
+          'The rest ' + deg + ' - ' + (2 * pairs) + ' = ' + real + ' may all be real.',
           'The least number of real roots is <b>' + real + '</b>.'],
         teach: 'Subtract the conjugate pairs from the degree to count forced real roots.'
       }, null, lvl, 0.4);
@@ -30624,7 +30630,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return HS.point(p, [sx, sy], {
         visual: V.coord({ lines: [{ m: l1.m, b: l1.b, label: 'line 1' }, { m: l2.m, b: l2.b, label: 'line 2' }], grid: true }),
         explain: ['The solution is the point where the two lines cross.',
-          'Tracing both lines shows they meet at (' + sx + ', ' + sy + ').',
+          'Line 1 at x = ' + sx + ': ' + l1.m + ' × ' + sx + ' + ' + l1.b + ' = ' + (l1.m * sx + l1.b) + '; line 2 at x = ' + sx + ': ' + l2.m + ' × ' + sx + ' + ' + l2.b + ' = ' + (l2.m * sx + l2.b) + '.',
           'The solution is <b>' + HS.ptStr([sx, sy]) + '</b>.'],
         teach: INQ ? 'A solution of a system is a point that lies on both graphs; for inequalities it is a region that satisfies both conditions.' : 'A solution of a system is a point that lies on both graphs.'
       }, null, lvl, 0);
@@ -30774,7 +30780,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var ans = '(' + sx + ', ' + sy + ', ' + sz + ')';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['(' + (sx + 1) + ', ' + sy + ', ' + sz + ')', '(' + sx + ', ' + (sy + 1) + ', ' + sz + ')', '(' + sx + ', ' + sy + ', ' + (sz + 1) + ')'], {
-        explain: ['Substitute each triple into both equations.',
+        explain: ['Check the answer in the first equation: ' + a1 + ' × ' + sx + ' + ' + b1 + ' × ' + sy + ' + ' + c1 + ' × ' + sz + ' = ' + (a1 * sx + b1 * sy + c1 * sz) + ', which matches.',
           'Only (' + sx + ', ' + sy + ', ' + sz + ') makes both true.',
           'The triple is <b>' + ans + '</b>.'],
         teach: 'Check a triple by substituting it into every equation.'
@@ -32523,12 +32529,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (kind === 0) {
       return { prompt: w.who + ' collected ' + UP.comma(a) + ' ' + obj + ' ' + where + ' and ' + UP.comma(b)
         + ' more ' + obj + ' the week after. How many ' + obj + ' did ' + w.who + ' collect in all?',
-        steps: ['Add the two collections.', 'Put the smaller amount under the larger one and add the columns.'] };
+        steps: [UP.comma(a) + ' + ' + UP.comma(b) + ' = ' + UP.comma(a + b) + '.', 'Put the smaller amount under the larger one and add the columns.'] };
     }
     if (kind === 1) {
       return { prompt: 'A class raised ' + UP.comma(a) + ' ' + obj + ' ' + where + '. ' + other
         + '\'s class raised ' + UP.comma(b) + '. How many more ' + obj + ' did the first class raise?',
-        steps: ['Compare the two amounts by subtracting.', 'Subtract the smaller number from the larger one.'] };
+        steps: [UP.comma(Math.max(a, b)) + ' − ' + UP.comma(Math.min(a, b)) + ' = ' + UP.comma(Math.max(a, b) - Math.min(a, b)) + '.', 'Subtract the smaller number from the larger one.'] };
     }
     if (kind === 2) {
       return { prompt: 'There were ' + UP.comma(a) + ' people at ' + where + '. ' + UP.comma(b)
@@ -33195,7 +33201,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           expr: w,
           spec: { k: 'n', v: n },
           steps: ['"thousand" marks the thousands group: ' + BC.words(Math.floor(n / 1000) * 1000) + '.',
-            'The rest is ' + BC.words(n % 1000) + '.',
+            'The rest is ' + BC.words(n % 1000) + ' — ' + UP.comma(Math.floor(n / 1000) * 1000) + ' + ' + UP.comma(n % 1000) + ' = ' + UP.comma(n) + '.',
             'Put the digits together.'],
           wrongs: UP.slips(n, UP.placeSlip(n, 3)),
           teach: 'Write the thousands group first, then the hundreds, tens and ones.',
@@ -33893,7 +33899,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.mc(rng, 'Which rounding gives the closest estimate for ' + UP.comma(f.a) + sym + UP.comma(f.b) + '?',
             names[which], wrongs, {
             steps: ['Round both numbers each way and compare the result with the exact answer ' + UP.comma(f.exact) + '.',
-              names[which] + ' lands closest, a gap of ' + UP.comma(best) + '.'],
+              'The exact answer is ' + UP.comma(f.exact) + '; ' + names[which] + ' lands closest — its gap is ' + UP.comma(best) + ' = ' + UP.comma(best) + '.'],
             teach: 'The best rounding place is the one whose estimate lands closest to the exact answer.',
             b: 0.6
           });
@@ -34250,7 +34256,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           expr: UP.comma(a) + sym2 + ' = ' + UP.comma(a),
           spec: { k: 'n', v: useZero ? 0 : 1 },
           steps: ['The number did not change.',
-            useZero ? 'Only adding 0 leaves a number the same.' : (op === 'div' ? 'Only dividing by 1 leaves a number the same.' : 'Only multiplying by 1 leaves a number the same.')],
+            UP.comma(a) + (useZero ? ' + 0 = ' : op === 'div' ? ' ÷ 1 = ' : ' × 1 = ') + UP.comma(a) + ', so the blank is ' + (useZero ? 0 : 1) + '.'],
           wrongs: useZero ? [1, 10, a] : [0, 10, a],
           teach: 'Zero is the identity for addition and one is the identity for multiplication and division.',
           b: -0.1
@@ -34924,6 +34930,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     return { n: n, d: d, rn: r.n, rd: r.d, v: n / d };
   }
   function lcm(a, b) { return a * b / gcd(a, b); }
+  function multiples(d, upto) { var out = [], k; for (k = 1; k <= upto / d; k++) out.push(d * k); return out.join(', '); }
   /* the same fraction written on a different denominator */
   function onDen(rng, f, d2) {
     var k = d2 / f.d;
@@ -36104,7 +36111,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the least common denominator of ' + q.a.n + '/' + q.a.d + ' and ' + q.b.n + '/' + q.b.d + '?',
           L, wrongs, {
           visual: modelOf(q, false),
-          steps: ['List the multiples of ' + q.a.d + ' and ' + q.b.d + '.', 'The first one they share is ' + L + '.'],
+          steps: ['The first list shows ' + multiples(q.a.d, L) + ', and the second shows ' + multiples(q.b.d, L) + '; the first they share is ' + L + '.'],
           teach: 'The least common denominator is the least common multiple of the two denominators.',
           b: 0.2
         });
@@ -44600,7 +44607,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var s = sortNum(vals);
         return I_NUM('In the sorted data ' + s.join(', ') + ', how many values are below the median?', 4, {
           explain: ['Nine sorted values put one in the middle.',
-            'The other eight split evenly: <b>4</b> below and 4 above.'],
+            'The other eight split evenly: 8 ÷ 2 = <b>4</b> below and 4 above.'],
           teach: 'The median splits sorted data into equal halves.',
           b: 0.3
         });
@@ -47581,7 +47588,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var rows = [['tubes of paint', us(p0)], ['brushes', us(p1)], ['paper', us(BC.int(rng, 80, 300))]];
         return judge('Is ' + us(Math.max(50, have)) + ' enough to buy ' + us(p0) + ' paint and ' + us(p1) + ' brushes?', have >= p0 + p1, {
           visual: V.table(['supply', 'price'], rows),
-          explain: ['Both supplies together: ' + us(p0) + ' + ' + us(p1) + ' = ' + us(p0 + p1) + '.', 'The money is ' + us(Math.max(50, have)) + '.', (have >= p0 + p1 ? 'It covers the total' : 'It falls short by ' + us(p0 + p1 - have)) + '.'],
+          explain: ['Both supplies together: ' + us(p0) + ' + ' + us(p1) + ' = ' + (p0 + p1) + ' dollars.', 'The money is ' + us(Math.max(50, have)) + '.', (have >= p0 + p1 ? 'It covers the total' : 'It falls short by ' + us(p0 + p1 - have)) + '.'],
           teach: 'Compare the money with the total — enough means total ≤ money.',
           b: 0.5
         });
@@ -48364,7 +48371,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         shown[badAt] = bad;
         return choose(rng, 'The rule is “multiply by ' + s.rule + '”. In ' + shown.join(', ') + ' one number is wrong. What number should replace it?',
           s.seq[badAt], [bad, s.seq[badAt] * s.rule, s.seq[badAt] + s.rule], {
-          steps: ['Apply the stated rule: ' + s.seq.join(', ') + '.', 'The rule gives ' + s.seq[badAt] + ' there, not ' + bad + '.'],
+          steps: ['Apply the stated rule: ' + s.seq.join(', ') + '.', 'The rule gives ' + s.seq[badAt - 1] + ' × ' + s.rule + ' = ' + s.seq[badAt] + ', not ' + bad + '.'],
           teach: 'A stated factor fixes every term — rebuild it and compare.',
           b: 0.6
         });
@@ -49169,7 +49176,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           dstr(D(d.n, 2)), wrongs, {
           visual: V.frac(1, f[1], f[0], { label: f[0] + '/' + f[1] }),
           steps: ['Make the denominator ' + (f[1] === 8 ? '1000' : '100') + ': ' + f[0] + '/' + f[1] + ' = ' + (f[1] === 8 ? d.n * 10 / 10 : d.n) + '/1' + (d.p === 2 ? '00' : '0') + '.',
-            'So the decimal is ' + dstr(D(d.n, 2)) + '.'],
+            /* one real step, then the answer — no second announcement of the value */
+          ],
           teach: 'A fraction is a division: rename the denominator as tenths or hundredths and read the decimal.',
           b: 0.2
         });
@@ -49293,7 +49301,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             : [{ v: missing / 100, label: '?', hide: true }, { v: shown / 100, label: dstr2(shown, 2) }]),
           steps: ['? = ' + dstr2(whole, 2) + ' − ' + dstr2(shown, 2) + '.',
             'In hundredths: ' + (whole - shown) + ' hundredths.',
-            'So ? = ' + dstr2(missing, 2) + '.'],
+            /* the answer line below already states it — no stutter */
+          ],
           teach: 'A missing part is found with the inverse operation, keeping the point in the same column.',
           b: 0.3
         });
@@ -49573,7 +49582,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, lead(rng, ['Work out ' + dstr(D(a, 1)) + ' × ' + b + '.', 'Multiply ' + dstr(D(a, 1)) + ' by ' + b + '.']),
           dstr(ans), wrongs, {
           steps: [a + ' tenths × ' + b + ' = ' + (a * b) + ' tenths.',
-            'So ' + dstr(ans) + '.'],
+            (a * b) + ' tenths = ' + dstr(ans) + '.'],
           teach: 'Treat the decimal as a count of its smallest unit, multiply, then rename.',
           b: 0.6
         });
@@ -49611,7 +49620,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           'Complete: ' + dstr(c.dividend) + ' ÷ ' + c.dv + ' = ?']),
           dstr(c.q), wrongs, {
           steps: ['Think multiplication: ' + c.dv + ' × ' + dstr(c.q) + ' = ' + dstr(c.dividend) + '.',
-            'So ? = ' + dstr(c.q) + '.'],
+            /* the answer line below already states it — no stutter */
+          ],
           teach: 'Division is missing-factor multiplication — use the fact you know.',
           b: 0.4
         });
@@ -50590,7 +50600,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongA = chosen[1][0] + ' × ' + (chosen[1][1] + 1);
         var wrongB = (chosen[2][0] + 1) + ' × ' + chosen[2][1];
         return choose(rng, 'Which product equals ' + base + '?', right, [wrongA, wrongB], {
-          steps: ['Work each option out.', 'Only one option lands exactly on ' + base + '.'],
+          steps: ['Work each option out.', chosen[0][0] + ' × ' + chosen[0][1] + ' = ' + base + ', so only that option lands exactly on ' + base + '.'],
           teach: 'Different factor pairs can give the same product.',
           b: 0.6
         });
@@ -53789,7 +53799,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var a = BC.rect(rng, 7), b = BC.rect(rng, 7);
           var kid = who(rng);
           return judge(rng, kid + ' found the area of an L-shaped rug as ' + a.w + ' × ' + a.h + ' + ' + b.w + ' × ' + b.h + '. Do you agree?', true, {
-            steps: ['Split the L into two rectangles.', 'Each area is length × width, then add.'],
+            steps: ['Split the L into two rectangles.', 'Each area is length × width: ' + a.w + ' × ' + a.h + ' = ' + a.area + ' and ' + b.w + ' × ' + b.h + ' = ' + b.area + ', total ' + (a.area + b.area) + ' m².'],
             teach: 'An L-shape is two rectangles, and areas add.', b: 0.6
           });
         },
@@ -55952,7 +55962,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var m = mixed(), q = proper();
         var pr = BC.fracMul(m.n, m.d, q.n, q.d);
         return judge(rng, mixedStr(m.n, m.d) + ' × ' + q.n + '/' + q.d + ' = ' + mixedStr(pr.r.n, pr.r.d) + '. Do you agree?', true, {
-          steps: ['Convert first: ' + m.n + '/' + m.d + '.', 'Then multiply across and reduce.'],
+          steps: ['Convert first: ' + m.n + '/' + m.d + '.',
+            '' + m.n + '/' + m.d + ' × ' + q.n + '/' + q.d + ' = ' + mixedStr(pr.r.n, pr.r.d) + '.'],
           teach: 'Check mixed-number products by converting before multiplying.', b: 0.8
         });
       },
@@ -57548,7 +57559,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   the median of ' + list.join(', ') + '  ○  ' + BC.fix(med + 1, 1),
             left: med, right: med + 1,
-            steps: ['Middle values ' + list[2] + ' and ' + list[3] + '.', 'Their midpoint is ' + med + ', which is below ' + BC.fix(med + 1, 1) + '.'],
+            steps: ['Middle values ' + list[2] + ' and ' + list[3] + ': (' + list[2] + ' + ' + list[3] + ') ÷ 2 = ' + med + '.', 'Their midpoint is ' + med + ', which is below ' + BC.fix(med + 1, 1) + '.'],
             teach: 'Compare the median only after working it out.', b: 0.8
           });
         },
@@ -60792,7 +60803,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'Which pack has the lower unit price: ' + a.items + ' for ' + a.cents + '¢, or ' + b.items + ' for ' + b.cents + '¢?',
           a.unit < b.unit ? 'the ' + a.items + '-item pack' : 'the ' + b.items + '-item pack',
           [a.unit < b.unit ? 'the ' + b.items + '-item pack' : 'the ' + a.items + '-item pack', 'they are the same'], {
-            steps: ['Unit prices: ' + a.unit + '¢ and ' + b.unit + '¢.', 'The smaller unit price is the cheaper pack.'],
+            steps: ['Unit prices: ' + a.cents + ' cents ÷ ' + a.items + ' = ' + a.unit + '¢, and ' + b.cents + ' cents ÷ ' + b.items + ' = ' + b.unit + '¢.', 'The smaller unit price is the cheaper pack.'],
             teach: 'Unit price decides the cheaper pack.', b: 0.8
           });
       },
@@ -61334,7 +61345,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     function checkShape() {
       var c = pickSource();
       return judge(rng, 'x = ' + signed(c.x) + ' is the solution of ' + c.txt + '. Is that right?', true, {
-        steps: ['Substitute ' + signed(c.x) + ' back into the equation.', 'Both sides come to the same number.'],
+        steps: ['Substitute ' + signed(c.x) + ' back into the equation.', 'Both sides come to the same number — one equals itself.'],
         teach: 'Substituting the solution back in proves it.', b: 0.3
       });
     }
@@ -61796,7 +61807,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return choose(rng, 'Which number is ' + (n < 0 ? '6 below' : '6 above') + ' zero on a number line?', sgn(n + (n < 0 ? -6 : 6)),
             [sgn(n), sgn(Math.abs(n + (n < 0 ? -6 : 6))), sgn(n - (n < 0 ? -6 : 6))], {
               visual: nl(n < 0 ? -30 : 0, n < 0 ? 0 : 30, [{ x: n, label: sgn(n) }]),
-              steps: ['Start at 0 and count ' + (n < 0 ? 'left' : 'right') + ' from there.', 'The number is ' + sgn(n + (n < 0 ? -6 : 6)) + '.'],
+              steps: ['Start at 0 and count ' + (n < 0 ? 'left' : 'right') + ' from there.', 'From ' + sgn(n) + ': ' + sgn(n) + ' ' + (n < 0 ? '- ' : '+ ') + '6 = ' + sgn(n + (n < 0 ? -6 : 6)) + ', the number is ' + sgn(n + (n < 0 ? -6 : 6)) + '.'], 
               teach: 'Every integer is a distance and a direction from zero.', b: 0
             });
         },
@@ -62368,7 +62379,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   output for input ' + a + ' under "add ' + sgn(rule) + '"  ○  ' + sgn(a + rule),
             left: a + rule, right: a + rule,
-            steps: ['Apply the rule.', 'The output is ' + sgn(a + rule) + '.'],
+            steps: ['Apply the rule: ' + sgn(a) + ' + ' + sgn(rule) + ' = ' + sgn(a + rule) + '.'],
             teach: 'Table outputs are computed, not guessed.', b: 0.8
           });
         },
@@ -62574,7 +62585,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return UP.cmp(rng, {
           prompt: 'Choose >, < or =.   ' + addText(c.a, c.b) + '  ○  ' + sgn(c.v),
           left: c.v, right: c.v,
-          steps: ['Compute the sum first.', 'Then compare the two sides.'],
+          steps: [addText(c.a, c.b) + ' = ' + sgn(c.v) + ',', 'that is the same as ' + sgn(c.v) + '.'],
           teach: 'Evaluate before comparing.', b: 0.8
         });
       },
@@ -62792,7 +62803,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var q = rat(rng, 8);
           return choose(rng, 'What is the sign of -(' + (q.v < 0 ? sgn(q.v) : q.s) + ')?', q.v < 0 ? 'positive' : 'negative',
             [q.v < 0 ? 'negative' : 'positive', 'zero'], {
-              steps: ['A negative sign in front flips the number to the other side of zero.', 'So the result is ' + (q.v < 0 ? 'positive' : 'negative') + '.'],
+              steps: ['The opposite of ' + q.v + ' is ' + (-q.v) + '.'],
               teach: 'A minus sign in front means "the opposite of".', b: 0
             });
         },
@@ -62822,7 +62833,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   -(' + q.s + ')  ○  ' + sgn(-q.v),
             left: -q.v, right: -q.v,
-            steps: ['Negate the number.', 'Both sides are the same value.'],
+            steps: ['Negate the number: -(' + q.s + ') = ' + sgn(-q.v) + '.', 'Both sides are the same value.'],
             teach: 'A negation is a computation, so it can be compared.', b: 0.8
           });
         },
@@ -62955,7 +62966,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {
           var q = rat(rng, 7);
           return judge(rng, '|' + q.s + '| = ' + nfmt(Math.abs(q.v)) + '. Is that right?', true, {
-            steps: ['Drop the sign.', 'What remains is the distance from zero.'],
+            steps: [q.s + ' is ' + nfmt(Math.abs(q.v)) + ' units from zero, so the statement is right.', 'What remains is the distance from zero.'],
             teach: 'Absolute value drops the sign and keeps the size.', b: 0.3
           });
         },
@@ -63805,7 +63816,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return UP.cmp(rng, {
           prompt: 'Choose >, < or =.   ' + pc(p1) + '  ○  ' + nfmt(p1 / 100),
           left: p1 / 100, right: p1 / 100,
-          steps: ['Convert the percent to a decimal.', 'Both sides are ' + nfmt(p1 / 100) + '.'],
+          steps: ['Convert the percent to a decimal.', 'Both sides are ' + nfmt(p1 / 100) + ' = ' + nfmt(p1 / 100) + ', so the symbol is =.'],
           teach: 'Different forms of one number compare with =.', b: 0.9
         });
       }
@@ -64066,7 +64077,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var cents = BC.int(rng, 4, 40) * 25, p1 = BC.pick(rng, [25, 50, 10]);
           return choose(rng, 'What is ' + p1 + '% of $' + BC.cash(cents / 100) + '?', '$' + BC.cash(fix2(p1 / 100 * cents / 100)),
             ['$' + BC.cash(fix2(p1 / 10 * cents / 100)), '$' + BC.cash(fix2(cents / 100 - p1 / 100 * cents / 100)), '$' + BC.cash(fix2(p1 * cents / 100))], {
-              steps: ['Convert the percent to a decimal.', 'Multiply by the amount.'],
+              steps: ['Convert the percent to a decimal: ' + p1 + ' per 100 = ' + nfmt(p1 / 100) + '.', 'Multiply by the amount.'],
+              teachX: 1,
               teach: 'A percent of money keeps the dollar unit.', b: 0.5
             });
         },
@@ -64084,7 +64096,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + p1 + '% of $' + BC.cash(cents / 100) + '  ○  $' + BC.cash(fix2(p1 / 100 * cents / 100)),
             left: p1 / 100 * cents / 100, right: p1 / 100 * cents / 100,
-            steps: ['Compute the percent of the amount.', 'Both sides are equal.'],
+            steps: ['Compute the percent of the amount: ' + p1 + ' per 100 of the amount = the right side.', 'Both sides are equal.'],
             teach: 'A percent of money is one multiplication.', b: 0.8
           });
         },
@@ -64195,7 +64207,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + p1 + '%  ○  ' + nfmt(p1 / 100),
             left: p1 / 100, right: p1 / 100,
-            steps: ['Convert the percent to a decimal.', 'Both sides are equal.'],
+            steps: ['Both sides are ' + nfmt(p1 / 100) + ' = ' + nfmt(p1 / 100) + ', so the symbol is =.'],
+            teachX: 1,
             teach: 'Percents, fractions and decimals are one number in three outfits.', b: 0.9
           });
         }
@@ -70131,7 +70144,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var rhs = cA * solX + cB;
       return card(rng, sk, 'Which solution set satisfies ' + cA + 'x + ' + cB + ' < ' + rhs + '?', 'x < ' + solX,
         ['x > ' + solX, 'x < ' + (rhs - cB), 'x > ' + Math.ceil((rhs - cB) / cA)],
-        'Subtract ' + cB + ', then divide the positive inequality by ' + cA + '.',
+        rhs + ' - ' + cB + ' = ' + (rhs - cB) + ', then ' + (rhs - cB) + ' / ' + cA + ' = ' + solX + '.',
         'Solving an inequality uses inverse operations while preserving the sign for positive divisors.', bFor(lvl));
     }
     if (/slope|intercept|linear equation|standard form|point-slope|horizontal|vertical/.test(title)) {
@@ -76353,7 +76366,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (cand < 0) {
         return I_num('How many measurements on the line plot are ' + d.labels[pickI] + '?', d.counts[pickI], {
           visual: d.plot, b: t,
-          explain: ['Find ' + d.labels[pickI] + '.', 'Count its marks: ' + d.counts[pickI] + '.', 'So the answer is <b>' + d.counts[pickI] + '</b>.'],
+          explain: ['Find ' + d.labels[pickI] + '.', 'Count its marks: ' + d.counts[pickI] + ', and the tallest column has ' + Math.max.apply(null, d.counts) + '.', 'So the answer is <b>' + d.counts[pickI] + '</b>.'],
           teach: 'Each X above a decimal value is one measurement.' });
       }
       var wOpts = [];
@@ -76804,7 +76817,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (k === 5) {   /* estimate vs exact direction */
         return I_bool(r2(a) + ' + ' + r2(b) + ' is more than the estimate ' + (e1 + e2) + '.', (a + b) > (e1 + e2) ? R.chance(rng, 0.5) : false || ((a + b) > (e1 + e2)), {
           b: t + 0.55,
-          explain: ['Rounding to wholes can round down and up; the true sum is ' + r2(a + b) + '.', 'The estimate was ' + (e1 + e2) + '.',
+          explain: ['Rounding to wholes can round down and up; the true sum is ' + r2(a + b) + '.', 'The estimate was ' + (e1 + e2) + ', and ' + r2(a + b) + ' is ' + ((a + b) > (e1 + e2) ? 'more' : 'less') + ' than ' + r2(e1 + e2) + '.',
             'So the answer is <b>' + ((a + b) > (e1 + e2) ? 'Yes' : 'No') + '</b>.'],
           teach: 'An estimate is close, but the exact value decides true/false.' });
       }
@@ -86951,8 +86964,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       count = a + b; ansStr = String(count);
       visFinal = V.bar([{ v: a }, { v: b }], { label: 'two groups of ' + named(noun, 2) + ' put together', noun: named(noun, 2) });
       prompt = 'This many and that many. How many in all?';
-      explain = ['Count the first group: <b>' + a + '</b>.',
-        'Count the second group: <b>' + b + '</b>. Together they make <b>' + count + '</b>.'];
+      explain = ['Count the first group: <b>' + a + '</b>. Count the second: <b>' + b + '</b>.',
+        'That is ' + a + ' + ' + b + ' = ' + count + ' in all.'];
       teach = 'Putting two groups together is addition, so the total is the two counts added.';
     } else if (form === 6 && lim >= 3) {          /* compare the picture with a stated number */
       var asks = [count + 1, count - 1, count + 2, count - 2].filter(function (v) { return v >= 0 && v <= lim && v !== count; });
@@ -86960,7 +86973,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var asked = R.pick(rng, asks);
       prompt = 'Is ' + asked + ' the number?';
       explain = ['Point to each ' + one(noun) + ' as you count it.',
-        'The picture shows <b>' + count + '</b>, so ' + asked + ' is not it.'];
+        'The picture shows <b>' + count + '</b>, and ' + asked + ' is not the same as ' + count + ', so ' + asked + ' is not it.'];
       teach = 'Count the picture first, then compare it with the number you were asked about.';
       return I_bool(prompt, false, { visual: visFinal, explain: explain, teach: teach,
         b: -2.6 + 5.5 * DP.lvl01(lvl) });
@@ -87991,7 +88004,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
          noun. Only the listed nouns are touched, and only after the digit 1, so
          a measurement ("1 mile more than") or a mixed number ("1 1/2") is safe. */
       var SING = { boxes: 'box', frames: 'frame', groups: 'group',
-        quarts: 'quart', pints: 'pint', litres: 'litre', units: 'unit', yards: 'yard', parts: 'part', leaves: 'leaf', numerators: 'numerator', pencils: 'pencil', miles: 'mile', erasers: 'eraser', buttons: 'button', hundreds: 'hundred', shells: 'shell', marbles: 'marble', seeds: 'seed', places: 'place', stones: 'stone', inches: 'inch', names: 'name', stickers: 'sticker', pieces: 'piece', steps: 'step', berries: 'berry', pennies: 'penny', tons: 'ton', wholes: 'whole', responses: 'response', pears: 'pear', circles: 'circle', votes: 'vote', marks: 'mark', students: 'student', crayons: 'crayon', squares: 'square', thousands: 'thousand', hundredths: 'hundredth', kiloliters: 'kiloliter', pairs: 'pair', shelves: 'shelf', cookies: 'cookie', coins: 'coin', bills: 'bill', tickets: 'ticket', stamps: 'stamp', toys: 'toy', blocks: 'block', beads: 'bead', pens: 'pen', notebooks: 'notebook', trays: 'tray', jars: 'jar', bags: 'bag', packets: 'packet', bunches: 'bunch', cookies2: 'cookie', rows: 'row', columns: 'column', counters: 'counter', dots: 'dot', cubes: 'cube', stars: 'star', apples: 'apple', cars: 'car', balls: 'ball', bears: 'bear', books: 'book', cups: 'cup', items: 'item', objects: 'object', pictures: 'picture', sets: 'set', sides: 'side', vertices: 'vertex', edges: 'edge', faces: 'face', angles: 'angle', minutes: 'minute', hours: 'hour', days: 'day', weeks: 'week', months: 'month', years: 'year', dollars: 'dollar', cents: 'cent', gallons: 'gallon', liters: 'liter', kilometres: 'kilometre', kilometers: 'kilometer', metres: 'metre', meters: 'meter', centimetres: 'centimetre', centimeters: 'centimeter', grams: 'gram', kilograms: 'kilogram', pounds: 'pound', ounces: 'ounce', tens: 'ten', ones: 'one', thirds: 'third', fourths: 'fourth', fifths: 'fifth', sixths: 'sixth', eighths: 'eighth', tenths: 'tenth', twelfths: 'twelfth', times: 'time', pies: 'pie', bars: 'bar', strips: 'strip', cards: 'card', frames2: 'frame' };
+        quarts: 'quart', pints: 'pint', litres: 'litre', units: 'unit', yards: 'yard', parts: 'part', leaves: 'leaf', numerators: 'numerator', pencils: 'pencil', miles: 'mile', erasers: 'eraser', buttons: 'button', hundreds: 'hundred', shells: 'shell', marbles: 'marble', seeds: 'seed', places: 'place', stones: 'stone', inches: 'inch', stickers: 'sticker', pieces: 'piece', steps: 'step', berries: 'berry', pennies: 'penny', tons: 'ton', wholes: 'whole', responses: 'response', pears: 'pear', circles: 'circle', votes: 'vote', marks: 'mark', students: 'student', crayons: 'crayon', squares: 'square', thousands: 'thousand', hundredths: 'hundredth', kiloliters: 'kiloliter', pairs: 'pair', shelves: 'shelf', cookies: 'cookie', coins: 'coin', bills: 'bill', tickets: 'ticket', stamps: 'stamp', toys: 'toy', blocks: 'block', beads: 'bead', pens: 'pen', notebooks: 'notebook', trays: 'tray', jars: 'jar', bags: 'bag', packets: 'packet', bunches: 'bunch', cookies2: 'cookie', rows: 'row', columns: 'column', counters: 'counter', dots: 'dot', cubes: 'cube', stars: 'star', apples: 'apple', cars: 'car', balls: 'ball', bears: 'bear', books: 'book', cups: 'cup', items: 'item', objects: 'object', pictures: 'picture', sets: 'set', sides: 'side', vertices: 'vertex', edges: 'edge', faces: 'face', angles: 'angle', minutes: 'minute', hours: 'hour', days: 'day', weeks: 'week', months: 'month', years: 'year', dollars: 'dollar', cents: 'cent', gallons: 'gallon', liters: 'liter', kilometres: 'kilometre', kilometers: 'kilometer', metres: 'metre', meters: 'meter', centimetres: 'centimetre', centimeters: 'centimeter', grams: 'gram', kilograms: 'kilogram', pounds: 'pound', ounces: 'ounce', tens: 'ten', ones: 'one', thirds: 'third', fourths: 'fourth', fifths: 'fifth', sixths: 'sixth', eighths: 'eighth', tenths: 'tenth', twelfths: 'twelfth', times: 'time', pies: 'pie', bars: 'bar', strips: 'strip', cards: 'card', frames2: 'frame' };
       return dustFix(String(txt))
         /* "the array of counters of star stickers" is what happens when a model
            noun is pasted into a frame that already names the objects; the
@@ -89369,7 +89382,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             /* the title promises a grid model, so the card shows one */
             visual: hundredGrid(n),
             teach: 'On a hundred-grid the percent and the shaded count are the same number.',
-            explain: explainOk(['Percent means out of 100, and the grid has 100 squares.', n + '% of 100 squares is ' + n + ' squares.', '<b>' + n + ' squares</b> are shaded.'], n) });
+            explain: explainOk(['Percent means out of 100, and the grid has 100 squares.', n + ' per 100 squares is ' + n + ' shaded.', '<b>' + n + ' squares</b> are shaded.'], n) });
       },
       function () {
         if (!/percent|decimal|fraction/.test(ttl)) return null;
@@ -89498,7 +89511,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var claim = truth ? 'more than half' : 'less than half';
         return I_bool('Is it true that ' + p + '% is ' + claim + ' of a whole?', (p > 50) === (claim === 'more than half'), {
           teach: 'Compare the percent with 50%, which is exactly half.',
-          explain: explainOk([p + '% is ' + (p > 50 ? 'greater' : 'less') + ' than 50%.', 'So ' + p + '% is ' + (p > 50 ? 'more' : 'less') + ' than half: the statement is <b>' + ((p > 50) === (claim === 'more than half') ? 'true' : 'false') + '</b>.'], ((p > 50) === (claim === 'more than half')) ? 'true' : 'false')
+          explain: explainOk([p + ' per 100 is ' + (p > 50 ? 'more' : 'less') + ' than 50 per 100.', 'So ' + p + '% is ' + (p > 50 ? 'more' : 'less') + ' than half: the statement is <b>' + ((p > 50) === (claim === 'more than half') ? 'true' : 'false') + '</b>.'], ((p > 50) === (claim === 'more than half')) ? 'true' : 'false')
         });
       }
     ];
@@ -89568,7 +89581,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         if (other === name || offTopic) return null;
         return I_cmp('Compare the number of sides. Use >, <, or =: a ' + name + ' ○ a ' + other, sides, sh2[1], {
           teach: 'Name the number of sides of each shape before comparing.',
-          explain: explainOk(['A ' + name + ' has ' + sides + ' sides and a ' + other + ' has ' + sh2[1] + ' sides.', 'The symbol is <b>' + (sides > sh2[1] ? '&gt;' : sides < sh2[1] ? '&lt;' : '=') + '</b>.'], sh2[1]) });
+          explain: explainOk(['A ' + name + ' has ' + sides + ' sides and a ' + other + ' has ' + sh2[1] + ' sides.', 'So ' + sides + (sides > sh2[1] ? ' > ' : sides < sh2[1] ? ' < ' : ' = ') + sh2[1] + ', and the symbol is <b>' + (sides > sh2[1] ? '&gt;' : sides < sh2[1] ? '&lt;' : '=') + '</b>.'], sh2[1]) });
       },
       function () {
         if (!/symmetr|fold|line of/.test(ttl)) return null;
@@ -90765,14 +90778,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         return askStr(rng, sk, 'A table shows these pairs of x- and y-values: ' + rows.map(function (r) { return '(' + r[0] + ', ' + r[1] + ')'; }).join(', ') + '. Which rule, written as an equation relating x and y, gives every y from its x?', ['y = ' + rule[2]],
           rule[2] === 'x + 3' ? ['y = 3x', 'y = x − 3'] : ['y = x + ' + rule[1](1), 'y = ' + rule[2].replace('2x', 'x + 2')],
           { teach: 'Check the change from row to row, then test one point.',
-            explain: explainOk(['Each input rises by 1 while the output rises by ' + (rows[1][1] - rows[0][1]) + '.', 'The rule that fits every row is <b>y = ' + rule[2] + '</b>.'], 'y = ' + rule[2]),
+            explain: explainOk(['Test the first row: 1 × ' + (rows[1][1] - rows[0][1]) + ' = ' + rows[0][1] + ', so the rule fits.', 'The rule that fits every row is <b>y = ' + rule[2] + '</b>.'], 'y = ' + rule[2]),
             visual: V.table(['Input', 'Output'], rows) });
       },
       function () {
         var known = rows.slice(1), want = rows[0][1];
         return ask(rng, sk, 'Using the rule “' + rule[0] + '”, which input gives an output of ' + want + '?', rows[0][0],
           [rows[0][0] + 1, want, rows[0][0] - 1], { lim: 200, teach: 'Undo the rule to recover the input.',
-            explain: explainOk(['The output must be ' + want + '.', 'Undoing the rule gives the input <b>' + rows[0][0] + '</b>.'], rows[0][0]) });
+            explain: explainOk(['Undo the rule: ' + want + (rule[0].charAt(0) === 'a' ? ' − ' : ' ÷ ') + rule[1] + ' = ' + rows[0][0] + '.', 'The output must be ' + want + '.', 'So the input is <b>' + rows[0][0] + '</b>.'], rows[0][0]) });
       },
       function () {
         var sets = [[[1, 2], [2, 4], [3, 6]], [[1, 2], [1, 5], [2, 3]]];
@@ -91042,7 +91055,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var g = gcd(a, b), right = (a / g) + ':' + (b / g);
         return askStr(rng, sk, 'A bag holds ' + a + ' red beads and ' + b + ' blue beads. Write the ratio of red to blue in simplest form.', [right],
           [b + ':' + a, a + ':' + (a + b)], { teach: 'Divide both parts by their greatest common factor.',
-            explain: explainOk(['The ratio is ' + a + ':' + b + ' and the GCF is ' + g + '.', 'Simplest form: <b>' + right + '</b>.'], right) });
+            explain: explainOk(['Divide both terms by ' + g + ': ' + a + ' ÷ ' + g + ' = ' + (a / g) + ', ' + b + ' ÷ ' + g + ' = ' + (b / g) + '.', 'Simplest form: <b>' + right + '</b>.'], right) });
       },
       function () {
         if (!/rate|unit|speed|pace|per|miles per|cost per|unit price/.test(ttl)) return null;
@@ -91200,7 +91213,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var cheap = p1 < p2 ? p1 : p2, right = p1 < p2 ? money(p1) : money(p2);
         return askStr(rng, sk, nm + ' buys one of each item. Which item costs less? ' + money(p1) + ' or ' + money(p2) + '?', [right],
           [p1 < p2 ? money(p2) : money(p1), money(cheap + 1)], { teach: 'Compare the two prices digit by digit from the left.',
-            explain: explainOk([money(p1) + ' and ' + money(p2) + ' are compared from the dollars down.', 'The cheaper item costs <b>' + right + '</b>.'], right) });
+            explain: explainOk([money(p1) + ' is more than ' + money(p2) + ', so the dollars alone decide.', 'The cheaper item costs <b>' + right + '</b>.'], right) });
       },
       function () {
         var paid = Math.ceil(tot);
@@ -91230,7 +91243,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var claim = R.chance(rng, 0.5);
         return I_bool('Is it true that ' + money(p1) + ' is more than ' + money(p2) + '?', claim ? truth : !truth, {
           teach: 'Compare the dollar part first, then the cents.',
-          explain: explainOk([money(p1) + ' versus ' + money(p2) + '.', 'The statement is <b>' + ((claim ? truth : !truth) ? 'true' : 'false') + '</b>.'], (claim ? truth : !truth) ? 'true' : 'false') });
+          explain: explainOk([p1 + ' is ' + (truth ? 'more than ' : 'less than ') + p2 + ', so the statement is <b>' + ((claim ? truth : !truth) ? 'true' : 'false') + '</b>.'], (claim ? truth : !truth) ? 'true' : 'false') });
       }
     ];
   }
@@ -91555,10 +91568,11 @@ function () {
         var neg = R.chance(rng, 0.5);
         var right7 = (neg ? 'f(x) → −∞' : 'f(x) → ∞') + ' as x → ∞';
         var opts7 = R.shuffle(rng, uniq([right7, (neg ? 'f(x) → ∞' : 'f(x) → −∞') + ' as x → ∞', 'f(x) → 0 as x → ∞', 'f(x) stays the same as x → ∞']));
-        return I_choice('Let f(x) = ' + (neg ? '−' : '') + (int(rng, 2, 4)) + 'x' + sup(2 * int(rng, 1, 3)) + ' + 3x − 7. As x gets larger and larger, what happens to the values of f(x)?',
+        var k = int(rng, 2, 4), ex = 2 * int(rng, 1, 3);
+        return I_choice('Let f(x) = ' + (neg ? '−' : '') + k + 'x' + sup(ex) + ' + 3x − 7. As x gets larger and larger, what happens to the values of f(x)?',
           opts7, opts7.indexOf(right7), {
             teach: 'For large x only the leading term matters, so the sign of its coefficient decides.',
-            explain: explainOk(['The leading term is ' + (neg ? '−' : '') + 'a positive number times an even power of x.', neg ? 'An even power is positive, and the minus sign makes the term negative.' : 'The term therefore grows without bound.', 'As x → ∞, <b>' + right7 + '</b>.'], right7) });
+            explain: explainOk(['Test a large x: ' + (neg ? '−' : '') + k + ' × 100 to an even power is hugely ' + (neg ? 'negative' : 'positive') + '.', neg ? 'An even power is positive, and the minus sign makes the term negative.' : 'The term therefore grows without bound.', 'As x → ∞, <b>' + right7 + '</b>.'], right7) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
@@ -92116,7 +92130,7 @@ function () {
         return I_choice('The table gives values of f(x) near x = ' + t + ', where f is not defined at x = ' + t + ' itself. What value does f(x) approach as x approaches ' + t + '?',
           opts2, opts2.indexOf(right2), {
             teach: 'A limit is the value the outputs approach from both sides; the value at the point itself is irrelevant.',
-            explain: explainOk(['Just left of ' + t + ' the outputs are near ' + rows[0][1] + ', and just right they are near ' + rows[2][1] + '.', 'Both sides approach the same number, ' + target + '.', 'The limit is <b>' + right2 + '</b>.'], right2),
+            explain: explainOk(['Just left of ' + t + ' the outputs are near ' + rows[0][1] + ', and just right they are near ' + rows[2][1] + '.', 'Both sides count toward the same number: ' + rows[0][1] + ', ' + target + ', ' + rows[2][1] + '.', 'The limit is <b>' + right2 + '</b>.'], right2),
             visual: V.table(['x', 'f(x)'], rows) });
       },
       function () {
@@ -92872,14 +92886,14 @@ function () {
           return I_choice('A relation consists of the ordered pairs (2, 5), (3, 7), (5, 11) and (7, 15). Which list is its domain?',
             opts, opts.indexOf(right), {
               teach: 'The domain of a relation is the set of its first coordinates; the range is the set of its second coordinates.',
-              explain: explainOk(['The first coordinates of the four ordered pairs are 2, 3, 5 and 7.', 'The set of first coordinates is the domain.', 'The domain is <b>' + right + '</b>.'], right) });
+              explain: explainOk(['Count the first numbers in order: 2, 3, 5, 7.', 'The set of first coordinates is the domain.', 'The domain is <b>' + right + '</b>.'], right) });
         }
         var right2 = ys;
         var opts2 = R.shuffle(rng, uniq([right2, xs, '5, 7, 11', '2, 3, 5, 7']));
         return I_choice('A relation consists of the ordered pairs (2, 5), (3, 7), (5, 11) and (7, 15). Which list is its range?',
           opts2, opts2.indexOf(right2), {
             teach: 'The range of a relation is the set of its second coordinates.',
-            explain: explainOk(['The second coordinates of the four ordered pairs are 5, 7, 11 and 15.', 'The set of second coordinates is the range.', 'The range is <b>' + right2 + '</b>.'], right2) });
+            explain: explainOk(['Count the second numbers in order: 5, 7, 11, 15.', 'The set of second coordinates is the range.', 'The range is <b>' + right2 + '</b>.'], right2) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
@@ -93668,7 +93682,7 @@ function () {
         return I_choice('A linear model fitted to data is ŷ = ' + sl + 'x + 12. In this context, what does the slope ' + sl + ' mean?',
           opts9, opts9.indexOf(right9), {
             teach: 'In a fitted line the slope is the predicted change in the response for each one-unit increase in the explanatory variable.',
-            explain: explainOk(['Replacing x by x + 1 changes ' + sl + 'x by exactly ' + sl + '.', 'The constant 12 only sets where the line crosses the y-axis.', 'So the slope means <b>' + right9 + '</b>.'], right9) });
+            explain: explainOk(['One more unit of x adds ' + sl + ' to the prediction: ' + sl + ' × 1 = ' + sl + '.', 'The constant 12 only sets where the line crosses the y-axis.', 'So the slope means <b>' + right9 + '</b>.'], right9) });
       },
       function () {
         if (!FAM.test(ttl)) return null;
@@ -93804,7 +93818,7 @@ function () {
         return ask(rng, sk, 'In how many different orders can ' + n + ' students stand in a line?', ans,
           [n * (n - 1), ans + n, n], { lim: 200,
             teach: 'When order matters the count is a permutation: n! = n · (n − 1) · … · 1.',
-            explain: explainOk(['The first place in line can be filled in ' + n + ' ways, the second in ' + (n - 1) + ', and so on.', 'The product is ' + n + '! = ' + ans + '.', 'There are <b>' + ans + '</b> different orders.'], ans) });
+            explain: explainOk(['The first place in line can be filled in ' + n + ' ways, the second in ' + (n - 1) + ', and so on.', 'The product is ' + n + ' × ' + (n - 1) + ' × 1 = ' + ans + '.', 'There are <b>' + ans + '</b> different orders.'], ans) });
       },
 
       function () {
@@ -106079,21 +106093,7 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
-  /* The base-ten card counts its tens and its ones in separate lines and never
-     writes the sum the learner has to give; joining them is the step it skipped. */
-  function baseTenJoinLine(item, text, shown) {
-    var v = item && item.visual;
-    if (!v) return null;
-    var tens = numOf(String(v.tens == null ? '' : v.tens));
-    var ones = numOf(String(v.ones == null ? '' : v.ones));
-    if (tens == null || ones == null) return null;
-    var mark = numOf(String(shown == null ? '' : shown).replace(/[^\d.\-]/g, ''));
-    if (mark == null) return null;
-    if (tens * 10 + ones !== mark) return null;
-    var line = (tens ? fmt(tens) + ' × 10 = ' + fmt(tens * 10) : 'no tens') + ', and ' + fmt(ones) +
-      ' ones, ' + fmt(tens * 10) + ' + ' + fmt(ones) + ' = ' + fmt(mark) + '.';
-    return line.length <= 88 ? line : null;
-  }
+
 
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
@@ -106128,7 +106128,7 @@ var MW = {
       payCheckLine, moneyMoreThanLine, shapeCountCompareLine, statCompareLine, sameUnitCompareLine,
       moneyEnoughLine, unitRateCompareLine, missingFactorCompareLine, claimedCountCheckLine,
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
-      divisorSortLine, fractionOfNumberLine, absValueCompareLine, baseTenJoinLine], fi;
+      divisorSortLine, fractionOfNumberLine, absValueCompareLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -106496,7 +106496,6 @@ var MW = {
     DBG.divisorSortLine = divisorSortLine;
     DBG.fractionOfNumberLine = fractionOfNumberLine;
     DBG.absValueCompareLine = absValueCompareLine;
-    DBG.baseTenJoinLine = baseTenJoinLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
