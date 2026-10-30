@@ -108503,7 +108503,7 @@ var MW = {
           E.st.settings[key] = !on; E.save();
           /* switching reading back on is the moment the voice is wanted again: a
              learner who turned it off earlier has not paid for the download yet. */
-          if (key === 'speech' && E.st.settings.speech) loadNeural();
+          if (key === 'speech' && E.st.settings.speech) loadNeural(true);   // they asked for it by name
           render();
         }
       }
@@ -108937,6 +108937,9 @@ var MW = {
     }
   }
 
+  /* a reading of the counters must not move under whoever took it */
+  function pcmCopy(o) { var out = {}, k; for (k in o) if (Object.prototype.hasOwnProperty.call(o, k)) out[k] = o[k]; return out; }
+
   function pcmStats() { return { entries: PKEYS.length, cap: pcmCap(), queued: PWARM.length, busy: PWARMING }; }
   var IMPORTER = null;
   try { IMPORTER = new Function('u', 'return import(u)'); } catch (e) { IMPORTER = null; }
@@ -108964,7 +108967,7 @@ var MW = {
   function speechStats() {
     return {
       cards: STATS.cards, asked: STATS.asked, mood: STATS.mood, words: STATS.words,
-      neural: STATS.neural, ms: STATS.ms, rtf: STATS.rtf, warm: STATS.warm, cache: pcmStats(),
+      neural: STATS.neural, ms: STATS.ms, rtf: STATS.rtf, warm: pcmCopy(STATS.warm), cache: pcmStats(),
       samples: STATS.samples, last: STATS.last, state: NEURAL.st,
       /* still talking? PLAYER is nulled the moment a buffer ends, so this is the
          card being finished rather than the card having started */
@@ -109359,7 +109362,11 @@ var MW = {
       try { p = NEURAL.tts.generate(g, { voice: KOKORO.voice, speed: 1 }); }
       catch (e) { return Promise.reject(e); }
       if (!p || typeof p.then !== 'function') return Promise.reject(new Error('the voice never answered'));
-      return p.then(function (raw) { STATS.ms = Math.max(0, Math.round(clock.now() - t0)); raw.__ms = STATS.ms; return raw; });
+      return p.then(function (raw) { STATS.ms = Math.max(0, Math.round(clock.now() - t0)); raw.__ms = STATS.ms;
+        /* and it is kept: what the voice has been asked to say once should never
+           have to be thought about twice, whoever asks next */
+        pcmPut(g, raw); STATS.warm.stored++;
+        return raw; });
     }
     function onError(e) {
       NEURAL.errs++;
