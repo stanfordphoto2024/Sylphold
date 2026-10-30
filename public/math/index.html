@@ -107738,6 +107738,9 @@ var MW = {
        * teacher starts something new — patiently, one notch slower. */
       var mood = (item.retry || item.role === 'example') ? 'hint' : 'read';
       setTimeout(function () { speak(stxt, mood); }, 60);
+      /* the seconds the learner spends on this card are the seconds the voice
+         gets for the next one — see the voice cache above */
+      setTimeout(function () { warmAhead(item); }, 400);
     }
     else stopSpeech();
     /* A fresh question opens on the question itself — see showTop. */
@@ -108506,8 +108509,9 @@ var MW = {
       }
     }, [h('span', { class: 'grow', text: label }), h('span', { class: 'pill ' + (on ? 'good' : ''), text: on ? 'on' : 'off' })]);
   }
-  /* The voice is chosen for the learner, not by them: englishVoices() ranks what
-     this device owns — most human first, novelty voices dropped — and every
+  /* The voice is chosen for the learner, not by them: the one voice this app
+     owns is the neural one, and what it is asked to read is chosen by what it
+     measured — and every
      question is read by the best one at the natural pace. A picker, a speed
      chooser and a preview button were all here once and every one of them was
      a setting a learner had to understand before the app would read to them. */
@@ -108745,18 +108749,15 @@ var MW = {
      is not a question. Browsers only allow sound after a gesture, so the first
      card may need the 🔊 button; from then on it is automatic.
 
-     TWO VOICES do this job and the learner never has to choose between them:
-
-       1. the NEURAL one — Kokoro-82M, an open 82-million-parameter model
-          (Apache-2.0, github.com/hexgrad/kokoro) that runs entirely on this
-          machine through kokoro-js and onnxruntime: WebGPU when the browser can
-          see a GPU, WASM when it cannot. Nothing is uploaded and nothing is
-          installed; the voice is fetched once and the browser keeps it, so the
-          second visit reads aloud with no network at all.
-       2. the browser's OWN voice, which carries every card while the neural one
-          is still arriving (it is a ~160 MB download, paid once) and takes over
-          for good when the neural one cannot load at all — offline on a first
-          visit, no WebGPU, no WASM. `speechEngine()` reports which is talking.
+     ONE VOICE does this job: Kokoro-82M, an open 82-million-parameter model
+     (Apache-2.0, github.com/hexgrad/kokoro) that runs entirely on this machine
+     through kokoro-js and onnxruntime — WebGPU when the browser can see a GPU,
+     WASM when it cannot. Nothing is uploaded and nothing is installed; the voice
+     is fetched once and the browser keeps it, so the second visit reads aloud
+     with no network at all. It is the only voice: the browser's own one used to
+     read a card while the model was still arriving, and it is gone, which means
+     a card spoken before the model has arrived is simply not spoken. `speechEngine()`
+     reports whether the voice is there.
 
      What makes either of them a voice rather than a read-aloud machine is the
      FEELING behind the line, and that is chosen per moment instead of sitting
@@ -108778,11 +108779,17 @@ var MW = {
           sign, and every engine on the market says "number". Symbols like "<"
           are simply skipped. So the spoken text is written for the ear, not
           copied from the card — for both voices.
-       3. the SHAPE. The neural voice is handed the whole card in one piece so
-          its own prosody carries the sentence. The browser voice cannot hold
-          that much: it is spoken one breath group at a time with a small pause
-          and a contour per group, which also dodges the Chromium bug that
-          truncates a single utterance past a few hundred characters. */
+       3. the SHAPE. The card is spoken one breath group at a time with a small
+          pause between them, which is also what dodges the Chromium bug that
+          truncates a single utterance past a few hundred characters.
+
+     ON A PHONE the same three jobs are decided by measurement, because a phone
+     is where the model is slowest and the download hurts most: the SMALL build
+     goes first (q8), the one-time download bows to the operating system's own
+     saveData flag, and how much of a card is read depends on the real-time
+     factor actually measured on that device — a voice that needs longer to
+     think than the speech it makes stops reading whole worked solutions, and
+     keeps reading the question and the two words of praise. */
 
   var KOKORO = {
     /* the package is tried in this order: jsDelivr first, esm.sh if that host is
@@ -108797,17 +108804,18 @@ var MW = {
 
   /* how a person would say this moment of the lesson */
   var EMOTION = {
-    /* `speed` and `pitch` belong to the browser voice, which is built to take
-       them. The neural voice takes only `gain` and `gap`, because asking it for
-       a tempo is how it breaks: measured on this machine, a build of Kokoro
-       handed speed 1.08 returned samples that were not numbers at all. So the
-       moment is carried the way a person carries it — how loud, and how long
-       the breath is — and the model is left alone at the tempo it was trained
-       at. Comfort waits longer between thoughts, and says them more softly. */
-    read: { speed: 1.02, pitch: 1.00, gain: 1.00, gap: 120 },
-    praise: { speed: 1.08, pitch: 1.04, gain: 1.00, gap: 90 },
-    comfort: { speed: 0.94, pitch: 0.96, gain: 0.88, gap: 240 },
-    hint: { speed: 1.00, pitch: 1.01, gain: 0.96, gap: 170 }
+    /* The voice is given level and breath, and nothing else, because asking this
+       model for a tempo is how it breaks: measured on this machine, a build of
+       Kokoro handed speed 1.08 returned samples that were not numbers at all.
+       So the moment is carried the way a person carries it — how loud, and how
+       long the breath is — and the model is left alone at the tempo it was
+       trained at. Comfort waits longer between thoughts, and says them more
+       softly. (These two knobs are also the only ones a phone can honour: the
+       build a phone runs is chosen the same way, by what it measured.) */
+    read: { gain: 1.00, gap: 120 },
+    praise: { gain: 1.00, gap: 90 },
+    comfort: { gain: 0.88, gap: 240 },
+    hint: { gain: 0.96, gap: 170 }
   };
   /* short on purpose: with auto-advance the next question is already on its way,
      and a praise the learner never finishes hearing is worse than none. */
@@ -108819,21 +108827,121 @@ var MW = {
      many breaths each voice said, how long the model took, and how much audio it
      produced — which is what tools/ttsprobe.js asserts in a real browser. */
   var STATS = {
-    cards: 0, neural: 0, browser: 0, ms: 0, samples: 0, last: '', audio: 'none',
+    cards: 0, neural: 0, ms: 0, samples: 0, last: '', audio: 'none',
+    asked: 0,
+    /* the last moment the app chose and the last words it was asked to say. The
+       voice may not be there to say them — that is the whole point of a machine
+       with one voice — but the DECISION is the product, and a tool has to be able
+       to see it rather than listen for it. */
+    mood: '', words: '',
+    /* what the voice on THIS device measured: milliseconds per take, the audio
+       it produced, and the real-time factor between them. This is the number
+       that decides what a phone is asked to read aloud, so it is a measurement
+       and never a guess about the device. */
+    rtf: 0, genMs: 0, audioSec: 0,
     /* the health of the last buffer, measured on the samples about to be heard:
        a sample at full scale clips, a sample that is not a number is a hole in
        the audio, and an isolated impulse is the click people call 破音 */
-    peak: 0, clipped: 0, bad: 0, spikes: 0, edge: 0, build: ''
+    peak: 0, clipped: 0, bad: 0, spikes: 0, edge: 0, build: '',
+    /* the prefetch, counted: cards looked ahead, predictions made, breaths made
+       ahead of time, entries stored, and how often a take that was already made
+       is what the learner actually heard. A prediction that was wrong is not a
+       defect — it is one wasted take, and this is what shows the ratio. */
+    warm: { ahead: 0, predicted: 0, made: 0, stored: 0, hits: 0, live: 0, evict: 0 }
   };
   var AC = null, PLAYER = null;                                     // audio context, live buffer
+
+  /* ---------------------------------------------------- the voice cache -- */
+  /* What the model has already been asked to say, kept whole so it never has to
+     be thought about twice. The key is the words alone: the model is handed the
+     same text at the same tempo whatever the moment asks for, and the feeling —
+     the level, the breath — is added on the way to the speaker, so one take
+     serves every moment that asks for those words.
+     Bounded, because a phone is where this runs and a phone is where an
+     unbounded cache is felt. */
+  var PCACHE = {}, PKEYS = [], PCAP = 60, PWARM = [], PWARMING = false, PCAP_PHONE = 40;
+  function pcmCap() { return TOUCH ? PCAP_PHONE : PCAP; }
+  function pcmKey(g) { return String(g || ''); }
+  function pcmGet(g) { return PCACHE[pcmKey(g)] || null; }
+  function pcmPut(g, v) {
+    var k = pcmKey(g);
+    if (PCACHE[k]) { PCACHE[k] = v; return; }
+    PKEYS.push(k); PCACHE[k] = v;
+    while (PKEYS.length > pcmCap()) { var old = PKEYS.shift(); if (PCACHE[old]) { delete PCACHE[old]; STATS.warm.evict++; } }
+  }
+  function warmEnqueue(text) {
+    if (!text) return;
+    var groups = breathGroups(text);
+    for (var i = 0; i < groups.length; i++) {
+      if (PCACHE[pcmKey(groups[i])]) continue;                 // already made: nothing to do
+      PWARM.push(groups[i]);
+    }
+    while (PWARM.length > 16) PWARM.shift();                   // the oldest prediction goes first
+    warmSoon();
+  }
+  function warmSoon() {
+    if (!PWARM.length || PWARMING) return;
+    if (PLAYER) { setTimeout(warmDrain, 700); return; }        // never queue ahead of what is being heard
+    if (win.requestIdleCallback) { try { win.requestIdleCallback(warmDrain, { timeout: 1200 }); return; } catch (e) { } }
+    setTimeout(warmDrain, 250);
+  }
+  /* one take at a time, only while the voice is idle and the learner is busy */
+  function warmDrain() {
+    if (PWARMING || !PWARM.length) return;
+    if (PLAYER) { setTimeout(warmDrain, 700); return; }
+    if (!NEURAL.tts || NEURAL.st !== 'ready' || !speechOn()) return;
+    var g = null;
+    while (PWARM.length) { g = PWARM.shift(); if (!PCACHE[pcmKey(g)]) break; g = null; }
+    if (!g) return;
+    PWARMING = true; STATS.warm.made++;
+    var clock = (win.performance && win.performance.now) ? win.performance : Date, t0 = clock.now();
+    var p = null;
+    try { p = NEURAL.tts.generate(g, { voice: KOKORO.voice, speed: 1 }); } catch (e) { PWARMING = false; return; }
+    if (!p || !p.then) { PWARMING = false; return; }
+    p.then(function (raw) {
+      PWARMING = false;
+      var data = raw && (raw.audio || raw.data || raw.waveform);
+      var sr = (raw && (raw.sampleRate || raw.sampling_rate || raw.sample_rate)) || 24000;
+      if (!data || !data.length) { warmSoon(); return; }
+      /* kept exactly as the model handed it back: the repair runs on a copy at
+         play time, so one cached take can be heard many times and be measured
+         honestly each time it is */
+      var f = new Float32Array(data.length);
+      for (var i = 0; i < data.length; i++) f[i] = Number(data[i]);
+      pcmPut(g, { audio: f, sampling_rate: sr, __ms: Math.max(0, Math.round(clock.now() - t0)), __warm: true });
+      STATS.warm.stored++;
+      warmSoon();
+    }, function () { PWARMING = false; warmSoon(); });
+  }
+
+  /* What the screen is going to ask for next. The queue wins when it already
+     holds the card; otherwise the picker is run against a copy of the state, so
+     a prediction cannot leave a mark on the real one. */
+  function predictNext() {
+    try {
+      if (S.queue && S.queue.length) return S.queue[0];
+      if (!M || !M.createEngine || !E || !E.st) return null;
+      if (E.diagActive && E.diagActive()) return null;         // the probe serves its own cards
+      var shadow = M.createEngine({ state: JSON.parse(JSON.stringify(E.st)), rng: Math.random });
+      return climbMode() ? shadow.climbNext() : shadow.nextItem(S.manual ? { skillId: S.manual, why: 'manual' } : null);
+    } catch (e) { return null; }
+  }
+
+  function warmAhead(item) {
+    if (!item || !NEURAL.tts || NEURAL.st !== 'ready' || !speechOn()) return;
+    if (item && !S.answered) {
+      STATS.warm.ahead++;
+      warmEnqueue(solutionText(item));                          // the answer, if it gets one
+      var nx = predictNext();
+      if (nx) { STATS.warm.predicted++; warmEnqueue(speechText(nx)); }
+    }
+  }
+
+  function pcmStats() { return { entries: PKEYS.length, cap: pcmCap(), queued: PWARM.length, busy: PWARMING }; }
   var IMPORTER = null;
   try { IMPORTER = new Function('u', 'return import(u)'); } catch (e) { IMPORTER = null; }
 
-  var VOICE = null;                     // resolved lazily: getVoices() is async
   var SAY_TOKEN = 0;                    // a cancel or a new card kills the chain
-  var GOODVOICE = /\b(natural|neural|premium|enhanced|personal|siri|apex|studio|plus|google)\b/i;
-  var NICEVOICE = /\b(samantha|aria|jenny|ava|andrew|allison|stella|zoe|mia|joelle|libby|sonia|serena|daniel|karen|moira|tessa|fiona|nora|susan|alex|victoria|oliver|george|arthur|google)\b/i;
-  var NOVELTY = /\b(bahh|bells|boing|bubbles|cellos|deranged|hysterical|junior|pipe organ|trinoids|zarvox|bad news|good news|trunks|whisper|wobble|albert|rocko|kankushan|damayanti|prasanth|rishi|ottobruno|eddy|eddie|flo|grandma|grandpa|sandy|shelley|zhu zhu|kreek|madara)\b/i;
   /* written form → the words a person actually says for it */
   var SAYSYM = {
     '<': 'less than', '>': 'greater than', '=': 'equal to', '≤': 'less than or equal to',
@@ -108850,12 +108958,13 @@ var MW = {
   function speechEngine() {
     if (!speechOn()) return 'off';
     if (NEURAL.st === 'ready' && NEURAL.tts) return 'kokoro';
-    return (win.speechSynthesis && typeof win.SpeechSynthesisUtterance === 'function') ? 'browser' : 'none';
+    return 'none';                       // the only voice there is has not arrived
   }
   function neuralState() { return NEURAL.st; }
   function speechStats() {
     return {
-      cards: STATS.cards, neural: STATS.neural, browser: STATS.browser, ms: STATS.ms,
+      cards: STATS.cards, asked: STATS.asked, mood: STATS.mood, words: STATS.words,
+      neural: STATS.neural, ms: STATS.ms, rtf: STATS.rtf, warm: STATS.warm, cache: pcmStats(),
       samples: STATS.samples, last: STATS.last, state: NEURAL.st,
       /* still talking? PLAYER is nulled the moment a buffer ends, so this is the
          card being finished rather than the card having started */
@@ -108877,7 +108986,7 @@ var MW = {
       return 'Neural voice ready — Kokoro-82M (' + NEURAL.dev + '/' + NEURAL.dtype + '), on this device';
     }
     if (NEURAL.st === 'loading') return 'Downloading the neural voice… ' + NEURAL.pct + '%';
-    if (NEURAL.st === 'failed') return 'Neural voice unavailable (' + (NEURAL.why || 'unsupported') + ') — using the browser voice';
+    if (NEURAL.st === 'failed') return 'Neural voice unavailable (' + (NEURAL.why || 'unsupported') + ') — nothing is read aloud here';
     return 'Starting the neural voice…';
   }
 
@@ -108918,13 +109027,41 @@ var MW = {
    * GPU is the voice, and the small clean builds are what a machine without one
    * settles for. */
   var NEURAL_TRIES = [['webgpu', 'fp32'], ['webgpu', 'q8'], ['wasm', 'q8'], ['wasm', 'fp32']];
-  function loadNeural() {
+  /* On a phone the order is the other way round, and it is not taste either: the
+     fp32 build is what takes a phone tab down, and the small one is measured
+     clean — it just cannot keep up with its own speech on a phone CPU, which is
+     what the real-time-factor rule in speakNeural is for. So a phone asks the
+     GPU for the small build, and the CPU for the small build, and stops there. */
+  var NEURAL_TRIES_PHONE = [['webgpu', 'q8'], ['wasm', 'q8']];
+  function isPhone() {
+    try {
+      if (TOUCH) return true;                                  // the app's own touch test
+      var mm = win.matchMedia && win.matchMedia('(hover: none) and (pointer: coarse)');
+      if (mm && mm.matches) return true;
+      return false;
+    } catch (e) { return false; }
+  }
+  /* Are the words of a card already made? A card whose breaths are all sitting in
+     the cache costs nothing to say, so the slow-device rule below must not refuse
+     it — the rule exists to stop work that would have to happen live, in front of
+     the learner, and be late. */
+  function groupsEvery(groups) {
+    for (var i = 0; i < groups.length; i++) if (!pcmGet(groups[i])) return false;
+    return true;
+  }
+
+  function loadNeural(force) {
     if (!IMPORTER || NEURAL.st === 'loading' || NEURAL.st === 'ready' || NEURAL.st === 'failed') return;
     if (!speechOn()) return;                       // never spend a learner's bandwidth on a voice they switched off
     NEURAL.st = 'loading'; NEURAL.pct = 0; NEURAL.why = '';
     /* ?tts=wasm forces the CPU build and ?tts=off declines the neural voice
        outright — the two switches anyone needs when the GPU path is the suspect. */
-    var tries = NEURAL_TRIES;
+    /* the operating system's own "save data" flag is honoured for a download
+       this big; it is the one thing on a phone that is not this app's to spend */
+    if (!force && win.navigator && win.navigator.connection && win.navigator.connection.saveData) {
+      NEURAL.st = 'off'; NEURAL.why = 'the system asked us to save data'; return;
+    }
+    var tries = isPhone() ? NEURAL_TRIES_PHONE : NEURAL_TRIES;
     try {
       var q = String((win.location && win.location.search) || '');
       if (/tts=(off|none)/i.test(q)) { NEURAL.st = 'off'; NEURAL.why = 'declined with ?tts=off'; return; }
@@ -109027,7 +109164,7 @@ var MW = {
      speed or its pitch: a playbackRate other than 1 makes the browser resample
      the take, and resampling is an artefact of its own. The feeling of the
      moment is carried by loudness, and by the breath between the groups. */
-  function playNeural(raw, emo) {
+  function playNeural(raw, emo, genMs) {
     var data = raw && (raw.audio || raw.data || raw.waveform);
     var ac = audioCtx();
     if (!data || !data.length || !ac) return false;
@@ -109036,6 +109173,10 @@ var MW = {
        it, and Kokoro itself is always 24 kHz. */
     var sr = (raw && (raw.sampleRate || raw.sampling_rate || raw.sample_rate)) || 24000;
     STATS.last = 'kokoro';
+    if (genMs != null) {
+      STATS.genMs = Math.round(genMs); STATS.audioSec = +(data.length / sr).toFixed(2);
+      if (STATS.audioSec > 0.2) STATS.rtf = +(STATS.genMs / 1000 / STATS.audioSec).toFixed(2);
+    }
     var f = new Float32Array(data.length), i;
     for (i = 0; i < data.length; i++) f[i] = Number(data[i]);
     var health = tidy(f, sr);
@@ -109063,54 +109204,6 @@ var MW = {
     src.onended = function () { if (PLAYER === src) PLAYER = null; };
     try { src.start(0); } catch (e) { return false; }
     return true;
-  }
-
-  /* ------------------------------------------------- choosing a voice ----- */
-  function voiceScore(v) {
-    var name = String(v.name || ''), lang = String(v.lang || '');
-    if (!/^en/i.test(lang)) return -1e6;                     // the app is English
-    var s = /en[-_]us/i.test(lang) ? 40 : (/^en[-_]/i.test(lang) ? 22 : 8);
-    if (GOODVOICE.test(name)) s += 50;                       // the neural ones
-    if (/^google[\s-]/i.test(name)) s += 26;                 // full prosody support
-    if (NICEVOICE.test(name)) s += 12;
-    if (NOVELTY.test(name)) s -= 70;                         // "Trinoids" is not a tutor
-    if (v.localService) s += 5;                              // no network stall mid-sentence
-    if (v.default) s += 1;
-    return s;
-  }
-  function englishVoices() {
-    var vs = [];
-    try { vs = (win.speechSynthesis && win.speechSynthesis.getVoices()) || []; } catch (e) { vs = []; }
-    var out = [];
-    for (var i = 0; i < vs.length; i++) {
-      var v = vs[i];
-      if (!v || !/^en/i.test(String(v.lang || ''))) continue;
-      if (NOVELTY.test(String(v.name || ''))) continue;      // never offered, never picked
-      out.push(v);
-    }
-    out.sort(function (a, b) {
-      return voiceScore(b) - voiceScore(a) || String(a.name).localeCompare(String(b.name));
-    });
-    return out;
-  }
-  function needVoice() {
-    /* Nothing to honour from a picker any more: the best voice this device owns
-       reads the card, and the ranking refreshes when the browser reports more. */
-    if (VOICE) return VOICE;
-    var vs = englishVoices();
-    if (!vs.length) return null;                             // list still loading: retry next card
-    VOICE = vs[0];                                           // auto: the best this device has
-    return VOICE;
-  }
-  function watchVoices() {
-    var T = null;
-    try { T = win.speechSynthesis; } catch (e) { return; }
-    if (!T) return;
-    var refresh = function () { VOICE = null; };
-    try {
-      if (typeof T.addEventListener === 'function') T.addEventListener('voiceschanged', refresh);
-      else T.onvoiceschanged = refresh;
-    } catch (e) { }
   }
 
   /* ------------------------------------------------ words for the ear ----- */
@@ -109216,35 +109309,23 @@ var MW = {
     return roomy;
   }
 
-  /* the contour: a question lifts, a sentence settles, and nothing is spoken
-     twice at exactly the same speed — the one thing that makes a repeated
-     prompt sound like a machine. The feeling of the moment rides on top of it,
-     so a praise is bright and quick and a solution read out after a miss is
-     slow and low — on the browser voice exactly as on the neural one. */
-  function prosody(u, txt, idx, n, emo) {
-    var spread = n > 1 ? idx / (n - 1) : 0;
-    var jit = Math.random() * 0.03 - 0.015;
-    u.rate = clamp((emo.speed || 1) * (1 + spread * 0.04) + jit * 0.6, 0.55, 1.7);
-    u.pitch = clamp(((/\?/.test(txt) ? 1.06 : 1.02) - spread * 0.10 + jit) * (emo.pitch || 1), 0.4, 1.6);
-    u.volume = clamp(emo.gain == null ? 1 : emo.gain, 0, 1);
-  }
-
-  /* The one place that decides who speaks. The neural voice owns the lesson once
-     it has arrived; until then — and for good if it never does — the browser
-     voice reads the same words in the same feeling. */
+  /* The one place that decides whether anything is said at all. There is one
+     voice; a card that arrives before it is not spoken, and the next one is. */
   function speak(txt, emotion) {
     if (!speechOn() || !txt) return;
     var emo = EMOTION[emotion] || EMOTION.read;
     var words = humanWords(txt);
     if (!words) return;
+    STATS.asked++;                                  // the card asked; whether it is said is below
+    STATS.mood = emotion || 'read'; STATS.words = words;
+    if (NEURAL.st !== 'ready' || !NEURAL.tts) {
+      if (NEURAL.st === 'off') loadNeural();        // a card is being read: the voice is wanted now
+      return;                                       // with one voice, a card before it is not spoken
+    }
     var token = ++SAY_TOKEN;                        // from now only this utterance may make a sound
     STATS.cards++;
     hush();
-    if (NEURAL.st === 'ready' && NEURAL.tts) speakNeural(words, emo, token);
-    else {
-      if (NEURAL.st === 'off') loadNeural();        // a card is being read: the voice is wanted now
-      speakBrowser(words, emo, token);
-    }
+    speakNeural(words, emo, token);
   }
 
   /* Kokoro speaks about 500 characters at a time and silently drops the rest of
@@ -109254,13 +109335,22 @@ var MW = {
      sentence, not the model thinking. */
   function speakNeural(words, emo, token) {
     var groups = breathGroups(words);
-    if (!groups.length) { speakBrowser(words, emo, token); return; }
+    if (!groups.length) return;
+    /* The phone rule, and it is a measured one: once this device has shown it
+       needs longer to make a take than the take lasts, the long read — a whole
+       worked solution, the comfort moment — is left unsaid, because audio that
+       arrives after the next card is worse than silence. The question, the
+       choices and the praise stay: they are short enough to always arrive. */
+    if (STATS.rtf > 1.0 && groups.length > 2 && emo.gap > 200 && !groupsEvery(groups)) return;
     var i = 0, next = null;
 
     /* One breath group through the model, timed on the way: how long the voice
        takes to think is the number that decides whether it is usable at all, so
        it is recorded here rather than guessed at later. */
     function synth(g) {
+      var hit = pcmGet(g);
+      if (hit) { STATS.warm.hits++; return Promise.resolve(hit); }   // already said: say it now
+      STATS.warm.live++;
       var p = null;
       var clock = (win.performance && win.performance.now) ? win.performance : Date;
       var t0 = clock.now();
@@ -109269,18 +109359,14 @@ var MW = {
       try { p = NEURAL.tts.generate(g, { voice: KOKORO.voice, speed: 1 }); }
       catch (e) { return Promise.reject(e); }
       if (!p || typeof p.then !== 'function') return Promise.reject(new Error('the voice never answered'));
-      return p.then(function (raw) { STATS.ms = Math.max(0, Math.round(clock.now() - t0)); return raw; });
+      return p.then(function (raw) { STATS.ms = Math.max(0, Math.round(clock.now() - t0)); raw.__ms = STATS.ms; return raw; });
     }
-    /* Say what is left with the browser voice: the neural one has failed, and the
-       learner still has to hear the rest of the card. */
-    function rest() { if (token === SAY_TOKEN) speakBrowser(groups.slice(i).join('  '), emo, token); }
     function onError(e) {
       NEURAL.errs++;
       NEURAL.why = (e && e.message ? e.message : String(e)).slice(0, 160);
       /* three misses in a row and the model has plainly lost this machine: stop
-         paying its latency and leave the reading to the browser voice. */
+         asking it, and say nothing rather than half a card. */
       if (NEURAL.errs >= 3) NEURAL.st = 'failed';
-      rest();
     }
     function play(raw) {
       if (token !== SAY_TOKEN) return;
@@ -109289,13 +109375,13 @@ var MW = {
       if (p) p.catch(function () { });                 // taken up where it is awaited, or dropped
       next = p;
       i++;
-      if (!playNeural(raw, emo)) {
+      if (!playNeural(raw, emo, raw && raw.__ms)) {
         /* the model answered and the answer was not usable audio: that counts
            against it the same way an exception does, so a build that is broken
            on this machine stops being asked three cards in a row */
         NEURAL.errs++;
         if (NEURAL.errs >= 3) NEURAL.st = 'failed';
-        rest(); return;
+        return;
       }
       if (PLAYER) PLAYER.onended = function () {
         PLAYER = null;
@@ -109310,41 +109396,6 @@ var MW = {
       p.then(play, onError);
     }
     synth(groups[0]).then(play, onError);
-  }
-
-  function speakBrowser(words, emo, token) {
-    var T = win.speechSynthesis;
-    STATS.last = 'browser';
-    if (!T || typeof win.SpeechSynthesisUtterance !== 'function') return;
-    var groups = breathGroups(words);
-    if (!groups.length) return;
-    var voice = needVoice();
-    var i = 0;
-    try { T.cancel(); } catch (e) { }
-
-    function next() {
-      if (token !== SAY_TOKEN) return;                       // replaced or stopped
-      if (i >= groups.length) return;
-      var g = groups[i++], done = false, timer = 0;
-      var advance = function () {
-        if (done) return; done = true;
-        if (timer) { clearTimeout(timer); timer = 0; }
-        if (token !== SAY_TOKEN || i >= groups.length) return;
-        timer = setTimeout(next, 150);                       // the breath between groups
-      };
-      var u;
-      try { u = new win.SpeechSynthesisUtterance(g); } catch (e) { return; }
-      u.lang = (voice && voice.lang) || 'en-US';
-      if (voice) u.voice = voice;
-      prosody(u, g, i - 1, groups.length, emo);
-      u.onend = advance; u.onerror = advance;
-      /* Safari and Chromium both drop onend now and then; without this the rest
-         of the question would simply never be said. Generous on purpose. */
-      timer = setTimeout(advance, 1200 + g.length * 110);
-      STATS.browser++;
-      try { T.speak(u); } catch (e) { advance(); }
-    }
-    next();
   }
 
   function sayOption(c) {
@@ -109507,7 +109558,6 @@ var MW = {
     E = M.createEngine({ state: state, rng: Math.random });
     if (!E.st.settings) E.st.settings = { autoNext: true, speech: true, reviewShare: 0.22 };
     if (E.st.settings.speech === undefined) E.st.settings.speech = true;   // read aloud unless switched off
-    watchVoices();                            // getVoices() is async in Chromium
     /* The neural voice is a one-time download, so it starts beside the first card
      * rather than behind it: the browser voice reads card one and the neural voice
      * takes card two. Sound itself is gated behind a gesture, so the first touch
@@ -109515,8 +109565,19 @@ var MW = {
     if (speechOn()) loadNeural();
     var wake = function () {
       var ac = audioCtx();
-      if (ac && ac.state === 'suspended') { try { ac.resume(); } catch (e) { } }
-      if (NEURAL.st === 'off' && speechOn()) loadNeural();
+      if (ac && ac.state !== 'running' && ac.resume) {
+        try { var r = ac.resume(); if (r && r.then) r.then(function () { }, function () { }); } catch (e) { }
+      }
+      /* A context created after the gesture is not enough on iOS: it takes a
+         sound played INSIDE the gesture to let later ones be heard, so the
+         unlock is a single silent sample and nothing more. */
+      try {
+        if (ac && ac.state === 'running') {
+          var b = ac.createBuffer(1, 1, ac.sampleRate), s = ac.createBufferSource(), g = ac.createGain();
+          g.gain.value = 0.0001; s.buffer = b; s.connect(g); g.connect(ac.destination); s.start(0);
+        }
+      } catch (e) { }
+      if (NEURAL.st === 'off' && speechOn()) loadNeural(true);
     };
     try { ['pointerdown', 'keydown'].forEach(function (ev) { doc.addEventListener(ev, wake, { once: true, passive: true }); }); } catch (e) { }
     if (!E.st.settings.mode) E.st.settings.mode = 'climb';
@@ -109531,11 +109592,11 @@ var MW = {
     /* the voice is part of the product, so the tools can assert on it: what a
        card sounds like, how it is broken into breaths, and which voice won */
     speechText: speechText, speechGroups: breathGroups, spokenWords: humanWords,
-    speechVoices: englishVoices, speak: speak, stopSpeech: stopSpeech,
+    speak: speak, stopSpeech: stopSpeech,
     /* which voice is talking, which feeling each moment gets, and what a missed
        card actually sounds like — all of it assertable, none of it guessable */
     solutionText: solutionText, speechEngine: speechEngine, neuralState: neuralState,
-    speechStats: speechStats,
+    speechStats: speechStats, pcmStats: pcmStats,
     voiceStatus: voiceStatus, speechEmotions: function () { return EMOTION; },
     speechPraise: function () { return PRAISE; },
     loadNeural: loadNeural
