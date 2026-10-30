@@ -108877,6 +108877,11 @@ var MW = {
        a sample at full scale clips, a sample that is not a number is a hole in
        the audio, and an isolated impulse is the click people call 破音 */
     peak: 0, clipped: 0, bad: 0, spikes: 0, edge: 0, build: '',
+    /* the rate the audio actually left the machine at, and how many takes had to be
+       brought to it: on Chrome that number stays at zero, on Safari and iOS every
+       take passes through here — which is the difference between a voice and a
+       chipmunk */
+    resampled: 0, outRate: 0,
     /* the prefetch, counted: cards looked ahead, predictions made, breaths made
        ahead of time, entries stored, and how often a take that was already made
        is what the learner actually heard. A prediction that was wrong is not a
@@ -109001,7 +109006,8 @@ var MW = {
   function speechStats() {
     return {
       cards: STATS.cards, asked: STATS.asked, mood: STATS.mood, words: STATS.words,
-      neural: STATS.neural, ms: STATS.ms, rtf: STATS.rtf, warm: pcmCopy(STATS.warm), cache: pcmStats(),
+      neural: STATS.neural, ms: STATS.ms, rtf: STATS.rtf, resampled: STATS.resampled, outRate: STATS.outRate,
+      warm: pcmCopy(STATS.warm), cache: pcmStats(),
       samples: STATS.samples, last: STATS.last, state: NEURAL.st,
       /* still talking? PLAYER is nulled the moment a buffer ends, so this is the
          card being finished rather than the card having started */
@@ -109197,10 +109203,36 @@ var MW = {
     return { peak: top, bad: bad };
   }
 
+  /* Bring the take to the rate the audio hardware is actually running at. Chrome
+     would have done this for us; WebKit never has — it reads a buffer's samples at
+     the context's rate, so a 24 kHz take handed straight to it comes out an octave
+     up and twice as quick on Safari and on every iPhone. The interpolation is
+     cubic because a straight line between samples is an extra harmonic on the way
+     to the ear, and it runs over a few thousand numbers, so it costs nothing in
+     front of the learner. */
+  function pcmResample(f, from, to) {
+    if (!f || !f.length || !from || from === to) return f;
+    var out = new Float32Array(Math.round(f.length * to / from)), i, n = f.length;
+    function at(x) {
+      if (x <= 0) return f[0];
+      if (x >= n - 1) return f[n - 1];
+      var i0 = Math.floor(x), t = x - i0, p0 = f[i0 - 1] === undefined ? f[i0] : f[i0 - 1],
+        p1 = f[i0], p2 = f[i0 + 1], p3 = f[i0 + 2] === undefined ? f[i0 + 1] : f[i0 + 2];
+      /* Catmull-Rom: smooth, cheap, and it settles back to the exact sample at t=0 */
+      return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+    }
+    for (i = 0; i < out.length; i++) out[i] = at(i * from / to);
+    STATS.resampled++; STATS.outRate = to;
+    return out;
+  }
+
   /* Put the buffer the model produced on the speaker. Nothing here changes its
      speed or its pitch: a playbackRate other than 1 makes the browser resample
-     the take, and resampling is an artefact of its own. The feeling of the
-     moment is carried by loudness, and by the breath between the groups. */
+     the take, and resampling is an artefact of its own — so the rate the buffer is
+     created at is brought to the hardware's own rate first (see pcmResample), and
+     the only things left to shape the moment are loudness and the breath between
+     the groups. */
   function playNeural(raw, emo, genMs) {
     var data = raw && (raw.audio || raw.data || raw.waveform);
     var ac = audioCtx();
@@ -109224,9 +109256,10 @@ var MW = {
         (health.bad ? health.bad + ' unusable samples' : 'silence');
       return false;
     }
+    if (sr !== ac.sampleRate) f = pcmResample(f, sr, ac.sampleRate);   /* see pcmResample */
     var buf = null, src = null;
     try {
-      buf = ac.createBuffer(1, f.length, sr);
+      buf = ac.createBuffer(1, f.length, ac.sampleRate);
       buf.getChannelData(0).set(f);
       src = ac.createBufferSource();
       src.buffer = buf;
@@ -109609,11 +109642,13 @@ var MW = {
       if (ac && ac.state !== 'running' && ac.resume) {
         try { var r = ac.resume(); if (r && r.then) r.then(function () { }, function () { }); } catch (e) { }
       }
-      /* A context created after the gesture is not enough on iOS: it takes a
-         sound played INSIDE the gesture to let later ones be heard, so the
-         unlock is a single silent sample and nothing more. */
+      /* A context created inside the gesture is not enough on iOS: it takes a
+         sound STARTED inside the gesture to let later ones be heard. iOS still
+         hands back a suspended context, so this start is unconditional — on the
+         suspended context, in the same gesture, which is the only moment it
+         listens to. A run that waited for "running" never unlocked anything. */
       try {
-        if (ac && ac.state === 'running') {
+        if (ac) {
           var b = ac.createBuffer(1, 1, ac.sampleRate), s = ac.createBufferSource(), g = ac.createGain();
           g.gain.value = 0.0001; s.buffer = b; s.connect(g); g.connect(ac.destination); s.start(0);
         }
@@ -109633,7 +109668,7 @@ var MW = {
     /* the voice is part of the product, so the tools can assert on it: what a
        card sounds like, how it is broken into breaths, and which voice won */
     speechText: speechText, speechGroups: breathGroups, spokenWords: humanWords,
-    speak: speak, stopSpeech: stopSpeech,
+    pcmResample: pcmResample, speak: speak, stopSpeech: stopSpeech,
     /* which voice is talking, which feeling each moment gets, and what a missed
        card actually sounds like — all of it assertable, none of it guessable */
     solutionText: solutionText, speechEngine: speechEngine, neuralState: neuralState,
