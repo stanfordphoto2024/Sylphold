@@ -109076,14 +109076,18 @@ var MW = {
      FALLING THROUGH therefore used to hand a desktop browser a different voice than the
      one the ears signed off, which is exactly what a learner notices as wrong words.
      The full build is tried on both devices first; only when neither can run does the
-     small one get asked. A phone is the exception, and stays the exception, because
-     there the download is what decides. */
+     small one get asked. A phone gets no quantised build at all, which is the point of the order: the phone
+     was the one device that never got the approved voice, and that is exactly where it was
+     reported as sounding wrong. What that costs is the bigger download, and a tab that runs
+     out of memory dies rather than falling back, so a phone that cannot hold the full voice
+     gets no neural voice at all rather than a different speaker than every other device
+     has. */
   /* On a phone the order is the other way round, and it is not taste either: the
      fp32 build is what takes a phone tab down, and the small one is measured
      clean — it just cannot keep up with its own speech on a phone CPU, which is
      what the real-time-factor rule in speakNeural is for. So a phone asks the
      GPU for the small build, and the CPU for the small build, and stops there. */
-  var NEURAL_TRIES_PHONE = [['webgpu', 'q8'], ['wasm', 'q8']];
+  var NEURAL_TRIES_PHONE = [['webgpu', 'fp32'], ['wasm', 'fp32']];
   function isPhone() {
     try {
       if (TOUCH) return true;                                  // the app's own touch test
