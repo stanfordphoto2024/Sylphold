@@ -18070,6 +18070,15 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   var CTX = ['At the math table', 'In the classroom', 'At the fair', 'On the field trip', 'In the cafeteria'];
   function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+  /* "Count its marks" has to count them: at this rung the tally is the whole
+     derivation — the same shape the workcheck's own count-out uses. Printing
+     only the total asked the child to do the one thing and never show it. */
+  function countSay(n) {
+    var out = '', i;
+    for (i = 1; i <= n && out.length < 22; i++) out += (i > 1 ? ', ' : '') + i;
+    if (i <= n) out += ', \u2026, ' + n;
+    return out;
+  }
   function leaks(it) { return typeof GLOB.leaksAnswer === 'function' ? GLOB.leaksAnswer(it) : false; }
   var STASK = { sort: 2, name: 0, count: 1, judge: 3, flatvsolid: 4, real: 5, compare: 6 };
   function build(rng, fns, w, task) {
@@ -18423,7 +18432,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var r = pick(rng, rows);
         return I_num('Look at the graph. How many picked ' + r[0] + '?', r[1], {
           visual: visual, b: lo - 0.2,
-          explain: ['Find the row labelled ' + r[0] + '.', 'Count its marks: ' + r[1] + ' - the tallest row reaches ' + Math.max.apply(null, rows.map(function (q) { return q[1]; })) + '.', 'So the answer is <b>' + r[1] + '</b>.'],
+          explain: ['Find the row labelled ' + r[0] + '.', 'Count its marks: ' + countSay(r[1]) + ' — the tallest row reaches ' + Math.max.apply(null, rows.map(function (q) { return q[1]; })) + '.', 'So the answer is <b>' + r[1] + '</b>.'],
           teach: 'Each mark on a graph stands for one vote or one item.'
         });
       },
@@ -75727,6 +75736,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   var WHO = ['Maya', 'Leo', 'Priya', 'Sam', 'Lin', 'Owen', 'Ava', 'Noah', 'Ivy', 'Eli'];
   function cap(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
   function pick2(rng, arr) { return arr[R.int(rng, 0, arr.length - 1)]; }
+
+  /* "Count its marks" has to count them: at this rung the tally is the whole
+     derivation — the same shape the workcheck's own count-out uses. Printing
+     only the total asked the child to do the one thing and never show it. */
+  function countSay(n) {
+    var out = '', i;
+    for (i = 1; i <= n && out.length < 22; i++) out += (i > 1 ? ', ' : '') + i;
+    if (i <= n) out += ', \u2026, ' + n;
+    return out;
+  }
   function MC(rng, prompt, answer, wrongs, o) {
     o = o || {};
     var seen = {}, opts = [];
@@ -76366,7 +76385,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       if (cand < 0) {
         return I_num('How many measurements on the line plot are ' + d.labels[pickI] + '?', d.counts[pickI], {
           visual: d.plot, b: t,
-          explain: ['Find ' + d.labels[pickI] + '.', 'Count its marks: ' + d.counts[pickI] + ', and the tallest column has ' + Math.max.apply(null, d.counts) + '.', 'So the answer is <b>' + d.counts[pickI] + '</b>.'],
+          explain: ['Find ' + d.labels[pickI] + '.', 'Count its marks: ' + countSay(d.counts[pickI]) + ' \u2014 and the tallest column has ' + Math.max.apply(null, d.counts) + '.', 'So the answer is <b>' + d.counts[pickI] + '</b>.'],
           teach: 'Each X above a decimal value is one measurement.' });
       }
       var wOpts = [];
@@ -106089,6 +106108,53 @@ var MW = {
 
 
 
+  /* The first rungs draw the model as labelled rows — an "apples" row and a
+     "pears" row — and ask the child to count ONE of them. The count-out rule
+     reads the whole picture, so it refused every card whose answer was a single
+     row: the picture says 4 and 1, the question asks about the pears, and the
+     solution was allowed to say only "the last number you say is the answer".
+     The row the question names is labelled in the model, so its marks can be
+     counted one by one and the count must equal the mark before it is written. */
+  function rowLabelCountLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'grid' || !v.opts || !v.opts.cells || !v.opts.rowLabels) return null;
+    var labels = v.opts.rowLabels, low = ' ' + String(text || '').toLowerCase() + ' ', row = -1, i, j;
+    for (i = 0; i < labels.length; i++) {
+      var lab = String(labels[i] || '').toLowerCase().trim();
+      if (lab && low.indexOf(' ' + lab + ' ') >= 0) { row = i; break; }
+    }
+    if (row < 0) return null;
+    var cells = v.opts.cells[row] || [], n = 0;
+    for (j = 0; j < cells.length; j++) if (String(cells[j] == null ? '' : cells[j]).trim()) n++;
+    var mark = numOf(shown);
+    if (n < 2 || mark === null || n !== mark) return null;
+    var list = '', k;
+    for (k = 1; k <= n; k++) list += (k > 1 ? ', ' : '') + k;
+    var noun = /^(top|bottom|upper|lower|first|last)$/.test(String(labels[row]).toLowerCase().trim())
+      ? String(labels[row]).toLowerCase().trim() + ' row' : String(labels[row]).toLowerCase().trim();
+    var line = 'Count the ' + noun + ' one by one: ' + list + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which number is written as the word \"three\"?" is answered with an
+     instruction to say the count and the last word of it, but the count itself —
+     the thing the child is being asked to do — never appears. Saying it out is
+     the whole derivation at this rung, and the spoken list has to end on the
+     word the question quotes and on the mark the card grades. */
+  var WC_NUMWORD = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+  function sayCountWordsLine(item, text, shown) {
+    var m = /written as the word "?([a-z]+)"?/i.exec(String(text || ''));
+    if (!m) return null;
+    var n = WC_NUMWORD[String(m[1]).toLowerCase()];
+    if (!n) return null;
+    var mark = numOf(shown);
+    if (n < 2 || mark === null || n !== mark) return null;
+    var order = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'], list = '', k;
+    for (k = 0; k < n; k++) list += (k ? ', ' : '') + order[k];
+    var line = 'Say the count: ' + list + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106122,7 +106188,8 @@ var MW = {
       payCheckLine, moneyMoreThanLine, shapeCountCompareLine, statCompareLine, sameUnitCompareLine,
       moneyEnoughLine, unitRateCompareLine, missingFactorCompareLine, claimedCountCheckLine,
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
-      divisorSortLine, fractionOfNumberLine, absValueCompareLine], fi;
+      divisorSortLine, fractionOfNumberLine, absValueCompareLine,
+      rowLabelCountLine, sayCountWordsLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
