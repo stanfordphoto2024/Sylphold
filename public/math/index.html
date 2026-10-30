@@ -90782,7 +90782,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         return askStr(rng, sk, 'A table shows these pairs of x- and y-values: ' + rows.map(function (r) { return '(' + r[0] + ', ' + r[1] + ')'; }).join(', ') + '. Which rule, written as an equation relating x and y, gives every y from its x?', ['y = ' + rule[2]],
           rule[2] === 'x + 3' ? ['y = 3x', 'y = x − 3'] : ['y = x + ' + rule[1](1), 'y = ' + rule[2].replace('2x', 'x + 2')],
           { teach: 'Check the change from row to row, then test one point.',
-            explain: explainOk(['Test the first row: 1 × ' + (rows[1][1] - rows[0][1]) + ' = ' + rows[0][1] + ', so the rule fits.', 'The rule that fits every row is <b>y = ' + rule[2] + '</b>.'], 'y = ' + rule[2]),
+            /* the test has to be the row's own input through the rule's own
+               operation — it used to print "1 × 3 = 20", a sum that belongs to
+               no row on the card, on every draw of this shape */
+            explain: explainOk(['Test the first row: ' + rows[0][0] + (rule[2] === 'x + 3' ? ' + 3' : rule[2] === '2x' ? ' × 2' : ' × 3 − 1') + ' = ' + rows[0][1] + ', so the rule fits.', 'The rule that fits every row is <b>y = ' + rule[2] + '</b>.'], 'y = ' + rule[2]),
             visual: V.table(['Input', 'Output'], rows) });
       },
       function () {
@@ -93819,10 +93822,13 @@ function () {
         if (!/permutation|probab/.test(ttl)) return null;
         var row2 = pick(rng, [[3, 6], [4, 24], [5, 120]]);
         var n = row2[0], ans = row2[1];
+        /* the factorial chain has to name every factor it multiplies — it
+           printed "5 × 4 × 1 = 120" and left the learner doing the rest */
+        var chain = '', ci; for (ci = n; ci >= 1; ci--) chain += (ci === n ? '' : ' × ') + ci;
         return ask(rng, sk, 'In how many different orders can ' + n + ' students stand in a line?', ans,
           [n * (n - 1), ans + n, n], { lim: 200,
             teach: 'When order matters the count is a permutation: n! = n · (n − 1) · … · 1.',
-            explain: explainOk(['The first place in line can be filled in ' + n + ' ways, the second in ' + (n - 1) + ', and so on.', 'The product is ' + n + ' × ' + (n - 1) + ' × 1 = ' + ans + '.', 'There are <b>' + ans + '</b> different orders.'], ans) });
+            explain: explainOk(['The first place in line can be filled in ' + n + ' ways, the second in ' + (n - 1) + ', and so on.', 'The product is ' + chain + ' = ' + ans + '.', 'There are <b>' + ans + '</b> different orders.'], ans) });
       },
 
       function () {
@@ -101999,6 +102005,25 @@ var MW = {
     }
     return false;
   }
+  /* Entries that are only a name — the page exists to record that a term is
+     another name for something, or to point at the several things one label
+     covers — teach no mathematics of their own. They have no numbers, so the
+     only card they can make is a vocabulary match, and the vocabulary is not
+     the rung's: a skill that graphs points on a coordinate plane was asking
+     which description matches Hexagonal Lattice, with a quantum
+     error-correcting code and a matroid result among the choices. They leave
+     every pool here, so the rung serves its own generator and the entry
+     cannot come back as somebody else's distractor. */
+  var NAMING = /\b(?:is|are)\s+(?:a\s+)?(?:term|name|label|designation|notation|symbol|expression|word|generalization)\b[^.]{0,60}\b(?:used|adopted|introduced|reserved|applied|given|coined|proposed|for|of)\b/i;
+  function keepsRow(i) {
+    var row = ROW[i];
+    return !NAMING.test(String(row[1])) && !NAMING.test(String(row[2]));
+  }
+  var kpi;
+  for (kpi = 0; kpi < POOL.length; kpi++) POOL[kpi] = POOL[kpi].filter(keepsRow);
+  for (kpi = 0; kpi < DPOOL.length; kpi++) DPOOL[kpi] = DPOOL[kpi].filter(keepsRow);
+  ALL = ALL.filter(keepsRow);
+
   var HP = {}, gi, gk;
   for (gi = 0; gi < GP.length; gi++) {
     var hp = HP[GP[gi][0]] || (HP[GP[gi][0]] = []), gpl = POOL[gi];
@@ -102009,48 +102034,11 @@ var MW = {
       var pool = HP[hostId], orig = SKILL_GEN[hostId];
       if (typeof orig !== 'function' || !pool.length) return;
       var p = rate(pool.length);
-      var mwSk = SKB[hostId] || {};
-      var skTitle = String(mwSk.name || '') + ' ' + String(mwSk.strand || '') + ' ' + String(mwSk.blurb || '');
-      /* a research entry is reading, and reading belongs higher up the ladder:
-         below G6 the enrichment slots go to the skill's own arithmetic */
-      var MW_BANDS = ['PK', 'K', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12', 'GM', 'A1', 'A2', 'PC', 'MA'];
-      var mwRank = MW_BANDS.indexOf(String((SKB[hostId] || {}).band || '').toUpperCase());
-      if (mwRank < 0) mwRank = 9;
-      /* How many different questions does the skill's own generator ask? A rung
-         with six or more keeps its own practice and only accepts an enrichment
-         card that matches its topic; a rung with two or three would otherwise be
-         left with two or three — the learner then sees the same card over and
-         over, which is a worse lesson than one glossary card. */
-      var ownShapes = (function () {
-        var seen = {}, n = 0, i, q;
-        for (i = 0; i < 14; i++) {
-          /* measured through genFor, because that is what the learner would see:
-             the host's own chain of decks, before this layer was wrapped round it */
-          try { q = (GLOB.genFor || orig)(hostId, GLOB.seedRng(1000 + i * 7919), 1 + (i % 5)); } catch (e) { q = null; }
-          if (!q || !q.prompt) continue;
-          var shape = String(q.prompt).replace(/\d+/g, '#').replace(/\s+/g, ' ').slice(0, 70);
-          if (!seen[shape]) { seen[shape] = 1; n++; }
-        }
-        return n;
-      })();
       SKILL_GEN[hostId] = function (rng, lvl) {
         if (R.chance(rng, p)) {                  /* the dice is rolled once */
-          for (var t = 0; t < 4; t++) {          /* a failed build is retried */
-            var idx = pool[Math.floor(rng() * pool.length)];
-            var it = card(rng, idx, lvl);
-            if (!it) continue;
-            /* a card that carries no numbers at all is a reading task: it has to
-               name the topic the skill practises, or it is trivia about someone
-               else's mathematics */
-            /* A card with no numbers in it is reading. Reading is kept when it is
-               reading ABOUT the skill (the entry shares a word or a word-stem with
-               the skill's name or strand) and when the learner is old enough for
-               encyclopedia vocabulary. A skill with too few questions of its own
-               keeps its enrichment whatever the topic, because repeating one card
-               teaches less than meeting one odd card. */
-            if (!/\d/.test(String(it.prompt || '') + ' ' + String(it.sub || '')) && ownShapes >= 6 &&
-              (mwRank < 6 || !onTopic(skTitle, ROW[idx]))) continue;
-            return it;
+          for (var t = 0; t < 3; t++) {          /* a failed build is retried */
+            var it = card(rng, pool[Math.floor(rng() * pool.length)], lvl);
+            if (it) return it;
           }
         }
         return orig(rng, lvl);
@@ -104914,7 +104902,9 @@ var MW = {
     var x1 = numOf(mm[1]), y1 = numOf(mm[2]), x2 = numOf(mm[3]), y2 = numOf(mm[4]);
     var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
     if (numOf(am[1]) !== mx || numOf(am[2]) !== my) return null;
-    var line = fmt(x1) + ' + ' + fmt(x2) + ' = ' + fmt(x1 + x2) + ', ÷ 2 = ' + fmt(mx) + '; ' + fmt(y1) + ' + ' + fmt(y2) + ' ÷ 2 = ' + fmt(my) + '.';
+    /* both coordinates are averaged, so both need the parentheses — the plain
+       "2 + 0 ÷ 2 = 1" reads as 2 + 0 first, which is not the step being shown */
+    var line = '(' + fmt(x1) + ' + ' + fmt(x2) + ') ÷ 2 = ' + fmt(mx) + '; (' + fmt(y1) + ' + ' + fmt(y2) + ') ÷ 2 = ' + fmt(my) + '.';
     if (line.length > 88) line = '(' + fmt(x1) + ' + ' + fmt(x2) + ') ÷ 2 = ' + fmt(mx) + ' and (' + fmt(y1) + ' + ' + fmt(y2) + ') ÷ 2 = ' + fmt(my) + '.';
     return line.length <= 88 ? line : null;
   }
