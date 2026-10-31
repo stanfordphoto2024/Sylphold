@@ -106423,6 +106423,36 @@ var MW = {
     return line && line.length <= 88 ? line : null;
   }
 
+/* candidate AS — the "how many sides" cards. Written as tmp/wcblocks/AS_sides.js so the
+ * harness can try it against live cards first (the shape table the rule file already carries
+ * is the data; the name must not already exist — round 131's lesson; exactly one function in
+ * the block, nothing nested — round 136's lesson):
+ *   node tmp/wcblock_test.js tmp/wcblocks/AS_sides.js 'how many sides' 8
+ *
+ * The card asks how many sides a shape has and its own working says "Count around a triangle:
+ * 3 sides" — it names the count without ever doing the counting. So the rule does it: walks the
+ * shape round from any side and returns to the start, writing the tally as it goes, and refuses
+ * unless the tally lands on the card's own answer. The shape-to-count table is the one the rule
+ * file has carried since round 125; a shape it is unsure of says nothing.
+ *
+ * Cost two harness runs to get here: the harness calls a rule inside a try/catch, so a
+ * wrong capture-group index (this regex has ONE group; the code read m[2]) does not throw
+ * where you can see it, it just reports zero hits. Read the probe before trusting a zero.
+ */
+  function countAroundSidesLine(item, text, shown) {
+    var m = /how many sides does an? (square|rectangle|triangle|hexagon|quadrilateral|polygon)\b/i
+      .exec(String((item && item.prompt) || ''));
+    if (!m) return null;
+    var SIDES = { square: 4, rectangle: 4, triangle: 3, hexagon: 6, quadrilateral: 4, polygon: 3 };  /* the block is hoisted on its own, so it cannot see the file-scope table */
+    var n = SIDES[m[1].toLowerCase()];
+    if (!n || n < 3) return null;
+    var said = numOf(shown);
+    if (said === null || said !== n) return null;            /* the tally must BE the card's own answer */
+    var run = '';
+    for (var i = 1; i <= n; i++) run += (i > 1 ? ', ' : '') + i;
+    var line = 'Count around it from any side and back to the start: ' + run + ', that is ' + fmt(n) + '.';
+    return line.length <= 88 ? line : null;
+  }
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106458,7 +106488,7 @@ var MW = {
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
       divisorSortLine, fractionOfNumberLine, absValueCompareLine,
       rowLabelCountLine, sayCountWordsLine, shapeFamilyLine, countAloudLine, sortIntoGroupLine,
-      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine], fi;
+      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine, countAroundSidesLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
