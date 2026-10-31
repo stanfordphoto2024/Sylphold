@@ -13242,6 +13242,15 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
    *        layout: plain|scatter|rows|array|ring }
    * ======================================================================== */
   var TASK_W = { countout: 1, identify: 2, judge: 3, rows: 4 };
+  /* pointing at each object and saying a number — at this rung that IS the
+     working, and it is the step the grade budget has to be able to keep */
+  function countOut(n) {
+    if (n < 2) return n === 1 ? 'There is 1 in the picture and no more: 1 + 0 = 1.' : 'Nothing is drawn in the picture: 0 + 0 = 0.0.'
+    var out = '', i;
+    for (i = 1; i <= n && out.length < 30; i++) out += (i > 1 ? ', ' : '') + i;
+    if (i <= n) out += ', \u2026, ' + n;
+    return 'Count them: ' + out + ' — the last number said is ' + n + '.';
+  }
   function countTask(sk) {
     var n = String((sk && sk.name) || '').toLowerCase();
     if (/count out|how many more/.test(n)) return 'countout';
@@ -13268,9 +13277,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (k === 0) return I_num(DP.say(sk, c + ', count the ' + t + '. How many are there?', 'Count the ' + t + '. How many?'), n, {
       visual: vis,
       mis: DP.mis(sk, n, lvl <= 2 ? [1, -1] : [1, -1, 2, -2]),
-      explain: ['Touch each ' + one + ' once and say the next number.',
-        'The last number you said is the total — not the last one you touched twice.',
-        'So the answer is <b>' + n + '</b>.'],
+      explain: ['Touch each ' + one + ' once and say the next number.', countOut(n), 'The last number said is the total, so the answer is <b>' + n + '</b>.'],
       teach: 'The last number you count is the total; it does not change with the arrangement.',
       b: lvl <= 2 ? -0.4 : 0
     });
@@ -13326,8 +13333,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return I_choice(DP.say(sk, 'Look at the ' + t + '. Which number tells how many there are?',
         'Which number tells how many ' + t + '?'), sh, sh.indexOf(n), {
         visual: vis,
-        explain: ['Count the ' + t + ' one by one.', 'The last number said is ' + n + '.',
-          'Find ' + n + ' among the choices.', 'So the answer is <b>' + n + '</b>.'],
+        explain: ['Count the ' + t + ' one by one.', countOut(n), 'Find ' + n + ' among the choices, so the answer is <b>' + n + '</b>.'],
         teach: 'A numeral is a name for a quantity: the count and the written number must match.',
         b: -0.2
       });
@@ -13377,17 +13383,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       'the last one you say.', 'Who comes after ' + n + ' when you count the ' + t + '?'), n + 1, {
       mis: DP.mis(sk, n + 1, [n - (n + 1), 1]),
       visual: vis,
-      explain: ['Counting the ' + t + ' ends on ' + n + '.',
-        'The number after ' + n + ' when counting is ' + (n + 1) + '.',
-        'So the answer is <b>' + (n + 1) + '</b>.'],
+      explain: ['Count the ' + t + ' one by one.', countOut(n), 'One more past the last one said: ' + n + ' + 1 = ' + (n + 1) + ', so the answer is <b>' + (n + 1) + '</b>.'],
       teach: 'Counting on past the last object is one more step from the total.',
       b: 0.4
     });
     if (k === 5) return I_bool(DP.say(sk, 'Does this model show exactly ' + n + ' ' + count(t, n) + '?', 'Does the picture show exactly ' + n + ' ' + count(t, n) + '?'), true, {
       visual: vis,
-      explain: ['Count the ' + t + ': the last number said is ' + n + '.',
-        'The question asks about that same number, ' + n + '.',
-        'So the answer is <b>Yes</b>.'],
+      explain: ['Count the ' + t + ' one by one.', countOut(n), 'The question asks about that same number: ' + n + ' = ' + n + ', so the answer is <b>Yes</b>.'],
         teach: 'Count the picture yourself before you agree with a number.',
       b: 0.4
     });
@@ -15027,6 +15029,15 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (n1 === n2 && (p.ask === 'differenceMore' || p.ask === 'differenceFewer' || R.chance(rng, 0.6))) n2 = cap(n1 + R.int(rng, 1, 3), 1, L);
     return { L: L, a: pair[0], b: pair[1], n1: n1, n2: n2, mode: p.mode || 'matching' };
   }
+  /* pointing at each object and saying a number — the working a count card
+     asks for, and the step the grade budget must be able to keep */
+  function tallyUp(n) {
+    var out = '', i;
+    for (i = 1; i <= n && out.length < 24; i++) out += (i > 1 ? ', ' : '') + i;
+    if (i <= n) out += ', \u2026, ' + n;
+    return out;
+  }
+  function rel(a, b) { return a + (a > b ? ' is more than ' : (a < b ? ' is less than ' : ' is the same as ')) + b; }
   function matchModel(g) {
     var cols = cap(Math.max(g.n1, g.n2), 1, 12), r1 = [], r2 = [], i;
     for (i = 0; i < cols; i++) { r1.push(i < g.n1 ? '●' : ''); r2.push(i < g.n2 ? '○' : ''); }
@@ -15076,7 +15087,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = ATTRIBUTE_WORDS.filter(function (x) { return x !== right; }).concat(s.key === 'area' ? [] : ['how much surface it covers']);
         return MC(rng, ct + ', ' + w + ' compares two things to answer: ' + A.q + ' Which attribute is ' + w + ' comparing?', right, wrongs, {
           b: 0.5,
-          explain: ['The question asks ' + A.q.replace('?', ''), 'That is a question about ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['The question asks ' + A.q.replace('?', ''), 'That question measures with ' + A.unit + ', so it is a question about ' + right + ', and the attribute being compared is <b>' + right + '</b>.'],
           teach: 'Every comparison has one attribute: decide what is being measured before you compare.'
         });
       },
@@ -15087,7 +15098,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = [trip[0][0] + ', ' + trip[2][0] + ', ' + trip[1][0], trip[2][0] + ', ' + trip[1][0] + ', ' + trip[0][0], trip[1][0] + ', ' + trip[0][0] + ', ' + trip[2][0]];
         return MC(rng, 'Three objects are measured with ' + A.unit + ': ' + s.o1 + ' ' + s.m1 + ', ' + s.o2 + ' ' + s.m2 + ', ' + s.o3 + ' ' + s.m3 + '. Which list goes from least to most?', right, wrongs, {
           b: 0.9,
-          explain: ['Least means the smallest measurement: ' + trip[0][0] + ' with ' + trip[0][1] + '.', 'Then ' + trip[1][0] + ' with ' + trip[1][1] + ', then ' + trip[2][0] + ' with ' + trip[2][1] + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Read the three measurements: ' + trip[0][0] + ' = ' + trip[0][1] + ', ' + trip[1][0] + ' = ' + trip[1][1] + ', ' + trip[2][0] + ' = ' + trip[2][1] + '.', 'In order that is ' + trip[0][1] + ' < ' + trip[1][1] + ' < ' + trip[2][1] + ', so the smallest is <b>' + right + '</b>.'],
           teach: 'Ordering by an attribute means sorting the measurements from smallest to largest.'
         });
       },
@@ -15097,7 +15108,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var u1 = A.unit, u2 = fair ? A.unit : pick(rng, ['paper clips', 'cubes', 'their hands']);
         return I_bool('The ' + s.o1 + ' was measured with ' + u1 + ' and the ' + s.o2 + ' was measured with ' + u2 + '. Is that a fair way to compare them?', u1 === u2, {
           b: 0.7,
-          explain: ['A fair comparison uses the same unit for both objects.', u1 === u2 ? 'Both used ' + u1 + '.' : 'One used ' + u1 + ' and the other ' + u2 + ', so the units differ.', 'So the answer is <b>' + (u1 === u2 ? 'Yes' : 'No') + '</b>.'],
+          explain: ['A fair comparison uses the same unit for both objects.', u1 === u2 ? 'Both measured with ' + u1 + ', so the units are the same and the answer is <b>Yes</b>.' : 'One measured with ' + u1 + ' and the other with ' + u2 + ' — different units, so the answer is <b>No</b>.'],
           teach: 'Indirect measurement only works when both objects are measured with the same unit.'
         });
       },
@@ -15107,7 +15118,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = ['weight', 'capacity', 'width', 'height', 'length', 'area'].filter(function (x) { return x !== right; });
         return MC(rng, cmpSentence(A, s.o1, s.o2, false) + '. Which attribute is being compared?', right, wrongs, {
           b: 0.6,
-          explain: ['"' + A.word + '" describes ' + right + '.', 'The other words describe different attributes.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['"' + A.word + '" is said with ' + A.unit + ', which measures ' + right + '.', 'The other words are said with other units, so the attribute is <b>' + right + '</b>.'],
           teach: 'Comparison words name an attribute: longer→length, heavier→weight, holds more→capacity.'
         });
       }
@@ -15120,7 +15131,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var vis = matchModel(g), diff = Math.abs(g.n1 - g.n2), more = g.n1 > g.n2 ? g.a : g.b, fewer = g.n1 < g.n2 ? g.a : g.b;
     var teach = 'Matching one to one shows which group has more, which has fewer, and how many are left over.';
     var why = function (yes) {
-      return ['Match one ' + g.a + ' with one ' + g.b + '.', 'There are ' + g.n1 + ' ' + g.a + ' and ' + g.n2 + ' ' + g.b + '.', 'So the answer is <b>' + yes + '</b>.'];
+      return ['Match one ' + g.a + ' with one ' + g.b + '.', 'Count each row: ' + g.a + ' = ' + g.n1 + ', ' + g.b + ' = ' + g.n2 + '.', 'Matching them leaves ' + (g.n1 === g.n2 ? 'none left over: ' + rel(g.n1, g.n2) : g.n1 + ' vs ' + g.n2 + ': ' + rel(g.n1, g.n2)) + ', so the answer is <b>' + yes + '</b>.'];
     };
     return build(rng, [
       /* official anchor — compare two groups by matching or counting. */
@@ -15134,7 +15145,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var which = R.chance(rng, 0.5) ? g.a : g.b, n = which === g.a ? g.n1 : g.n2;
         return I_num('Count the ' + which + '. How many are there?', n, {
           visual: vis, b: lo - 0.2,
-          explain: ['Count the ' + which + ' one by one.', 'The last number said is ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: ['Count the ' + which + ' one by one.', n >= 2 ? 'Count them: ' + tallyUp(n) + ' — that is ' + n + '.' : 'There is 1 ' + which + ' in the row and ' + (which === g.a ? g.n2 : g.n1) + ' in the other: 1 + ' + (which === g.a ? g.n2 : g.n1) + ' in all.', 'So the answer is <b>' + n + '</b>.'],
           teach: 'Counting each group gives the numbers you need to compare them.'
         });
       },
@@ -15149,7 +15160,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var need = g.a, have = g.b;
         return I_bool('Does every ' + need + ' get one ' + have + '?', g.n2 >= g.n1, {
           visual: vis, b: 0.3,
-          explain: ['There are ' + g.n1 + ' ' + need + ' and ' + g.n2 + ' ' + have + '.', g.n2 >= g.n1 ? 'Nothing is left unmatched.' : 'Some ' + need + ' have no match.', 'So the answer is <b>' + (g.n2 >= g.n1 ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Match one ' + need + ' with one ' + have + '.', 'There are ' + g.n1 + ' ' + need + ' and ' + g.n2 + ' ' + have + ': ' + rel(g.n2, g.n1) + ', so ' + (g.n2 >= g.n1 ? 'nothing is left unmatched and the answer is <b>Yes</b>.' : 'some ' + need + ' have no match and the answer is <b>No</b>.')],
           teach: '"Enough for one each" asks whether the second group is at least as big as the first.'
         });
       },
@@ -15182,7 +15193,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           : ['There are more ' + fewer + ' than ' + more, 'The ' + g.a + ' and the ' + g.b + ' are the same number', 'There are no ' + fewer];
         return MC(rng, 'Look at the two groups. Which statement is true?', right, wrongs, {
           visual: vis, b: 0.5,
-          explain: ['Count each row: ' + g.n1 + ' ' + g.a + ', ' + g.n2 + ' ' + g.b + '.', g.n1 === g.n2 ? 'Nothing is left over, so they are the same.' : more + ' has the bigger count.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Count each row: ' + g.a + ' = ' + g.n1 + ', ' + g.b + ' = ' + g.n2 + '.', 'Matching one to one leaves ' + (g.n1 === g.n2 ? 'none over: ' + rel(g.n1, g.n2) : g.n1 + ' against ' + g.n2 + ': ' + rel(g.n1, g.n2)) + ', so the statement that is true is <b>' + right + '</b>.'],
           teach: 'Test each statement against the counts; only one can match what you counted.'
         });
       },
@@ -15192,7 +15203,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (need === 0) return I_bool('Are there more ' + g.a + ' than ' + g.b + '?', false, { visual: vis, b: 0.8, explain: why('No'), teach: teach });
         return I_num('How many more ' + name + ' are needed so that every ' + other + ' has one?', need, {
           visual: vis, b: 0.9,
-          explain: ['There are ' + (other === g.a ? g.n1 : g.n2) + ' ' + other + ' and ' + (name === g.a ? g.n1 : g.n2) + ' ' + name + '.', 'Count on from the smaller group to the larger: ' + need + ' more.', 'So the answer is <b>' + need + '</b>.'],
+          explain: ['There are ' + (other === g.a ? g.n1 : g.n2) + ' ' + other + ' and ' + (name === g.a ? g.n1 : g.n2) + ' ' + name + '.', 'Count on from the smaller group: ' + Math.min(g.n1, g.n2) + ' + ' + need + ' = ' + Math.max(g.n1, g.n2) + ', so ' + need + ' more are needed — <b>' + need + '</b>.'],
           teach: 'To make the groups equal you add the difference to the smaller group.'
         });
       }
@@ -16930,6 +16941,17 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (/word problem|story|\bwords\b/.test(n)) return 'story';
     return null;
   }
+  /* the coins drawn on the card, added up by value */
+  function coinSum(f) {
+    var t = [];
+    if (f.c.q) t.push(f.c.q + ' \u00d7 25');
+    if (f.c.d) t.push(f.c.d + ' \u00d7 10');
+    if (f.c.n) t.push(f.c.n + ' \u00d7 5');
+    if (f.c.pn) t.push(f.c.pn + ' \u00d7 1');
+    if (t.length < 2) t.push('0 \u00d7 1');
+    return t.join(' + ');
+  }
+
   ARCH('money', function (rng, lvl, p, sk) {
     var kind = p.kind || 'count', f = drawCoins(rng, p, lvl), w = pick(rng, WHO), w2 = pick(rng, WHO);
     var a = allowed(p), lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
@@ -16985,7 +17007,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var yes = f.total >= buy[1], price = yes ? cap(buy[1], 5, f.total) : cap(f.total + R.int(rng, 1, 25), 5, 999);
         return I_bool('Can ' + w + ' buy a ' + buy[0] + ' that costs $' + cash(price) + ' with these coins?', f.total >= price, {
           visual: coinVisual(f), b: 0.5,
-          explain: ['The coins add up to ' + f.total + '¢.', 'The ' + buy[0] + ' costs ' + price + '¢.', (f.total >= price ? f.total + '¢ is enough' : f.total + '¢ is not enough') + ', so the answer is <b>' + (f.total >= price ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Count the coins by value: ' + f.c.q + ' quarters, ' + f.c.d + ' dimes, ' + f.c.n + ' nickels, ' + f.c.pn + ' pennies.', coinSum(f) + ' = ' + f.total + '\u00a2 in all.', 'The ' + buy[0] + ' costs ' + price + '\u00a2, and ' + (f.total >= price ? f.total + ' is at least ' + price : f.total + ' is less than ' + price) + ', so the answer is <b>' + (f.total >= price ? 'Yes' : 'No') + '</b>.'],
           teach: 'To decide if money is enough, count it and compare with the price.'
         });
       },
@@ -17140,7 +17162,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var opts = near(rng, n, lim);
         return MC(rng, 'Which number is this word?   ' + wordName(n), String(n), opts.map(String), {
           b: lo + 0.1,
-          explain: ['Read the word: ' + wordName(n) + '.', 'Say the count up to that number: it ends on ' + n + '.', 'So the answer is <b>' + n + '</b>.'],
+          explain: ['Read the word: ' + wordName(n) + '.', n < 10 ? 'Counting from 0: 0 + ' + n + ' = ' + n + '.' : Math.floor(n / 10) * 10 + ' tens and ' + (n % 10) + ' ones: ' + (Math.floor(n / 10) * 10) + ' + ' + (n % 10) + ' = ' + n + '.', 'So the word ' + wordName(n) + ' is the number <b>' + n + '</b>.'],
           teach: 'Word names and numerals are two spellings of the same number.'
         });
       },
@@ -18106,6 +18128,71 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
   var FLAT = [['circle', 0, 'a round edge that is the same width all the way around'], ['triangle', 3, 'three straight sides'], ['square', 4, 'four equal sides'], ['rectangle', 4, 'two long sides and two short sides'], ['hexagon', 6, 'six straight sides'], ['oval', 0, 'a round edge that is longer than it is wide']];
   /* Row: [name, the one description only this solid answers, flat faces]. */
   var SOLID = [['cube', 'six square faces', 6], ['sphere', 'a single round surface', 0], ['cone', 'a circular base and one point on top', 1], ['cylinder', 'two circular bases and a curved side', 2], ['rectangular prism', 'six rectangular faces, like a cereal box', 6], ['pyramid', 'a polygon base and faces that meet at one point', 5]];
+  /* How many of a solid's surfaces are curved. Every surface of a solid is flat
+     or curved and never both, so "how many flat faces?" has a real answer line:
+     flat = all − curved. Where there are enough faces to point at, the count-out
+     is the better line — at this rung counting IS the working. */
+  var CURVED = { cube: 0, sphere: 1, cone: 1, cylinder: 1, 'rectangular prism': 0, pyramid: 0 };
+  function artOf(n) { return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + n; }
+  function faceWork(name, flatN) {
+    var curved = CURVED[name] || 0, all = flatN + curved;
+    if (flatN >= 3) return 'Count the flat faces of a ' + name + ': ' + countSay(flatN) + ' \u2014 that is ' + flatN + '.';
+    return 'A ' + name + ' has ' + all + ' surface' + (all === 1 ? '' : 's') + ' and ' + curved + ' of ' + (all === 1 ? 'it' : 'them') + ' ' + (curved === 1 ? 'is' : 'are') + ' curved: ' + all + ' \u2212 ' + curved + ' = ' + flatN + ' flat ' + (flatN === 1 ? 'face' : 'faces') + '.';
+  }
+  function sideWork(name, n) {
+    if (n >= 3) return 'Count around ' + artOf(name) + ': ' + countSay(n) + ' \u2014 that is ' + n + ' straight sides.';
+    return artOf(name) + ' is 1 curved edge and no straight ones: 1 \u2212 1 = 0 straight sides.';
+  }
+  /* the count a shape's own name carries, so the steps can TEST a group label
+     ("shapes with 4 sides") instead of announcing the fit */
+  function shapeCount(nm) {
+    var i;
+    for (i = 0; i < FLAT.length; i++) if (FLAT[i][0] === nm) return { n: FLAT[i][1], word: 'straight side' + (FLAT[i][1] === 1 ? '' : 's') };
+    for (i = 0; i < SOLID.length; i++) if (SOLID[i][0] === nm) return { n: SOLID[i][2], word: 'flat face' + (SOLID[i][2] === 1 ? '' : 's') };
+    return null;
+  }
+  /* "4 is the same as 4" / "4 is not the same as 6" — the test the child
+     performs against a group label, written out in the open. */
+  function sameAs(a, b) { return a + (a === b ? ' is the same as ' : ' is not the same as ') + b; }
+  /* the one description only this shape answers, straight off the family tables */
+  function featOf(nm) {
+    var i;
+    for (i = 0; i < FLAT.length; i++) if (FLAT[i][0] === nm) return FLAT[i][2];
+    for (i = 0; i < SOLID.length; i++) if (SOLID[i][0] === nm) return SOLID[i][1];
+    return null;
+  }
+  /* the count that proves which pile a shape belongs to */
+  function kindProof(nm, solid) {
+    if (solid) return surfaceSum(nm);
+    var f = null, i;
+    for (i = 0; i < FLAT.length; i++) if (FLAT[i][0] === nm) f = FLAT[i];
+    if (!f) return null;
+    return sideWork(nm, f[1]) + ' — one shape you could trace flat on the page.';
+  }
+  /* the counts the drawn model holds, said out loud — a graph card whose
+     steps never read the rows asks the child to do the reading and hide it. */
+  function readRows(rows) { return 'Count each row: ' + rows.map(function (r) { return r[0] + ' = ' + r[1]; }).join(', ') + '.'; }
+  /* "which comes next" in a cycle: the position is the arithmetic, and the
+     wrap-around is the part a child has to be shown rather than told. */
+  function cycleWork(list, cur, next, unit, cycle) {
+    var n = list.length, i = list.indexOf(cur), nx = i + 2;
+    var line = cur + ' is number ' + (i + 1) + ' of ' + n + ': ' + (i + 1) + ' + 1 = ' + nx;
+    if (nx > n) line += ', and the ' + cycle + ' starts again: ' + nx + ' \u2212 ' + n + ' = 1';
+    return line + ', so the next ' + unit + ' is ' + next + '.';
+  }
+  /* the minute hand is a count of fives */
+  function minuteWork(h, m) {
+    return m === 0
+      ? 'The long hand points at the 12, and each number on the face is 5 minutes: 12 \u00d7 5 = 60 minutes, a whole hour, so 0 minutes past ' + h + '.'
+      : 'The long hand points at the 6, and each number on the face is 5 minutes: 6 \u00d7 5 = 30 minutes, half an hour past ' + h + '.';
+  }
+  function surfaceSum(name) {
+    var flatN = null, i;
+    for (i = 0; i < SOLID.length; i++) if (SOLID[i][0] === name) flatN = SOLID[i][2];
+    if (flatN === null) return null;
+    var curved = CURVED[name] || 0;
+    return artOf(name) + ' has ' + flatN + ' flat ' + (flatN === 1 ? 'face' : 'faces') + ' and ' + curved + ' curved ' + (curved === 1 ? 'surface' : 'surfaces') + ': ' + flatN + ' + ' + curved + ' = ' + (flatN + curved) + ' surfaces in all.';
+  }
   /* Sort groups. A shape may belong to exactly ONE of the groups offered, so a
    * group is kept as a list of the shapes that fit it and the item picks the
    * two groups the shape is NOT in. (A cone rolls and has a point; a cylinder
@@ -18230,9 +18317,36 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       for (var j = 0; j < labels.length; j++) (fits[labels[j]].indexOf(name) >= 0 ? rights : wrongs).push(labels[j]);
       var right = pick(rng, rights);
       wrongs = R.sample(rng, wrongs, 2);
+      /* A group named by a count is TESTED against the shape's own count, and a
+         group named "shapes with no straight sides" wants 0 of them — the same
+         test written the other way. "a cube fits shapes with 6 flat faces" only
+         repeats the label: the child never sees the check that decides it. */
+      var c = shapeCount(name);
+      var want = function (label) {
+        var m = /(\d+)/.exec(label);
+        if (m) return +m[1];
+        if (/\bno\b[^,]*side/i.test(label)) return 0;
+        return null;
+      };
+      var why = function (label) {
+        var n = want(label);
+        if (c && n !== null) return artOf(name) + ' has ' + c.n + ' ' + c.word + ' and ' + label + ' wants ' + n + ': ' + sameAs(c.n, n);
+        return artOf(name) + ' is ' + (featOf(name) || label);
+      };
+      var noFit = function (label) {
+        var n = want(label);
+        if (c && n !== null) return 'It does not fit ' + label + ': ' + artOf(name) + ' has ' + c.n + ' ' + c.word + ' and ' + sameAs(c.n, n) + '.';
+        return 'It does not fit ' + label + ': ' + artOf(name) + ' is ' + (featOf(name) || 'not in that group') + '.';
+      };
+      var steps = ['Read the name of each group.'];
+      var sum = surfaceSum(name);
+      if (sum && want(right) === null) steps.push(sum);
+      steps.push('The group ' + right + ' asks for what ' + artOf(name) + ' has: ' + why(right) + '.');
+      steps.push(noFit(wrongs[0]));
+      steps.push(noFit(wrongs[1]));
       return MC(rng, 'Sort this shape: ' + article(name) + '. Which group does it belong to?', right, wrongs, {
         visual: shapeVis(name), b: 0.3,
-        explain: ['Read the name of each group.', article(name) + ' fits ' + right + '.', 'It does not fit ' + wrongs[0] + ', and it does not fit ' + wrongs[1] + '.', 'So the answer is <b>' + right + '</b>.'],
+        explain: steps.concat(['So the answer is <b>' + right + '</b>.']),
         teach: 'Sorting shapes needs one rule; test the shape against that rule.'
       });
     };
@@ -18253,18 +18367,18 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             ? 'Does the ' + nm + ' have ' + claim + ' ' + countN(claim, 'flat face', 'flat faces') + '?'
             : 'Does the ' + nm + ' have ' + claim + ' ' + countN(claim, 'side', 'sides') + '?', truth, {
             b: lo,
-            explain: [nm + (focus.solid ? ': ' + sol[1] + ' It has ' + sol[2] + ' ' + countN(sol[2], 'flat face', 'flat faces') + '.' : ': ' + flat[2] + ' It has ' + flat[1] + ' ' + countN(flat[1], 'side', 'sides') + '.'), 'Compare with ' + claim + '.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+            explain: [focus.solid ? faceWork(sol[0], sol[2]) : sideWork(flat[0], flat[1]), 'The statement says ' + claim + ' and ' + artOf(nm) + ' has ' + (focus.solid ? sol[2] : flat[1]) + ': ' + sameAs(focus.solid ? sol[2] : flat[1], claim) + ', so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
             teach: 'Know one shape well: its name, its sides, its corners.'
           });
         }
         if (useSolid) return MC(rng, ct + ', which solid has ' + sol[1] + '?', sol[0], others(SOLID.map(function (q) { return q[0]; }), sol[0], 3, rng), {
           b: lo,
-          explain: ['Look at the features: ' + sol[1] + '.', 'That describes ' + article(sol[0]) + '.', 'So the answer is <b>' + sol[0] + '</b>.'],
+          explain: ['Look at the features: ' + sol[1] + '.', surfaceSum(sol[0]) || ('That describes ' + article(sol[0]) + '.'), 'So the shape with those features is <b>' + sol[0] + '</b>.'],
           teach: teach
         });
         return MC(rng, ct + ', which flat shape has ' + flat[2] + '?', flat[0], others(FLAT.map(function (q) { return q[0]; }), flat[0], 3, rng), {
           b: lo,
-          explain: ['Look at the features: ' + flat[2] + '.', 'That describes ' + article(flat[0]) + '.', 'So the answer is <b>' + flat[0] + '</b>.'],
+          explain: ['Look at the features: ' + flat[2] + '.', sideWork(flat[0], flat[1]), 'So the shape with those features is <b>' + flat[0] + '</b>.'],
           teach: teach
         });
       },
@@ -18272,12 +18386,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         if (useSolid) return I_num('How many flat faces does ' + article(sol[0]) + ' have?', sol[2], {
           visual: V.solid(sol[0] === 'rectangular prism' ? 'prism' : sol[0], { w: 3, h: 3, l: 3 }), b: 0.4,
-          explain: ['A flat face is a flat surface you could trace.', 'Count the flat faces on ' + article(sol[0]) + '.', 'So the answer is <b>' + sol[2] + '</b>.'],
+          explain: ['A flat face is a flat surface you could trace; a curved surface is not.', faceWork(sol[0], sol[2]), 'So the ' + sol[0] + ' has <b>' + sol[2] + '</b> ' + countN(sol[2], 'flat face', 'flat faces') + '.'],
           teach: 'A flat face is a flat surface; a curved surface is not flat.'
         });
         return I_num('How many sides does ' + article(flat[0]) + ' have?', flat[1], {
           visual: shapeVis(flat[0]), b: lo + 0.1,
-          explain: ['A side is a straight line from one corner to the next.', 'Count around ' + article(flat[0]) + ': ' + flat[1] + ' sides.', 'So the answer is <b>' + flat[1] + '</b>.'],
+          explain: ['A side is a straight line from one corner to the next.', sideWork(flat[0], flat[1]), 'So the ' + flat[0] + ' has <b>' + flat[1] + '</b> ' + countN(flat[1], 'side', 'sides') + '.'],
           teach: 'A circle has no straight sides, so it has no corners either.'
         });
       },
@@ -18287,12 +18401,20 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       /* classify a stated claim */
       function () {
-        var claim = useSolid ? article(sol[0]) + ' is flat.' : article(flat[0]) + ' has ' + (flat[1] + 1) + ' ' + countN(flat[1] + 1, 'side', 'sides') + '.';
-        var truth = false;
-        if (!useSolid && flat[1] === 0) { claim = article(flat[0]) + ' has no corners.'; truth = true; }
+        /* "a cube is flat" is a sentence with no feature on the card to check
+           against. The claim now names a count, so the working IS the count and
+           the verdict follows from comparing the two numbers. */
+        var have = useSolid ? sol[2] : flat[1];
+        var claimN = useSolid ? (function () { var k = sol[2] + pick(rng, [-1, 1, 0, 2]); return k < 0 ? sol[2] + 1 : k; })()
+                             : (flat[1] === 0 ? 0 : flat[1] + 1);
+        var noun = useSolid ? countN(claimN, 'flat face', 'flat faces') : (flat[1] === 0 ? 'corners' : countN(claimN, 'side', 'sides'));
+        var claim = article(useSolid ? sol[0] : flat[0]) + ' has ' + (flat[1] === 0 && !useSolid ? 'no corners' : claimN + ' ' + noun) + '.';
+        var truth = claimN === have;
         return I_bool('Is this statement true?   ' + claim, truth, {
           visual: useSolid ? V.solid(sol[0], { w: 3, h: 3, l: 3 }) : shapeVis(flat[0]), b: 0.5,
-          explain: [useSolid ? article(sol[0]) + ' is a solid shape, so it is not flat.' : 'Count the sides of ' + article(flat[0]) + ': ' + flat[1] + '.', 'Compare with the statement.', 'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          explain: [useSolid ? faceWork(sol[0], sol[2]) : sideWork(flat[0], flat[1]),
+            'The statement says ' + claimN + ' ' + noun + ' and ' + artOf(useSolid ? sol[0] : flat[0]) + ' has ' + have + ': ' + sameAs(have, claimN) + '.',
+            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
           teach: 'Judge a shape statement by checking the feature it names.'
         });
       },
@@ -18314,8 +18436,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return I_bool('Is the ' + nm2 + ' a ' + kindWord + ' shape?', truth, {
             visual: isSolid ? V.solid(nm2, { w: 3, h: 3, l: 3 }) : shapeVis(nm2), b: 0.4,
             explain: [named + ' is a ' + (isSolid ? 'solid shape: it takes up space, so it is three-dimensional.' : 'flat shape: it lies flat on the page.'),
-            named + ' ' + (truth ? 'is' : 'is not') + ' ' + kindWord + '.',
-            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+            kindProof(nm2, isSolid) || (named + ' ' + (truth ? 'is' : 'is not') + ' ' + kindWord + '.'),
+            named + ' ' + (truth ? 'is' : 'is not') + ' ' + kindWord + ', so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
             teach: 'Flat shapes lie on the page; solid shapes take up space.'
           });
         }
@@ -18329,7 +18451,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         /* the four names are shown as a table of options so the card shows what it asks about without drawing the answer */
         return MC(rng, fsLead, right, fsOpts, {
           visual: V.table(['Option'], [right].concat(fsOpts).map(function (q) { return [q]; })), b: 0.4,
-          explain: ['A solid shape takes up space; a flat shape lies on the page.', 'The ' + (wantSolid ? 'solid' : 'flat') + ' one here is the ' + right + '.', 'The other three are ' + (wantSolid ? 'flat' : 'solid') + ' shapes.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['A solid shape takes up space; a flat shape lies on the page.', kindProof(right, wantSolid) || ('The ' + (wantSolid ? 'solid' : 'flat') + ' one here is the ' + right + '.'), 'The other names on the card are ' + (wantSolid ? 'flat' : 'solid') + ' shapes, so the one that answers is <b>' + right + '</b>.'],
           teach: 'Two dimensions are length and width; a third adds depth or thickness.'
         });
       },
@@ -18344,7 +18466,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var real = pick(rng, mine), wrongReal = R.sample(rng, rest, 3);
         return MC(rng, 'Which real object is shaped like ' + article(key) + '?', real[0], wrongReal.map(function (q) { return q[0]; }), {
           visual: shapeVis(key), b: 0.6,
-          explain: ['Picture ' + article(key) + ': ' + (useSolid ? sol[1] : flat[2]) + '.', real[0] + ' is shaped like ' + article(key) + '.', 'So the answer is <b>' + real[0] + '</b>.'],
+          explain: ['Picture ' + article(key) + ': ' + (useSolid ? sol[1] : flat[2]) + '.', surfaceSum(key) || sideWork(key, flat[1]), real[0] + ' is ' + (useSolid ? sol[1] : flat[2]) + ', so the object shaped like ' + article(key) + ' is <b>' + real[0] + '</b>.'],
           teach: 'Math shapes hide inside everyday objects; look for the defining feature.'
         });
       },
@@ -18421,9 +18543,11 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     return build(rng, [
       /* official anchor — read the graph and answer the comparison question. */
       function () {
+        /* a tie for the most is not a question with one answer */
+        if (sorted[0][1] === sorted[1][1]) return null;
         return MC(rng, ct + ', look at the graph. Which choice was picked the most?', top[0], others(rows.map(function (r) { return r[0]; }), top[0], 2, rng), {
           visual: visual, b: lo,
-          explain: ['Read the count for each choice.', top[0] + ' has the largest count.', 'So the answer is <b>' + top[0] + '</b>.'],
+          explain: [readRows(rows), 'So <b>' + top[0] + '</b> was picked the most: ' + top[1] + ' votes, and ' + top[1] + ' \u2212 ' + sorted[1][1] + ' = ' + (top[1] - sorted[1][1]) + ' more than the next row.'],
           teach: teach
         });
       },
@@ -18455,7 +18579,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var m = R.int(rng, 1, L);
         return I_num('How many does this tally show?', m, {
           visual: V.tally(m, { label: 'a tally' }), b: 0.2,
-          explain: ['A group of five tally marks is four lines with a fifth across them.', 'Count the groups and the loose marks.', 'So the answer is <b>' + m + '</b>.'],
+          explain: ['A group of five tally marks is four lines with a fifth across them.', 'There are ' + Math.floor(m / 5) + ' group' + (Math.floor(m / 5) === 1 ? '' : 's') + ' of five and ' + (m % 5) + ' loose ' + (m % 5 === 1 ? 'mark' : 'marks') + ': ' + (5 * Math.floor(m / 5)) + ' + ' + (m % 5) + ' = ' + m + '.', 'So the answer is <b>' + m + '</b>.'],
           teach: 'Tally marks are counted in groups of five, which makes big counts fast.'
         });
       },
@@ -18477,11 +18601,12 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       },
       /* which statement is true */
       function () {
+        if (top[1] === low[1]) return null;              /* no row is more than another */
         var right = top[0] + ' was picked more than ' + low[0];
         var wrongs = [low[0] + ' was picked the most', 'All three choices were picked the same number of times', top[0] + ' was picked ' + (top[1] + 1) + ' times'].filter(function (s) { return s.indexOf(top[1] + ' times') < 0 || top[1] + 1 === top[1]; });
         return MC(rng, 'Look at the graph. Which statement is true?', right, wrongs, {
           visual: visual, b: 0.6,
-          explain: ['Check each statement against the counts.', 'The largest count is ' + top[1] + ', the smallest is ' + low[1] + ' — ' + top[0] + ' has more.', 'So the answer is <b>' + right + '</b>.'],
+          explain: [readRows(rows), 'So the true statement is <b>' + right + '</b>: ' + top[1] + ' \u2212 ' + low[1] + ' = ' + diff + ', so ' + top[0] + ' was picked more than ' + low[0] + '.'],
           teach: 'Test every statement against the counts you read from the graph.'
         });
       },
@@ -18522,7 +18647,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wh = R.int(rng, 1, 12), wm = prec === 'half' ? (R.chance(rng, 0.5) ? 30 : 0) : 0, s = hhmm(wh, wm);
         if (s !== hhmm(h, m) && wrongs.indexOf(s) < 0) wrongs.push(s);
       }
-      return MC(rng, prompt, hhmm(h, m), wrongs, { visual: vis, b: lo, explain: ['Read the hour first: the short hand is between ' + h + ' and ' + (h % 12 + 1) + ', so the hour is ' + h + ' hours.', m === 0 ? 'The long hand points to the 12, so that is 0 minutes and it is exactly ' + h + ' o’clock.' : 'The long hand points to the 6, so that is 30 minutes and it is half past ' + h + '.', 'So the answer is <b>' + hhmm(h, m) + '</b>.'], teach: teach });
+      return MC(rng, prompt, hhmm(h, m), wrongs, { visual: vis, b: lo, explain: ['Read the hour first: the short hand is between ' + h + ' and ' + (h % 12 + 1) + ', so the hour is ' + h + ' hours.', minuteWork(h, m), 'So the answer is <b>' + hhmm(h, m) + '</b>.'], teach: teach });
     };
 
     return build(rng, [
@@ -18530,7 +18655,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         if (h < 10) return I_str(ct + ', write the time shown as h:mm.', [hhmm(h, m), (h < 10 ? '0' : '') + hhmm(h, m)], {
           visual: V.clock(h, m), answerText: hhmm(h, m), b: lo,
-          explain: ['The short hand points at ' + h + '.', m === 0 ? 'The long hand is on the 12, so the minutes are 00.' : 'The long hand is on the 6, so the minutes are 30.', 'So the answer is <b>' + hhmm(h, m) + '</b>.'],
+          explain: ['The short hand points at ' + h + ', so the hour is ' + h + '.', minuteWork(h, m), 'So the answer is <b>' + hhmm(h, m) + '</b>.'],
           teach: teach
         });
         return timeChoice(ct + ', which time matches the clock face?', V.clock(h, m));
@@ -18545,7 +18670,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = m === 0 ? ['the hour hand on ' + h + ' and the minute hand on the 6', 'the hour hand on ' + (h % 12 + 1) + ' and the minute hand on the 12'] : ['the hour hand on ' + h + ' and the minute hand on the 12', 'the hour hand on ' + (h % 12 + 1) + ' and the minute hand on the 6'];
         return MC(rng, 'Which describes the clock at ' + hhmm(h, m) + '?', right, wrongs, {
           b: 0.3,
-          explain: ['At ' + hhmm(h, m) + ' the minute hand shows ' + (m === 0 ? 'the top of the clock — 0 minutes past ' + h + ' hours.' : 'halfway round — 30 minutes past ' + h + ' hours.'), right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['At ' + hhmm(h, m) + ' the minute hand shows ' + (m === 0 ? 'the top of the clock — 0 minutes past ' + h + ' hours.' : 'halfway round — 30 minutes past ' + h + ' hours.'), minuteWork(h, m), 'So the hands at ' + hhmm(h, m) + ' are <b>' + right + '</b>'],
           teach: 'Half past means the minute hand has gone halfway round, to the 6.'
         });
       },
@@ -18564,7 +18689,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var endH = start + Math.floor(mins / 60), endM = mins % 60;
         return I_num(ct + ', ' + ev[0] + ' starts at ' + hhmm(start, 0) + ' and lasts ' + mins + ' minutes. How many minutes is that?', mins, {
           b: 0.6,
-          explain: ['The length of ' + ev[0] + ' is given in minutes.', 'Nothing is added or removed, so the answer is the number of minutes.', 'So the answer is <b>' + mins + '</b>.'],
+          explain: ['The length of ' + ev[0] + ' is given in minutes and the question asks for minutes.', mins >= 60 ? '60 minutes make an hour, and ' + ev[0] + ' is ' + Math.floor(mins / 60) + ' hour' + (Math.floor(mins / 60) === 1 ? '' : 's') + ' and ' + (mins % 60) + ' minutes: ' + (60 * Math.floor(mins / 60)) + ' + ' + (mins % 60) + ' = ' + mins + ' minutes.' : 'The card says ' + mins + ' minutes and asks for minutes: ' + mins + ' = ' + mins + ', so nothing has to be converted.', 'So that is <b>' + mins + '</b> minutes.'],
           teach: 'Elapsed time is measured in minutes; 60 minutes make one hour.'
         });
       },
@@ -18574,7 +18699,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var right = DAYS[(i + 1) % 7];
         return MC(rng, 'Which day of the week comes right after ' + d + '?', right, others(DAYS, right, 3, rng), {
           b: 0.1,
-          explain: ['The week has 7 days in a fixed order.', 'The day after ' + d + ' is ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['The week has 7 days in a fixed order.', cycleWork(DAYS, d, right, 'day', 'week'), 'So the answer is <b>' + right + '</b>.'],
           teach: 'A week is a cycle of 7 days, so after Sunday comes Monday again.'
         });
       },
@@ -18583,7 +18708,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var mm = pick(rng, MONTHS), i = MONTHS.indexOf(mm), right = MONTHS[(i + 1) % 12];
         return MC(rng, 'Which month of the year comes right after ' + mm + '?', right, others(MONTHS, right, 3, rng), {
           b: 0.2,
-          explain: ['The year has 12 months in a fixed order.', 'After ' + mm + ' comes ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['The year has 12 months in a fixed order.', cycleWork(MONTHS, mm, right, 'month', 'year'), 'So the answer is <b>' + right + '</b>.'],
           teach: 'Months are a cycle of 12; after December the year starts again.'
         });
       },
@@ -18592,7 +18717,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var s = pick(rng, SEASONS), i = SEASONS.indexOf(s), right = SEASONS[(i + 1) % 4];
         return MC(rng, 'Which season comes right after ' + s + '?', right, others(SEASONS, right, 3, rng), {
           b: 0.3,
-          explain: ['The four seasons repeat in order.', 'After ' + s + ' comes ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['The four seasons repeat in order.', cycleWork(SEASONS, s, right, 'season', 'year'), 'So the answer is <b>' + right + '</b>.'],
           teach: 'Seasons repeat in the same order every year.'
         });
       },
@@ -18604,7 +18729,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         for (r = 0; r < 5; r++) { line = []; for (c = 0; c < 7; c++) { v = r * 7 + c - startDay + 1; line.push(v >= 1 && v <= 28 ? String(v) : ''); } cells.push(line); }
         return MC(rng, 'Look at the month grid. Which day of the week is the ' + day + 'th?', right, others(DAYS, right, 3, rng), {
           visual: V.grid({ rows: 5, cols: 7, cells: cells, rowLabels: ['wk 1', 'wk 2', 'wk 3', 'wk 4', 'wk 5'], label: 'a month on the calendar' }), b: 0.9,
-          explain: ['Find the column of the ' + day + 'th in the grid.', 'Read the day names down that column.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Count the days from the start of the grid: ' + day + ' + ' + startDay + ' − 1 = ' + (day + startDay - 1) + '.', 'That puts the ' + day + 'th in row ' + (Math.floor((day + startDay - 1) / 7) + 1) + ', column ' + (wd + 1) + ' of the grid, and ' + (day + startDay - 1) + ' \u00f7 7 = ' + Math.floor((day + startDay - 1) / 7) + ' remainder ' + wd + '.', 'Every date in that column is a ' + right + ', so the answer is <b>' + right + '</b>.'],
           teach: 'A calendar repeats the 7 day names down each column, so dates in one column share a day.'
         });
       }
@@ -19397,6 +19522,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var sh = R.shuffle(rng, opts);
     return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
   }
+  /* pointing at each object and saying a number IS the working at this rung */
+  function tallyUp(n) {
+    var out = '', i;
+    for (i = 1; i <= n && out.length < 24; i++) out += (i > 1 ? ', ' : '') + i;
+    if (i <= n) out += ', \u2026, ' + n;
+    return out;
+  }
   function row(glyphs, label) { var r = [], i; for (i = 0; i < glyphs.length; i++) r.push(glyphs[i]); return V.grid({ rows: 1, cols: glyphs.length, cells: [r], label: label || 'the pattern' }); }
 
   var COLOR = [{ g: '🔴', w: 'red' }, { g: '🔵', w: 'blue' }, { g: '🟡', w: 'yellow' }, { g: '🟢', w: 'green' }];
@@ -19440,6 +19572,13 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     function wordsOf(list) { return list.map(function (t) { return t.w; }); }
     var distract = function (right) { return wordsOf(core.concat(alpha)).filter(function (x) { return x !== right; }); };
 
+    /* the row numbered: the length of the core and the place inside it are
+       arithmetic, and a sentence ABOUT the pattern is not the pattern */
+    var coreLine = function () {
+      var c = core.length, n = seq.length;
+      return 'The core is ' + wordsOf(core).join(', ') + ' — a core of ' + c + ', and ' + n + ' boxes hold ' + n + ' \u00f7 ' + c + ' = ' + (n % c === 0 ? n / c : Math.floor(n / c)) + ' whole core' + ((n % c === 0 && n / c === 1) ? '' : 's') + (n % c ? ' and part of one' : '') + '.';
+    };
+    var boxTally = function (n) { return 'Count the boxes from the left: ' + tallyUp(n) + '.'; };
     return build(rng, [
       /* official anchor — complete the repeating pattern. */
       function () {
@@ -19453,7 +19592,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var shown = seq.slice(0, seq.length - 1).map(function (t) { return t.g; }).concat(['❒']);
         return MC(rng, 'The pattern repeats: ' + wordsOf(core).join(', ') + '. ' + ct + ', complete the pattern. What goes in the empty box?', fill.w, distract(fill.w), {
           visual: row(shown, 'the pattern with one box empty'), b: lo,
-          explain: ['Find the core that repeats: ' + wordsOf(core).join(', ') + '.', 'The empty box comes after ' + seq[seq.length - 2].w + ', so it holds ' + fill.w + '.', 'So the answer is <b>' + fill.w + '</b>.'],
+          explain: [coreLine(), boxTally(seq.length), 'The empty box is number ' + seq.length + ', right after ' + seq[seq.length - 2].w + ', so it holds <b>' + fill.w + '</b>.'],
           teach: teach
         });
       },
@@ -19462,7 +19601,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var two = [next, core[(seq.length + 1) % core.length]];
         return MC(rng, 'The pattern continues. What comes next?', next.w, distract(next.w), {
           visual: row(glyphs, 'the pattern so far'), b: lo + 0.1,
-          explain: ['The core is ' + wordsOf(core).join(', ') + '.', 'The row ends on ' + seq[seq.length - 1].w + ', so the next one is ' + next.w + '.', 'So the answer is <b>' + next.w + '</b>.'],
+          explain: [coreLine(), boxTally(seq.length), 'The row ends on number ' + seq.length + ', the ' + seq[seq.length - 1].w + ', so the next picture starts the core again: <b>' + next.w + '</b>.'],
           teach: teach
         });
       },
@@ -19471,7 +19610,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var lie = R.chance(rng, 0.5), claim = lie ? pick(rng, alpha.filter(function (t) { return t.w !== next.w; })) : next;
         return I_bool('Is the next picture in this pattern a ' + claim.w + '?', claim.w === next.w, {
           visual: row(glyphs, 'the pattern so far'), b: 0.3,
-          explain: ['The core repeats: ' + wordsOf(core).join(', ') + '.', 'After ' + seq[seq.length - 1].w + ' comes ' + next.w + '.', 'So the answer is <b>' + (claim.w === next.w ? 'Yes' : 'No') + '</b>.'],
+          explain: [coreLine(), boxTally(seq.length), 'After number ' + seq.length + ' (the ' + seq[seq.length - 1].w + ') comes the ' + next.w + ', so the answer is <b>' + (claim.w === next.w ? 'Yes' : 'No') + '</b>.'],
           teach: 'Test a proposed next term by saying the core out loud.'
         });
       },
@@ -19482,7 +19621,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         broken[bad] = wrong.g;
         return I_num('One box in this pattern breaks the rule. Count from the left and give the position of that box.', bad + 1, {
           visual: row(broken, 'one box does not follow the rule'), b: 0.7,
-          explain: ['Say the core over and over: ' + wordsOf(core).join(', ') + '.', 'Position ' + (bad + 1) + ' should be ' + core[bad % core.length].w + '.', 'So the answer is <b>' + (bad + 1) + '</b>.'],
+          explain: ['Say the core over and over: ' + wordsOf(core).join(', ') + ' — a core of ' + core.length + '.', boxTally(broken.length), 'Box ' + (bad + 1) + ' shows a ' + wrong.w + ' where the core says ' + core[bad % core.length].w + ', so the box that breaks the rule is <b>' + (bad + 1) + '</b>.'],
           teach: 'Checking a pattern means comparing every position with the core.'
         });
       },
@@ -19493,7 +19632,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var alt2 = [rule[1], rule[0], rule[1], rule[0], rule[1], rule[0]].map(function (t) { return t.g; }).join(' ');
         return MC(rng, 'Make a pattern with the rule: ' + wordsOf(rule).join(', ') + ', repeated.', right, [alt, alt2].filter(function (s) { return s !== right; }), {
           b: 0.6,
-          explain: ['The rule is ' + wordsOf(rule).join(', ') + ' over and over.', 'Only one row repeats exactly that.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['The rule is ' + wordsOf(rule).join(', ') + ' — a core of ' + rule.length + '.', 'Repeating it 3 times writes ' + rule.length + ' \u00d7 3 = ' + (rule.length * 3) + ' pictures: ' + right + '.', 'The row with exactly those ' + (rule.length * 3) + ' pictures is <b>' + right + '</b>.'],
           teach: 'A pattern is made, not guessed: write the core, then repeat it.'
         });
       },
@@ -19520,7 +19659,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var k = seq.length + R.int(rng, 2, 4), t = core[(k - 1) % core.length];
         return MC(rng, 'The pattern repeats: ' + wordsOf(core).join(', ') + ', and it keeps going for ' + k + ' boxes in all. Which picture is in the last box?', t.w, distract(t.w), {
           visual: row(glyphs, 'the pattern so far'), b: 1.1,
-          explain: ['The core has ' + core.length + ' pictures: ' + wordsOf(core).join(', ') + '.', 'Count around the core until box ' + k + '.', 'So the answer is <b>' + t.w + '</b>.'],
+          explain: ['The core has ' + core.length + ' pictures: ' + wordsOf(core).join(', ') + '.', 'Count around the core to box ' + k + ': ' + k + ' \u00f7 ' + core.length + ' = ' + Math.floor(k / core.length) + ' remainder ' + (k % core.length) + '.', 'Remainder ' + (k % core.length) + ' lands on the ' + t.w + ', so the last box holds <b>' + t.w + '</b>.'],
           teach: 'Any position in a repeating pattern is found by dividing by the length of the core.'
         });
       }
@@ -19588,7 +19727,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return I_num('The star is in ' + rNames[tr] + '. Which column is it in? Number the columns from the left.', tc + 1, {
           visual: gridPicture({ rowLabels: rNames }), b: lo,
           explain: ['Find ' + rNames[tr] + ' and follow it across to the star.',
-            'Count the columns from the left: the star is in ' + cNames[tc] + '.',
+            'Count the columns from the left: ' + tallyUp(cols) + ' — the star is in ' + cNames[tc] + '.',
             'So the answer is <b>' + (tc + 1) + '</b>.'],
           teach: gteach
         });
@@ -19597,7 +19736,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return I_num('The star is in ' + cNames[tc] + '. Which row is it in? Number the rows from the top.', tr + 1, {
           visual: gridPicture({ colLabels: cNames }), b: lo + 0.1,
           explain: ['Find ' + cNames[tc] + ' and follow it down to the star.',
-            'Count the rows from the top: the star is in ' + rNames[tr] + '.',
+            'Count the rows from the top: ' + tallyUp(rows) + ' — the star is in ' + rNames[tr] + '.',
             'So the answer is <b>' + (tr + 1) + '</b>.'],
           teach: gteach
         });
@@ -19605,9 +19744,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var gCell = function () {
         return MC(rng, 'Which cell holds the star?', cellAt(tr, tc), R.shuffle(rng, otherCells), {
           visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo + 0.2,
-          explain: ['Say the row the star is in: ' + rNames[tr] + '.',
-            'Then say the column it is in: ' + cNames[tc] + '.',
-            'So the answer is <b>' + cellAt(tr, tc) + '</b>.'],
+          explain: ['Count the rows down and the columns across: the star sits in ' + cellAt(tr, tc) + '.', 'Row first, then column — that cell is <b>' + cellAt(tr, tc) + '</b>.'],
           teach: 'Name a grid cell by both numbers: the row first, then the column.'
         });
       };
@@ -19616,9 +19753,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var truth = claim === cellAt(tr, tc);
         return I_bool(ct + ', is the star in ' + claim + '?', truth, {
           visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo,
-          explain: ['Find the star first: it sits in ' + rNames[tr] + ' and ' + cNames[tc] + '.',
-            'That is ' + (truth ? 'the cell the sentence names' : claim + ', and the star is not there') + '.',
-            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Count the rows down and the columns across: the star sits in ' + cellAt(tr, tc) + '.', 'The sentence names ' + claim + ', and the star ' + (truth ? 'is' : 'is not') + ' there, so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
           teach: gteach
         });
       };
@@ -19626,8 +19761,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return I_parts('Look at the grid and fill in both numbers for the star.', ['column', 'row'],
           [{ k: 'n', v: tc + 1 }, { k: 'n', v: tr + 1 }], {
           visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo + 0.2,
-          explain: ['Count the columns from the left: the star is in column ' + (tc + 1) + '.',
-            'Count the rows from the top: it is in row ' + (tr + 1) + '.',
+          explain: ['Count the columns from the left: ' + tallyUp(cols) + ' — the star is in column ' + (tc + 1) + '.',
+            'Count the rows from the top: ' + tallyUp(rows) + ' — it is in row ' + (tr + 1) + '.',
             'So fill in <b>column ' + (tc + 1) + '</b> and <b>row ' + (tr + 1) + '</b>.'],
           teach: gteach
         });
@@ -19635,8 +19770,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var gPair = function () {
         return I_point('Give the position of the star as (column, row).', [tc + 1, tr + 1], {
           visual: gridPicture({ rowLabels: rNames, colLabels: cNames }), b: lo + 0.3,
-          explain: ['The first number counts the columns from the left: ' + (tc + 1) + '.',
-            'The second counts the rows from the top: ' + (tr + 1) + '.',
+          explain: ['Count the columns from the left: ' + tallyUp(cols) + ' — the star is in column ' + (tc + 1) + '.',
+            'Count the rows from the top: ' + tallyUp(rows) + ' — it is in row ' + (tr + 1) + '.',
             'So the answer is <b>(' + (tc + 1) + ', ' + (tr + 1) + ')</b>.'],
           teach: 'A grid position needs two numbers: the row and the column.'
         });
@@ -19702,6 +19837,14 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
        solution panel is a rule a Pre-K learner never hears. The prompt is where
        they are told which end of the line is the front, and the picture shows it. */
     var FRONT_RULE = 'The door marks the front of the line, so the toy next to it is in front.';
+    /* pointing at each picture and saying its place — the working a position
+       question actually asks for, and the one the step budget must keep */
+    function numbered() {
+      var out = '', i;
+      for (i = LEAD; i < here.length; i++) out += (out ? ', ' : '') + (i - LEAD + 1);
+      return out;
+    }
+    function readOut() { return 'Count them as you read ' + (axis || '') + ': ' + numbered() + ' — ' + here.slice(LEAD).join(', ') + '.'; }
     var LINE_ASK = function (q) { return 'The toys are standing in a line to go through the door. The toy next to the door is at the front. ' + q; };
 
     return build(rng, [
@@ -19734,8 +19877,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           : pick(rng, ['Look at the picture. Which picture is ' + word + '?', ct + ', which picture is ' + word + '?']),
           right, wrongs, {
           visual: vis, b: lo,
-          explain: [line ? FRONT_RULE : 'Read the picture ' + axis + '.',
-            'The picture ' + word + ' is a ' + right + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: [line ? FRONT_RULE : 'Read the picture ' + axis + '.', readOut(),
+            'The picture ' + word + ' is number ' + (idx - LEAD + 1) + ', the ' + right + ', so the answer is <b>' + right + '</b>.'],
           teach: line ? 'The front of a line is the end nearest where it is going; the door shows where the line is going.' : teach
         });
       },
@@ -19747,10 +19890,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var rel = pick(rng, REL), truth = rel === REL[0];
         return I_bool((line ? LINE_ASK('') + 'Is the ' : 'Look at the picture. Is the ') + a + ' ' + rel + ' the ' + b + '?', truth, {
           visual: vis, b: lo + 0.2,
-          explain: [line ? FRONT_RULE : 'Read the picture ' + axis + '.'].concat([
-            'Find the ' + b + ' first, then look ' + rel + ' it.',
-            'The picture shows the ' + a + ' ' + REL[0] + ' the ' + b + '.',
-            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.']),
+          explain: [line ? FRONT_RULE : 'Read the picture ' + axis + '.', readOut()].concat([
+            'The picture shows the ' + a + ' ' + REL[0] + ' the ' + b + ', so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.']),
           teach: line ? 'The front of a line is the end nearest where it is going; the door shows where the line is going.' : teach
         });
       },
@@ -19761,7 +19902,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           visual: vis, b: lo + 0.2,
           explain: ['Find the toy and the box in the picture.',
             pos === 'inside' ? 'The box wraps all the way around the toy, so the toy is inside.' : 'The box is beside the toy, not around it, so the toy is outside.',
-            'So the answer is <b>' + (claim === pos ? 'Yes' : 'No') + '</b>.'],
+            'The card says ' + claim + ' and the picture shows ' + pos + ', so the answer is <b>' + (claim === pos ? 'Yes' : 'No') + '</b>.'],
           teach: teach
         });
       },
@@ -19771,8 +19912,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var truth = subj === 1;
         return I_bool('Look at the picture. Is the ' + nameAt(subj) + ' beside the empty box?', truth, {
           visual: vis, b: lo + 0.2,
-          explain: ['Find the empty box first.', 'The picture touching it is the ' + nameAt(1) + '; the ' + nameAt(subj) + ' is ' + (truth ? 'right there' : 'one place away from the empty box') + '.',
-            'So the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
+          explain: ['Find the empty box first.', readOut(), 'The picture touching it is the ' + nameAt(1) + '; the ' + nameAt(subj) + ' is ' + (truth ? 'right there' : 'one place away from the empty box') + ', so the answer is <b>' + (truth ? 'Yes' : 'No') + '</b>.'],
           teach: teach
         });
       },
@@ -19784,8 +19924,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             'The toy is ' + pos + ' the box', ['The toy is ' + other2 + ' the box', 'The box is inside the toy'], {
             visual: vis, b: 0.4,
             explain: [pos === 'inside' ? 'The box is drawn all the way around the toy.' : 'The box stands beside the toy, so the toy is not inside.',
-              'That is what ' + pos + ' means: ' + (pos === 'inside' ? 'the box holds the toy' : 'the toy is not held by the box') + '.',
-              'So the answer is <b>The toy is ' + pos + ' the box</b>.'],
+              'That is what ' + pos + ' means: ' + (pos === 'inside' ? 'the box holds the toy' : 'the toy is not held by the box') + ', so the sentence that matches is <b>The toy is ' + pos + ' the box</b>.'],
             teach: teach
           });
         }
@@ -19794,9 +19933,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           'The ' + subj + ' is beside the empty box',
           ['The ' + subj + ' is not beside the empty box', 'The ' + nameAt(0) + ' is beside the empty box'], {
           visual: vis, b: 0.5,
-          explain: ['Read left to right: ' + here.join(', ') + '.',
-            'The empty box is last, so the picture touching it on its left is the ' + subj + '.',
-            'So the answer is <b>The ' + subj + ' is beside the empty box</b>.'],
+          explain: ['Read left to right: ' + here.join(', ') + '.', readOut(),
+            'The empty box is last, so the picture touching it on its left is the ' + subj + ', and the sentence that matches is <b>The ' + subj + ' is beside the empty box</b>.'],
           teach: teach
         });
       },
@@ -19813,9 +19951,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (wrongs.length < 2) return null;
         return MC(rng, (line ? LINE_ASK('') : ct + ',') + ' Which sentence says what the picture shows?', right, wrongs, {
           visual: vis, b: 0.5,
-          explain: [line ? FRONT_RULE : 'Read the picture ' + (axis || 'as it lies') + ': ' + here.join(', ') + '.',
-            'So the ' + a + ' is ' + rel + ' the ' + b + '.',
-            'So the answer is <b>' + right + '</b>.'],
+          explain: [line ? FRONT_RULE : 'Read the picture ' + (axis || 'as it lies') + ': ' + here.join(', ') + '.', readOut(),
+            'The ' + a + ' is number 1 and the ' + b + ' is number 2, so the sentence that matches is <b>' + right + '</b>.'],
           teach: 'A position sentence names the object, the position word, and the object it is compared with.'
         });
       },
@@ -19828,7 +19965,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           'How many ' + (line ? 'toys' : 'pictures') + ' do you see in all?']), n, {
           visual: vis, b: -0.3,
           explain: [(line ? 'Count the toys in the line, starting next to the door' : 'Count the pictures one by one ' + (axis || '')) + '.',
-            'The last number said is ' + n + '.',
+            n >= 2 ? 'Count them: ' + tallyUp(n) + ' — that is ' + n + '.' : 'The line holds 1 toy and the door marks its front: 1 + 1 = 2 cells in the picture.',
             'So the answer is <b>' + n + '</b>.'],
           teach: 'Position pictures still have a count: count them in order so none is missed.'
         });
@@ -19845,9 +19982,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!wrongs.length) return null;
         return MC(rng, 'Which list matches the picture, read ' + axis + '?', right, wrongs, {
           visual: vis, b: 0.7,
-          explain: ['Read the picture ' + axis + ' from the first picture to the last.',
-            'That gives ' + right + '.',
-            'So the answer is <b>' + right + '</b>.'],
+          explain: ['Read the picture ' + axis + ' from the first picture to the last.', readOut(),
+            'Numbered in that order, the list is <b>' + right + '</b>.'],
           teach: 'Reading a picture in a fixed order keeps the description straight.'
         });
       },
@@ -19924,9 +20060,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       /* official anchor — put each object in the group that matches the rule. */
       function () {
         var t = pick(rng, items), wrong = groupOf(t) === grp ? other : grp;
+        var nMine = items.filter(function (q) { return groupOf(q) === groupOf(t); }).length;
         return MC(rng, ct + ', sort by ' + ruleWord + '. Which group does the ' + nameOf(t) + ' belong to?', groupOf(t), [wrong, 'none of these groups'], {
           visual: row(glyphs, 'the objects to sort'), b: lo,
-          explain: ['The rule is ' + ruleWord + '.', 'The ' + nameOf(t) + ' matches ' + groupOf(t) + '.', 'It does not match ' + wrong + '.', 'So the answer is <b>' + groupOf(t) + '</b>.'],
+          explain: ['The rule is ' + ruleWord + '.', 'Count the picture by that rule: ' + groupOf(t) + ' = ' + nMine + ', ' + wrong + ' = ' + (items.length - nMine) + '.', 'The ' + nameOf(t) + ' is one of the ' + groupOf(t) + ' ones, so it sorts under <b>' + groupOf(t) + '</b>.'],
           teach: teach
         });
       },
@@ -19937,7 +20074,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var nOther = items.length - n;
         return I_num('Look at the picture. How many of them are ' + v + ' shapes?', n, {
           visual: row(glyphs, 'the objects to sort'), b: lo - 0.2,
-          explain: ['Find every ' + v + ' shape in the picture.', 'Count them: ' + n + ' and the rest ' + nOther + ' — the group has ' + n + '.'],
+          explain: ['Find every ' + v + ' shape in the picture.', 'Count them: ' + tallyUp(n) + ' — that is ' + n + ' ' + v + ' shapes.', 'The rest are not: ' + n + ' + ' + nOther + ' = ' + items.length + ', the number drawn, so the group has <b>' + n + '</b>.'],
           teach: 'Counting a group means counting only the objects that match the rule.'
         });
       },
@@ -19948,7 +20085,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var right = (groupOf(a) === groupOf(b) ? 'same' : 'different');
         return MC(rng, 'Are these two objects the same or different by ' + ruleWord + '?', right, [right === 'same' ? 'different' : 'same'], {
           visual: V.grid({ rows: 1, cols: 2, cells: [[a.g, b.g]], label: 'two objects' }), b: 0.1,
-          explain: ['Compare them by ' + ruleWord + '.', nameOf(a) + ' is ' + groupOf(a) + ' and ' + nameOf(b) + ' is ' + groupOf(b) + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Compare them by ' + ruleWord + '.', nameOf(a) + ' is ' + groupOf(a) + ' and ' + nameOf(b) + ' is ' + groupOf(b) + '.', nameOf(a) + ' and ' + nameOf(b) + ' ' + (right === 'same' ? 'are both ' + groupOf(a) + ', so by ' + ruleWord + ' they are <b>same</b>.' : '— one is ' + groupOf(a) + ' and the other ' + groupOf(b) + ', so by ' + ruleWord + ' they are <b>different</b>.')],
           teach: 'Same and different are always decided by one named feature.'
         });
       },
@@ -19971,7 +20108,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         wrongs = wrongs.filter(function (x) { return x !== nameOf(odd); });
         return MC(rng, 'Which object does NOT belong with the others?', nameOf(odd), wrongs, {
           visual: row(set.map(function (t) { return t.g; }), 'four of these go together'), b: 0.6,
-          explain: ['Four of them are like this: ' + nameOf(keep) + '.', 'The ' + nameOf(odd) + ' is the one that does not match.', 'So the answer is <b>' + nameOf(odd) + '</b>.'],
+          explain: ['Count the ones that follow the rule: ' + tallyUp(4) + ' — that is 4 ' + nameOf(keep) + 's.', 'One more object is drawn and it is a ' + nameOf(odd) + ': 4 + 1 = 5 in all.', 'The ' + nameOf(odd) + ' breaks the rule, so the object that does not belong is <b>' + nameOf(odd) + '</b>.'],
           teach: 'The odd one out is the one that breaks the rule the others follow.'
         });
       },
@@ -19980,7 +20117,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var t = pick(rng, items), claim = R.chance(rng, 0.5) ? groupOf(t) : (groupOf(t) === grp ? other : grp);
         return I_bool('Does the ' + nameOf(t) + ' go in the ' + claim + ' group?', claim === groupOf(t), {
           visual: row(glyphs, 'the objects to sort'), b: 0.4,
-          explain: ['The rule is ' + ruleWord + '.', 'The ' + nameOf(t) + ' is ' + groupOf(t) + '.', 'So the answer is <b>' + (claim === groupOf(t) ? 'Yes' : 'No') + '</b>.'],
+          explain: ['The rule is ' + ruleWord + '.', 'The ' + nameOf(t) + ' is ' + groupOf(t) + ', and the group on the card is ' + claim + ': ' + groupOf(t) + (claim === groupOf(t) ? ' is the same as ' : ' is not the same as ') + claim + '.', 'So the answer is <b>' + (claim === groupOf(t) ? 'Yes' : 'No') + '</b>.'],
           teach: 'Check a sort by naming the feature of the object and of the group.'
         });
       },
@@ -19999,7 +20136,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         ].filter(function (x) { return x !== right && x.indexOf(': none  |  other: ') < 0 || g1.length === 0; });
         return MC(rng, 'Which way sorts these objects correctly?', right, wrongs, {
           visual: row(glyphs, 'the objects to sort'), b: 0.7,
-          explain: ['Sort one object at a time.', 'The ' + grp + ' group ends up with ' + g1.length + ' objects and the other with ' + g2.length + '.', 'So the answer is <b>' + right + '</b>.'],
+          explain: ['Sort one object at a time.', 'The ' + grp + ' group ends up with ' + g1.length + ' objects and the other with ' + g2.length + ': ' + g1.length + ' + ' + g2.length + ' = ' + items.length + ', the number drawn.', 'Every object is placed once, so the sort is <b>' + right + '</b>.'],
           teach: 'A correct sort puts every object in exactly one group.'
         });
       },
@@ -20010,7 +20147,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var both = setA.filter(function (t) { return setB.indexOf(t) >= 0; }).length;
         return I_num('Circle A holds ' + setA.map(nameOf).join(', ') + '. Circle B holds ' + setB.map(nameOf).join(', ') + '. How many objects are in BOTH circles?', both, {
           visual: V.table(['Circle A', 'Circle B'], [[setA.map(nameOf).join(', '), setB.map(nameOf).join(', ')]]), b: 0.9,
-          explain: ['List what each circle holds.', 'The objects in both lists are the overlap.', 'There ' + (both === 1 ? 'is <b>1</b> of them.' : 'are <b>' + both + '</b> of them.')],
+          explain: ['Circle A holds ' + setA.length + ' names and circle B holds ' + setB.length + ': ' + setA.length + ' + ' + setB.length + ' = ' + (setA.length + setB.length) + ' listings.', 'The names that appear in both lists are the overlap: ' + setA.filter(function (q) { return setB.indexOf(q) >= 0; }).map(nameOf).join(', ') + '.', 'That is ' + both + ' object' + (both === 1 ? '' : 's') + ' in both circles, so the answer is <b>' + both + '</b>.'],
           teach: 'The overlap of a Venn diagram holds what the two rules share.'
         });
       },
@@ -20019,11 +20156,21 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var rules = vennRules();
         var t = pick(rng, pool);
         var m = rules.holds(t);
+        /* the object's own feature against the rule the circle states — the test
+           the child has to perform, not the yes/no it ends with */
+        var ruleTest = function (label) {
+          var mm = /(\d+)/.exec(label);
+          if (mm) { var sd = (SIDES[t.s || t.w] || 0); return 'A ' + nameOf(t) + ' has ' + sd + ' sides, and ' + label + ' wants ' + mm[1] + ': ' + sd + (sd === +mm[1] ? ' is the same as ' : ' is not the same as ') + mm[1] + '.'; }
+          if (/^round/.test(label)) { var rd = (t.s === 'circle' || t.w === 'circle'); return 'A ' + nameOf(t) + ' is ' + (rd ? 'a circle, so it is round' : 'made of straight sides, so it is not round') + ', and ' + label + ' ' + (rd ? 'takes it' : 'does not take it') + '.'; }
+          var w0 = label.replace(/\s+shapes$/, '');
+          var hit = (t.c === w0 || t.s === w0 || t.w === w0);
+          return 'A ' + nameOf(t) + ' is ' + (t.c === w0 ? t.c + ' in colour' : (t.s === w0 ? t.s + ' in shape' : 'a ' + nameOf(t))) + ', so it ' + (hit ? 'is' : 'is not') + ' one of the ' + label + '.';
+        };
         var right = m[0] && m[1] ? 'in both circles' : m[0] ? 'only in the first circle' : m[1] ? 'only in the second circle' : 'in neither circle';
         var opts = ['only in the first circle', 'only in the second circle', 'in both circles', 'in neither circle'];
         return MC(rng, 'One circle holds ' + rules.a + ', the other holds ' + rules.b + '. Where does the ' + nameOf(t) + ' go?', right, opts.filter(function (o) { return o !== right; }), {
           visual: V.grid({ rows: 1, cols: 1, cells: [[t.g]], label: 'the object to place' }), b: 1.1,
-          explain: ['Rule one, ' + rules.a + ': ' + (m[0] ? 'yes' : 'no') + '.', 'Rule two, ' + rules.b + ': ' + (m[1] ? 'yes' : 'no') + '.', 'So the object goes <b>' + right + '</b>.'],
+          explain: [ruleTest(rules.a), ruleTest(rules.b), 'Two rules, one object: it goes <b>' + right + '</b>.'],
           teach: 'In a Venn diagram an object can be in one circle, both, or neither.'
         });
       }
@@ -87160,11 +87307,23 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
          derivation is cut off before it reaches the answer. The allowance
          grows only by the number of genuine working steps, and never past six,
          so a solution stays readable. */
+      /* Does this step DO the work, or only talk about it? One test, used both
+         to grow the step budget and to choose which steps the budget drops, so the
+         two cannot disagree about what counts as working. It is the same bar
+         src/_work/explainq.js measures and 99-gen-zzzz-workcheck.js inserts
+         against: a printed relation, a comparison in words, a count-out, an
+         ordered place listing, or a number operating on a number. */
+      var computes = function (t) {
+        return /[-\d.)<]\s*(?:[=≈<>≤≥≠]|\s*[<>]\s*)/.test(t) || /\d\s*[<>≤≥]=?\s*\d/.test(t) ||
+          /[\d(]\s*(?:[+\-−*/×÷]|is\s+|plus\b|minus\b|times\b|divided\s+by\b|multiplied\s+by\b|added\s+to\b|subtract(?:ed)?\s+from\b|more\s+than\b|less\s+than\b|fewer\s+than\b|equal(?:s)?\s+to\b|out\s+of\b|per\b|for\s+every\b)\s*[-−+]?\s*[\d.]/i.test(t) ||
+          /[-\d.]\s*(?:<|>|≤|≥|<>|>=|<=|≠)\s*[-−]?[\d.]+|[\d.]+\s*(?:is\s+(?:not\s+)?(?:greater|less|equal|bigger|smaller|larger|fewer|more|the\s+same\s+as|not\s+the\s+same\s+as)|is\s+bigger|is\s+smaller)\b/i.test(t) ||
+          /(?:\b\d+(?:st|nd|rd|th)\b\W{0,3}){3,}|\brow\s*\d+\b[\s\S]{0,60}\bcolumn\s*\d+\b|\b(?:count|counts|counting|picture shows|shows)\b[^.\n]{0,48}\b\d+(?:\s*,\s*\d+){1,}/i.test(t);
+      };
       if (budget != null && it.explain) {
         var workSteps = 0, wi;
         for (wi = 0; wi < it.explain.length; wi++) {
           var wt = String(it.explain[wi]).replace(/<[^>]+>/g, '');
-          if (/[-\d.)<]\s*(?:[=≈<>≤≥≠]|\s*[<>]\s*)/.test(wt) || /\d\s*[<>≤≥]=?\s*\d/.test(wt)) workSteps++;
+          if (computes(wt)) workSteps++;
         }
         if (workSteps > 0) budget = Math.max(budget, Math.min(workSteps + 1, 6));
       }
@@ -87172,9 +87331,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var steps = it.explain.slice();
         var worth = function (txt) {
           var t = String(txt == null ? '' : txt).replace(/<[^>]+>/g, '');
-          if (/[-\d.)<]\s*(?:[=≈<>≤≥≠]|\s*[<>]\s*)/.test(t) || /\d\s*[<>≤≥]=?\s*\d/.test(t)) return 3;   /* a relation */
-          if (/\b\d/.test(t)) return 2;                                /* names the numbers */
-          if (/^(?:Therefore|So|Hence)\b/.test(t.trim())) return 0;    /* announces the answer */
+          if (computes(t)) return 3;                                                /* the working itself */
+          if (/\b\d/.test(t)) return 2;                                              /* names the numbers */
+          if (/^(?:Therefore|So|Hence)\b/.test(t.trim())) return 0;                  /* announces the answer */
           return 1;                                                    /* a rule stated in words */
         };
         while (steps.length > budget) {
@@ -88529,6 +88688,16 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
      served as a choice card — at every grade, not only the little ones. The
      policy layer (DP.mcStr) owns that decision and this helper passes its own
      honest near-misses down to it. */
+  /* Is this answer a WORD rather than a number or a piece of notation? The
+     policy layer asks the same question in 99-gen-zzz-bandpolicy.js:228 with the
+     same test — one pattern, short, letters only. It was called here as if it
+     were a function that already existed, and five forms (coordinate #17,
+     exponents #11 and #12, percent #16, transform #22) threw on every draw
+     while reading in the source like a question type the deck offered. */
+  function wordAnswer(pat) {
+    var s = String(pat == null ? '' : pat);
+    return s.length <= 22 && /^[a-z][a-z '’-]*$/i.test(s);
+  }
   function askStr(rng, sk, prompt, right, wrongs, o) {
     var pats = [].concat(right);
     if (pats.length === 1 && typeof pats[0] === 'string' && !/[^[\]|\\]/.test(pats[0])) right = variants(pats[0]);
@@ -90143,13 +90312,25 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         if (!/translat|move|rule|image|shift|coordinate|slide|transform|point/.test(ttl)) return null;
         var tr = int(rng, 1, 5) * (R.chance(rng, 0.5) ? 1 : -1);
         var img = [p1[0] + tr, p1[1]];
+        /* when the moved coordinate lands on a number the question already
+           prints, the card states its own answer and the drawer eats the
+           draw; let another shape serve it instead */
+        if (img[0] === p1[0] || img[0] === p1[1] || img[0] === tr || img[1] === p1[0] || img[1] === tr)
+          return null;
         return I_point('Translate (' + p1[0] + ', ' + p1[1] + ') ' + (tr > 0 ? tr + ' units right' : (-tr) + ' units left') + '. Write the image point.', img, {
           teach: 'A horizontal translation changes only the x-coordinate.',
           explain: explainOk(['Add ' + tr + ' to the x-coordinate: ' + p1[0] + ' + (' + tr + ') = ' + img[0] + '.', 'The image is <b>(' + img[0] + ', ' + img[1] + ')</b>.'], '(' + img[0] + ', ' + img[1] + ')') });
       },
       function () {
         if (!/reflect|mirror|symmetr|rule|image|coordinate|transform|point|quadrant/.test(ttl)) return null;
-        var rule = pick(rng, [['(x, y) → (−x, y)', 'reflection in the y-axis', [-p1[0], p1[1]]], ['(x, y) → (x, −y)', 'reflection in the x-axis', [p1[0], -p1[1]]]]);
+        var opts = [['(x, y) → (−x, y)', 'reflection in the y-axis', [-p1[0], p1[1]]], ['(x, y) → (x, −y)', 'reflection in the x-axis', [p1[0], -p1[1]]]];
+        var rule = pick(rng, opts);
+        /* a point that lies ON the mirror is its own image, so the question would
+           print its own answer and the drawer hands back nothing at all. Step
+           across to the other mirror; give the draw up only at the origin, where
+           neither mirror moves the point. */
+        if (rule[2][0] === p1[0] || rule[2][0] === p1[1] || rule[2][1] === p1[0] || rule[2][1] === p1[1])
+          return null;
         return I_point('Apply the rule ' + rule[0] + ', a ' + rule[1] + ', to the point (' + p1[0] + ', ' + p1[1] + ').', rule[2], {
           teach: 'A reflection changes the sign of the coordinate perpendicular to the mirror.',
           explain: explainOk(['The rule ' + rule[0] + ' is applied to (' + p1[0] + ', ' + p1[1] + ').', 'The image point is <b>(' + rule[2][0] + ', ' + rule[2][1] + ')</b>.'], '(' + rule[2][0] + ', ' + rule[2][1] + ')') });
@@ -91330,11 +91511,19 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         if (!/coupon|deal|cheapest|best|compare|buy|save|discount|price|money|cost/.test(ttl)) return null;
-        var best = p1 < p2 && p1 < p3 ? money(p1) : p2 < p3 ? money(p2) : money(p3);
+        /* The biggest discount saves the most. The pick here used to be
+           `p1 < p2 && p1 < p3 ? p1 : …`, which chose the SMALLEST coupon and
+           then said "the greatest saving is" — a card that graded the wrong
+           answer. A tie between the top two is not a question, so it declines. */
+        var rank = [p1, p2, p3].slice().sort(function (a, b) { return b - a; });
+        if (rank[0] === rank[1]) return null;
+        var best = money(rank[0]);
+        var wrongs = [money(rank[1]), money(rank[2])].filter(function (x) { return x !== best; });
+        if (wrongs.length < 2) return null;
         return askStr(rng, sk, 'Three coupons: ' + money(p1) + ' off, ' + money(p2) + ' off and ' + money(p3) + ' off. Which saves the most?',
-          [best], [p1 < p2 ? money(p2) : money(p1), money(+(parseFloat(best) + 0.5).toFixed(2))],
+          [best], wrongs,
           { teach: 'The largest discount saves the most money.',
-            explain: explainOk(['Compare ' + money(p1) + ', ' + money(p2) + ' and ' + money(p3) + '.', 'The greatest saving is <b>' + best + '</b>.'], best) });
+            explain: explainOk(['Compare the three: ' + money(rank[0]) + ' is more than ' + money(rank[1]) + ', and ' + money(rank[1]) + ' is more than ' + money(rank[2]) + '.', 'The greatest saving is <b>' + best + '</b>.'], best) });
       },
       function () {
         var unit = +(p1 / int(rng, 2, 4)).toFixed(2);
@@ -106823,6 +107012,439 @@ var MW = {
     var line = 'Count from the left: ' + list + ' \u2014 box ' + fmt(pos) + ' is the one that does not match.';
     return line.length <= 88 ? line : null;
   }
+  /* "Which friendly number do you use instead of 13?" — the card asks which ten
+     to swap in, and the two distances are arithmetic it never writes down. */
+  function friendlyTenDistanceLine(item, text, shown) {
+    if (!/friendly number/i.test(String(text))) return null;
+    var m = /instead of\s+(\d+)/i.exec(String(text));
+    if (!m) return null;
+    var n = numOf(m[1]);
+    var want = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (n == null || want == null) return null;
+    var lo = Math.floor(n / 10) * 10, hi = lo + 10, dl = n - lo, dh = hi - n;
+    if (dl === 0 || dl === dh) return null;
+    var near = dl < dh ? lo : hi;
+    if (near !== want) return null;
+    var line = fmt(n) + ' is ' + fmt(dl) + ' above ' + fmt(lo) + ' and ' + fmt(dh) + ' below ' + fmt(hi) + ', so the friendly ten is ' + fmt(near) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Which is the best estimate for 68 ÷ 4?" — the exact quotient is one line of
+     arithmetic, and the estimate is simply the choice it lands nearest. */
+  function estimateNearestChoiceLine(item, text, shown) {
+    var m = /estimate for\s+([\d.]+)\s*(?:\u00F7|\/)\s*([\d.]+)/i.exec(String(text));
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[2]);
+    if (a == null || b == null || !b) return null;
+    if (!Array.isArray(item && item.choices) || item.choices.length < 2) return null;
+    var q = a / b, best = null, bestd = null, tie = false, i, v, d;
+    for (i = 0; i < item.choices.length; i++) {
+      v = numOf(String(item.choices[i]).replace(/[^0-9.\-]/g, ''));
+      if (v == null) return null;
+      d = Math.abs(v - q);
+      if (bestd === null || d < bestd - 1e-9) { bestd = d; best = v; tie = false; }
+      else if (Math.abs(d - bestd) < 1e-9) tie = true;
+    }
+    var want = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (tie || best === null || want == null || best !== want) return null;
+    var line = 'Exactly, ' + fmt(a) + ' \u00F7 ' + fmt(b) + ' = ' + fmt(Math.round(q * 100) / 100) + ' - the nearest choice is ' + fmt(best) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Which is the ratio 10 : 8 in lowest terms?" — the card names the divisor but
+     never does the two divisions; writing them is the missing working. */
+  function ratioGcfShownLine(item, text, shown) {
+    var m = /ratio\s+(\d+)\s*:\s*(\d+)/i.exec(String(text));
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[2]);
+    if (a == null || b == null || !a || !b) return null;
+    var x = a, y = b, t;
+    while (y) { t = x % y; x = y; y = t; }
+    var d = x;
+    if (d <= 1) return null;
+    var mark = String(shown == null ? '' : shown).replace(/[^0-9]+/g, '|');
+    if (mark !== String(a / d) + '|' + String(b / d)) return null;
+    var line = fmt(a) + ' \u00F7 ' + fmt(d) + ' = ' + fmt(a / d) + ' and ' + fmt(b) + ' \u00F7 ' + fmt(d) + ' = ' + fmt(b / d) + '.';
+    return line.length <= 88 ? line : null;
+  }
+/* candidate AV — the cards whose own numbers are printed and simply never worked.
+ * Developed against live cards:
+ *   node tmp/wcblock_test.js tmp/wcblocks/AV_batch.js 'stem|below zero|magnitude|Multiply|sides and angles' 6
+ *
+ * Every rule here takes numbers the CARD printed (a stem-and-leaf table, a chart
+ * row, a vector's components, a temperature) and writes the one line the question
+ * asks for. Each refuses unless the result is the card's own mark.
+ */
+  var wcNum = function (s) {
+    var m = /[-−]?\d+(?:\.\d+)?/.exec(String(s == null ? '' : s).replace(/−/g, '-'));
+    if (!m) return null;
+    var v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+  };
+  /* a stem-and-leaf table the card itself printed: [[stem, "3 4 5"], …] */
+  var wcStemRows = function (item) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'table' || !v.head) return null;
+    var h = (v.head || []).map(function (x) { return String(x).toLowerCase(); });
+    if (h.indexOf('stem') < 0 || h.indexOf('leaf') < 0) return null;
+    var si = h.indexOf('stem'), li = h.indexOf('leaf'), out = [], i, r;
+    for (i = 0; i < (v.rows || []).length; i++) {
+      r = v.rows[i];
+      var st = wcNum(r[si]), lf = String(r[li] == null ? '' : r[li]).trim();
+      if (st === null || !/^[-−]?\d+(?:\s+[-−]?\d+)*$/.test(lf)) continue;
+      out.push({ stem: st, leaves: lf.split(/\s+/).map(wcNum).filter(function (q) { return q !== null; }) });
+    }
+    return out.length ? out : null;
+  };
+  function stemLeafCountLine(item, text, shown) {
+    if (!/how many (data )?values|how many values/i.test(String(text))) return null;
+    var rows = wcStemRows(item);
+    if (!rows) return null;
+    var total = 0, counts = [], i;
+    for (i = 0; i < rows.length; i++) { total += rows[i].leaves.length; counts.push(rows[i].leaves.length); }
+    var want = wcNum(shown);
+    if (want === null || total !== want || counts.length < 2) return null;
+    /* an em dash before an expression reads as a minus sign to anything
+       that checks the arithmetic (tools/solcheck.js said so the first run),
+       so the sum gets its own sentence. */
+    var line = 'Count the leaves row by row: ' + counts.join(', ') + '. Adding them: ' + counts.join(' + ') + ' = ' + total + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* the least/greatest value in a stem-and-leaf plot is a place-value sum */
+  function stemLeafValueLine(item, text, shown) {
+    if (!/least|greatest|smallest|largest|minimum|maximum/i.test(String(text))) return null;
+    var rows = wcStemRows(item);
+    if (!rows) return null;
+    var vals = [], i, j, unit = 1;
+    var key = String(JSON.stringify(item.visual || {}));
+    var km = /means\s*(-?\d+)/i.exec(key);
+    if (km) { var kv = wcNum(km[1]); var st0 = rows[0].stem; if (kv !== null && Math.abs(kv) >= Math.abs(st0) * 10) unit = 10; }
+    for (i = 0; i < rows.length; i++) for (j = 0; j < rows[i].leaves.length; j++) vals.push(rows[i].stem * unit + rows[i].leaves[j]);
+    if (!vals.length) return null;
+    var hi = /greatest|largest|maximum|highest/.test(String(text));
+    vals.sort(function (a, b) { return a - b; });
+    var pickv = hi ? vals[vals.length - 1] : vals[0];
+    var want = wcNum(shown);
+    if (want === null || pickv !== want) return null;
+    var st = rows[hi ? rows.length - 1 : 0].stem;
+    var lf = rows[hi ? rows.length - 1 : 0].leaves.slice().sort(function (a, b) { return hi ? b - a : a - b; })[0];
+    var line = 'That row reads ' + st + ' | ' + lf + ': ' + st + ' \u00d7 ' + unit + ' + ' + lf + ' = ' + pickv + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* a chart the card printed: two named points, and the change between them */
+  var wcChart = function (item) {
+    var v = item && item.visual;
+    if (!v) return null;
+    var d = (v.data && v.data.length) ? v.data : (v.rows && v.rows.length && v.rows[0] && v.rows[0].v != null ? v.rows : null);
+    if (!d) return null;
+    var out = [], i;
+    for (i = 0; i < d.length; i++) { var y = wcNum(d[i].v); if (d[i].label != null && y !== null) out.push({ label: String(d[i].label), v: y }); }
+    return out.length >= 2 ? out : null;
+  };
+  function chartChangeLine(item, text, shown) {
+    var pts = wcChart(item);
+    if (!pts) return null;
+    if (!/between/i.test(String(text))) return null;
+    /* the two points are named in the question, so they are found by looking
+       for the labels the chart itself printed — "Day 5" and "Day 6" are not one
+       word each, and a word-shaped pattern cannot catch them */
+    var hay = (String((item && item.prompt) || '') + ' ' + String(text)).toLowerCase();
+    var found = [], i;
+    for (i = 0; i < pts.length; i++) { var at = hay.indexOf(String(pts[i].label).toLowerCase()); if (at >= 0) found.push({ at: at, pt: pts[i] }); }
+    if (found.length !== 2) return null;
+    found.sort(function (x, y) { return x.at - y.at; });
+    var a = found[0].pt, b = found[1].pt;
+    var d = Math.abs(a.v - b.v), want = Math.abs(wcNum(shown) === null ? NaN : wcNum(shown));
+    if (!isFinite(d) || d !== want) return null;
+    var lo = a.v < b.v ? a : b, hi2 = a.v < b.v ? b : a;
+    var line = lo.label + ' shows ' + lo.v + ' and ' + hi2.label + ' shows ' + hi2.v + ': ' + hi2.v + ' \u2212 ' + lo.v + ' = ' + d + '.';
+    return line.length <= 88 ? line : null;
+  }
+  function chartTrendLine(item, text, shown) {
+    if (!/increase|decrease|rise|fall|went up|did .*increase/i.test(String(text))) return null;
+    var pts = wcChart(item);
+    if (!pts) return null;
+    var first = pts[0], last = pts[pts.length - 1];
+    var up = last.v > first.v;
+    var yes = /^(yes|true)$/i.test(String(shown == null ? '' : shown));
+    if (up !== yes) return null;
+    var line = 'First point ' + first.v + ', last point ' + last.v + ': ' + last.v + (up ? ' is more than ' : ' is less than ') + first.v + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* below zero, and "N units from zero on the negative side", are subtractions */
+  function belowZeroLine(item, text, shown) {
+    var m = /(-?\d+)\s*(?:\u00B0C|C|degrees?)?\s*(?:below|under)\s+zero/i.exec(String(text));
+    if (!m) return null;
+    var n = Math.abs(wcNum(m[1]));
+    var want = wcNum(shown);
+    if (n === null || want === null || want !== -n) return null;
+    var line = 'Zero minus ' + n + ': 0 \u2212 ' + n + ' = \u2212' + n + ', which is what below zero means.';
+    return line.length <= 88 ? line : null;
+  }
+  /* the absolute value the card names, written as the distance it is */
+  function absShownLine(item, text, shown) {
+    var m = /\|\s*([-\u2212]?\d+(?:\.\d+)?)\s*\|/.exec(String((item && item.prompt) || '') + ' ' + String(text));
+    if (!m) return null;
+    var n = parseFloat(m[1].replace(/\u2212/g, '-')), d = Math.abs(n);
+    var line = 'Its distance from zero is ' + d + ', so |' + n + '| = ' + d + ' and ' + d + ' = ' + d + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* scalar times a vector: every component is one multiplication the card owes */
+  function scalarVectorLine(item, text, shown) {
+    var m = /(-?\d+(?:\.\d+)?)\s*(?:\u00b7|\u00d7|x|\*)\s*[\u27e8\u2329<(]\s*(-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?){1,2})\s*[\u27e9\u232a>)]/i.exec(String((item && item.prompt) || '') + ' ' + String(text));
+    if (!m) return null;
+    var k = parseFloat(m[1].replace(/\u2212/g, '-'));
+    var parts = m[2].split(',').map(function (q) { return parseFloat(q.replace(/\u2212/g, '-')); });
+    if (!isFinite(k) || parts.length < 2) return null;
+    var prods = parts.map(function (q) { return Math.round(k * q * 1e6) / 1e6; });
+    var mark = String(shown == null ? '' : shown).replace(/\u2212/g, '-').match(/-?\d+(?:\.\d+)?/g) || [];
+    if (mark.length !== prods.length) return null;
+    var i;
+    for (i = 0; i < prods.length; i++) if (parseFloat(mark[i]) !== prods[i]) return null;
+    var line = prods.map(function (q, ix) { return k + ' \u00d7 ' + parts[ix] + ' = ' + q; }).join(', ');
+    return line.length <= 88 ? line : null;
+  }
+  /* the magnitude of a vector whose components the card printed */
+  function vectorMagnitudeLine(item, text, shown) {
+    if (!/magnitude/i.test(String(text))) return null;
+    var m = /[\u27e8\u2329<(\[]\s*(-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?){1,2})\s*[\u27e9\u232a>)\]]/.exec(String((item && item.prompt) || '') + ' ' + String(text));
+    if (!m) return null;
+    var parts = m[1].split(',').map(function (q) { return parseFloat(q.replace(/\u2212/g, '-')); });
+    var sq = parts.map(function (q) { return Math.round(q * q * 1e6) / 1e6; });
+    var sum = sq.reduce(function (a, b) { return a + b; }, 0);
+    var root = Math.round(Math.sqrt(sum) * 100) / 100;
+    var want = wcNum(String(shown == null ? '' : shown).replace(/\u2212/g, '-'));
+    if (want === null || Math.abs(root - want) > 0.011) return null;
+    var line = parts.map(function (q) { return '(' + q + ')\u00b2'; }).join(' + ') + ' = ' + sq.join(' + ') + ' = ' + sum + ', and \u221a' + sum + ' = ' + root + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* sides and angles of the named polygon, counted around */
+  function sidesAnglesLine(item, text, shown) {
+    var m = /(?:how many sides and angles does an?|an?)\s+([a-z]+)\s+(?:has how many vertices|have how many vertices|have\??|has\??)/i.exec(String((item && item.prompt) || ''));
+    if (!m) m = /how many sides and angles does an?\s+([a-z]+)/i.exec(String((item && item.prompt) || ''));
+    if (!m) m = /an?\s+([a-z]+) has how many vertices/i.exec(String((item && item.prompt) || ''));
+    if (!m) return null;
+    var SIDES = { rectangle: 4, square: 4, rhombus: 4, trapezoid: 4, parallelogram: 4, quadrilateral: 4, pentagon: 5, hexagon: 6, octagon: 8, triangle: 3 };
+    var n = SIDES[String(m[1]).toLowerCase()];
+    if (!n) return null;
+    var mark = String(shown == null ? '' : shown);
+    var nums = mark.match(/\d+/g) || [];
+    var i;
+    for (i = 0; i < nums.length; i++) if (+nums[i] !== n) return null;
+    if (!nums.length) return null;
+    var run = '', j;
+    for (j = 1; j <= n; j++) run += (j > 1 ? ', ' : '') + j;
+    var line = 'Count around it: ' + run + ' sides, and the corners where they meet: ' + run + ' angles.';
+    return line.length <= 88 ? line : null;
+  }
+/* candidate AW — senior cards whose numbers are printed and never worked.
+ *   node tmp/wcblock_test.js tmp/wcblocks/AW_senior.js 'Solve \||solution of|satisfies|\^|distance from|midpoint|modulus' 4
+ * Each rule reads only what the card printed and refuses unless its result is
+ * the card's own mark.
+ */
+  var AWnum = function (s) {
+    var v = parseFloat(String(s == null ? '' : s).replace(/\u2212/g, '-').replace(/[^0-9.\-+]/g, ''));
+    return isFinite(v) ? v : null;
+  };
+  /* a^b is a product the card can print */
+  function powerValueLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /(\d+(?:\.\d+)?)\s*\^?\s*(?:to the\s+)?(?:power|exponent)?\s*(?:\^|sup>|<\/sup>)?\s*(\d+)/.exec(p);
+    m = /(\d+)\s*\^\s*(\d+)/.exec(p) || m;
+    if (!m) return null;
+    var a = parseFloat(m[1]), e = parseFloat(m[2]);
+    if (!(e >= 2 && e <= 5 && a >= 2 && a <= 12)) return null;
+    var prod = 1, terms = [], i;
+    for (i = 0; i < e; i++) { prod *= a; terms.push(a); }
+    var want = AWnum(shown);
+    if (/how many times/i.test(p)) {
+      if (want !== e) return null;
+      var line2 = terms.join(' \u00d7 ') + ' = ' + prod + ', which is ' + e + ' factors of ' + a + '.';
+      return line2.length <= 88 ? line2 : null;
+    }
+    if (want !== prod) return null;
+    var line = terms.join(' \u00d7 ') + ' = ' + prod + ', so ' + a + '^' + e + ' = ' + prod + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "x = 14 is the solution of 9x = 126" — substitute and compare the two sides */
+  function solutionCheckLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /x\s*=\s*(-?\d+)\s+(?:is the solution of|satisfies|is a solution of)\s+(-?\d*)x\s*([+\u2212\-])\s*(\d+)\s*=\s*(-?\d+)/i.exec(p);
+    if (!m) {
+      m = /x\s*=\s*(-?\d+)\s+(?:is the solution of|satisfies)\s+x\s*([+\u2212\-])\s*(\d+)\s*=\s*(-?\d+)/i.exec(p);
+      if (m) m = [m[0], m[1], '', m[2], m[3], m[4]];
+    }
+    if (!m) return null;
+    var x = parseFloat(m[1]), k = m[2] === '' ? 1 : parseFloat(m[2]);
+    var op = m[3].replace(/\u2212/g, '-'), b = parseFloat(m[4]), rhs = parseFloat(m[5]);
+    var lhs = k * x + (op === '-' ? -b : b);
+    var yes = /^yes$/i.test(String(shown == null ? '' : shown));
+    if (yes !== (lhs === rhs)) return null;
+    var shownLhs = k === 1 ? '' : k + '\u00d7';
+    var line = 'Substitute ' + x + ': ' + shownLhs + x + ' ' + (op === '-' ? '\u2212 ' + b : '+ ' + b) + ' = ' + lhs + ', and ' + lhs + (lhs === rhs ? ' = ' + rhs : ' \u2260 ' + rhs) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* |x + a| + b = c: isolate, then the two cases are one subtraction each */
+  function absSolveLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /\|\s*x\s*([+\u2212\-])\s*(\d+)\s*\|\s*([+\u2212\-])\s*(\d+)\s*=\s*(\d+)/.exec(p);
+    if (!m) return null;
+    var c = (m[1].replace(/\u2212/g, '-') === '-' ? -1 : 1) * parseFloat(m[2]);
+    var op = m[3].replace(/\u2212/g, '-'), b = parseFloat(m[4]), rhs = parseFloat(m[5]);
+    var iso = rhs - (op === '-' ? -b : b);
+    if (!(iso > 0)) return null;
+    var r1 = -c - iso, r2 = -c + iso;
+    var nums = (String(shown == null ? '' : shown).match(/-?\d+/g) || []).map(parseFloat).sort(function (a, b2) { return a - b2; });
+    var want = [Math.min(r1, r2), Math.max(r1, r2)];
+    if (nums.length !== 2 || nums[0] !== want[0] || nums[1] !== want[1]) return null;
+    /* the bars are re-printed exactly as the card wrote them: the sign inside
+       them is the card's, only the right-hand side is new */
+    var inner = 'x ' + (m[1].replace(/\u2212/g, '-') === '-' ? '\u2212 ' + m[2] : '+ ' + m[2]);
+    var line = '|' + inner + '| = ' + rhs + ' \u2212 ' + b + ' = ' + iso + ', so x = ' + (-c) + ' \u00b1 ' + iso + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "the distance from x to 5 is 6" — the two ends are one sum each */
+  function distanceEqLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /distance from x to (-?\d+) is (\d+)/i.exec(p);
+    if (!m) return null;
+    var c = parseFloat(m[1]), d = parseFloat(m[2]);
+    var mark = String(shown == null ? '' : shown);
+    if (mark.indexOf('|') < 0) return null;
+    var line = 'That distance reaches ' + c + ' + ' + d + ' = ' + (c + d) + ' one way and ' + c + ' \u2212 ' + d + ' = ' + (c - d) + ' the other.';
+    return line.length <= 88 ? line : null;
+  }
+  /* the midpoint of two printed points halves their sum */
+  function midpointSumLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)\s*(?:and|to)\s*\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/.exec(p);
+    if (!m) return null;
+    var x1 = parseFloat(m[1]), y1 = parseFloat(m[2]), x2 = parseFloat(m[3]), y2 = parseFloat(m[4]);
+    var want = AWnum(shown);
+    if (want === null) return null;
+    var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    if (/x-coordinate/i.test(p)) {
+      if (mx !== want) return null;
+      var lx = '(' + x1 + ' + ' + x2 + ') \u00f7 2 = ' + (x1 + x2) + ' \u00f7 2 = ' + mx + '.';
+      return lx.length <= 88 ? lx : null;
+    }
+    if (/y-coordinate/i.test(p)) {
+      if (my !== want) return null;
+      var ly = '(' + y1 + ' + ' + y2 + ') \u00f7 2 = ' + (y1 + y2) + ' \u00f7 2 = ' + my + '.';
+      return ly.length <= 88 ? ly : null;
+    }
+    return null;
+  }
+  /* the modulus of a + bi: the squares the card printed, added */
+  function modulusLine(item, text, shown) {
+    if (!/modulus|absolute value/i.test(String(text))) return null;
+    var p = String((item && item.prompt) || '');
+    var m = /(-?\d+)\s*([+\u2212\-])\s*(\d+)\s*i/i.exec(p);
+    if (!m) return null;
+    var a = parseFloat(m[1]), b = (m[2].replace(/\u2212/g, '-') === '-' ? -1 : 1) * parseFloat(m[3]);
+    var sum = a * a + b * b, root = Math.round(Math.sqrt(sum) * 100) / 100;
+    var want = AWnum(shown);
+    if (want === null || Math.abs(root - want) > 0.011) return null;
+    var line = a + '\u00b2 + ' + b + '\u00b2 = ' + (a * a) + ' + ' + (b * b) + ' = ' + sum + ', and \u221a' + sum + ' = ' + root + '.';
+    return line.length <= 88 ? line : null;
+  }
+/* candidate AX — tables, sequences and shape names the card already prints.
+ *   node tmp/wcblock_test.js tmp/wcblocks/AX_senior2.js 'approaches|square root|sequence|Which shape|points' 4
+ */
+  var AXnum = function (s) {
+    var v = parseFloat(String(s == null ? '' : s).replace(/\u2212/g, '-').replace(/[^0-9.\-+]/g, ''));
+    return isFinite(v) ? v : null;
+  };
+  var AXWORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+  var AXSIDES = { triangle: 3, square: 4, rectangle: 4, rhombus: 4, parallelogram: 4, trapezoid: 4, quadrilateral: 4, pentagon: 5, hexagon: 6, octagon: 8 };
+  var AXrun = function (n) { var o = '', i; for (i = 1; i <= n && o.length < 30; i++) o += (i > 1 ? ', ' : '') + i; return o; };
+
+  /* a table of f(x) with a hole in it: the two printed neighbours average to the limit */
+  function limitTableLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'table' || !v.rows) return null;
+    var h = (v.head || []).map(function (x) { return String(x).toLowerCase(); });
+    var xi = h.indexOf('x'), fi = -1, i;
+    for (i = 0; i < h.length; i++) if (h[i].indexOf('f(x)') >= 0 || h[i] === 'f(x)' || h[i] === 'f') fi = i;
+    if (xi < 0 || fi < 0) return null;
+    var near = [], xs = [];
+    for (i = 0; i < v.rows.length; i++) {
+      var y = AXnum(v.rows[i][fi]);
+      if (y === null) continue;
+      near.push(y); xs.push(AXnum(v.rows[i][xi]));
+    }
+    if (near.length < 2) return null;
+    var mean = Math.round(((near[0] + near[near.length - 1]) / 2) * 1000) / 1000;
+    var want = AXnum(shown);
+    if (want === null || Math.abs(mean - want) > 1e-6) return null;
+    var line = 'The two printed outputs average: (' + near[0] + ' + ' + near[near.length - 1] + ') \u00f7 2 = ' + mean + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* the principal square root, checked by multiplying it back */
+  function sqrtCheckLine(item, text, shown) {
+    if (!/square root/i.test(String(text))) return null;
+    var m = /square root of\s+(\d+)/i.exec(String((item && item.prompt) || '') + ' ' + String(text));
+    if (!m) return null;
+    var n = parseFloat(m[1]), r = Math.round(Math.sqrt(n));
+    if (r * r !== n || r < 2) return null;
+    var want = AXnum(shown);
+    if (want !== r) return null;
+    var line = 'Multiply it back: ' + r + ' \u00d7 ' + r + ' = ' + n + ', so \u221a' + n + ' = ' + r + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* the next term of a printed sequence: the step or the multiplier is on the card */
+  function sequenceNextLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /(?:geometric|arithmetic) sequence\s+(-?\d+(?:\.\d+)?)(?:\s*,\s*(-?\d+(?:\.\d+)?))+/i.exec(p);
+    if (!m) m = /sequence\s+(-?\d+(?:\.\d+)?)(?:\s*,\s*(-?\d+(?:\.\d+)?))+/i.exec(p);
+    if (!m) return null;
+    var nums = String(m[0].replace(/^[a-z ]+/i, '')).match(/-?\d+(?:\.\d+)?/g).map(parseFloat);
+    if (nums.length < 3) return null;
+    var want = AXnum(shown);
+    if (want === null) return null;
+    var geo = /geometric/i.test(p);
+    if (geo) {
+      var r = nums[1] / nums[0];
+      if (!isFinite(r) || Math.abs(nums[2] / nums[1] - r) > 1e-9) return null;
+      var nx = Math.round(nums[nums.length - 1] * r * 1000) / 1000;
+      if (nx !== want) return null;
+      var lg = 'The multiplier is ' + nums[1] + ' \u00f7 ' + nums[0] + ' = ' + r + ', and ' + nums[nums.length - 1] + ' \u00d7 ' + r + ' = ' + nx + '.';
+      return lg.length <= 88 ? lg : null;
+    }
+    var d = nums[1] - nums[0];
+    if (Math.abs(nums[2] - nums[1] - d) > 1e-9) return null;
+    var nx2 = Math.round((nums[nums.length - 1] + d) * 1000) / 1000;
+    if (nx2 !== want) return null;
+    var la = 'The step is ' + nums[1] + ' \u2212 ' + nums[0] + ' = ' + d + ', and ' + nums[nums.length - 1] + ' + ' + d + ' = ' + nx2 + '.';
+    return la.length <= 88 ? la : null;
+  }
+  /* "which shape has six sides" — the count-out of the shape the card names */
+  function shapeNameCountLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/which shape|has how many|how many sides/i.test(p)) return null;
+    var mark = String(shown == null ? '' : shown).toLowerCase().replace(/^the\s+/, '');
+    var n = AXSIDES[mark];
+    if (!n) return null;
+    var pm = p.toLowerCase().match(/(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+(equal\s+)?sides/);
+    if (!pm) return null;
+    var asked = AXWORDS[pm[1]] !== undefined ? AXWORDS[pm[1]] : parseFloat(pm[1]);
+    if (asked !== n) return null;
+    var line = 'Count around ' + (/^[aeiou]/.test(mark) ? 'an ' : 'a ') + mark + ': ' + AXrun(n) + ' \u2014 that is ' + n + ' sides.';
+    return line.length <= 88 ? line : null;
+  }
+  /* plotted points: the rise over the run the card printed decides the trend */
+  function pointsTrendLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var nums = (p.match(/\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/g) || []);
+    if (nums.length < 2) return null;
+    var pts = nums.map(function (q) { var m = q.match(/-?\d+(?:\.\d+)?/g); return { x: parseFloat(m[0]), y: parseFloat(m[1]) }; });
+    var dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y;
+    if (!dx) return null;
+    var rises = dy / dx > 0;
+    var mark = String(shown == null ? '' : shown).toLowerCase();
+    if (mark.indexOf('rises') < 0 && mark.indexOf('falls') < 0) return null;
+    if (rises !== (mark.indexOf('rises') >= 0)) return null;
+    var line = 'From (' + pts[0].x + ', ' + pts[0].y + ') to (' + pts[1].x + ', ' + pts[1].y + '): (' + pts[1].y + ' \u2212 ' + pts[0].y + ') \u00f7 (' + pts[1].x + ' \u2212 ' + pts[0].x + ') = ' + (dy / dx) + '.';
+    return line.length <= 88 ? line : null;
+  }
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106862,7 +107484,12 @@ var MW = {
       signProductClaimLine, systemSubstitutedLine, coordinatePartLine, valueTestLine, gridRowsCountLine,
       oddChoiceByTwosLine, decimalBetweenBoundsLine, unitsFromZeroLine, reflectSignLine,
       percentCompareBothLine, patternBreakCountLine,
-      numlineMarksLine], fi;
+      friendlyTenDistanceLine, estimateNearestChoiceLine, ratioGcfShownLine,
+      numlineMarksLine,
+      stemLeafCountLine, stemLeafValueLine, chartChangeLine, chartTrendLine,
+      belowZeroLine, absShownLine, scalarVectorLine, vectorMagnitudeLine, sidesAnglesLine,
+      powerValueLine, solutionCheckLine, absSolveLine, distanceEqLine, midpointSumLine, modulusLine,
+      limitTableLine, sqrtCheckLine, sequenceNextLine, shapeNameCountLine, pointsTrendLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -107232,7 +107859,24 @@ var MW = {
     DBG.absValueCompareLine = absValueCompareLine; DBG.signProductClaimLine = signProductClaimLine; DBG.systemSubstitutedLine = systemSubstitutedLine;
     DBG.coordinatePartLine = coordinatePartLine; DBG.valueTestLine = valueTestLine; DBG.gridRowsCountLine = gridRowsCountLine; DBG.numlineMarksLine = numlineMarksLine; DBG.oddChoiceByTwosLine = oddChoiceByTwosLine; DBG.decimalBetweenBoundsLine = decimalBetweenBoundsLine;
     DBG.unitsFromZeroLine = unitsFromZeroLine; DBG.reflectSignLine = reflectSignLine;
-    DBG.percentCompareBothLine = percentCompareBothLine; DBG.patternBreakCountLine = patternBreakCountLine;
+    DBG.percentCompareBothLine = percentCompareBothLine; DBG.patternBreakCountLine = patternBreakCountLine; DBG.friendlyTenDistanceLine = friendlyTenDistanceLine; DBG.estimateNearestChoiceLine = estimateNearestChoiceLine;
+    DBG.ratioGcfShownLine = ratioGcfShownLine;
+    DBG.stemLeafCountLine = stemLeafCountLine; DBG.stemLeafValueLine = stemLeafValueLine;
+    DBG.chartChangeLine = chartChangeLine; DBG.chartTrendLine = chartTrendLine;
+    DBG.belowZeroLine = belowZeroLine; DBG.absShownLine = absShownLine;
+    DBG.scalarVectorLine = scalarVectorLine; DBG.vectorMagnitudeLine = vectorMagnitudeLine;
+    DBG.sidesAnglesLine = sidesAnglesLine;
+    DBG.powerValueLine = powerValueLine;
+    DBG.solutionCheckLine = solutionCheckLine;
+    DBG.absSolveLine = absSolveLine;
+    DBG.distanceEqLine = distanceEqLine;
+    DBG.midpointSumLine = midpointSumLine;
+    DBG.modulusLine = modulusLine;
+    DBG.limitTableLine = limitTableLine;
+    DBG.sqrtCheckLine = sqrtCheckLine;
+    DBG.sequenceNextLine = sequenceNextLine;
+    DBG.shapeNameCountLine = shapeNameCountLine;
+    DBG.pointsTrendLine = pointsTrendLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
