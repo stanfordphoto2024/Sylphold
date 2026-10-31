@@ -88484,7 +88484,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        card becomes a choice card built from the same right answer and its own
        near-misses. */
     var opts = [String([].concat(right)[0])].concat([].concat(wrongs || []).map(String));
-    if (rank(sk) <= 5 && typeof I_choice === 'function') {
+    if ((rank(sk) <= 5 || (o && o.choice)) && typeof I_choice === 'function') {
       var uniq = [], i2;
       for (i2 = 0; i2 < opts.length && uniq.length < 4; i2++) if (opts[i2] && uniq.indexOf(opts[i2]) < 0) uniq.push(opts[i2]);
       if (uniq.length >= 3) { var sh = R.shuffle(rng, uniq); return I_choice(prompt, sh, sh.indexOf(uniq[0]), o || {}); }
@@ -91115,9 +91115,18 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
           explain: explainOk(['The denominator is multiplied by ' + k + ', so multiply the numerator by ' + k + ' too.', a + ' × ' + k + ' = <b>' + (a * k) + '</b>.'], a * k) });
       },
       function () {
+        /* The two near-misses are only near-misses if they are actually wrong: adding k to both
+           parts lands straight back on the answer when a and b are equal, and scaling one part by k
+           IS the answer when k is 1. Harmless while the card was typed, but a choice card cannot
+           carry a second right answer, so the shape is skipped rather than asked. */
+        if (a === b || k === 1) return null;
         var right = (a * k) + ':' + (b * k);
         return askStr(rng, sk, 'Which ratio is equivalent to ' + a + ':' + b + '?', [right], [a + k + ':' + (b + k), (a * k) + ':' + b],
           { teach: 'Equivalent ratios multiply both parts by the same number.',
+            /* The grade gate in askStr exists so a young learner is never asked to TYPE an answer
+               when what is being tested is the maths. A ratio is not that case - "2:3" is exactly as
+               easy to tap as to type - so this card asks for the same treatment on its own merits. */
+            choice: true,
             explain: explainOk(['Multiply both parts of ' + a + ':' + b + ' by ' + k + '.', 'The equivalent ratio is <b>' + right + '</b>.'], right) });
       },
       function () {
