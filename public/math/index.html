@@ -106462,6 +106462,31 @@ var MW = {
     var line = 'Count around it from any side and back to the start: ' + run + ', that is ' + fmt(n) + '.';
     return line.length <= 88 ? line : null;
   }
+/* candidate AT — the two-circles cards. Written as tmp/wcblocks/AT_circles.js so the harness
+ * can try it against live cards first (numbers come from item.prompt, never from the prose —
+ * rounds 131/134; exactly ONE function in the block, nothing nested — round 136; and a zero
+ * from this harness means run the probe, not "the cards don't exist" — round 137):
+ *   node tmp/wcblock_test.js tmp/wcblocks/AT_circles.js 'in both circles' 10
+ *
+ * The card prints both circles in full and then says "List what each circle holds. / There is 1
+ * of them" — it states the count without doing the counting. The rule does it: take the two
+ * lists the card itself printed, keep what appears in both, and refuse unless that number IS the
+ * card's answer. The names come straight off the prompt, so the intersection is the card's own
+ * data and the guard has real teeth — a card that miscounted would get silence.
+ */
+  function circlesBothLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /circle a holds ([^.]+)\.\s*circle b holds ([^.]+)\./i.exec(p);
+    if (!m) return null;
+    var a = m[1].split(/,\s*/), b = m[2].split(/,\s*/), shared = [], i, j;
+    if (!a.length || !b.length) return null;
+    for (i = 0; i < a.length; i++) { for (j = 0; j < b.length; j++) { if (a[i] === b[j]) { shared.push(a[i]); break; } } }
+    var said = numOf(shown);
+    if (said === null || shared.length !== said) return null;      /* the overlap must BE the card's own answer */
+    if (!shared.length) return null;                              /* nothing to list; the card's own answer says none */
+    var line = 'Count each circle: ' + fmt(a.length) + ', ' + fmt(b.length) + ' - and only ' + fmt(shared.length) + ' is in both.';
+    return line.length <= 88 ? line : null;
+  }
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106497,7 +106522,7 @@ var MW = {
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
       divisorSortLine, fractionOfNumberLine, absValueCompareLine,
       rowLabelCountLine, sayCountWordsLine, shapeFamilyLine, countAloudLine, sortIntoGroupLine,
-      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine, countAroundSidesLine], fi;
+      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine, countAroundSidesLine, circlesBothLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -109383,7 +109408,20 @@ var MW = {
     return true;
   }
 
+  function isIOSVoice() {
+    try {
+      var p = String(navigator.platform || '');
+      if (/iPhone|iPad|iPod/.test(p)) return true;
+      return p === 'MacIntel' && navigator.maxTouchPoints > 1;      // iPadOS reports MacIntel
+    } catch (e) { return false; }
+  }
+
+  /* On an iPhone the model is never loaded, and that is the whole point of the exception: the
+     memory a full-precision build needs inside a tab is what was killing the page, and the
+     operating system's own voice is spoken by a system process, so it costs the page nothing.
+     Every other device - including a Mac - keeps Kokoro. */
   function loadNeural(force) {
+    if (isIOSVoice()) { NEURAL.st = 'off'; NEURAL.why = 'iOS speaks with the system voice, so no model is held in the page'; return; }
     if (!IMPORTER || NEURAL.st === 'loading' || NEURAL.st === 'ready' || NEURAL.st === 'failed') return;
     if (!speechOn()) return;                       // never spend a learner's bandwidth on a voice they switched off
     NEURAL.st = 'loading'; NEURAL.pct = 0; NEURAL.why = '';
@@ -109678,6 +109716,9 @@ var MW = {
     if (!words) return;
     STATS.asked++;                                  // the card asked; whether it is said is below
     STATS.mood = emotion || 'read'; STATS.words = words;
+    if (isIOSVoice() && win.speechSynthesis && win.SpeechSynthesisUtterance) {
+      hush(); speakSystem(words, ++SAY_TOKEN); return;               // the system voice is already here
+    }
     if (NEURAL.st !== 'ready' || !NEURAL.tts) {
       if (NEURAL.st === 'off') loadNeural();        // a card is being read: the voice is wanted now
       return;                                       // with one voice, a card before it is not spoken
@@ -109693,6 +109734,19 @@ var MW = {
      browser voice uses. The next group is synthesised while the current one is
      still being heard, so the pause a learner hears is the breath in the
      sentence, not the model thinking. */
+  /* The browser's own voice, on iOS only. It has no pause control, so the breath pacing this
+     app builds around EMOTION is not available here: the line goes in one utterance and the
+     system does its own phrasing. Interrupting still works - hush() already cancels the system
+     queue - and the completion bookkeeping the neural path does is not wired for this one,
+     which is the honest cost of a phone that can hold a voice at all. */
+  function speakSystem(words, token) {
+    try {
+      var u = new win.SpeechSynthesisUtterance(words);
+      u.rate = 1.0;
+      win.speechSynthesis.speak(u);
+    } catch (e) { }
+  }
+
   function speakNeural(words, emo, token) {
     var groups = breathGroups(words);
     if (!groups.length) return;
