@@ -86881,15 +86881,45 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return I_choice(prompt, sh, sh.indexOf(String(answer)), o);
   };
   /* the same, for a card whose answer is a word or a name rather than a number */
+  /* A deterministic string riffle for the ordering used by a presentation
+     decision — see the note inside DP.mcStr. */
+  function fnv(s) {
+    var h = 2166136261, i; s = String(s);
+    for (i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function riffle(key, arr) {
+    var out = [], pool = arr.slice(), h = fnv(key), guard = 0;
+    while (pool.length && guard++ < 60) { h = (h * 1103515245 + 12345) >>> 0; out.push(pool.splice(h % pool.length, 1)[0]); }
+    return out;
+  }
   DP.mcStr = function (rng, sk, prompt, pats, wrongs, o) {
     var p = POLICY[(sk && sk.band) || ''];
     o = o || {};
     if (p && p.noHint) delete o.hint;
     var right = String([].concat(pats)[0]);
-    if (!p || !p.pickFirst || !wrongs || wrongs.length < 2) return I_str(prompt, pats, o);
+    /* A WORD answer is a set of choices the learner can be shown, and this used
+       to be true only at the two youngest bands: a Grade 6 card asks for
+       "the rhombus" or "Quadrant II" and marks how the learner spelled the
+       answer, while the same card two rungs lower offers the words to tap. A
+       word answer is a word answer at every grade, so wherever the generator
+       handed over its own honest near-misses the card is served as a choice
+       now. A card that cannot offer a real set of alternatives — or whose
+       accepted answer is a pattern rather than one word — still takes the
+       keyboard, and numeric and symbolic answers keep what their band asked
+       for. */
+    var wordAnswer = pats.length === 1 && right.length <= 22 && /^[a-z][a-z '’-]*$/i.test(right);
+    if (!p || (!p.pickFirst && !wordAnswer) || !wrongs || wrongs.length < 2) return I_str(prompt, pats, o);
     var opts = buildOptions(right, wrongs, p.options);
     if (opts.length < 2) return I_str(prompt, pats, o);
-    var sh = R.shuffle(rng, opts);
+    /* The bands that were already picking keep the shuffle they were given. A
+       card converted here is ordered by a hash instead, because this is a
+       presentation decision: taking a draw from the deck's own random stream to
+       reorder a list would quietly change WHICH questions the deck goes on to
+       serve, and a skill that offers six different questions would quietly
+       offer five. The same card always shows the same order, and two different
+       cards do not both park the right answer in slot 1. */
+    var sh = p.pickFirst ? R.shuffle(rng, opts) : riffle(String((sk && sk.id) || '') + '|' + prompt + '|opts', opts);
     return I_choice(prompt, sh, sh.indexOf(right), o);
   };
   /* should this card show a model? the band's rate decides it, so Pre-K shows one
@@ -87896,6 +87926,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (right < 0) return;
     item.prompt = t.replace(/[?？]\s*$/, '?');
     item.options = sh;
+    /* the widget has to follow the spec. The answer widgets are chosen by
+       `type` and read `choices`, so while this pass rewrote the spec and handed
+       over an option list, a card that arrived as `type: 'text'` still reached
+       the learner as a keyboard — which is exactly the thing this pass exists to
+       avoid. Being shown the choices and being made to type them are not the
+       same task, and the second one measures typing. */
+    item.type = 'choice';
+    item.choices = sh;
     item.answerText = make.right;
     /* the same choice spec the factories build, so the grader and the gates read
        one shape rather than two */
@@ -88450,6 +88488,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var caret = rs.replace(/[\u2070-\u2079\u00b2\u00b3\u00b9]/g, function (ch) { return '^' + (SUPMAP[ch] || ''); });
       add(plain); add(caret); add(caret.replace(/\u00d7/g, 'x').replace(/\s+/g, ' '));
     }
+    /* An exponent of ONE is not a power the learner has to type back: 4¹ IS 4,
+       and 5x¹ is 5x. Writing the base alone is the same answer, and a learner
+       who writes it should not be marked wrong for simplifying. (The block above
+       cannot catch this — its range starts at U+2070, and the superscript ONE is
+       U+00B9, so a lone ¹ never reaches it.) */
+    var one = /^(.+?)\u00B9$/.exec(rs);
+    if (one) add(one[1]);
     if (/\u00b2|\u00b3/.test(rs)) add(rs.replace(/\s*(square|cubic)\s+/gi, '').replace(/\u00b2/, '^2').replace(/\u00b3/, '^3'));
     /* 4.19 × 10^5 is also written 4.19 × 10⁵, and with a plain x */
     var SUPD = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
@@ -88476,6 +88521,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     return out;
   }
   /* a word answer, same treatment */
+  /* A word answer is a choice the learner can be SHOWN, not a spelling test:
+     "Which shape has four equal sides and four right angles?" already carries
+     its own near-miss shapes, and "In which quadrant does the point (-1, 1)
+     lie?" its own quadrants. Being made to TYPE "the rhombus" measures typing,
+     so wherever the card already holds a real set of alternatives the card is
+     served as a choice card — at every grade, not only the little ones. The
+     policy layer (DP.mcStr) owns that decision and this helper passes its own
+     honest near-misses down to it. */
   function askStr(rng, sk, prompt, right, wrongs, o) {
     var pats = [].concat(right);
     if (pats.length === 1 && typeof pats[0] === 'string' && !/[^[\]|\\]/.test(pats[0])) right = variants(pats[0]);
@@ -88484,7 +88537,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        card becomes a choice card built from the same right answer and its own
        near-misses. */
     var opts = [String([].concat(right)[0])].concat([].concat(wrongs || []).map(String));
-    if ((rank(sk) <= 5 || (o && o.choice)) && typeof I_choice === 'function') {
+    if ((rank(sk) <= 5 || (o && o.choice) || (pats.length === 1 && wordAnswer(pats[0]))) && typeof I_choice === 'function') {
       var uniq = [], i2;
       for (i2 = 0; i2 < opts.length && uniq.length < 4; i2++) if (opts[i2] && uniq.indexOf(opts[i2]) < 0) uniq.push(opts[i2]);
       if (uniq.length >= 3) { var sh = R.shuffle(rng, uniq); return I_choice(prompt, sh, sh.indexOf(uniq[0]), o || {}); }
@@ -91292,11 +91345,25 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
             explain: explainOk(['Divide ' + money(cnt) + ' by 4.', 'One notebook costs <b>' + money(+(cnt / 4).toFixed(2)) + '</b>.'], money(+(cnt / 4).toFixed(2))) });
       },
       function () {
+        /* The claim the card asks about and the verdict on it have to come from
+           the same two amounts. This form used to flip the verdict with a coin,
+           so about half the cards marked a learner wrong for comparing the
+           money correctly — the step said "5.63 is less than 9.14" and the
+           grader still wanted "Yes". Now the claim word is what varies, and the
+           answer is read off the amounts. */
+        if (p1 === p2) return null;
         var truth = p1 > p2;
-        var claim = R.chance(rng, 0.5);
-        return I_bool('Is it true that ' + money(p1) + ' is more than ' + money(p2) + '?', claim ? truth : !truth, {
+        var claim = R.chance(rng, 0.5) ? (truth ? 'more' : 'less') : (truth ? 'less' : 'more');
+        var word = claim + ' than';
+        var verdict = claim === 'more' ? truth : !truth;
+        var d1 = Math.floor(p1), d2 = Math.floor(p2);
+        var first = d1 === d2
+          ? 'The dollars match, so the cents decide: ' + Math.round((p1 - d1) * 100) + '\u00A2 against ' + Math.round((p2 - d2) * 100) + '\u00A2.'
+          : 'The dollar parts decide it on their own: ' + d1 + ' dollars against ' + d2 + ' dollars.';
+        var second = 'So ' + money(p1) + ' is ' + (truth ? 'more than ' : 'less than ') + money(p2) + ', and the statement is <b>' + (verdict ? 'true' : 'false') + '</b>.';
+        return I_bool('Is it true that ' + money(p1) + ' is ' + word + ' ' + money(p2) + '?', verdict, {
           teach: 'Compare the dollar part first, then the cents.',
-          explain: explainOk([p1 + ' is ' + (truth ? 'more than ' : 'less than ') + p2 + ', so the statement is <b>' + ((claim ? truth : !truth) ? 'true' : 'false') + '</b>.'], (claim ? truth : !truth) ? 'true' : 'false') });
+          explain: explainOk([first, second], verdict ? 'true' : 'false') });
       }
     ];
   }
@@ -106487,6 +106554,275 @@ var MW = {
     var line = 'Count each circle: ' + fmt(a.length) + ', ' + fmt(b.length) + ' - and only ' + fmt(shared.length) + ' is in both.';
     return line.length <= 88 ? line : null;
   }
+  /* A sign rule asked as a claim: "Is it true that (-8) × (-2) is positive?"
+     Both factors are printed on the card, so the product can simply be worked
+     out — the step used to stop at "count the negative factors" and announce. */
+  function signProductClaimLine(item, text, shown) {
+    if (!/positive|negative/i.test(text)) return null;
+    if (!/[×*]/.test(String(text))) return null;
+    var fm = /[(\[]?\s*([+-−]?\d+)\s*[)\]]?\s*(?:[×*]|x)\s*[(\[]?\s*([+-−]?\d+)\s*[)\]]?/i, m;
+    m = fm.exec(String(text));
+    if (!m) return null;
+    var f = [numOf(m[1]), numOf(m[2])];
+    if (f[0] == null || f[1] == null) return null;
+    if (f[0] === 0 || f[1] === 0) return null;
+    var product = f[0] * f[1];
+    var said = product > 0 ? 'positive' : 'negative';
+    var claim = /is\s+(positive|negative)/i.exec(String(text));
+    if (!claim) return null;
+    var verdict = (String(claim[1]).toLowerCase() === said);
+    var ans = String(shown == null ? '' : shown).trim().toLowerCase();
+    var graded = /^(yes|true)/.test(ans) ? true : (/^(no|false)/.test(ans) ? false : null);
+    if (graded === null || graded !== verdict) return null;
+    var line = fmt(f[0]) + ' × ' + fmt(f[1]) + ' = ' + fmt(product) + ', which is ' + said + ', so the claim is ' + (verdict ? 'right' : 'wrong') + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* A system printed with both equations and the answer as a point: the pair can
+     be put back into both. The step used to say "only (1, 8) satisfies both". */
+  function systemSubstitutedLine(item, text, shown) {
+    var em = /([+-−]?\d+)\s*x\s*([+\-−])\s*([+-−]?\s*\d+)\s*y\s*=\s*([+-−]?\d+)/gi, m, eqs = [];
+    while ((m = em.exec(String(text))) !== null && eqs.length < 2)
+      eqs.push([numOf(m[1]), String(m[2]), numOf(String(m[3]).replace(/\s+/g, '')), numOf(m[4])]);
+    if (eqs.length !== 2) return null;
+    var pm = /[(\[]\s*([+-−]?\d+)\s*[,;]\s*([+-−]?\d+)\s*[)\]]/i.exec(String(shown == null ? '' : shown));
+    if (!pm) return null;
+    var x = numOf(pm[1]), y = numOf(pm[2]);
+    if (x == null || y == null) return null;
+    var bits = [], i;
+    for (i = 0; i < 2; i++) {
+      var a = eqs[i][0], b = eqs[i][2], rhs = eqs[i][3];
+      if (a == null || b == null || rhs == null) return null;
+      var term = b * y, op = String(eqs[i][1]).replace(/−/g, '-');
+      var got = a * x + (op === '-' ? -term : term);
+      if (Math.abs(got - rhs) > 1e-9) return null;
+      bits.push(fmt(a) + ' × ' + fmt(x) + ' ' + op + ' ' + fmt(b) + ' × ' + fmt(y) + ' = ' + fmt(rhs));
+    }
+    var line = bits.join(', and ');
+    return line.length <= 88 ? line : null;
+  }
+  /* "Compare the two quantities: the x-coordinate of (6, 7) ○ the y-coordinate
+     of (7, 6)" — both numbers are on the card, and reading the named coordinate
+     off each point is the whole working. */
+  function coordinatePartLine(item, text, shown) {
+    if (!/coordinate/i.test(text)) return null;
+    var sym = String(shown == null ? '' : shown).trim();
+    var rel = (sym === '>' || sym === '&gt;') ? '>' : (sym === '<' || sym === '&lt;') ? '<' : sym === '=' ? '=' : null;
+    if (!rel) return null;
+    var pm = /\b(x|y)[-\s]*coordinate of \(\s*([+-−]?\d+)\s*,\s*([+-−]?\d+)\s*\)/gi, cm, pts = [];
+    while ((cm = pm.exec(String(text))) !== null) pts.push(String(cm[1]).toLowerCase() === 'x' ? numOf(cm[2]) : numOf(cm[3]));
+    if (pts.length !== 2 || pts[0] == null || pts[1] == null) return null;
+    var got = pts[0] > pts[1] ? '>' : (pts[0] < pts[1] ? '<' : '=');
+    if (got !== rel) return null;
+    var said = rel === '>' ? '&gt;' : (rel === '<' ? '&lt;' : '=');
+    var line = 'The first point gives ' + fmt(pts[0]) + ' and the second gives ' + fmt(pts[1]) + ', so ' + fmt(pts[0]) + ' ' + said + ' ' + fmt(pts[1]) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Which value is a solution of x > -6?" — the boundary and the value are both
+     printed, so the test can be written out instead of asserted. */
+  function valueTestLine(item, text, shown) {
+    if (!/solution/i.test(text)) return null;
+    var m = /(?:([+-−]?\d+)\s*)?x\s*(?:([+\-−])\s*(\d+)\s*)?([<>≤≥])\s*([+-−]?\d+)/i.exec(String(text));
+    if (!m) return null;
+    var coef = m[1] == null ? 1 : numOf(m[1]);
+    var rhs = numOf(m[5]);
+    var b = m[3] == null ? 0 : numOf(m[3]) * (/[-−]/.test(String(m[2] || '')) ? -1 : 1);
+    if (coef == null || !coef || rhs == null) return null;
+    var v = numOf(String(shown == null ? '' : shown).trim());
+    if (v == null) return null;
+    var left = coef * v + b, rel = String(m[4]);
+    var holds = rel === '>' ? left > rhs : (rel === '<' ? left < rhs : (rel === '≥' ? left >= rhs : left <= rhs));
+    if (!holds) return null;
+    var line = 'Put ' + fmt(v) + ' in place of x: ' + fmt(left) + ' ' + rel + ' ' + fmt(rhs) + ' is true.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Are the two groups the same number of ducks?" draws two rows of cells and
+     then says only "7 and 7 match exactly". The two counts are readable off the
+     model, and saying them out loud — the way a teacher would, one row at a time
+     — is the working the card is missing. Only spoken when the counts agree with
+     what the card grades. */
+  function gridRowsCountLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'grid' || !v.opts || !v.opts.cells) return null;
+    if (!/same number|same amount|same (?:as|many)/i.test(String(text))) return null;
+    var cells = v.opts.cells, counts = [], i, j, n;
+    for (i = 0; i < cells.length; i++) {
+      n = 0;
+      for (j = 0; j < (cells[i] || []).length; j++) {
+        var cell = String((cells[i] || [])[j] == null ? '' : (cells[i] || [])[j]);
+        if (cell && cell !== '⬜' && cell.indexOf('⬜') < 0 && !/^[a-zA-Z]$/.test(cell)) n++;
+      }
+      if (n < 1 || n > 20) return null;
+      counts.push(n);
+    }
+    if (counts.length !== 2) return null;
+    var same = counts[0] === counts[1];
+    var ans = String(shown == null ? '' : shown).trim().toLowerCase();
+    var graded = /^(yes|true|same)/.test(ans) ? true : (/^(no|false|not)/.test(ans) ? false : null);
+    if (graded === null || graded !== same) return null;
+    var line = 'Count each row to check: ' + fmt(counts[0]) + ', ' + fmt(counts[1]) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* A marked number line gives the count for free: the marks are the card's
+     own, and counting along them — noticing the jump if there is one — is the
+     working that turns the last mark into an answer. */
+  function numlineMarksLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'numline' || !Array.isArray(v.marks) || v.marks.length < 3) return null;
+    var vals = [], i, mk, n;
+    for (i = 0; i < v.marks.length; i++) {
+      mk = v.marks[i];
+      n = numOf(typeof mk === 'object' && mk ? (mk.label != null ? mk.label : mk.x) : mk);
+      if (n == null) return null;
+      vals.push(n);
+    }
+    if (vals.length < 3 || vals.length > 8) return null;
+    var want = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (want == null || vals[vals.length - 1] !== want) return null;
+    var step = vals[1] - vals[0], same = true;
+    for (i = 1; i < vals.length; i++) if (vals[i] - vals[i - 1] !== step) { same = false; break; }
+    var list = '';
+    for (i = 0; i < vals.length; i++) list += (i ? ', ' : '') + fmt(vals[i]);
+    var jump = 'each jump is ' + (step > 0 ? '+' : '\u2212') + fmt(Math.abs(step));
+    var line = (same && Math.abs(step) > 1 ? 'Count the marks, ' + jump + ': ' : 'Count along the marks: ') + list + ' - the last mark is the answer.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Which of these numbers is odd?" — every candidate is printed on the card,
+     so the test the answer rests on (divide each by 2) can simply be written. */
+  function oddChoiceByTwosLine(item, text, shown) {
+    if (!/\b(?:odd|even)\b/i.test(String(text))) return null;
+    if (!Array.isArray(item && item.choices) || item.choices.length < 3) return null;
+    var want = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (want == null) return null;
+    var others = [], found = false, i, v;
+    for (i = 0; i < item.choices.length; i++) {
+      v = numOf(String(item.choices[i]).replace(/[^0-9.\-]/g, ''));
+      if (v == null) return null;
+      if (v === want) { found = true; continue; }
+      others.push(v);
+    }
+    if (!found || !others.length) return null;
+    var wantOver = Math.abs(want % 2) === 1;
+    for (i = 0; i < others.length; i++) if (Math.abs(others[i] % 2) === wantOver) return null;
+    var line = fmt(want) + ' \u00F7 2 leaves ' + (wantOver ? '1 over, and every other choice divides by 2 exactly.'
+      : '0, and every other choice leaves 1 over.');
+    return line.length <= 88 ? line : null;
+  }
+  /* "Which decimal falls between 1.68 and 2.34?" — both bounds are printed, so
+     the answer can be put between them instead of merely named. */
+  function decimalBetweenBoundsLine(item, text, shown) {
+    var m = /between\s+(-?[\d.]+)\s+and\s+(-?[\d.]+)/i.exec(String(text));
+    if (!m) return null;
+    var a = numOf(m[1]), b = numOf(m[2]);
+    var v = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (a == null || b == null || v == null) return null;
+    var lo = Math.min(a, b), hi = Math.max(a, b);
+    if (!(v > lo + 1e-9 && v < hi - 1e-9)) return null;
+    var line = fmt(lo) + ' &lt; ' + fmt(v) + ' &lt; ' + fmt(hi) + ', so ' + fmt(v) + ' is the one that falls between them.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Which point is 23 units from zero on the left?" — the distance and the side
+     are both in the question, so the move is one subtraction the card can show. */
+  function unitsFromZeroLine(item, text, shown) {
+    var m = /(\d+)\s+units?\s+from\s+zero\s+on\s+the\s+(left|right)/i.exec(String(text));
+    if (!m) return null;
+    var n = numOf(m[1]), side = String(m[2]).toLowerCase();
+    var v = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (n == null || v == null) return null;
+    if (v !== (side === 'left' ? -n : n)) return null;
+    var line = 'Start at 0 and move ' + fmt(n) + ' ' + side + ': 0 ' + (side === 'left' ? '\u2212 ' : '+ ') + fmt(n) + ' = ' + fmt(v) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Reflect the point (1, -5) over the x-axis." — the point and the axis are
+     given, so the sign change is arithmetic the card can simply carry out. */
+  function reflectSignLine(item, text, shown) {
+    var m = /point\s*\(\s*([+-\u2212]?\d+)\s*,\s*([+-\u2212]?\d+)\s*\)\s*(?:over|across|in|in\s+the|in\s+the\s+the)\s+the\s+([xy])[- ]?axis/i.exec(String(text));
+    if (!m) m = /point\s*\(\s*([+-\u2212]?\d+)\s*,\s*([+-\u2212]?\d+)\s*\)\s+in\s+the\s+([xy])[- ]?axis/i.exec(String(text));
+    if (!m) return null;
+    var x = numOf(m[1]), y = numOf(m[2]), axis = String(m[3]).toLowerCase();
+    var pm = /\(\s*([+-\u2212]?\d+)\s*,\s*([+-\u2212]?\d+)\s*\)/i.exec(String(shown == null ? '' : shown));
+    if (!pm) return null;
+    var gx = numOf(pm[1]), gy = numOf(pm[2]);
+    if (x == null || y == null || gx == null || gy == null) return null;
+    if (axis === 'x') { if (gx !== x || gy !== -y) return null; } else { if (gy !== y || gx !== -x) return null; }
+    var line = axis === 'x'
+      ? 'The x stays ' + fmt(x) + '; the y changes sign: \u2212(' + fmt(y) + ') = ' + fmt(gy) + '.'
+      : 'The y stays ' + fmt(y) + '; the x changes sign: \u2212(' + fmt(x) + ') = ' + fmt(gx) + '.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "Compare the two quantities: 20% of 40 \u25CB 80% of 40" — a percent OF a number is
+     arithmetic the card already has all the pieces for. */
+  function percentCompareBothLine(item, text, shown) {
+    var sym = String(shown == null ? '' : shown).trim();
+    var rel = (sym === '>' || sym === '&gt;') ? '>' : (sym === '<' || sym === '&lt;') ? '<' : sym === '=' ? '=' : null;
+    if (!rel) return null;
+    if (!/compare|use >, <, or =|which is greater/i.test(String(text))) return null;
+    if (!/%/.test(String(text))) return null;
+    var body = String(text).replace(/^[^:]{0,60}:\s*/, '').trim();
+    var parts = body.split(/\s+(?:\u25CB|\u25CE|\u25CD|\u25C7|\u25A1|\?)\s+/);
+    if (parts.length !== 2) return null;
+    var vals = [], i, pm, v;
+    for (i = 0; i < 2; i++) {
+      pm = /([\d.]+)\s*%\s*of\s*([\d.]+)/i.exec(parts[i]);
+      v = null;
+      if (pm) { var pc = numOf(pm[1]), wc = numOf(pm[2]); if (pc != null && wc != null) v = pc * wc / 100; }
+      else v = numOf(String(parts[i]).replace(/[^0-9.\-]/g, ''));
+      if (v == null) return null;
+      vals.push(v);
+    }
+    var got = vals[0] > vals[1] ? '>' : (vals[0] < vals[1] ? '<' : '=');
+    if (got !== rel) return null;
+    var said = rel === '>' ? '&gt;' : (rel === '<' ? '&lt;' : '=');
+    var line = fmt(vals[0]) + ' ' + said + ' ' + fmt(vals[1]) + ', so that is the sign that fits.';
+    return line.length <= 88 ? line : null;
+  }
+  /* "One box in this pattern breaks the rule — count from the left and give the
+     position." The boxes are drawn on the card; the count-out the question itself
+     commands is what is missing before the position is announced. */
+  function patternBreakCountLine(item, text, shown) {
+    if (!/breaks the rule/i.test(String(text))) return null;
+    var v = item && item.visual;
+    if (!v || !v.opts || !v.opts.cells) return null;
+    var cells = v.opts.cells, flat = [], i, j, c;
+    for (i = 0; i < cells.length; i++) for (j = 0; j < (cells[i] || []).length; j++) {
+      c = String((cells[i] || [])[j] == null ? '' : (cells[i] || [])[j]);
+      if (c) flat.push(c);
+    }
+    if (flat.length < 4 || flat.length > 12) return null;
+    var pos = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (pos == null || pos < 1 || pos > flat.length) return null;
+    /* the core is the glyph each phase class agrees on; exactly one box may
+       disagree with it, and that box has to be the position the card asks for */
+    var alone = null, p2, r, phase, k2, votes, top;
+    for (p2 = 2; p2 <= 3; p2++) {
+      phase = [];
+      for (r = 0; r < p2; r++) phase.push({ pick: null, n: 0, alt: 0 });
+      for (r = 0; r < p2; r++) {
+        votes = {};
+        for (k2 = r; k2 < flat.length; k2 += p2) votes[flat[k2]] = (votes[flat[k2]] || 0) + 1;
+        top = null;
+        Object.keys(votes).forEach(function (g) { if (top === null || votes[g] > votes[top]) top = g; });
+        if (top === null) { phase = null; break; }
+        for (k2 = r; k2 < flat.length; k2 += p2) { if (flat[k2] === top) phase[r].n++; else phase[r].alt++; }
+      }
+      if (!phase) continue;
+      var dev = [], devs = 0;
+      for (r = 0; r < p2; r++) devs += phase[r].alt;
+      for (k2 = 0; k2 < flat.length; k2++) {
+        var pk = phase[k2 % p2];
+        votes = {};
+        for (j = k2 % p2; j < flat.length; j += p2) votes[flat[j]] = (votes[flat[j]] || 0) + 1;
+        top = null;
+        Object.keys(votes).forEach(function (g) { if (top === null || votes[g] > votes[top]) top = g; });
+        if (flat[k2] !== top) dev.push(k2 + 1);
+      }
+      if (devs === 1 && dev.length === 1 && dev[0] === pos) { alone = dev; break; }
+    }
+    if (!alone) return null;
+    var list = '';
+    for (i = 0; i < flat.length; i++) list += (i ? ', ' : '') + (i + 1);
+    var line = 'Count from the left: ' + list + ' \u2014 box ' + fmt(pos) + ' is the one that does not match.';
+    return line.length <= 88 ? line : null;
+  }
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106522,7 +106858,11 @@ var MW = {
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
       divisorSortLine, fractionOfNumberLine, absValueCompareLine,
       rowLabelCountLine, sayCountWordsLine, shapeFamilyLine, countAloudLine, sortIntoGroupLine,
-      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine, countAroundSidesLine, circlesBothLine], fi;
+      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine, countAroundSidesLine, circlesBothLine,
+      signProductClaimLine, systemSubstitutedLine, coordinatePartLine, valueTestLine, gridRowsCountLine,
+      oddChoiceByTwosLine, decimalBetweenBoundsLine, unitsFromZeroLine, reflectSignLine,
+      percentCompareBothLine, patternBreakCountLine,
+      numlineMarksLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -106889,7 +107229,10 @@ var MW = {
     DBG.equalSharesLine = equalSharesLine;
     DBG.divisorSortLine = divisorSortLine;
     DBG.fractionOfNumberLine = fractionOfNumberLine;
-    DBG.absValueCompareLine = absValueCompareLine;
+    DBG.absValueCompareLine = absValueCompareLine; DBG.signProductClaimLine = signProductClaimLine; DBG.systemSubstitutedLine = systemSubstitutedLine;
+    DBG.coordinatePartLine = coordinatePartLine; DBG.valueTestLine = valueTestLine; DBG.gridRowsCountLine = gridRowsCountLine; DBG.numlineMarksLine = numlineMarksLine; DBG.oddChoiceByTwosLine = oddChoiceByTwosLine; DBG.decimalBetweenBoundsLine = decimalBetweenBoundsLine;
+    DBG.unitsFromZeroLine = unitsFromZeroLine; DBG.reflectSignLine = reflectSignLine;
+    DBG.percentCompareBothLine = percentCompareBothLine; DBG.patternBreakCountLine = patternBreakCountLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
