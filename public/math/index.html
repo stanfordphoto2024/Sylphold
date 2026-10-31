@@ -109243,7 +109243,12 @@ var MW = {
      first, then the smaller CPU build — because one broken WebGPU driver must
      not be the reason a learner has no voice at all. */
   function audioCtx() {
-    if (AC) return AC;
+     /* iOS will not let a context make a sound unless something resumes it inside a
+        gesture, and the unlock this file had only ever played its sample into a context
+        that was still suspended — which is silence, which is what the phone showed.
+        Resuming here means every caller gets a context that is actually running; a
+        resume before the unlock is a no-op, and a resume after it is the work. */
+     if (AC) { try { if (AC.state === 'suspended' && AC.resume) AC.resume(); } catch (e) {} return AC; }
     var C = win.AudioContext || win.webkitAudioContext;
     if (!C) return null;
     try { AC = new C(); } catch (e) { AC = null; }
