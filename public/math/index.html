@@ -464,7 +464,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-10-30 — 102 modules inlined:
+/* MathPath 2026-10-31 — 102 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geodata.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-equations.js, 98-gen-fam-band-r4-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zcompletion.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 99-gen-zzzz-workcheck.js, 99-gen-zzzzz-models.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -89586,7 +89586,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         if (!verts || offTopic) return null;
         return ask(rng, sk, 'How many vertices does a ' + name + ' have?', verts, [verts + 1, verts - 1, sides], {
           lim: 20, teach: 'A vertex is a corner where two sides meet.',
-          explain: explainOk(['Each pair of sides of a ' + name + ' meets at one corner.', 'That gives <b>' + verts + '</b> vertices.'], verts) });
+          explain: explainOk(sides === verts
+            ? ['Each side has 2 neighbours, so ' + sides + ' × 2 = ' + (sides * 2) + ' meets counted from each side.',
+               'Every corner is one pair, so ' + (sides * 2) + ' ÷ 2 = ' + verts + ' — <b>' + verts + '</b> vertices.']
+            : ['Each pair of sides of a ' + name + ' meets at one corner.', 'That gives <b>' + verts + '</b> vertices.'], verts) });
       },
       function () {
         if (offTopic) return null;
@@ -90513,10 +90516,25 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       },
       function () {
         var phrase = pick(rng, [[a + ' more than a number n', 'n + ' + a], ['twice a number n', '2n'], [a + ' less than a number n', 'n − ' + a], ['a number n divided by ' + b, 'n ÷ ' + b]]);
+        /* The card's whole point is the order the words are applied in, and its own wrong
+           answers are exactly the reversal. So the work can be shown the way a teacher checks
+           it: give n a value and do it both ways. Where the two orders come to the same number
+           — addition is commutative, so "9 more than n" really does come to the same thing as
+           "n more than 9" — the test cannot tell them apart and this says nothing rather than
+           pretend it tested something. */
+        var nv = int(rng, 3, 12), testLine = '';
+        if (phrase[1] === 'n − ' + a) testLine = 'Try n = ' + nv + ': ' + nv + ' − ' + a + ' = ' + (nv - a) +
+          ', but ' + a + ' − ' + nv + ' = ' + (a - nv) + ', so n has to come first.';
+        else if (phrase[1] === '2n' && nv !== 2) testLine = 'Try n = ' + nv + ': twice n is ' + (2 * nv) +
+          ', but ' + nv + ' more than 2 is ' + (nv + 2) + '.';
+        else if (phrase[1] === 'n ÷ ' + b) testLine = 'Try n = ' + (b * nv) + ': ' + (b * nv) + ' ÷ ' + b +
+          ' = ' + nv + ', and that is what the words ask for.';
         return askStr(rng, sk, 'Which expression represents “' + phrase[0] + '”?', [phrase[1]],
           [phrase[0] === 'twice a number n' ? 'n + 2' : '2n', phrase[1] === 'n − ' + a ? a + ' − n' : a + ' + n'],
           { teach: 'Translate the operation words in the order they are applied.',
-            explain: explainOk(['“' + phrase[0] + '” applies one operation to n.', 'The expression is <b>' + phrase[1] + '</b>.'], phrase[1]) });
+            explain: explainOk(['“' + phrase[0] + '” applies one operation to n.']
+              .concat(testLine ? [testLine] : [])
+              .concat(['The expression is <b>' + phrase[1] + '</b>.']), phrase[1]) });
       },
       function () {
         var sq = int(rng, 2, 12), t = int(rng, 2, 9);
@@ -106189,6 +106207,182 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+  /* "Count the pears. How many are there?" is flagged because nothing between the
+     question and the answer counts anything: the picture is the data, the answer IS the
+     count, and the line in between only announces what the child is about to do. So the
+     rule says the count out loud — the same thing round 123 did to the tally cards at
+     their generators, and the same thing the bar accepts for a picture ("say the count:"
+     followed by the run). The numbers it speaks are the ones the card's own mark carries,
+     so the rule can never contradict the card; what it refuses is a count of one, where
+     there is no run to say, and a list too long to be a count, where the house convention
+     of ending on the total takes over. Harness: 67 cards offered, 67 credited, none long. */
+  function countAloudLine(item, text, shown) {
+    if (!/^count the .+\?/i.test(String(text || '').trim())) return null;
+    var n = numOf(shown);
+    if (n === null || n < 2 || n > 22) return null;
+    var list = '', k;
+    for (k = 1; k <= n; k++) {
+      var t = list + (list ? ', ' : '') + k;
+      if ((t + ', \u2026 ' + n).length > 30 && k < n) { list += ', \u2026 ' + n; break; }
+      list = t;
+    }
+    var line = 'Say the count: ' + list + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+/* candidate AK — the sort-into-group cards. Written as tmp/wcblocks/AK_sortgroup.js so
+ * the harness can try it against live cards before anything is shipped:
+ *   node tmp/wcblock_test.js tmp/wcblocks/AK_sortgroup.js 'Sort this shape' 8
+ *
+ * "Sort this shape. A rectangle. Which group does it belong to?" is flagged because the
+ * card only announces the fit: "a rectangle fits shapes with 4 sides." But the test the
+ * child actually performs is right there — the group's number is printed in the answer
+ * ("shapes with 4 sides") and the shape's number is the one piece of knowledge the rule
+ * file already carries (WC_SHAPE_SIDES, from round 125). So the rule does that test in
+ * the open: the shape's sides, the group's number, and whether they are the same — and it
+ * refuses the moment its own table disagrees with the card, which is the whole point of
+ * running the test rather than restating the answer.
+ *
+ * The pairs it cannot serve it says nothing about: any shape not in the table, and any
+ * group not defined by a count ("shapes with right angles"), where there is no test to show.
+ */
+  function sortIntoGroupLine(item, text, shown) {
+    var m = /^sort this shape\.? ?a? ?(square|rectangle|triangle|hexagon|quadrilateral|polygon)\b/i.exec(String(text || '').trim());
+    if (!m) return null;
+    var shape = String(m[1]).toLowerCase();
+    var have = WC_SHAPE_SIDES[shape];
+    if (!have) return null;
+    var g = /(\d+)\s+/.exec(String(shown || '').trim());            /* the group's number, as the card prints it */
+    if (!g) return null;
+    var needs = parseInt(g[1], 10);
+    if (needs !== have) return null;                                /* its own table must agree with the card */
+    var line = 'A ' + shape + ' has ' + have + ' sides, and ' + fmt(have) + ' is the same as ' + fmt(needs) +
+      ', so it belongs in the group.';
+    return line.length <= 88 ? line : null;
+  }
+
+/* candidate AL — the rectangle/square definition cards. Written as
+ * tmp/wcblocks/AL_squaredef.js so the harness can try it against live cards first:
+ *   node tmp/wcblock_test.js tmp/wcblocks/AL_squaredef.js 'Is a rectangle a square' 8
+ *
+ * Round 125's family rule refuses these on purpose: a side COUNT cannot tell a rectangle
+ * from a square, both have four, so the rule had no test to run and said nothing. But the
+ * cards carry no picture at all — the data is pure language — and the question itself tells
+ * the child to "check the definition of the second shape". The definition distinction is
+ * numerical without being a count of sides: a square needs all 4 sides equal, a rectangle
+ * guarantees only 2 pairs of 2, and 2 is not the same as 4. That is the test the card is
+ * asking for, stated in the open, and it is the reason the answer is no.
+ *
+ * It speaks only when the card's own mark says no, and only for this direction; the reverse
+ * ("is a square a rectangle") is the inclusive definition and is left to the rule that
+ * already serves it with a real count.
+ */
+  function squareDefinitionLine(item, text, shown) {
+    var m = /^\s*is a rectangle a square\??\s*$/i.exec(String(text || ''));
+    if (!m) return null;
+    if (String(shown || '').trim().toLowerCase() !== 'no') return null;   /* never contradict the card's own mark */
+    var line = 'A rectangle has 2 pairs equal; a square needs 4 all equal, and 2 is not the same as 4.';
+    return line.length <= 88 ? line : null;
+  }
+
+/* candidate AM — the no-conversion time cards. Written as tmp/wcblocks/AM_unitgiven.js so
+ * the harness can try it against live cards before anything is shipped:
+ *   node tmp/wcblock_test.js tmp/wcblocks/AM_unitgiven.js 'how many minutes' 8
+ *
+ * "A movie starts at 3:00 and lasts 90 minutes. How many minutes is that?" is flagged
+ * because between the question and the answer nothing computes. The card's own words are
+ * honest about why — "nothing is added or removed" — but that is an announcement, and the
+ * rule can do better with the same two facts the card already prints: the duration arrives
+ * in minutes and the question asks for minutes. So the rule reads both, requires them to be
+ * the same unit, requires the number to be the card's own answer, and says the thing that is
+ * actually true: the number arrives already in the unit asked for, so nothing converts. It
+ * refuses when the units differ — that is a real conversion and this rule does not own it.
+ */
+  function unitGivenLine(item, text, shown) {
+    var t = String(text || '');
+    var gave = /\blast(?:s|ed)?\s+(\d+)\s*(minutes?|hours?|seconds?)\b/i.exec(t);
+    var want = /how many\s+(minutes?|hours?|seconds?)\b/i.exec(t);
+    if (!gave || !want) return null;
+    if (gave[2].slice(0, 3).toLowerCase() !== want[1].slice(0, 3).toLowerCase()) return null;
+    var n = numOf(shown);
+    if (n === null || n !== parseInt(gave[1], 10)) return null;             /* the card's own answer, not a new one */
+    var unit = want[1].toLowerCase();
+    var line = gave[1] + ' ' + unit + ' is already in ' + unit + ', so the answer is ' +
+      gave[1] + ' ' + unit + ' unchanged.';
+    return line.length <= 88 ? line : null;
+  }
+
+/* candidate AO (second version) — the percent-of cards. Written as
+ * tmp/wcblocks/AO_percent.js so the harness can try it against live cards first:
+ *   node tmp/wcblock_test.js tmp/wcblocks/AO_percent.js 'what is' 8
+ *
+ * "What is 25% of 40?" tells the learner to write the percent as a decimal and multiply by
+ * the whole, and then just states the answer; the steps name the procedure without performing
+ * it, which is what the flag is about. Both numbers it needs are printed on the card.
+ *
+ * What the first version got wrong, and what the probe (tmp/wcblocks/PROBE.js) showed: the
+ * harness hands a rule normalised text, and that normalisation STRIPS unit words — "percent"
+ * is gone, so the text reads "what is 25 of 40". Digits survive intact, words do not. So the
+ * pattern no longer leans on the word "percent", and the reading is settled the only honest
+ * way left: the rule computes the percent reading and refuses unless it lands on the card's
+ * own answer. A "what is three fourths of 12" card therefore gets nothing from this rule —
+ * (3/100)×12 is not 9 — which is the computation doing the disambiguating, not a guess.
+ */
+  function percentPartOfWholeLine(item, text, shown) {
+    var m = /what is\s+(\d+(?:[.]\d+)?)\s*(?:%|percent)?\s*of\s+(\d+(?:[.]\d+)?)/i.exec(String(text || ''));
+    if (!m) return null;
+    var p = parseFloat(m[1]), w = parseFloat(m[2]);
+    if (!(p > 0) || !(w > 0) || p >= 100) return null;
+    var d = p / 100, prod = d * w;
+    var cross = p * w;                      /* the bar reads integer arithmetic; the decimal form is the same step */
+    var said = numOf(shown);
+    if (said === null) return null;
+    if (Math.abs(prod - said) > 1e-9) return null;         /* the percent reading must reproduce the card's own answer */
+    var line = fmt(p) + ' × ' + fmt(w) + ' = ' + fmt(cross) + ', and ' + fmt(cross) + ' ÷ 100 = ' + fmt(prod) + ', which is the answer.';
+    return line.length <= 88 ? line : null;
+  }
+
+/* candidate AP (second version) — the degree-of-a-polynomial cards. Written as
+ * tmp/wcblocks/AP_degree.js so the harness can try it against live cards first:
+ *   node tmp/wcblock_test.js tmp/wcblocks/AP_degree.js 'degree of the polynomial' 8
+ *
+ * The card writes the polynomial out — "What is the degree of the polynomial 3x⁶ + 4x + 9?" —
+ * and its working already says which exponents appear and which is highest. What the flag wants
+ * is the comparison itself, and it can be shown honestly: the rule reads the exponents off the
+ * prompt the way the learner does (the superscript on the first term, and 1 for the bare x on
+ * the second — the constant has no variable, which is the card's own point), takes the higher,
+ * and refuses unless that is the card's own answer.
+ *
+ * It reads `item.prompt`, not `text`: the harness hands a rule the PLAIN rendering of
+ * prompt+sub, which mangles words and is not where the printed numbers live. That cost a whole
+ * harness run to learn, and it is the same lesson round 131 wrote down from the other side.
+ */
+  var WC_SUP = { '\u2070': 0, '\u00b9': 1, '\u00b2': 2, '\u00b3': 3, '\u2074': 4, '\u2075': 5,
+    '\u2076': 6, '\u2077': 7, '\u2078': 8, '\u2079': 9 };
+  function degreeCompareLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var re = /x(\d|[\u2070-\u2079\u00b9\u00b2\u00b3\u2074-\u2079])+|x(?=[\s+\u2212])/g, m2, ex = [];
+    while ((m2 = re.exec(p))) {
+      var s = m2[0].slice(1), v = 0;
+      if (!s) { ex.push(1); continue; }                       /* a bare x is to the power of 1 */
+      for (var i = 0; i < s.length; i++) {
+        var d = WC_SUP[s[i]];
+        if (d === undefined) { if (s[i] < '0' || s[i] > '9') { v = -1; break; } d = parseInt(s[i], 10); }
+        v = v * 10 + d;
+      }
+      if (v >= 0) ex.push(v);
+    }
+    if (ex.length < 2) return null;
+    var hi = ex[0], lo = ex[0];
+    for (var k = 1; k < ex.length; k++) { if (ex[k] > hi) hi = ex[k]; if (ex[k] < lo) lo = ex[k]; }
+    if (hi === lo) return null;
+    var said = numOf(shown);
+    if (said === null || hi !== said) return null;             /* the higher exponent must BE the card's own answer */
+    var line = 'The exponents are ' + fmt(lo) + ' and ' + fmt(hi) + ', and ' + fmt(hi) + ' is more than ' +
+      fmt(lo) + ', so the degree is ' + fmt(hi) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106223,7 +106417,8 @@ var MW = {
       moneyEnoughLine, unitRateCompareLine, missingFactorCompareLine, claimedCountCheckLine,
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
       divisorSortLine, fractionOfNumberLine, absValueCompareLine,
-      rowLabelCountLine, sayCountWordsLine, shapeFamilyLine], fi;
+      rowLabelCountLine, sayCountWordsLine, shapeFamilyLine, countAloudLine, sortIntoGroupLine,
+      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -109076,18 +109271,16 @@ var MW = {
      FALLING THROUGH therefore used to hand a desktop browser a different voice than the
      one the ears signed off, which is exactly what a learner notices as wrong words.
      The full build is tried on both devices first; only when neither can run does the
-     small one get asked. A phone gets no quantised build at all, which is the point of the order: the phone
-     was the one device that never got the approved voice, and that is exactly where it was
-     reported as sounding wrong. What that costs is the bigger download, and a tab that runs
-     out of memory dies rather than falling back, so a phone that cannot hold the full voice
-     gets no neural voice at all rather than a different speaker than every other device
-     has. */
+     small one get asked. A phone was briefly put on the full build anyway, on the theory that the two builds say a
+     line differently; a tester found the phone producing no sound and quitting outright, and its own
+     ears then judged the two builds the same anyway. So the phone is back on the small build,
+     which is the only reason it answers at all. */
   /* On a phone the order is the other way round, and it is not taste either: the
      fp32 build is what takes a phone tab down, and the small one is measured
      clean — it just cannot keep up with its own speech on a phone CPU, which is
      what the real-time-factor rule in speakNeural is for. So a phone asks the
      GPU for the small build, and the CPU for the small build, and stops there. */
-  var NEURAL_TRIES_PHONE = [['webgpu', 'fp32'], ['wasm', 'fp32']];
+  var NEURAL_TRIES_PHONE = [['webgpu', 'q8'], ['wasm', 'q8']];
   function isPhone() {
     try {
       if (TOUCH) return true;                                  // the app's own touch test
