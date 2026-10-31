@@ -106383,6 +106383,46 @@ var MW = {
     return line.length <= 88 ? line : null;
   }
 
+/* candidate AR (third version) — the factorisation cards. Written as tmp/wcblocks/AR_factors.js
+ * so the harness can try it against live cards first (numbers come from item.prompt, never from
+ * the prose — rounds 131/134; and the function name must not already exist — round 131's lesson;
+ * and no Unicode literals in the source, matched by char code instead, because the escaping has
+ * now cost three rounds):
+ *   node tmp/wcblock_test.js tmp/wcblocks/AR_factors.js 'product of linear factors' 10
+ *
+ * The card prints the polynomial, prints its answer, and then *says* the answer expands back.
+ * That expansion is a real verification and the rule performs it: for two brackets the two
+ * constants have to add to the middle coefficient and multiply to the constant term; where a
+ * number sits outside, that times the bracket has to give the middle term and there has to be no
+ * constant. The rule only speaks when its own arithmetic lands on the numbers the card printed —
+ * an absent term counts as zero, which is the algebra and also what tripped the first version.
+ */
+  function factorCheckLine(item, text, shown) {
+    var MINUS = String.fromCharCode(0x2212);
+    var p = String((item && item.prompt) || ''), a = String(shown || '');
+    var re = /([+\-−])?\s*(\d+)(x²|x)?/gi, m, A = 1, B = 0, C = 0, seen = 0;
+    while ((m = re.exec(p))) {
+      var v = parseInt(m[2], 10) * (m[1] === MINUS ? -1 : 1);
+      seen++;
+      if (m[3] === 'x²') A = v; else if (m[3] === 'x') B = v; else C = v;
+    }
+    if (seen < 1 || p.indexOf('²') < 0) return null;
+    var br = [], bm, bre = /\(\s*x\s*([+\-−])\s*(\d+)\s*\)/g;
+    while ((bm = bre.exec(a))) br.push(parseInt(bm[2], 10) * (bm[1] === MINUS ? -1 : 1));
+    var line = null;
+    if (br.length === 2) {
+      if (A !== 1 || br[0] + br[1] !== B || br[0] * br[1] !== C) return null;   /* the card's own check */
+      line = 'The brackets check out: ' + fmt(br[0]) + ' + ' + fmt(br[1]) + ' = ' + fmt(B) +
+        ' and ' + fmt(br[0]) + ' × ' + fmt(br[1]) + ' = ' + fmt(C) + '.';
+    } else if (br.length === 1 && C === 0 && /^\d+/.test(a)) {
+      var lead = parseInt(a, 10);
+      if (A !== lead || lead * br[0] !== B) return null;
+      line = 'The outside number times the bracket gives the middle term: ' + fmt(lead) + ' × ' +
+        fmt(br[0]) + ' = ' + fmt(B) + '.';
+    }
+    return line && line.length <= 88 ? line : null;
+  }
+
   /* Every rule above has the same shape — take the numbers the card
      printed, do the one step the question asks for, and only speak when the
      result is the mark — so they are offered as a group wherever a card is
@@ -106418,7 +106458,7 @@ var MW = {
       putTogetherLine, howManyMoreLine, groupsOfLine, equalSharesLine,
       divisorSortLine, fractionOfNumberLine, absValueCompareLine,
       rowLabelCountLine, sayCountWordsLine, shapeFamilyLine, countAloudLine, sortIntoGroupLine,
-      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine], fi;
+      squareDefinitionLine, unitGivenLine, percentPartOfWholeLine, degreeCompareLine, factorCheckLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -109276,16 +109316,17 @@ var MW = {
      FALLING THROUGH therefore used to hand a desktop browser a different voice than the
      one the ears signed off, which is exactly what a learner notices as wrong words.
      The full build is tried on both devices first; only when neither can run does the
-     small one get asked. A phone was briefly put on the full build anyway, on the theory that the two builds say a
-     line differently; a tester found the phone producing no sound and quitting outright, and its own
-     ears then judged the two builds the same anyway. So the phone is back on the small build,
-     which is the only reason it answers at all. */
+     small one get asked. A phone gets the full build too, because the quantised one was listened to and
+     rejected outright: the reader says the wrong words on a phone as much as anywhere. So the
+     order asks the GPU for the full build and then the CPU, and stops there, with nothing
+     smaller behind it. What that costs is the bigger download, and a tab that runs out of
+     memory dies rather than falling back, so this only holds while the phone can hold it. */
   /* On a phone the order is the other way round, and it is not taste either: the
      fp32 build is what takes a phone tab down, and the small one is measured
      clean — it just cannot keep up with its own speech on a phone CPU, which is
      what the real-time-factor rule in speakNeural is for. So a phone asks the
      GPU for the small build, and the CPU for the small build, and stops there. */
-  var NEURAL_TRIES_PHONE = [['webgpu', 'q8'], ['wasm', 'q8']];
+  var NEURAL_TRIES_PHONE = [['webgpu', 'fp32'], ['wasm', 'fp32']];
   function isPhone() {
     try {
       if (TOUCH) return true;                                  // the app's own touch test
