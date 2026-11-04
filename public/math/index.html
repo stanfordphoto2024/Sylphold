@@ -17107,7 +17107,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var both = price + buy2[1];
         return I_num(w + ' buys a ' + buy[0] + ' for $' + cash(price) + ' and a ' + buy2[0] + ' for $' + cash(buy2[1]) + '. Write the total as a decimal.', dollars(both), {
           b: 0.6,
-          explain: ['Add the two prices: ' + price + '¢ + ' + buy2[1] + '¢.', 'That is ' + both + '¢.', 'So the total is <b>$' + cash(both) + '</b>.'],
+          explain: ['Add the two prices: $' + cash(price) + ' + $' + cash(buy2[1]) + ' = $' + cash(both) + '.', 'In cents the same work is ' + price + '¢ + ' + buy2[1] + '¢ = ' + both + '¢.', 'So the total is <b>$' + cash(both) + '</b>.'],
           teach: 'Buying two things means adding the two prices to get one total.'
         });
       },
@@ -20102,7 +20102,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return I_num('The star is in row ' + (target.r + 1) + '. Which column is it in? Number the columns from the left.', target.c + 1, {
           visual: V.grid({ rows: 3, cols: 4, cells: cells, rowLabels: ['row 1', 'row 2', 'row 3'], label: 'a grid with one star' }), b: 1.0,
           explain: ['Find the row that holds the star.',
-            'Count the columns from the left: the star is in column ' + (target.c + 1) + '.',
+            'It sits after ' + target.c + ' empty squares: ' + target.c + ' + 1 = column ' + (target.c + 1) + '.',
             SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (target.c + 1) + '</b>.'],
           teach: 'A grid position needs two numbers: the row and the column.'
         });
@@ -20385,7 +20385,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {
         return I_bool('Does  ' + sent.replace(BOX, ans) + '  show the ' + name + '?', true, {
           b: 0.3 + hard * 0.4,
-          explain: ['Both sides have the same value: ' + (a + b + (kind === 'assoc' ? c : 0)) + '.',
+          explain: [kind === 'comm' ? 'Add each side: ' + a + ' + ' + b + ' = ' + (a + b) + ' and ' + b + ' + ' + a + ' = ' + (a + b) + '.'
+            : kind === 'assoc' ? '(' + a + ' + ' + b + ') + ' + c + ' = ' + (a + b + c) + ' and ' + a + ' + (' + b + ' + ' + c + ') = ' + (a + b + c) + '.'
+              : a + ' + 0 = ' + a + ', nothing changed.',
             'The ' + name + ' says ' + why.toLowerCase(),
             'So <b>yes</b>.'], teach: why
         });
@@ -28474,8 +28476,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       if (m1 === m2 || m1 * m2 === -1) return null;
       if (HS.leaksText(p, 'neither parallel nor perpendicular')) return null;
       return HS.mc(rng, p, 'neither parallel nor perpendicular', ['parallel', 'perpendicular', 'the same line'], {
-        explain: ['Compare the slopes: ' + m1 + ' and ' + m2 + '.',
-          'They are not equal, and their product is ' + m1 * m2 + ', not -1.',
+        explain: ['Read the slopes off ' + HS.lineSI(m1, b1) + ' and ' + HS.lineSI(m2, b2) + ': ' + m1 + ' versus ' + m2 + '.',
+          'The slopes are not equal, and ' + m1 + ' × ' + m2 + ' = ' + m1 * m2 + ', not -1.',
           'So the lines are <b>neither parallel nor perpendicular</b>.'],
         teach: 'Only matching slopes or a product of -1 make special pairs. Two lines that share one point are the starting place for the parallelogram method of a resultant vector.'
       }, null, lvl, 0.2);
@@ -29042,7 +29044,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var ans = L.m > 0 ? 'up and to the right' : 'down and to the right';
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, [L.m > 0 ? 'down and to the right' : 'up and to the right', 'straight to the right', 'up and to the left'], {
-        explain: ['Slope ' + L.m + ' means a run of 1 to the right changes y by ' + L.m + '.',
+        explain: ['One step right from (0, ' + L.b + '): ' + L.b + ' ' + (L.m < 0 ? '− ' + Math.abs(L.m) : '+ ' + L.m) + ' = ' + (L.b + L.m) + ' — the step in y is the slope.',
           L.m > 0 ? 'Moving right while rising is up and to the right.' : 'Moving right while falling is down and to the right.',
           'The answer is <b>' + ans + '</b>.'],
         teach: 'Slope describes the direction taken from any point on the line.'
@@ -30178,7 +30180,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var t2x = x1 + w, t2y = y1 + hgt;
       var p = 'Triangle A has vertices ' + HS.ptStr([x1, y1]) + ', ' + HS.ptStr([x1 + w, y1]) + ', ' + HS.ptStr([x1, y1 + hgt]) + '. Triangle B has the same three side lengths. Are the triangles congruent by SSS?';
       return HS.judge(p, true, {
-        explain: ['Compute the three sides of triangle A from the coordinates: ' + w + ', ' + hgt + ' and ' + BC.fix(Math.sqrt(w * w + hgt * hgt), 3) + '.',
+        explain: ['Subtract coordinates — the horizontal side is ' + (x1 + w) + ' − ' + (x1 < 0 ? '(' + x1 + ')' : x1) + ' = ' + w + ' and the vertical side is ' + (y1 + hgt) + ' − ' + (y1 < 0 ? '(' + y1 + ')' : y1) + ' = ' + hgt + '; the hypotenuse comes to ' + BC.fix(Math.sqrt(w * w + hgt * hgt), 3) + '.',
           'Triangle B is stated to have those same three lengths.',
           'Three matching pairs of sides give congruence by <b>SSS</b>.'],
         teach: 'Side lengths computed from coordinates let SSS be applied on the plane.'
@@ -30365,6 +30367,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var p = 'Is the ' + rows + ' × ' + rows + ' identity matrix the multiplicative identity for ' + rows + ' × ' + rows + ' matrices?';
       return HS.judge(p, true, {
         explain: ['The identity matrix has 1s on the diagonal and 0s elsewhere.',
+          'The diagonal entry is built as 1 × 1 + 0 × 0 + … + 0 × 0 = 1 — only the diagonal pair contributes, so the same row leaves any matrix unchanged.',
           'Multiplying by it reproduces every row unchanged.',
           'So the answer is <b>Yes</b>.'],
         teach: 'The identity matrix plays the role of the number 1.'
@@ -31038,7 +31041,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       var p = 'How many solutions does the system have?   ' + HS.lineSI(m1, b1) + '   and   ' + HS.lineSI(m2, b2);
       if (HS.leaksText(p, ans)) return null;
       return HS.mc(rng, p, ans, ['exactly one solution', 'no solution', 'infinitely many solutions'].filter(function (o) { return o !== ans; }), {
-        explain: ['Compare the slopes: ' + m1 + ' and ' + m2 + '.',
+        explain: ['Compare the two printed equations: ' + HS.lineSI(m1, b1) + ' and ' + HS.lineSI(m2, b2) + ' — same slope? same intercept?',
           kind === 'one' ? 'Different slopes mean one intersection.' :
             kind === 'none' ? 'Equal slopes with different intercepts mean the lines never meet.' :
               'Equal slopes and equal intercepts mean the same line twice.',
@@ -31768,7 +31771,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return HS.parts(p, labels3(), specsOf(S), {
         answerText: S.map(HS.exact).join(' ; '),
         explain: ['Add the components in matching positions.',
-          'They become ' + S.join(', ') + '.',
+          A[0] + ' + ' + B[0] + ' = ' + S[0] + ', ' + A[1] + ' + ' + B[1] + ' = ' + S[1] + ', ' + A[2] + ' + ' + B[2] + ' = ' + S[2] + '.',
           'The sum is ' + vStr(S) + '.'],
         teach: 'Addition in space is component-wise, exactly as in the plane.'
       }, null, lvl, 0.1);
@@ -31780,7 +31783,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return HS.parts(p, labels3(), specsOf(S), {
         answerText: S.map(HS.exact).join(' ; '),
         explain: ['Subtract the matching components.',
-          'They become ' + S.join(', ') + '.',
+          A[0] + ' - ' + B[0] + ' = ' + S[0] + ', ' + A[1] + ' - ' + B[1] + ' = ' + S[1] + ', ' + A[2] + ' - ' + B[2] + ' = ' + S[2] + '.',
           'The difference is ' + vStr(S) + '.'],
         teach: 'Subtraction reverses the second vector, then adds.'
       }, null, lvl, 0.2);
@@ -31793,7 +31796,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return HS.parts(p, labels3(), specsOf(S), {
         answerText: S.map(HS.exact).join(' ; '),
         explain: ['Every component is multiplied by ' + k + '.',
-          'That gives ' + S.join(', ') + '.',
+          k + ' × ' + A[0] + ' = ' + S[0] + ', ' + k + ' × ' + A[1] + ' = ' + S[1] + ', ' + k + ' × ' + A[2] + ' = ' + S[2] + '.',
           'The result is ' + vStr(S) + '.'],
         teach: 'Scalars act on all three components equally.'
       }, null, lvl, 0.1);
@@ -58196,9 +58199,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var ans = which === 'mode' ? s.mode : (which === 'mean' ? s.mean : (which === 'median' ? s.median : s.max - s.min));
           var other = ans + BC.pick(rng, [1, -1]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   the ' + which + ' of the chart  ○  ' + nfmt(other),
+            prompt: 'Choose >, < or =.   the ' + which + ' of ' + list.join(', ') + '  ○  ' + nfmt(other),
             left: ans, right: other,
-            steps: ['Work the ' + which + ' from the chart.', 'That value is ' + nfmt(ans) + '.'],
+            steps: ['Work the ' + which + ' of ' + list.join(', ') + ' yourself.', 'That value is ' + nfmt(ans) + ', so compare it with ' + nfmt(other) + '.'],
             teach: 'Compare the statistic only after computing it.', b: 0.8
           });
         },
@@ -59680,9 +59683,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var ans = which === 'mode' ? s.mode : (which === 'mean' ? s.mean : (which === 'median' ? s.median : s.max - s.min));
           var other = ans + BC.pick(rng, [1, -1]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   the ' + which + ' of the chart  ○  ' + nfmt(other),
+            prompt: 'Choose >, < or =.   the ' + which + ' of ' + list.join(', ') + '  ○  ' + nfmt(other),
             left: ans, right: other,
-            steps: ['Work the ' + which + ' from the chart.', 'That value is ' + nfmt(ans) + '.'],
+            steps: ['Work the ' + which + ' of ' + list.join(', ') + ' yourself.', 'That value is ' + nfmt(ans) + ', so compare it with ' + nfmt(other) + '.'],
             teach: 'Compare the statistic only after computing it.', b: 0.8
           });
         },
@@ -61164,9 +61167,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var ans = which === 'mode' ? s.mode : (which === 'mean' ? s.mean : (which === 'median' ? s.median : s.max - s.min));
           var other = ans + BC.pick(rng, [1, -1]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   the ' + which + ' of the chart  ○  ' + nfmt(other),
+            prompt: 'Choose >, < or =.   the ' + which + ' of ' + list.join(', ') + '  ○  ' + nfmt(other),
             left: ans, right: other,
-            steps: ['Work the ' + which + ' from the chart.', 'That value is ' + nfmt(ans) + '.'],
+            steps: ['Work the ' + which + ' of ' + list.join(', ') + ' yourself.', 'That value is ' + nfmt(ans) + ', so compare it with ' + nfmt(other) + '.'],
             teach: 'Compare the statistic only after computing it.', b: 0.8
           });
         },
@@ -62651,9 +62654,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var ans = which === 'mode' ? s.mode : (which === 'mean' ? s.mean : (which === 'median' ? s.median : s.max - s.min));
           var other = ans + BC.pick(rng, [1, -1]);
           return UP.cmp(rng, {
-            prompt: 'Choose >, < or =.   the ' + which + ' of the chart  ○  ' + nfmt(other),
+            prompt: 'Choose >, < or =.   the ' + which + ' of ' + list.join(', ') + '  ○  ' + nfmt(other),
             left: ans, right: other,
-            steps: ['Work the ' + which + ' from the chart.', 'That value is ' + nfmt(ans) + '.'],
+            steps: ['Work the ' + which + ' of ' + list.join(', ') + ' yourself.', 'That value is ' + nfmt(ans) + ', so compare it with ' + nfmt(other) + '.'],
             teach: 'Compare the statistic only after computing it.', b: 0.8
           });
         },
@@ -64569,7 +64572,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + rstr(p.a * 3, p.b * 3) + '  ○  ' + rstr(p.a * 2, p.b * 2),
             left: p.a / p.b, right: p.a / p.b,
-            steps: ['Both ratios reduce to ' + rstr(p.a, p.b) + '.', 'Equal ratios compare with =.'],
+            steps: ['Divide both parts of ' + rstr(p.a * 3, p.b * 3) + ' by 3: ' + (p.a * 3) + ' ÷ 3 = ' + p.a + ' and ' + (p.b * 3) + ' ÷ 3 = ' + p.b + ', leaving ' + rstr(p.a, p.b) + '; the other side does the same by 2.', 'Equal ratios compare with =.'],
             teach: 'Two ratios that reduce to the same form are equal.', b: 0.9
           });
         },
@@ -65020,7 +65023,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {
           var a = BC.int(rng, 2, 8), b = BC.int(rng, 2, 8), k = BC.int(rng, 2, 6);
           return judge(rng, a + '/' + b + ' = ' + (a * k) + '/' + (b * k) + ' is a true proportion. Is that right?', true, {
-            steps: ['Multiply both parts of the left ratio by ' + k + '.', 'Both sides name the same value.'],
+            steps: ['Multiply both parts of ' + a + '/' + b + ' by ' + k + ': ' + a + ' × ' + k + ' = ' + (a * k) + ' and ' + b + ' × ' + k + ' = ' + (b * k) + '.', 'Both sides name the same value.'],
             teach: 'Scaling both parts equally always produces a true proportion.', b: 0.6
           });
         },
@@ -65142,7 +65145,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   ' + rstr(p.a * k, p.b * k) + '  ○  ' + rstr(p.a * (k + 1), p.b * (k + 1)),
             left: p.a / p.b, right: p.a / p.b,
-            steps: ['Both ratios reduce to ' + rstr(p.a, p.b) + '.', 'Equal ratios compare with =.'],
+            steps: ['Reduce by dividing: ' + (p.a * k) + ' ÷ ' + k + ' = ' + p.a + ', ' + (p.b * k) + ' ÷ ' + k + ' = ' + p.b + ', and ' + (p.a * (k + 1)) + ' ÷ ' + (k + 1) + ' = ' + p.a + ', ' + (p.b * (k + 1)) + ' ÷ ' + (k + 1) + ' = ' + p.b + ' — both sides give ' + rstr(p.a, p.b) + '.', 'Equal ratios compare with =.'],
             teach: 'Equivalent ratios are equal, however they are scaled.', b: 0.9
           });
         },
@@ -76653,7 +76656,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (a * b === 0) return null;
         var truth = (a < 0 && b < 0) || (a > 0 && b > 0);
         return judge(rng, 'Is it true or false that ' + br(a) + ' × ' + br(b) + ' is positive?', truth, {
-          steps: ['Count the negative factors: ' + ((a < 0 ? 1 : 0) + (b < 0 ? 1 : 0)) + ' of them.', (a < 0) === (b < 0) ? 'An even number of negatives (zero or two) gives a positive product.' : 'An odd number of negatives (one) gives a negative product.'],
+          steps: [br(a) + ' × ' + br(b) + ' = ' + (a * b) + ', ' + (a * b > 0 ? 'which is positive.' : 'which is not positive.'), (a < 0) === (b < 0) ? 'Why: an even number of negatives (zero or two) gives a positive product.' : 'Why: an odd number of negatives (one) gives a negative product.'],
           teach: 'Two negatives multiply to a positive; one negative keeps the product negative.', b: 0.3
         });
       },
@@ -76715,7 +76718,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var negs = vals.filter(function (v) { return v < 0; }).length;
         var truth = negs % 2 === 0;
         return judge(rng, 'Is it true or false that ' + vals.map(br).join(' × ') + ' is positive?', truth, {
-          steps: ['Count the negative factors: ' + negs + '.', negs % 2 === 0 ? 'An even number of negatives gives a positive product.' : 'An odd number of negatives gives a negative product.'],
+          steps: [vals.map(br).join(' × ') + ' = ' + prod + ', ' + (prod > 0 ? 'which is positive.' : 'which is not positive.'), (negs % 2 === 0 ? 'Why: an even' : 'Why: an odd') + ' number of negatives gives a ' + (prod > 0 ? 'positive' : 'negative') + ' product.'],
           teach: 'For many factors, count the negatives: even means positive, odd means negative.', b: 0.6
         });
       }
@@ -89114,7 +89117,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var estB = Math.round(f2.a) * (op === 'div' ? 1 : Math.round(f2.b));
       return I_bool('Estimating with wholes does not change the sign in ' + e1 + ' ○ ' + e2 + '.', (estA >= estB) === (v1 >= v2), {
         b: t + 0.6,
-        explain: ['Exact: ' + v1 + ' vs ' + v2 + '.', 'Wholes: ' + estA + ' vs ' + estB + '.',
+        explain: ['Exact: ' + e1 + ' = ' + r2(v1) + ' and ' + e2 + ' = ' + r2(v2) + '.', 'Wholes: ' + estA + ' vs ' + estB + '.',
           (estA >= estB) === (v1 >= v2) ? 'Same winner.' : 'The winner differs — rounding fooled us.',
           SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + ((estA >= estB) === (v1 >= v2) ? 'Yes' : 'No') + '</b>.'],
         teach: 'Estimates usually agree with the real comparison — but check.' });
@@ -114419,10 +114422,7 @@ Object.keys(J9).forEach(function (id) {
     var word = String(shown == null ? '' : shown).trim().toLowerCase(), n = null, k;
     for (k in ORD) if (ORD[k] === word) n = +k;
     if (!n) return null;
-    var list = '', i;
-    for (i = 1; i <= (n <= 4 ? n : 4); i++) list += (i > 1 ? ', ' : '') + i + ordinalSuffix(i);
-    if (n > 4) list += ', …, ' + n + ordinalSuffix(n);
-    var line = 'Count the places in order: ' + list + ', so the place is ' + word + '.';
+    var line = 'The place marked ' + n + ' reads as ' + word + ' — an ordinal names where, not how many.';
     return line.length <= 88 ? line : null;
   }
 
@@ -114469,14 +114469,84 @@ Object.keys(J9).forEach(function (id) {
     return null;
   }
 
+  /* capacity of the drawn model: how many slots the picture has, when the
+     visual says it. Used to ground a count of exactly 1 ("1 out of 5 boxes"),
+     which the plain count-out cannot express. */
+  function modelCapacity(item) {
+    var v = item.visual; if (!v) return null;
+    if (v.k === 'tenframe' && isFinite(v.frames)) return Math.round(v.frames) * 10;
+    if (v.k === 'array' && isFinite(v.rows) && isFinite(v.cols)) {
+      return Math.round(v.rows * v.cols) + Math.max(0, Math.round(+(v.opts && v.opts.extra) || 0));
+    }
+    if (v.k === 'grid' && v.opts && v.opts.cells) {
+      var total = 0, i;
+      for (i = 0; i < v.opts.cells.length; i++) total += (v.opts.cells[i] || []).length;
+      return total > 0 ? total : null;
+    }
+    if (v.k === 'grid' && isFinite(v.rows) && isFinite(v.cols)) return Math.round(v.rows * v.cols);
+    return null;
+  }
+
+  /* per-row filled counts for array and cell-grid models, null otherwise */
+  function modelRows(item) {
+    var v = item.visual; if (!v) return null;
+    var r, c, cells, per = [];
+    if (v.k === 'array' && isFinite(v.rows) && isFinite(v.cols)) {
+      for (r = 0; r < v.rows; r++) per.push(Math.round(v.cols));
+      var extra = Math.max(0, Math.round(+(v.opts && v.opts.extra) || 0));
+      if (extra) per.push(extra);
+      return per;
+    }
+    if (v.k === 'grid' && v.opts && v.opts.cells) {
+      cells = v.opts.cells;
+      for (r = 0; r < cells.length; r++) {
+        var cnt = 0, row = cells[r] || [];
+        for (c = 0; c < row.length; c++) {
+          var cell = String(row[c] == null ? '' : row[c]);
+          if (cell && cell !== '⬜' && cell.indexOf('⬜') < 0 && !/^[a-zA-Z]$/.test(cell)) cnt++;
+        }
+        if (cnt > 0) per.push(cnt);
+      }
+      return per;
+    }
+    return null;
+  }
+
   function countOutLine(item, shown, want) {
     if (shown == null || want == null) return null;
+    var v = item.visual; if (!v) return null;
     var n = modelCount(item);
-    if (n == null || n !== Math.round(want) || n < 1 || n > 20) return null;
-    var list = '', i;
-    for (i = 1; i <= n && list.length <= 52; i++) list += (i > 1 ? ', ' : '') + i;
-    if (i <= n) list += ', …, ' + n;
-    var line = 'Count them: ' + list + ' — that is ' + n + '.';
+    if (n == null || n !== Math.round(want) || n < 1) return null;
+    var line = null, i;
+    /* big structured models: the honest work is row-by-row addition — the same
+       picture a teacher would point at, row after row */
+    if (n > 20) {
+      var per = modelRows(item);
+      if (per && per.length >= 2) {
+        var acc = 0, keep = [];
+        for (i = 0; i < per.length && acc < n; i++) {
+          if (keep.join(', ').length + String(per[i]).length > 44) break;
+          acc += per[i]; keep.push(per[i]);
+        }
+        if (acc === n) line = 'Count the rows: ' + keep.join(', ') + ' — that is ' + n + '.';
+        else if (keep.length >= 2) line = 'Count by rows: ' + keep.join(', ') + ', … — ' + n + ' in all.';
+      }
+      if (!line && v.k === 'tenframe' && n <= 200) {
+        var tens = Math.floor(n / 10), ones = n % 10;
+        line = tens + ' tens' + (ones ? ' and ' + ones + ' ones' : '') + (ones ? ' make ' : ' makes ') + n + '.';
+      }
+      return line && line.length <= 88 ? line : null;
+    }
+    var cap = modelCapacity(item);
+    if (n === 1) {
+      if (!cap) return null;
+      line = 'Only 1 out of ' + cap + ' boxes has a counter — the model shows 1.';
+    } else {
+      var list = '';
+      for (i = 1; i <= n && list.length <= 52; i++) list += (i > 1 ? ', ' : '') + i;
+      if (i <= n) list += ', …, ' + n;
+      line = 'Count them: ' + list + ' — that is ' + n + '.';
+    }
     return line.length <= 88 ? line : null;
   }
 
@@ -114503,6 +114573,107 @@ Object.keys(J9).forEach(function (id) {
      say the count and stop on it, which also shows which numeral matches. */
   var WORDNUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
     'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+
+  /* word↔digit cards ("Which number is "one thousand eight hundred and
+     seventy two"?") answer by recognising the name; the actual arithmetic the
+     name encodes is place-value assembly. The run of number words is parsed,
+     the value it names has to equal the mark the card grades, and only then is
+     the assembly printed. */
+  var WONES = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  var WTENS = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  function wordsToNum(str) {
+    var toks = String(str).toLowerCase().replace(/[,\-]/g, ' ').split(/\s+/), i, v = 0, acc = 0, cur = 0, t;
+    for (i = 0; i < toks.length; i++) {
+      t = toks[i];
+      if (!t || t === 'and') continue;
+      var io = WONES.indexOf(t);
+      if (io >= 0) { cur += io + 1; v++; continue; }
+      var it = WTENS.indexOf(t);
+      if (it >= 0) { cur += (it + 2) * 10; v++; continue; }
+      if (t === 'hundred') { if (!cur) return null; cur *= 100; v++; continue; }
+      if (t === 'thousand') { acc += (cur || 1) * 1000; cur = 0; v++; continue; }
+      return null;
+    }
+    if (v < 1) return null;
+    var n = acc + cur;
+    /* one bare word only names an assembled number for the teens (10 + x);
+       the small one-word counts stay with the count-out rule */
+    if (v === 1 && !(n >= 11 && n <= 19)) return null;
+    return n > 0 && n < 10000000 ? n : null;
+  }
+
+  function numParts(n) {
+    var out = [], rem = n, th, hu, te;
+    th = Math.floor(rem / 1000) * 1000; if (th > 0) { out.push(th); rem -= th; }
+    hu = Math.floor(rem / 100) * 100; if (hu > 0) { out.push(hu); rem -= hu; }
+    te = Math.floor(rem / 10) * 10; if (te > 0) { out.push(te); rem -= te; }
+    if (rem > 0) out.push(rem);
+    return out;
+  }
+
+  function wordNumAssemble(text, shown) {
+    var mark = String(shown == null ? '' : shown).replace(/[^0-9]/g, '');
+    if (!/^\d+$/.test(mark) || Number(mark) < 1) return null;
+    var want = Number(mark);
+    var words = String(text).toLowerCase().match(/[a-z][a-z \-]*/g) || [], i, j, ok = {};
+    for (i = 0; i < WONES.length; i++) ok[WONES[i]] = 1;
+    for (i = 0; i < WTENS.length; i++) ok[WTENS[i]] = 1;
+    ok.hundred = 1; ok.thousand = 1; ok.and = 1;
+    var run = null;
+    for (i = 0; i < words.length && !run; i++) {
+      var parts = words[i].split(/[\s\-]+/);
+      for (j = 0; j < parts.length; j++) {
+        var seq = [];
+        while (j < parts.length && ok[parts[j]] && (parts[j] !== 'and' || seq.length)) { seq.push(parts[j]); j++; }
+        var cand = seq.join(' ').replace(/\s+and\s*$/, '').replace(/^and\s+/, '').trim();
+        if (cand && wordsToNum(cand) === want) { run = cand; break; }
+      }
+    }
+    if (!run) return null;
+    var v = want, parts2 = numParts(v), shownNum = String(shown).trim(), mid;
+    if (parts2.length >= 2) mid = parts2.join(' + ');
+    else if (v % 1000 === 0 && v >= 1000 && v < 10000) mid = (v / 1000) + ' × 1000';
+    else if (v % 100 === 0 && v >= 100) mid = (v / 100) + ' × 100';
+    else return null;
+    var line = (/^\d[\d,]*$/.test(shownNum) ? shownNum : String(v)) + ' = ' + mid + ' — ' + run + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "What is the value of the digit 8 in 1,872?" answered with bare 800 or a
+     letter-name never says where the digit sits. The position and the product
+     are read off the printed number, and the line is kept only when the mark
+     the card grades equals that place value. */
+  var PLACEWORDS = ['ones', 'tens', 'hundreds', 'thousands', 'ten-thousands', 'hundred-thousands'];
+  function digitValueLine(text, shown) {
+    var m = /value of the digit\s+(\d+)\s+in\s+([\d,]+)/i.exec(text);
+    if (!m) return null;
+    var d = +m[1], digits = m[2].replace(/,/g, '');
+    if (String(d).length !== 1 || !/^\d+$/.test(digits) || digits.length > 7) return null;
+    var count = 0, pos = -1, i, val, mark = String(shown == null ? '' : shown).replace(/[^0-9]/g, '');
+    for (i = 0; i < digits.length; i++) {
+      if (+digits.charAt(i) === d) { count++; pos = digits.length - 1 - i; }
+    }
+    if (count === 1) {
+      if (!mark) return null;
+    } else if (count > 1) {
+      /* the digit sits in several places; the card's own mark picks which one
+         is being asked for, and only one place may produce it */
+      if (!mark) return null;
+      var want = Number(mark), hits = 0, chosen = -1;
+      for (i = 0; i < digits.length; i++) {
+        if (+digits.charAt(i) === d && d * Math.pow(10, digits.length - 1 - i) === want) { hits++; chosen = digits.length - 1 - i; }
+      }
+      if (hits !== 1) return null;
+      pos = chosen;
+    } else return null;
+    var pw = Math.pow(10, pos); val = d * pw;
+    if (Number(mark) !== val) return null;
+    var line = 'In ' + m[2] + ' the ' + d + ' sits in the ' + PLACEWORDS[pos] + ' place: ' + d + ' × ' + pw + ' = ' + val + '.';
+    return line.length <= 88 ? line : null;
+  }
+
 
   function wordCountLine(text, shown) {
     var m = /(?:written as|spelled as|the word)\s+["']?([a-z]+)["']?/i.exec(text);
@@ -119080,10 +119251,8 @@ Object.keys(J9).forEach(function (id) {
     var mark = String(shown == null ? '' : shown).toUpperCase().replace(/\s+/g, ' ').trim();
     if (mark.indexOf('QUADRANT ') !== 0) return null;
     if (mark.slice(9) !== q) return null;
-    var LT = String.fromCharCode(0x3c), GT = String.fromCharCode(0x3e);
     var fx = (x < 0 ? '−' + (-x) : '' + x), fy = (y < 0 ? '−' + (-y) : '' + y);
-    var line = fx + ' ' + (x < 0 ? LT : GT) + ' 0 and ' + fy + ' ' + (y < 0 ? LT : GT) + ' 0' +
-      ': ' + (x < 0 ? 'left' : 'right') + ' and ' + (y < 0 ? 'down' : 'up') + ', Quadrant ' + q + '.';
+    var line = fx + ' goes ' + (x < 0 ? 'left of the y-axis' : 'right of the y-axis') + ' and ' + fy + ' goes ' + (y < 0 ? 'below the x-axis' : 'above the x-axis') + ': Quadrant ' + q + '.';
     return line.length <= 88 ? line : null;
   }
 
@@ -119700,7 +119869,17 @@ Object.keys(J9).forEach(function (id) {
   function roundsToOptionLine(item, text, shown) {
     var p = String((item && item.prompt) || '');
     var m = /rounds to\s+([0-9][0-9,]*)\s+when rounded to the nearest\s+([a-z ]+)/i.exec(p);
-    if (!m) return null;
+    if (!m) {
+      var m2 = /rounds to\s+([0-9][0-9,]*)\??\s*$/i.exec(p);
+      if (!m2) return null;
+      var tg = parseInt(m2[1].replace(/,/g, ''), 10);
+      var vv = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
+      if (vv == null || tg % 10 !== 0 || vv % 10 === 0) return null;
+      var lo = Math.floor(vv / 10) * 10, dl = Math.abs(vv % 10);
+      if ((dl >= 5 ? lo + 10 : lo) !== tg) return null;
+      var sline = 'Nearest ten: ' + lo + ' + ' + dl + ' = ' + vv + ', ' + dl + (dl >= 5 ? ' ≥ 5, so ' + tg + ' wins.' : ' < 5, so ' + tg + ' wins.');
+      return sline.length <= 88 ? sline : null;
+    }
     var target = parseInt(m[1].replace(/,/g, ''), 10);
     var pw = RPLACE[m[2].trim().toLowerCase()];
     if (!pw) return null;
@@ -120280,7 +120459,144 @@ Object.keys(J9).forEach(function (id) {
     var line = fmt(n) + ' − ' + fmt(lo) + ' = ' + fmt(n - lo) + (up ? ', that reaches the halfway point, so ' + fmt(n) + ' rounds up to ' + fmt(hi) + '.' : ', under the halfway point, so ' + fmt(n) + ' rounds down to ' + fmt(lo) + '.');
     return line.length <= 88 ? line : null;
   }
-    /* "which shape has six sides" — the count-out of the shape the card names */
+    /* "Which ten is 846 nearest to?" — distance arithmetic to the
+   * nearer multiple, read off the card's own numbers. */
+  function nearestToQLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /which (tens?|hundreds?|thousands?) is (-?[0-9]+(?:\.[0-9]+)?) nearest/i.exec(p);
+    if (!m) return null;
+    var base = /hundred/i.test(m[1]) ? 100 : /thousand/i.test(m[1]) ? 1000 : 10;
+    var n = parseFloat(m[2]);
+    var lo = Math.floor(n / base) * base, hi = lo + base;
+    var chosen = (n - lo) >= base / 2 ? hi : lo;
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
+    if (v == null || v !== chosen) return null;
+    var line = fmt(n) + ' is only ' + fmt(Math.abs(chosen - n)) + ' away from ' + fmt(chosen) + ', its nearest ' + m[1].toLowerCase().replace(/s$/, '') + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A stand spent $9.03 and made $6.26 profit" — takings = costs + profit. */
+  function profitSumLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /spent \$([0-9]+(?:\.[0-9]+)?) and made \$([0-9]+(?:\.[0-9]+)?) profit/i.exec(p);
+    if (!m) return null;
+    var cost = parseFloat(m[1]), gain = parseFloat(m[2]);
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/[$,]/g, '').trim());
+    if (v == null || Math.abs(v - (cost + gain)) > 0.005) return null;
+    var line = '$' + cost.toFixed(2) + ' + $' + gain.toFixed(2) + ' = $' + (cost + gain).toFixed(2) + ' taken in.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which statement about 7 is true?" with answer |7| = 7 — the absolute
+   * value is the distance from zero. */
+  function absPosLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /statement about (-?[0-9]+(?:\.[0-9]+)?) is true/i.exec(p);
+    if (!m) return null;
+    var n = parseFloat(m[1]);
+    var sh = String(shown === null || shown === undefined ? '' : shown).replace(/\s+/g, '').replace(/\u2212/g, '-');
+    var mm = /^\|(-?[0-9]+(?:\.[0-9]+)?)\|=(-?[0-9]+(?:\.[0-9]+)?)$/.exec(sh);
+    if (!mm) return null;
+    if (parseFloat(mm[1]) !== n || parseFloat(mm[2]) !== Math.abs(n)) return null;
+    var line = fmt(n) + ' sits ' + fmt(Math.abs(n)) + ' away from 0, so |' + fmt(n) + '| = ' + fmt(Math.abs(n)) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which pair are opposites?" — opposites add to zero. */
+  function oppositesPairLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/which (two |pair(?:s)? )?(numbers? )?(are opposites|are additive inverses)/i.test(p)) return null;
+    var sh = String(shown === null || shown === undefined ? '' : shown).replace(/\u2212/g, '-');
+    var m = /^(-?[0-9]+(?:\.[0-9]+)?) and (-?[0-9]+(?:\.[0-9]+)?)$/.exec(sh.replace(/\s+/g, ' ').trim());
+    if (!m) return null;
+    var a = parseFloat(m[1]), b = parseFloat(m[2]);
+    if (Math.abs(a + b) > 1e-9 || a === b) return null;
+    var line = fmt(a) + ' + ' + fmt(b) + ' = 0, so they are opposites.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "What number is V?" — single-symbol Roman values. */
+  function romanSimpleLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /what number is ([ivxlcdm])\??/i.exec(p);
+    if (!m) return null;
+    var MAP = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+    var val = MAP[m[1].toUpperCase()];
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).trim());
+    if (!val || v !== val) return null;
+    var line = m[1].toUpperCase() + ' = ' + val + ' in Roman numerals.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which expression equals 1,000?" with shown 10^3 — expand the power. */
+  function powerExprLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/which expression equals/i.test(p)) return null;
+    var sh = String(shown === null || shown === undefined ? '' : shown).replace(/\s+/g, '');
+    var m = /^10\^([0-9])$/.exec(sh);
+    if (!m) return null;
+    var e = parseInt(m[1], 10);
+    if (e < 2 || e > 6) return null;
+    var val = 1, i;
+    for (i = 0; i < e; i++) val *= 10;
+    var want = /equals (-?[0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)/i.exec(p);
+    if (!want || parseFloat(want[1].replace(/,/g, '')) !== val) return null;
+    var parts = [], j;
+    for (j = 0; j < e; j++) parts.push(10);
+    var line = '10^' + e + ' means ' + parts.join(' × ') + ' = ' + val + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+    /* "Sam collected 5 buttons and Mia collected 7" — add every listed
+   * tally on the card and check the sum against the mark. */
+  function dataSumLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /([A-Z][a-z]+)[^.]{0,40}?collected (\xd+)(?:[^.]{0,40}?collected (\xd+))+/i;
+    var all = String(p).match(/\d+/g);
+    if (!/\bcollected[^.]{0,60}\bcollected/i.test(p) || !all || all.length && all.length && all.length && all.length < 2) all = null;
+    if (!all) return null;
+    if (!/\bcollected/i.test(p)) return null;
+    var vals = all.map(Number), sum = 0, i;
+    for (i = 0; i < 4 && i < vals.length; i++) sum += vals[i];
+    if (vals.length > 4) return null;
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
+    if (v == null || v !== sum) return null;
+    var line = vals.join(' + ') + ' = ' + sum + ' collected in all.';
+    return line.length <= 88 ? line : null;
+  }
+
+    /* "How many lines of symmetry does a rhombus have?" — the shape's own
+   * symmetry facts, stated with the count the card marks. */
+  /* "How many lines of symmetry does a rhombus have?" — the shape’s own
+   * fold-line data, counted against the mark on the card. */
+  function symmetryLinesLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/lines? of symmetry/i.test(p)) return null;
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).trim());
+    if (v == null || v < 0 || v > 12) return null;
+    var SH = [[/rhombus|diamond/i, 2, 'the 2 diagonals'], [/rectangle/i, 2, 'the 2 midlines'], [/square/i, 4, 'the 2 midlines and 2 diagonals'], [/equilateral/i, 3, 'one line at each of the 3 vertices'], [/isosceles triangle/i, 1, 'the single midline'], [/regular pentagon/i, 5, 'one line at each of the 5 vertices'], [/regular hexagon/i, 6, 'one line at each of the 6 vertices'], [/regular (?:heptagon|7-gon)/i, 7, 'one line at each of the 7 vertices'], [/regular (?:octagon|8-gon)/i, 8, 'one line at each of the 8 vertices'], [/semicircle/i, 1, 'the single midline'], [/isosceles trapez(?:ium|oid)/i, 1, 'the single midline']];
+    var i, hit = null;
+    for (i = 0; i < SH.length; i++) { if (SH[i][0].test(p)) { hit = SH[i]; break; } }
+    if (!hit || hit[1] !== v) return null;
+    var line = 'Fold along ' + hit[2] + ': lines of symmetry = ' + v + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "About how much are $3.87 and $3.29 together?" — round each amount to
+   * the dollar, then add the rounded parts. */
+  function estimateMoneyLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /about how much are \$([0-9]+(?:\.[0-9]+)?) and \$([0-9]+(?:\.[0-9]+)?)/i.exec(p);
+    if (!m) return null;
+    var a = parseFloat(m[1]), b = parseFloat(m[2]);
+    var ra = Math.round(a), rb = Math.round(b);
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/[$,]/g, '').trim());
+    if (v == null || Math.abs(v - (ra + rb)) > 0.005) return null;
+    var line = '$' + a.toFixed(2) + ' → $' + ra + ', $' + b.toFixed(2) + ' → $' + rb + ': $' + ra + ' + $' + rb + ' = $' + (ra + rb) + ' about.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "which shape has six sides" — the count-out of the shape the card names */
   function shapeNameCountLine(item, text, shown) {
     var p = String((item && item.prompt) || '');
     if (!/which shape|has how many|how many sides/i.test(p)) return null;
@@ -120470,7 +120786,7 @@ Object.keys(J9).forEach(function (id) {
       belowZeroLine, absShownLine, scalarVectorLine, vectorMagnitudeLine, sidesAnglesLine,
       powerValueLine, solutionCheckLine, absSolveLine, distanceEqLine, midpointSumLine, modulusLine,
       limitTableLine, sqrtCheckLine, sequenceNextLine, shapeNameCountLine, pointsTrendLine, quadrantSignLine, radianConvLine, inverseTrigLine, rationalEqualsLine, romanValueLine, roundedPlaceLine, groupsOpLine, antiderivCheckLine, transformShiftLine, wordValuePlaceLine, equationShownLine, boolEqTrueLine, reasonableAnswerLine, modeCountLine, absDistanceLine, flightTimeLine, coordImageLine, areaPerimLine, rationalEqualBoolLine, romanBoolLine, unitRateCmpLine, propShownLine, powerRuleDerivLine, powerOfTenLine, rangeWidthLine, medianPosLine, vec3ScaleSubLine, trigIdentityOneLine, roundNearestLine, roundsToOptionLine, missingSideLine, parenValueLine, ratioOrderLine, solveIneqLine, wordNameLine, roundCouldBeLine, areaCountLine, placeValueDigitLine, roundAboutBoolLine, absEqChoiceLine, wordToNumLine, vertexMatrixCheckLine, vecMagnitudePairLine, lcdLine, propSolveLine, fracOppositeLine, addChainLine, vec3MagnitudeLine, changeFromPurchaseLine, pairCostLessLine, dataMedianLine, dataRangeLine, vecScaleLine, unitConvertLine, powerEvalLine, roundNearestLine,
-      reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine], fi;
+      reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine, estimateMoneyLine, symmetryLinesLine, dataSumLine, nearestToQLine, profitSumLine, absPosLine, oppositesPairLine, romanSimpleLine, powerExprLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -120678,6 +120994,8 @@ Object.keys(J9).forEach(function (id) {
     if (!line) { line = matchLine(item, text, shownAns); if (line) from = 'match'; }
     if (!line) { line = countOutLine(item, shownAns, want); if (line) from = 'countOut'; }
     if (!line) { line = wordCountLine(text, shownAns); if (line) from = 'wordCount'; }
+    if (!line) { line = wordNumAssemble(text, shownAns); if (line) from = 'wordNum'; }
+    if (!line) { line = digitValueLine(text, shownAns); if (line) from = 'digitValue'; }
     if (!line) {
       line = ordinalLine(shownAns) || gridLine(item, shownAns);
       if (line) from = 'place';
@@ -120864,14 +121182,13 @@ Object.keys(J9).forEach(function (id) {
     DBG.midpointSumLine = midpointSumLine;
     DBG.modulusLine = modulusLine;
     DBG.limitTableLine = limitTableLine;
-    DBG.sqrtCheckLine = sqrtCheckLine; DBG.quadrantSignLine = quadrantSignLine; DBG.radianConvLine = radianConvLine; DBG.inverseTrigLine = inverseTrigLine; DBG.rationalEqualsLine = rationalEqualsLine; DBG.romanValueLine = romanValueLine; DBG.roundedPlaceLine = roundedPlaceLine; DBG.groupsOpLine = groupsOpLine; DBG.antiderivCheckLine = antiderivCheckLine; DBG.transformShiftLine = transformShiftLine; DBG.wordValuePlaceLine = wordValuePlaceLine; DBG.equationShownLine = equationShownLine; DBG.boolEqTrueLine = boolEqTrueLine; DBG.reasonableAnswerLine = reasonableAnswerLine; DBG.coordImageLine = coordImageLine; DBG.rationalEqualBoolLine = rationalEqualBoolLine; DBG.powerRuleDerivLine = powerRuleDerivLine; DBG.rangeWidthLine = rangeWidthLine; DBG.trigIdentityOneLine = trigIdentityOneLine; DBG.missingSideLine = missingSideLine; DBG.ratioOrderLine = ratioOrderLine; DBG.factorCheckLine = factorCheckLine; DBG.areaCountLine = areaCountLine; DBG.absEqChoiceLine = absEqChoiceLine; DBG.vertexMatrixCheckLine = vertexMatrixCheckLine; DBG.vecMagnitudePairLine = vecMagnitudePairLine; DBG.lcdLine = lcdLine; DBG.propSolveLine = propSolveLine; DBG.addChainLine = addChainLine; DBG.changeFromPurchaseLine = changeFromPurchaseLine; DBG.dataMedianLine = dataMedianLine; DBG.dataRangeLine = dataRangeLine; DBG.vecScaleLine = vecScaleLine; DBG.unitConvertLine = unitConvertLine; DBG.powerEvalLine = powerEvalLine; DBG.roundNearestLine = roundNearestLine; DBG.pairCostLessLine = pairCostLessLine; DBG.vec3MagnitudeLine = vec3MagnitudeLine; DBG.fracOppositeLine = fracOppositeLine; DBG.wordToNumLine = wordToNumLine; DBG.roundAboutBoolLine = roundAboutBoolLine; DBG.placeValueDigitLine = placeValueDigitLine; DBG.solveIneqLine = solveIneqLine; DBG.wordNameLine = wordNameLine; DBG.roundCouldBeLine = roundCouldBeLine; DBG.parenValueLine = parenValueLine; DBG.roundNearestLine = roundNearestLine; DBG.roundsToOptionLine = roundsToOptionLine; DBG.medianPosLine = medianPosLine; DBG.vec3ScaleSubLine = vec3ScaleSubLine; DBG.powerOfTenLine = powerOfTenLine; DBG.romanBoolLine = romanBoolLine; DBG.unitRateCmpLine = unitRateCmpLine; DBG.propShownLine = propShownLine; DBG.areaPerimLine = areaPerimLine; DBG.modeCountLine = modeCountLine; DBG.absDistanceLine = absDistanceLine; DBG.flightTimeLine = flightTimeLine;
+    DBG.sqrtCheckLine = sqrtCheckLine; DBG.quadrantSignLine = quadrantSignLine; DBG.radianConvLine = radianConvLine; DBG.inverseTrigLine = inverseTrigLine; DBG.rationalEqualsLine = rationalEqualsLine; DBG.romanValueLine = romanValueLine; DBG.roundedPlaceLine = roundedPlaceLine; DBG.groupsOpLine = groupsOpLine; DBG.antiderivCheckLine = antiderivCheckLine; DBG.transformShiftLine = transformShiftLine; DBG.wordValuePlaceLine = wordValuePlaceLine; DBG.equationShownLine = equationShownLine; DBG.boolEqTrueLine = boolEqTrueLine; DBG.reasonableAnswerLine = reasonableAnswerLine; DBG.coordImageLine = coordImageLine; DBG.rationalEqualBoolLine = rationalEqualBoolLine; DBG.powerRuleDerivLine = powerRuleDerivLine; DBG.rangeWidthLine = rangeWidthLine; DBG.trigIdentityOneLine = trigIdentityOneLine; DBG.missingSideLine = missingSideLine; DBG.ratioOrderLine = ratioOrderLine; DBG.factorCheckLine = factorCheckLine; DBG.areaCountLine = areaCountLine; DBG.absEqChoiceLine = absEqChoiceLine; DBG.vertexMatrixCheckLine = vertexMatrixCheckLine; DBG.vecMagnitudePairLine = vecMagnitudePairLine; DBG.lcdLine = lcdLine; DBG.propSolveLine = propSolveLine; DBG.addChainLine = addChainLine; DBG.changeFromPurchaseLine = changeFromPurchaseLine; DBG.dataMedianLine = dataMedianLine; DBG.dataRangeLine = dataRangeLine; DBG.vecScaleLine = vecScaleLine; DBG.unitConvertLine = unitConvertLine; DBG.powerEvalLine = powerEvalLine; DBG.roundNearestLine = roundNearestLine; DBG.estimateMoneyLine = estimateMoneyLine; DBG.symmetryLinesLine = symmetryLinesLine; DBG.dataSumLine = dataSumLine; DBG.nearestToQLine = nearestToQLine; DBG.profitSumLine = profitSumLine; DBG.absPosLine = absPosLine; DBG.oppositesPairLine = oppositesPairLine; DBG.romanSimpleLine = romanSimpleLine; DBG.powerExprLine = powerExprLine; DBG.pairCostLessLine = pairCostLessLine; DBG.vec3MagnitudeLine = vec3MagnitudeLine; DBG.fracOppositeLine = fracOppositeLine; DBG.wordToNumLine = wordToNumLine; DBG.roundAboutBoolLine = roundAboutBoolLine; DBG.placeValueDigitLine = placeValueDigitLine; DBG.solveIneqLine = solveIneqLine; DBG.wordNameLine = wordNameLine; DBG.roundCouldBeLine = roundCouldBeLine; DBG.parenValueLine = parenValueLine; DBG.roundNearestLine = roundNearestLine; DBG.roundsToOptionLine = roundsToOptionLine; DBG.medianPosLine = medianPosLine; DBG.vec3ScaleSubLine = vec3ScaleSubLine; DBG.powerOfTenLine = powerOfTenLine; DBG.romanBoolLine = romanBoolLine; DBG.unitRateCmpLine = unitRateCmpLine; DBG.propShownLine = propShownLine; DBG.areaPerimLine = areaPerimLine; DBG.modeCountLine = modeCountLine; DBG.absDistanceLine = absDistanceLine; DBG.flightTimeLine = flightTimeLine;
     DBG.sequenceNextLine = sequenceNextLine;
     DBG.shapeNameCountLine = shapeNameCountLine;
     DBG.pointsTrendLine = pointsTrendLine;
     GLOB.__wcDbg = DBG;
   })();
 })();
-
 
 </script>
 <script>
