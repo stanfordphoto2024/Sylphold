@@ -124616,12 +124616,17 @@ Object.keys(J9).forEach(function (id) {
       return h('div', { class: 'viz' }, [grid, caption(o.label)]);
     },
     /* fraction strips */
-    frac: function (v) {
+    frac: function (v, band) {
       var bars = v.bars || [];
-      var kids = bars.map(function (b) {
+      var kids = bars.map(function (b, bi) {
         var d = clamp(Math.round(b.d || 1), 1, 12), n = clamp(Math.round(b.n || 0), 0, d * 3);
         var segs = [];
-        for (var i = 0; i < d; i++) segs.push(h('div', { class: 'seg' + (i < n ? ' on' : '') }));
+        var bc = (band === 'PK' || band === 'K') ? PAL[bi % PAL.length] : null;
+        for (var i = 0; i < d; i++) {
+          var sg = h('div', { class: 'seg' + (i < n ? ' on' : '') });
+          if (bc && i < n) sg.style.background = bc;
+          segs.push(sg);
+        }
         return h('div', { class: 'fracbar' }, [h('div', { class: 'strip' }, segs), b.label ? h('div', { class: 'lab', text: String(b.label) }) : null]);
       });
       return h('div', { class: 'viz' }, kids);
@@ -124655,10 +124660,17 @@ Object.keys(J9).forEach(function (id) {
       return h('div', { class: 'viz' }, [g, caption(lab)]);
     },
     /* base-ten blocks */
-    blocks: function (v) {
+    blocks: function (v, band) {
+      var BLOCKC = { 0: '#f97316', 1: '#0ea5e9', 2: '#10b981', 3: '#8b5cf6' };
+      var YOUNGB = band === 'PK' || band === 'K';
+      var clsCol = { flat: BLOCKC[2], rod: BLOCKC[1], cube: BLOCKC[0] };
       var grp = function (cls, n) {
         var g = h('div', { class: 'grp' });
-        for (var i = 0; i < Math.min(n || 0, 10); i++) g.appendChild(h('div', { class: cls }));
+        for (var i = 0; i < Math.min(n || 0, 10); i++) {
+          var piece = h('div', { class: cls });
+          if (YOUNGB) piece.style.background = clsCol[cls];
+          g.appendChild(piece);
+        }
         return n > 10 ? h('div', { class: 'grp' }, [g, h('span', { class: 'tiny', text: '×' + n })]) : g;
       };
       /* Place-value model drawn as STACKS: one stack per place holding that
@@ -124673,7 +124685,11 @@ Object.keys(J9).forEach(function (id) {
           var st = v.stacks[si] || {}, place = st.place || 0;
           var sg = h('div', { class: 'grp' });
           var cnt = Math.min(st.count || 0, 9);
-          for (var sj = 0; sj < cnt; sj++) sg.appendChild(h('div', { class: clsFor(place) + (place >= 3 ? ' big' : '') }));
+          for (var sj = 0; sj < cnt; sj++) {
+            var pieceS = h('div', { class: clsFor(place) + (place >= 3 ? ' big' : '') });
+            if (YOUNGB) pieceS.style.background = BLOCKC[Math.min(place, 3)];
+            sg.appendChild(pieceS);
+          }
           boxes.push(h('div', { class: 'stk' + (st.mark ? ' mark' : '') },
             [sg, h('span', { class: 'tiny', text: '×' + String(Math.pow(10, place)) })]));
         }
@@ -124940,8 +124956,9 @@ Object.keys(J9).forEach(function (id) {
       return h('div', { class: 'viz' }, [t, caption((v.opts || {}).label)]);
     },
     /* 3-D solids */
-    solid: function (v) {
+    solid: function (v, band) {
       var sh = v.shape || 'prism', o = v.opts || {}, W = 220, H = 150, g = [];
+      if (band === 'PK' || band === 'K') g._tint = '#0ea5e9';
       var dim = function (x, y, t) { g.push(s('text', { x: x, y: y, 'text-anchor': 'middle', class: 'lbl' }, String(t))); };
       if (sh === 'cylinder') {
         g.push(s('rect', { x: 60, y: 34, width: 100, height: 76, fill: 'color-mix(in srgb, var(--accent) 18%, transparent)', stroke: 'var(--accent)' }));
@@ -124965,18 +124982,37 @@ Object.keys(J9).forEach(function (id) {
         g.push(s('path', { d: 'M46 44 L74 24 L184 24 L156 44 M156 44 L184 24 L184 98 L156 118', fill: 'none', stroke: 'var(--accent)' }));
         if (o.w != null) dim(101, 134, 'w = ' + o.w); if (o.h != null) dim(28, 82, 'h = ' + o.h); if (o.l != null) dim(176, 18, 'l = ' + o.l);
       }
+      if (g._tint) {
+        var tcol = g._tint;
+        for (var ti = 0; ti < g.length; ti++) {
+          var nd = g[ti];
+          if (!nd || typeof nd.getAttribute !== 'function') continue;
+          try {
+            if (nd.getAttribute('stroke') === 'var(--accent)') nd.setAttribute('stroke', tcol);
+            var fl = String(nd.getAttribute('fill') || '');
+            if (/18%, transparent/.test(fl)) nd.setAttribute('fill', 'color-mix(in srgb, ' + tcol + ' 46%, transparent)');
+            else if (fl === 'var(--accent)') nd.setAttribute('fill', tcol);
+            else if (fl === 'var(--card)') nd.setAttribute('fill', 'color-mix(in srgb, ' + tcol + ' 18%, var(--card))');
+          } catch (e) { /* shim without attribute access */ }
+        }
+      }
       return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }, g), caption(o.label)]);
     },
     /* number bond */
-    numberbond: function (v) {
+    numberbond: function (v, band) {
       var parts = v.parts || [];
+      var YOUNG = band === 'PK' || band === 'K';
       /* core marks the circle the card is asking for; it prints ▢, not the answer */
       var whole = v.hideWhole ? '▢' : nfmt(v.whole);
-      var kids = [h('div', { class: 'circ whole', text: whole }), h('div', { class: 'ln' })];
+      var wholeC = h('div', { class: 'circ whole', text: whole });
+      if (YOUNG) { wholeC.style.background = 'color-mix(in srgb, ' + PAL[4] + ' 32%, var(--card))'; wholeC.style.borderColor = PAL[4]; }
+      var kids = [wholeC, h('div', { class: 'ln' })];
       var col = h('div', { class: 'parts' });
       parts.forEach(function (p, i) {
         var hidden = (v.hideParts || []).indexOf(i) >= 0;
-        col.appendChild(h('div', { class: 'circ', text: hidden ? '▢' : nfmt(p) }));
+        var pc = h('div', { class: 'circ', text: hidden ? '▢' : nfmt(p) });
+        if (YOUNG) { pc.style.background = 'color-mix(in srgb, ' + PAL[(i + 1) % PAL.length] + ' 32%, var(--card))'; pc.style.borderColor = PAL[(i + 1) % PAL.length]; }
+        col.appendChild(pc);
       });
       kids.push(col);
       return h('div', { class: 'viz' }, [h('div', { class: 'bond' }, kids)]);
@@ -125001,10 +125037,11 @@ Object.keys(J9).forEach(function (id) {
     /* unit / attribute / scatter grid — a cell holding ● is an object, not a
      * letter: with a noun on the model it draws that object, so "count the
      * scattered circles" shows circles wherever the learner can point at them. */
-    grid: function (v) {
+    grid: function (v, band) {
       var rows = v.rows || (v.opts && v.opts.rows) || 0, cols = v.cols || (v.opts && v.opts.cols) || 0, o = v.opts || {};
       var cells = o.cells || null;
       var art = (o.noun || o.shape || o.kind) ? o : null;
+      var gidx = 0;
       /* A cube train longer than the card is the bug a reviewer sees: 12 cubes
          drawn, 11 counted. A wide table shares the width it is given instead of
          pushing the last cells off the screen. */
@@ -125034,6 +125071,12 @@ Object.keys(J9).forEach(function (id) {
             var td = h('td');
             td.appendChild(objectNode({ noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed, hollow: mark === '○' }));
             tr.appendChild(td);
+            continue;
+          }
+          if ((band === 'PK' || band === 'K') && (mark === '●' || mark === '○')) {
+            var gtd = h('td');
+            gtd.appendChild(objectNode({ kind: 'counters', hollow: mark === '○' }, gidx++));
+            tr.appendChild(gtd);
             continue;
           }
           tr.appendChild(h('td', { text: String(val == null ? '' : val) }));
