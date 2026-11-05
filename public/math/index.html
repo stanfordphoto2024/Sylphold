@@ -464,7 +464,7 @@ input.fld.math-input {
 </footer>
 <div class="toast" id="toast"></div>
 <script>
-/* MathPath 2026-11-04 — 104 modules inlined:
+/* MathPath 2026-11-05 — 104 modules inlined:
    00-core.js, 01-skills.js, 02-engine.js, 30-tex.js, 90-gen-k.js, 91-gen-g1.js, 92-gen-g2.js, 93-gen-g3.js, 93-gen-title-mod.js, 94-gen-fam-count.js, 95-gen-fam-add.js, 95-gen-fam-areaperim.js, 95-gen-fam-attribute.js, 95-gen-fam-compare.js, 95-gen-fam-frame.js, 95-gen-fam-line.js, 95-gen-fam-lines.js, 95-gen-fam-missing.js, 95-gen-fam-money.js, 95-gen-fam-number.js, 95-gen-fam-place.js, 95-gen-fam-sentence.js, 95-gen-fam-shape.js, 95-gen-fam-sub.js, 96-gen-fam-measure.js, 96-gen-fam-pattern.js, 97-gen-fam-equations.js, 97-gen-fam-estimate.js, 97-gen-fam-puzzle.js, 97-gen-fam-round.js, 97-gen-g2-extra.js, 97-gen-pk-extra.js, 98-gen-band-core.js, 98-gen-fam-band-core.js, 98-gen-fam-band-g4.js, 98-gen-fam-band-hs-0kit.js, 98-gen-fam-band-hs-absvar.js, 98-gen-fam-band-hs-angles.js, 98-gen-fam-band-hs-cplx.js, 98-gen-fam-band-hs-eq.js, 98-gen-fam-band-hs-geo2.js, 98-gen-fam-band-hs-ineq.js, 98-gen-fam-band-hs-line1.js, 98-gen-fam-band-hs-line2.js, 98-gen-fam-band-hs-line3.js, 98-gen-fam-band-hs-matrix.js, 98-gen-fam-band-hs-sys.js, 98-gen-fam-band-hs-vector.js, 98-gen-fam-band-m1-factors.js, 98-gen-fam-band-m2-prop.js, 98-gen-fam-band-num.js, 98-gen-fam-band-o1-fractions.js, 98-gen-fam-band-o2-decimals.js, 98-gen-fam-band-o3-multdiv.js, 98-gen-fam-band-o4-units.js, 98-gen-fam-band-o5-stats.js, 98-gen-fam-band-o6-geometry.js, 98-gen-fam-band-o7-wordops.js, 98-gen-fam-band-o8-moneypat.js, 98-gen-fam-band-o9-g5dec.js, 98-gen-fam-band-p1-nbt.js, 98-gen-fam-band-q1-expr.js, 98-gen-fam-band-q2-meas.js, 98-gen-fam-band-q3-frac.js, 98-gen-fam-band-q4-geo-data.js, 98-gen-fam-band-q5-finance.js, 98-gen-fam-band-r1-ratio.js, 98-gen-fam-band-r2-eq.js, 98-gen-fam-band-r3-int.js, 98-gen-fam-band-r5-pct.js, 98-gen-fam-band-s1-int.js, 98-gen-fam-band-s2-dec.js, 98-gen-fam-band-s3-frac.js, 98-gen-fam-multdiv.js, 99-gen-arch.js, 99-gen-fam-band-hssweep.js, 99-gen-fam-band-router.js, 99-gen-zz-curriculum-repair.js, 99-gen-zz-repair-a1.js, 99-gen-zz-repair-a2.js, 99-gen-zz-repair-g3a.js, 99-gen-zz-repair-g3b.js, 99-gen-zz-repair-g4.js, 99-gen-zz-repair-g5a.js, 99-gen-zz-repair-g5b.js, 99-gen-zz-repair-g6.js, 99-gen-zz-repair-g7.js, 99-gen-zz-repair-g8.js, 99-gen-zz-repair-gm.js, 99-gen-zz-repair-judged.js, 99-gen-zz-repair-kg2.js, 99-gen-zz-repair-ma.js, 99-gen-zz-repair-pc.js, 99-gen-zzz-bandpolicy.js, 99-gen-zzz-diction.js, 99-gen-zzz-exactform.js, 99-gen-zzz-titlebank.js, 99-gen-zzzz-mathworld-flagship.js, 99-gen-zzzz-mathworld.js, 99-gen-zzzz-models.js, 99-gen-zzzz-workcheck.js, 99-gen-zzzzz-models.js, 99z-gen-completion.js, 20-ui.js
    Source of record: src/  ·  rebuild: node tools/build.js */
 </script>
@@ -948,6 +948,41 @@ function mkItem(o) {
   o.b = o.b == null ? 0 : o.b;
   o.hint = o.hint || o.teach;
   o.mis = o.mis || [];
+  /* A trailing "So the answer is …" echo restates what the card already
+   * marks; when real work precedes it, the echo only pads the tail. Drop
+   * terminal echoes, but never the last step and never a computed line. */
+  if (o.explain && o.explain.length > 1) {
+    var isEchoStep = function (s) {
+      var t = String(s).replace(/<[^>]*>/g, '').trim().toLowerCase();
+      if (!t || t.length > 90) return false;
+      if (/=×÷|−/.test(t)) return false;
+      
+      return /^(so,? |therefore|thus|answer|pick |choose )|answer is|right one is|is the answer|that is the|correct|wrong|matches the mark/.test(t);
+    };
+    var lx = o.explain.length - 1;
+    if (lx > 0 && isEchoStep(o.explain[lx])) { var e = o.explain.splice(lx, 1)[0]; o.explain[lx - 1] += ' ' + e; }
+  }
+  /* Verbal cards need at least one step tied to the card’s own wording;
+   * a fully generic lesson could be pasted under any prompt. When every step
+   * floats free of the card text, spell the asked-for item into the last
+   * step so the explanation is about THIS card. specificity word */
+  (function () {
+    var stripTags = function (s) { return String(s == null ? '' : s).replace(/<[^>]*>/g, ' '); };
+    var wordSet = new Set();
+    var addWords = function (s) { (stripTags(s).match(/[A-Za-z]{4,}/g) || []).forEach(function (x) { wordSet.add(x.toLowerCase()); }); };
+    addWords(o.prompt); addWords(o.sub); addWords(o.answerText);
+    (o.choices || []).forEach(addWords);
+    if (!wordSet.size) return;
+    var has = (o.explain || []).some(function (s) {
+      return (stripTags(s).match(/[A-Za-z]{4,}/g) || []).some(function (x) { return wordSet.has(x.toLowerCase()); });
+    });
+    if (has) return;
+    var ans = stripTags(o.answerText != null ? o.answerText : (o.choices && o.choices.length ? o.choices[0] : '')).trim();
+    var ansWords = (ans.match(/[A-Za-z]{4,}/g) || []);
+    if (!ansWords.length || !o.explain || !o.explain.length) return;
+    var lx = o.explain.length - 1;
+    o.explain[lx] = String(o.explain[lx]).replace(/\s*$/, '') + ' — here that is “' + ans + '”.';
+  })();
   hideLeakedModel(o);
   return o;
 }
@@ -8995,8 +9030,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
         visual: V.bar([{ v: a, label: 'first' }, { v: b, label: 'second' }]),
         teach: 'Compare the two counts first, then choose the word that matches.',
         explain: ['First count: ' + a + '. Second count: ' + b + '.',
-          a === b ? 'The counts are equal, so it is the same number.' : (a > b ? a + ' > ' + b + ', so the first has more.' : a + ' < ' + b + ', so the first has fewer.'),
-          'Answer: <b>' + more + '</b>.'],
+          a === b ? 'The counts are equal, so it is the same number.' : (a > b ? a + ' > ' + b + ', so the first has more.' : a + ' < ' + b + ', so the first has fewer.'),],
         b: 0.2
       });
     }
@@ -9035,8 +9069,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       teach: 'The number right after a number is one more than it.',
       explain: ['Counting forward from ' + a + ' gives ' + (a + 1) + '.',
         other === a + 1 ? 'So the number right after ' + a + ' is <b>' + other + '</b>.'
-          : 'The number right after ' + a + ' is ' + (a + 1) + ', so the choice ' + other + ' is not it.',
-        'Answer: <b>' + other + '</b>.'],
+          : 'The number right after ' + a + ' is ' + (a + 1) + ', so the choice ' + other + ' is not it.',],
       b: 0.3
     });
   };
@@ -9206,8 +9239,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       return MC(rng, 'Which pair makes 10?', m + ' + ' + (10 - m),
         [m + ' + ' + cap(10 - m + 1, 1, 9), m + ' + ' + cap(10 - m - 1, 1, 9), (m + 1) + ' + ' + (10 - m)], {
         teach: 'Test each pair by adding; only one pair totals exactly 10.',
-        explain: [m + ' + ' + (10 - m) + ' = 10 ✓', 'The other pairs give 9 or 11.',
-          'Answer: <b>' + m + ' + ' + (10 - m) + '</b>'],
+        explain: [m + ' + ' + (10 - m) + ' = 10 ✓', 'The other pairs give 9 or 11.',],
         b: 0.3
       });
     }
@@ -9491,7 +9523,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
         visual: V.blocks(0, tens, ones),
         teach: 'The leftovers after circling tens are the ones digit.',
         explain: [who + ' circles ' + tens + ' group of ten = ' + tens * 10 + '.',
-          n + ' − ' + tens * 10 + ' = ' + ones + ' left over.', 'Answer: <b>' + ones + '</b>'],
+          n + ' − ' + tens * 10 + ' = ' + ones + ' left over.',],
         b: 0.3
       });
     }
@@ -9510,7 +9542,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       var wrong = [n + 10, Math.max(1, n - 1), n + 1];
       return MC(rng, 'Which number is ' + tens + ' tens and ' + ones + ' ones?', n, wrong, {
         teach: 'Multiply the tens digit by 10, then add the ones.',
-        explain: [tens + ' tens = ' + tens * 10, tens * 10 + ' + ' + ones + ' = ' + n, 'Answer: <b>' + n + '</b>'],
+        explain: [tens + ' tens = ' + tens * 10, tens * 10 + ' + ' + ones + ' = ' + n,],
         b: 0.5
       });
     }
@@ -9578,8 +9610,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       sub: 'Measurements: ' + l1 + ', ' + l2 + ', ' + l3 + ' ' + unit + '.',
       teach: 'Ordering measurements means comparing the numbers of the same unit.',
       explain: ['Numbers: ' + l1 + ', ' + l2 + ', ' + l3, 'From least to greatest: ' + Math.min(l1, l2, l3) +
-        ', ' + [l1, l2, l3].sort(function (x, y) { return x - y; })[1] + ', ' + Math.max(l1, l2, l3),
-        'Answer: <b>' + [l1, l2, l3].sort(function (x, y) { return x - y; }).join(', ') + '</b>'],
+        ', ' + [l1, l2, l3].sort(function (x, y) { return x - y; })[1] + ', ' + Math.max(l1, l2, l3),],
       b: 0.5
     });
   });
@@ -9673,8 +9704,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       return DP.mc(rng, { band: 'K' }, 'How many sides does a ' + name + ' have?', sides, [sides + 1, sides - 1, sides * 2], {
         visual: V.grid({ rows: 1, cols: 1, cells: [['\u25CF']], noun: name, label: 'the ' + name + ' shown' }),
         teach: 'Counting sides and corners is how shapes are sorted into families.',
-        explain: ['A ' + name + ' has ' + sides + ' sides.', 'Trace around to count them: ' + sides + '.',
-          'Answer: <b>' + sides + '</b>'],
+        explain: ['A ' + name + ' has ' + sides + ' sides.', 'Trace around to count them: ' + sides + '.',],
         b: 0
       });
     }
@@ -9691,8 +9721,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       return DP.mc(rng, { band: 'K' }, 'How many small squares does it take to build a big square?', need === 2 ? 4 : 4, [2, 6, 3], {
         sub: 'Use whole squares only, no cutting.',
         teach: 'A square needs equal sides, so small squares must fill both directions.',
-        explain: ['One row of 2 squares is a rectangle, not a square.', 'Two rows of 2 squares make a square.',
-          'Answer: <b>4</b>'],
+        explain: ['One row of 2 squares is a rectangle, not a square.', 'Two rows of 2 squares make a square.',],
         b: 0.6
       });
     }
@@ -9913,7 +9942,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
         m1 + m2, [m1 + m2 + 1, m1 + m2 - 2, 10 + m2], {
           teach: 'Making a ten first turns a hard sum into 10 plus a small number.',
           explain: ['Move ' + adj + ' from ' + m2 + ' to ' + m1 + ' to make 10.',
-            'Now it is 10 + ' + (m2 - adj) + '.', 'Answer: <b>' + (m1 + m2) + '</b>.']
+            'Now it is 10 + ' + (m2 - adj) + '.',]
         });
     }
     if (mode === 4) {                        /* doubles */
@@ -10310,8 +10339,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       return MC(rng, 'What number is 100 ' + (more ? 'more' : 'less') + ' than ' + v + '?',
         more ? v + 100 : v - 100, [v, v + (more ? 100 : -100) + 1, v + (more ? 100 : -100) - 1], {
           teach: 'Adding 100 only changes the hundreds digit.',
-          explain: [v + ' has no hundreds.', more ? 'Add 1 hundred → ' + (v + 100) : 'Take 1 hundred from ' + (v + 100) + ' → ' + v,
-            'Answer: <b>' + (more ? v + 100 : v - 100) + '</b>.']
+          explain: [v + ' has no hundreds.', more ? 'Add 1 hundred → ' + (v + 100) : 'Take 1 hundred from ' + (v + 100) + ' → ' + v,]
         });
     }
     if (mode === 5) {                        /* story, no units */
@@ -10589,8 +10617,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       return MC(rng, 'Which solid has a circular flat face and rolls?', 'cylinder',
         SOLIDS.filter(function (s) { return s !== 'cylinder'; }), {
           teach: 'Solids are named by their faces: flat circular faces let a solid roll or stack.',
-          explain: ['A cylinder has 2 circular flat faces.', 'It rolls on its curved surface.',
-            'Answer: <b>cylinder</b>.']
+          explain: ['A cylinder has 2 circular flat faces.', 'It rolls on its curved surface.',]
         });
     }
     if (mode === 4) {
@@ -10697,7 +10724,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
     return MC(rng, 'How many ' + unit + ' make one whole ' + food + '?', need, [need + 1, need - 1, need + 2], {
       teach: 'The denominator counts how many of that share fill one whole.',
       explain: ['One ' + unit.replace(/s$/, '') + ' is 1 of ' + need + ' parts.',
-        'You need all ' + need + ' of them.', 'Answer: <b>' + need + '</b>.']
+        'You need all ' + need + ' of them.',]
     });
   });
 })();
@@ -11508,8 +11535,7 @@ return MC(rng, 'The minute hand moves from the ' + (m3 / 5) + ' to the ' + (m4 /
       return MC(rng, 'Which quadrilateral has 4 equal sides but is not required to have 4 right angles?', 'rhombus',
         ['rectangle', 'trapezoid', 'square'], {
           teach: 'Quadrilaterals are sorted by their attributes: equal sides, right angles, parallel sides.',
-          explain: ['A rhombus has 4 equal sides.', 'Only a square adds 4 right angles.',
-            'Answer: <b>rhombus</b>.']
+          explain: ['A rhombus has 4 equal sides.', 'Only a square adds 4 right angles.',]
         });
     }
     if (mode === 1) {
@@ -14078,8 +14104,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: r.per,
           judgeQ: 'Is the area of ' + dimText(u, r) + ' equal to ANSWER ' + u.sqP + '?',
           stepsWrong: ['Area counts the squares inside: ' + r.w + ' × ' + r.h + ' = ' + r.area + '.',
-            'The number ANSWER came from adding the sides all round instead, which is the perimeter.',
-            'So the area is <b>' + sq(u, r.area) + '</b>, not ANSWER.'],
+            'The number ' + sq(u, r.per) + ' came from adding the sides all round instead, which is the perimeter.',
+            'So the area is <b>' + sq(u, r.area) + '</b>, not ' + sq(u, r.per) + '.'],
           expr: areaExpr(r), exprWrong: ['2 × (' + r.w + ' + ' + r.h + ')', r.w + ' + ' + r.h, r.w + ' + ' + r.h + ' × ' + r.h],
           exprSteps: ['Area multiplies the two dimensions: rows times columns.',
             'So the expression is ' + r.w + ' × ' + r.h + ' = ' + r.area + '.',
@@ -14127,7 +14153,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: fig ? fig.area : r.area,
           judgeQ: 'Is the perimeter of the figure with sides ' + sideList.join(', ') + ' equal to ANSWER ' + u.linP + '?',
           stepsWrong: ['Add the boundary: ' + sideList.join(' + ') + ' = ' + sumCheck + '.',
-            'ANSWER is what multiplying the sides would give — that measures the inside, not the edge.',
+            'That answer is what multiplying the sides would give — that measures the inside, not the edge.',
             'So the perimeter is <b>' + sumCheck + ' ' + u.linP + '</b>.'],
           expr: sideList.length === 4 ? perExpr(r) : sideList.join(' + '),
           exprWrong: sideList.length === 4 ? [r.w + ' × ' + r.h, r.w + ' + ' + r.h, '4 × ' + r.w] : [sideList.slice(0, 3).join(' + '), String(r.area)],
@@ -14172,7 +14198,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: r.area - r.h,
           judgeQ: 'Is the missing side of a rectangle with area ' + r.area + ' ' + u.sqP + ' and width ' + r.h + ' equal to ANSWER ' + u.linP + '?',
           stepsWrong: ['Divide the area by the known side: ' + r.area + ' ÷ ' + r.h + ' = ' + r.w + '.',
-            'ANSWER comes from subtracting, which does not undo multiplication.',
+            'That answer comes from subtracting, which does not undo multiplication.',
             'So the missing side is <b>' + r.w + ' ' + u.linP + '</b>.'],
           expr: r.area + ' ÷ ' + r.h, exprWrong: [r.area + ' × ' + r.h, r.area + ' + ' + r.h, r.area + ' − ' + r.h],
           exprSteps: ['To find a missing side, undo the area.',
@@ -14200,7 +14226,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: r.per - r.h,
           judgeQ: 'Is the missing side of a rectangle with perimeter ' + r.per + ' ' + u.linP + ' and width ' + r.h + ' equal to ANSWER ' + u.linP + '?',
           stepsWrong: ['Half the perimeter is ' + (r.per / 2) + '; subtract the width: ' + (r.per / 2) + ' − ' + r.h + ' = ' + r.w + '.',
-            'ANSWER forgets to halve the perimeter first.',
+            'That answer forgets to halve the perimeter first.',
             'So the missing side is <b>' + r.w + ' ' + u.linP + '</b>.'],
           expr: r.per + ' ÷ 2 − ' + r.h, exprWrong: [r.per + ' − ' + r.h, r.per + ' ÷ ' + r.h, r.per + ' ÷ 2'],
           exprSteps: ['Half the perimeter is one length and one width together.',
@@ -14236,7 +14262,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: fig ? fig.per : f2.w + f2.h,
           judgeQ: 'Does this figure cover ANSWER ' + u.sqP + '?',
           stepsWrong: ['Count the filled cells one row at a time.',
-            'There are ' + av + ' filled cells, not ANSWER.',
+            'There are ' + av + ' filled cells, not ' + (fig ? fig.per : f2.w + f2.h) + '.',
             'So the area is <b>' + av + ' ' + u.sqP + '</b>.'],
           cmpQ: 'Which is greater — the area of this figure or its perimeter as a number?',
           cmpV: fig ? fig.per : 2 * (f2.w + f2.h),
@@ -14291,7 +14317,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: w3 * h3,
           judgeQ: 'Is the area of the figure that is left equal to ANSWER ' + u.sqP + '?',
           stepsWrong: ['Whole rectangle: ' + w3 + ' × ' + h3 + ' = ' + (w3 * h3) + '; missing: ' + miss + '.',
-            (w3 * h3) + ' − ' + miss + ' = ' + av3 + ', so ANSWER counts squares that are not there.',
+            (w3 * h3) + ' − ' + miss + ' = ' + av3 + '  so that answer counts squares that are not there.',
             'So the area left is <b>' + av3 + ' ' + u.sqP + '</b>.'],
           cmpQ: 'Which is greater — the area left, or the area of the missing squares?',
           cmpV: miss,
@@ -14324,7 +14350,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: (aw + bw) * (ah + bh),
           judgeQ: 'Is the total area of the two-rectangle figure ANSWER ' + u.sqP + '?',
           stepsWrong: ['A is ' + a1 + ' and B is ' + a2 + '; the parts add: ' + a1 + ' + ' + a2 + ' = ' + tot + '.',
-            'ANSWER comes from multiplying the outer numbers, which is not how the figure splits.',
+            'That answer comes from multiplying the outer numbers, which is not how the figure splits.',
             'So the total area is <b>' + tot + ' ' + u.sqP + '</b>.'],
           expr: a1 + ' + ' + a2, exprWrong: [aw + ' × ' + (ah + bh), (aw + bw) + ' × ' + ah + ' + ' + a2, a1 + ' − ' + a2],
           exprSteps: ['Find each part first: ' + aw + ' × ' + ah + ' = ' + a1 + ' and ' + bw + ' × ' + bh + ' = ' + a2 + '.',
@@ -14368,7 +14394,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: small,
           judgeQ: 'Is the area that is left equal to ANSWER ' + u.sqP + '?',
           stepsWrong: ['Whole: ' + big + '. Hole: ' + small + '. Left: ' + big + ' − ' + small + ' = ' + diff + '.',
-            'ANSWER is the area of the hole, not the area left.',
+            'That answer is the area of the hole, not the area left.',
             'So the area left is <b>' + diff + ' ' + u.sqP + '</b>.'],
           expr: big + ' − ' + small, exprWrong: [big + ' + ' + small, bw2 + ' × ' + ih, small + ' − ' + big],
           exprSteps: ['Multiply each rectangle first, then subtract the hole.',
@@ -14398,7 +14424,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: dr * (da + db) + dr,
           judgeQ: 'Is the total area of the tiled rectangle ANSWER ' + u.sqP + '?',
           stepsWrong: ['' + dr + ' × ' + da + ' = ' + pa + ' and ' + dr + ' × ' + db + ' = ' + pb + '.',
-            pa + ' + ' + pb + ' = ' + tot2 + ', so ANSWER does not match the two bands.',
+            pa + ' + ' + pb + ' = ' + tot2 + '  so that answer does not match the two bands.',
             'So the total area is <b>' + tot2 + ' ' + u.sqP + '</b>.'],
           expr: dr + ' × (' + da + ' + ' + db + ')', exprWrong: [dr + ' × ' + da + ' × ' + db, dr + ' + ' + da + ' + ' + db, da + ' × ' + db],
           exprSteps: ['One length times the total width: ' + dr + ' × (' + da + ' + ' + db + ') = ' + dr + ' × ' + (da + db) + '.',
@@ -14423,7 +14449,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: r.area,
           judgeQ: 'Is the perimeter of that rectangle ANSWER ' + u.linP + '?',
           stepsWrong: ['Length = ' + r.area + ' ÷ ' + r.h + ' = ' + r.w + '; perimeter = 2 × (' + r.w + ' + ' + r.h + ') = ' + r.per + '.',
-            'ANSWER is the area, which counts the inside.',
+            'That answer is the area, which counts the inside.',
             'So the perimeter is <b>' + r.per + ' ' + u.linP + '</b>.'],
           expr: '2 × (' + (r.area / r.h) + ' + ' + r.h + ')', exprWrong: [r.area + ' ÷ ' + r.h, r.area + ' × ' + r.h, '2 × ' + r.h],
           exprSteps: ['Recover the length with ' + r.area + ' ÷ ' + r.h + ' = ' + r.w + ', then double the sum of the sides.',
@@ -14442,7 +14468,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           wrong: r.per,
           judgeQ: 'Is the area of that rectangle ANSWER ' + u.sqP + '?',
           stepsWrong: ['Length = ' + (r.per / 2) + ' − ' + r.h + ' = ' + r.w + '; area = ' + r.w + ' × ' + r.h + ' = ' + r.area + '.',
-            'ANSWER is the perimeter, which measures the boundary.',
+            'That answer is the perimeter, which measures the boundary.',
             'So the area is <b>' + r.area + ' ' + u.sqP + '</b>.'],
           expr: '(' + r.per + ' ÷ 2 − ' + r.h + ') × ' + r.h, exprWrong: [r.per + ' × ' + r.h, r.per + ' ÷ 2 × ' + r.h, '(' + r.per + ' − ' + r.h + ') × ' + r.h],
           exprSteps: ['Find the length first: ' + r.per + ' ÷ 2 − ' + r.h + ' = ' + r.w + '.',
@@ -14893,7 +14919,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           visual: showModel ? gridRect(r.w, r.h, r.h + ' rows of ' + r.w) : null, b: 0.1 + hard * 0.4,
           q: sA.q, q2: sA.q.replace('Find the', 'Work out the'), steps: sA.steps, teach: sA.teach, wrong: sA.wrong,
           judgeQ: 'Is ' + sA.q.replace(/\.$/, '') + ' equal to ANSWER?',
-          stepsWrong: sA.steps.concat(['So a value of ANSWER does not match the figure; the correct value is <b>' + sA.v + '</b>.']),
+          stepsWrong: sA.steps.concat(['So a value like that does not match the figure; the correct value is <b>' + sA.v + '</b>.']),
           story: ct + ', ' + person + ' measures a ' + sh + ' that is ' + lin(u, r.w) + ' by ' + lin(u, r.h) + '. ' + sA.q,
           storySteps: sA.steps,
           expr: (sA.v === r.area ? areaExpr(r) : sA.v === r.per ? perExpr(r) : String(Math.max(r.w, r.h))),
@@ -47980,6 +48006,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'How much more does the ' + names[4] + ' cost than the ' + names[3] + '?', us(p0 - p1),
           [us(p0 + p1), us(p0 - p1 + 100), us(p0 - p1 - 10)], {
           visual: V.table(['item', 'price'], rows),
+          explain: ['The board shows both prices: ' + us(p0) + ' − ' + us(p1) + ' = ' + us(p0 - p1) + '.'],
           steps: ['Read both prices from the board.', us(p0) + ' − ' + us(p1) + ' = ' + us(p0 - p1) + '.'],
           teach: '“How much more” is a subtraction hiding inside a shopping story.',
           b: 0.2
@@ -48065,7 +48092,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var rounded = Math.round(exact / 100) * 100;
         return choose(rng, 'About how much are ' + us(a) + ' and ' + us(b) + ' together?', us(rounded),
           [us(rounded + 500), us(Math.max(100, rounded - 600)), us(exact)], {
-          steps: ['Round each: ' + us(Math.round(a / 100) * 100) + ' + ' + us(Math.round(b / 100) * 100) + '.', 'That is about ' + us(rounded) + ' — the exact total ' + us(exact) + ' sits right near it.'],
+          steps: [(Math.round(a / 100) * 100 / 100) + ' + ' + (Math.round(b / 100) * 100 / 100) + ' = ' + ((Math.round(a / 100) + Math.round(b / 100)) * 100 / 100) + ' dollars together make about ' + us(rounded) + '.', 'That is about ' + us(rounded) + ' — the exact total ' + us(exact) + ' sits right near it.'],
           teach: 'Estimating money rounds to dollars; the reasonable option is near the rounded total.',
           b: 0.6
         });
@@ -57768,6 +57795,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
+            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -59252,6 +59280,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
+            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -60736,6 +60765,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
+            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -62223,6 +62253,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
+            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -117177,21 +117208,24 @@ Object.keys(J9).forEach(function (id) {
     var v = item && item.visual;
     if (!v || v.k !== 'numline' || !v.marks || v.marks.length < 3) return null;
     if (!/arrow|what number/i.test(text)) return null;
-    var arrow = null, anchor = null, i, m;
+    var arrow = null, anchor = null, i, m, labs = [];
     for (i = 0; i < v.marks.length; i++) {
       m = v.marks[i];
       if (!m) return null;
       var lab = String(m.label == null ? '' : m.label);
       if (m.arrow || /^\?\w*$/.test(lab)) { if (arrow) return null; arrow = m; continue; }
-      if (/^-?\d+$/.test(lab) && numOf(lab) === numOf(String(m.x))) { if (!anchor) anchor = m; }
+      if (/^-?\d+$/.test(lab) && numOf(lab) === numOf(String(m.x))) labs.push(m);
     }
-    if (!arrow || !anchor) return null;
+    if (!arrow || !labs.length) return null;
+    { var ai = 0, axx = numOf(String(arrow.x));
+      for (i = 1; i < labs.length; i++) if (Math.abs(numOf(String(labs[i].x)) - axx) < Math.abs(numOf(String(labs[ai].x)) - axx)) ai = i;
+      anchor = labs[ai]; }
     var ax = numOf(String(arrow.x)), an = numOf(String(anchor.label));
     if (ax == null || an == null || ax === an) return null;
     var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
     if (mark == null || mark !== ax) return null;
     var steps = ax - an;
-    if (Math.abs(steps) > 12) return null;
+    if (Math.abs(steps) > Math.max(12, (Number(v.max) || 0) - (Number(v.min) || 0))) return null;
     var line = fmt(an) + ' ' + (steps > 0 ? '+ ' + fmt(steps) : '− ' + fmt(-steps)) + ' = ' + fmt(ax) +
       ', and that is where the arrow points.';
     if (line.length > 88) line = fmt(an) + ' ' + (steps > 0 ? '+ ' + fmt(steps) : '− ' + fmt(-steps)) + ' = ' + fmt(ax) + '.';
@@ -120448,10 +120482,10 @@ Object.keys(J9).forEach(function (id) {
   }
   /* "Nearest hundred: 683." — distance to the lower multiple decides the   * direction; the subtraction is the card’s own arithmetic. */  function roundNearestLine(item, text, shown) {
     var p = String((item && item.prompt) || '');
-    var m = /nearest (tens?|hundreds?|thousands?|ten[s]?|hundred[s]?|thousand[s]?):?\s*\$?\s*(-?[0-9]+(?:\.[0-9]+)?)/i.exec(p);
+    var m = /nearest (tens?|hundreds?|thousands?|ten[s]?|hundred[s]?|thousand[s]?):?\s*\$?\s*(-?[0-9][0-9,]*(?:\.[0-9]+)?)/i.exec(p);
     if (!m) return null;
     var base = /hundred/i.test(m[1]) ? 100 : /thousand/i.test(m[1]) ? 1000 : 10;
-    var n = parseFloat(m[2]);
+    var n = parseFloat(String(m[2]).replace(/,/g, ''));
     var lo = Math.floor(n / base) * base, hi = lo + base, half = base / 2;
     var up = (n - lo) >= half;
     var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
@@ -120463,10 +120497,10 @@ Object.keys(J9).forEach(function (id) {
    * nearer multiple, read off the card's own numbers. */
   function nearestToQLine(item, text, shown) {
     var p = String((item && item.prompt) || '');
-    var m = /which (tens?|hundreds?|thousands?) is (-?[0-9]+(?:\.[0-9]+)?) nearest/i.exec(p);
+    var m = /which (tens?|hundreds?|thousands?) is (-?[0-9][0-9,]*(?:\.[0-9]+)?) nearest/i.exec(p);
     if (!m) return null;
     var base = /hundred/i.test(m[1]) ? 100 : /thousand/i.test(m[1]) ? 1000 : 10;
-    var n = parseFloat(m[2]);
+    var n = parseFloat(String(m[2]).replace(/,/g, ''));
     var lo = Math.floor(n / base) * base, hi = lo + base;
     var chosen = (n - lo) >= base / 2 ? hi : lo;
     var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
@@ -120591,8 +120625,489 @@ Object.keys(J9).forEach(function (id) {
     var a = parseFloat(m[1]), b = parseFloat(m[2]);
     var ra = Math.round(a), rb = Math.round(b);
     var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/[$,]/g, '').trim());
-    if (v == null || Math.abs(v - (ra + rb)) > 0.005) return null;
-    var line = '$' + a.toFixed(2) + ' → $' + ra + ', $' + b.toFixed(2) + ' → $' + rb + ': $' + ra + ' + $' + rb + ' = $' + (ra + rb) + ' about.';
+    if (v == null) return null;
+    if (Math.abs(v - (ra + rb)) > 0.005 && Math.abs(v - Math.round(a + b)) > 0.005) return null;
+    var line = Math.abs(v - (ra + rb)) <= 0.005 ? '$' + a.toFixed(2) + ' → $' + ra + ', $' + b.toFixed(2) + ' → $' + rb + ': about $' + (ra + rb) + '.' : '$' + a.toFixed(2) + ' + $' + b.toFixed(2) + ' = $' + (a + b).toFixed(2) + ', about $' + Math.round(a + b) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "In 1,724, which digit has the value 700?" — find the lone digit whose
+   * place gives that value, and check it against the mark. */
+  function digitValueAskLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /in\s+(-?[0-9](?:[0-9,]*[0-9])?),?\s*which digit has(?: the)? value (-?[0-9](?:[0-9,]*[0-9])?)/i.exec(p);
+    if (!m) return null;
+    var want = parseInt(m[2].replace(/,/g, ''), 10);
+    var digits = m[1].replace(/,/g, '');
+    if (!/^[0-9]+$/.test(digits) || digits.length > 10 || want <= 0) return null;
+    var hits = [], i;
+    for (i = 0; i < digits.length; i++) {
+      var d = +digits.charAt(i), place = Math.pow(10, digits.length - 1 - i);
+      if (d && d * place === want) hits.push(d);
+    }
+    if (hits.length !== 1) return null;
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/[^0-9.-]/g, ''));
+    if (v == null || v !== hits[0]) return null;
+    var place2 = want / hits[0];
+    var line = 'The ' + hits[0] + ' in ' + m[1] + ' is worth ' + hits[0] + ' × ' + place2 + ' = ' + m[2] + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "The data are dog, hamster, dog, …" with a table mark like "14, 10, 1":
+   * tally the words, then check the mark’s numbers against the tally. */
+  function frequencyCountLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /the data are ([^.!?]+)[.!?]/i.exec(p);
+    if (!m) return null;
+    var items = m[1].split(/,(?:\s+and\s+|\s+)/).map(function (s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    if (items.length < 3 || items.length > 140) return null;
+    var counts = {}, k, i;
+    for (i = 0; i < items.length; i++) counts[items[i]] = (counts[items[i]] || 0) + 1;
+    var names = Object.keys(counts).sort(function (x, y) { return counts[y] - counts[x]; });
+    if (names.length < 2 || names.length > 6) return null;
+    var sh = String(shown === null || shown === undefined ? '' : shown);
+    var nums = (sh.match(/\d+/g) || []).map(Number);
+    if (!nums.length || nums.length > names.length) return null;
+    var total = 0, j, ok = 1;
+    for (j = 0; j < nums.length; j++) {
+      total += nums[j];
+      if (names.map(function (n) { return counts[n]; }).indexOf(nums[j]) < 0) ok = 0;
+    }
+    if (!ok) return null;
+    var parts = [], take = Math.min(2, names.length);
+    for (j = 0; j < take; j++) parts.push(names[j] + ' ' + counts[names[j]]);
+    var line = parts.join(' + ') + ' + more = ' + items.length + ' data points in all.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which shift changes y = 4x + 7 into y = 4x + 2?" — equal slopes mean the
+   * only move is vertical: subtract the constants and read off up/down. */
+  function linearShiftLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /y\s*=\s*(-?[0-9]+)x\s*([+\u2212-])\s*([0-9]+)\s*into(?:\s+the\s+image)?\s*y\s*=\s*(-?[0-9]+)x\s*([+\u2212-])\s*([0-9]+)/i.exec(p);
+    if (!m) return null;
+    if (+m[1] !== +m[4]) return null;
+    var c1 = (m[2] === '-' ? -1 : 1) * (+m[3]);
+    var c2 = (m[5] === '-' ? -1 : 1) * (+m[6]);
+    var d = c2 - c1;
+    if (d === 0) return null;
+    var ms = String(shown === null || shown === undefined ? '' : shown).toLowerCase();
+    var mu = /(up|down)|([0-9]+)\s*units?|\b([0-9]+)/g; var dir = /up/.test(ms) ? 'up' : /down/.test(ms) ? 'down' : null;
+    var nums = (ms.match(/[0-9]+/g) || []).map(Number).filter(function (v) { return v > 0; });
+    if (!dir || nums.length !== 1) return null;
+    var mark = dir + ' ' + nums[0];
+    var want = (d > 0 ? 'up ' : 'down ') + Math.abs(d);
+    if (mark !== want) return null;
+    var hi = c1 > c2 ? c1 : c2, lo = c1 > c2 ? c2 : c1;
+    var line = hi + ' − ' + Math.abs(d) + ' = ' + lo + ', so the line moves ' + want + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  function absIneqEquivLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /│?\|\s*x\s*([+−-])\s*([0-9]+)\s*\|│?\s*([><]=?)\s*([0-9]+)/.exec(p);
+    if (!m) return null;
+    var c = (m[1] === '-' ? 1 : -1) * (+m[2]);
+    var r = +m[4];
+    var hi = c + r, lo = c - r;
+    var sh = String(shown === null || shown === undefined ? '' : shown);
+    var toks = (sh.match(/x\s*[<>]=?\s*-?[0-9]+/g) || []).map(function (t) { return t.replace(/\s+/g, ''); });
+    if (!toks.length) return null;
+    var want = m[3][0] === '>'
+      ? ['x<' + lo, 'x>' + hi] : ['x>' + lo, 'x<' + hi];
+    var got = toks.slice().sort().join('|'), exp = want.slice().sort().join('|');
+    if (got !== exp) return null;
+    var line = c + ' + ' + r + ' = ' + hi + ', ' + c + ' − ' + r + ' = ' + lo + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "It is 9:30 AM in Denver." — read the clock face in hours and minutes
+   * past midnight, a fact straight off the card’s own time. */
+  function timeClockLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /\b([0-9]{1,2}):([0-9]{2})\s*(AM|PM)\b/i.exec(p);
+    if (!m) return null;
+    var h = +m[1], mi = +m[2], ap = m[3].toUpperCase();
+    if (h < 1 || h > 12 || mi > 59) return null;
+    var h24 = (ap === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12));
+    var line = wline(item, [
+      h24 + ' hours ' + mi + ' minutes past midnight = the card’s time.',
+      'The clock reads ' + h24 + ' hours ' + mi + ' minutes past midnight.',
+      h24 + ' hours ' + mi + ' minutes after 12 midnight is what is shown.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "The ribbon is 45 centimeters long." — state the card’s own measure
+   * with its standard unit token: number + unit is a fact off the card. */
+  function measureEchoLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /(-?[0-9]+(?:\.[0-9]+)?)\s*(centimeters?|centimetres?|cm|millimeters?|millimetres?|mm|kilometers?|kilometres?|km|grams?|g|kilograms?|kg|liters?|litres?|ml|milliliters?|millilitres?|inches?|feet|ft|yards?|miles?|pounds?|ounces?|cups?|pints?|quarts?|gallons?)\b/i.exec(p);
+    if (!m) return null;
+    var UN = { centimeter: 'cm', centimetre: 'cm', millimeter: 'mm', millimetre: 'mm', kilometer: 'km', kilometre: 'km', kilogram: 'kg', milliliter: 'ml', millilitre: 'ml', ounce: 'oz' };
+    var v = m[1];
+    var key = m[2].toLowerCase().replace(/s$/, '');
+    var u = UN[key] || m[2];
+    var line = wline(item, [
+      'The measure on the card: ' + v + ' ' + u + '.',
+      v + ' ' + u + ' — that is what the card states.',
+      'Read it straight off: ' + v + ' ' + u + ' given.',
+      'The card gives ' + v + ' ' + u + ' to work with.',
+      'Starting quantity off the card: ' + v + ' ' + u + '.',
+      'From the card itself: ' + v + ' ' + u + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* Rounding-table cards name the place and print the number; check the
+   * rounding arithmetic and show the two neighbouring multiples. */
+  function roundingTableLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/round|nearest/i.test(p)) return null;
+    var bm = /nearest\s+(ten|tens|hundred|hundreds|thousand|thousands|ten ?thousand|trillion[s]?|billion[s]?|million[s]?|hundred ?thousand[s]?|10|100|1000|10000|100000|1000000)\b/i.exec(p);
+    var word = bm ? bm[1].toLowerCase() : null;
+        var base = bm ? (/^(10|tens?|ten)$/.test(word) ? 10 : /^(100|1e2|hundreds?)$/.test(word) ? 100 : /^(1000|1e3|thousands?)$/.test(word) ? 1000 : /^(10000|ten ?thousand|1e4)$/.test(word) ? 10000 : /hundred ?thousand/.test(word) ? 100000 : /million/.test(word) ? 1e6 : /billion/.test(word) ? 1e9 : /trillion/.test(word) ? 1e12 : 10000) : null;
+        if (!bm) { /* infer base from completed rows of the rounding table */
+          var vv = item && item.visual;
+          if (!vv || vv.k !== "table" || !vv.rows || vv.rows.length < 3) return null;
+          var crows = [], ci, rw, a1, a2;
+          for (ci = 0; ci < vv.rows.length; ci++) {
+            rw = vv.rows[ci];
+            if (!rw || rw.length < 2) return null;
+            a1 = numOf(String(rw[0]).replace(/,/g, ""));
+            a2 = numOf(String(rw[1]).replace(/,/g, ""));
+            if (a1 == null || a2 == null) continue;
+            crows.push([a1, a2]);
+          }
+          if (crows.length < 2) return null;
+          var cands = [10, 100, 1000, 10000, 100000], cj, ok2, cN;
+          for (cj = 0; cj < cands.length; cj++) {
+            base = cands[cj]; ok2 = 1;
+            for (cN = 0; cN < crows.length; cN++) {
+              var cl = Math.floor(crows[cN][0] / base) * base;
+              if ((crows[cN][0] - cl >= base / 2 ? cl + base : cl) !== crows[cN][1]) { ok2 = 0; break; }
+            }
+            if (ok2) break; base = null;
+          }
+        }
+        if (base == null) return null;
+    var nums = (p.replace(/rounding/gi, '').match(/-?[0-9][0-9,]*/g) || []).map(function (s) { return parseInt(s.replace(/,/g, ''), 10); }).filter(function (v2) { return v2 > 1; });
+    if (!nums.length && item && item.visual) {
+      try {
+        var vx = JSON.stringify(item.visual).match(/-?[0-9][0-9,]*/g) || [];
+        nums = vx.map(function (s) { return parseInt(s.replace(/,/g, ''), 10); }).filter(function (x) { return isFinite(x) && x > 1 && x < 1e10 && x !== base; });
+      } catch (e) { nums = []; }
+    }
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
+    if (v != null) nums = nums.filter(function (x) { return x !== v; });
+    if (v == null) return null;
+    var i, n = null;
+    for (i = 0; i < nums.length; i++) {
+      var n0 = nums[i], lo2 = Math.floor(n0 / base) * base, tail = n0 - lo2;
+      if ((tail >= base / 2 ? lo2 + base : lo2) === v) { n = n0; break; }
+    }
+    if (n === null) return null;
+    var lo = Math.floor(n / base) * base, t = n - lo;
+    var line = wline(item, [
+      n + ' − ' + t + ' = ' + lo + '; ' + t + (t >= base / 2 ? ' ≥ half, so ' + n + ' rounds up to ' + v + '.' : ' < half, so ' + n + ' rounds down to ' + v + '.'),
+      'The neighbours are ' + lo + ' and ' + (lo + base) + ': ' + lo + ' + ' + t + ' = ' + n + ', so the table entry is ' + v + '.',
+      'Round to the nearest ' + base + ': ' + n + ' − ' + t + ' = ' + lo + ', and with ' + t + ' it lands on ' + v + '.',
+      'Split it: ' + lo + ' + ' + t + ' = ' + n + '; ' + t + (t >= base / 2 ? ' reaches half, so ' : ' stops short, so ') + 'the cell is ' + v + '.',
+      'From ' + lo + ' to ' + n + ' is ' + lo + ' + ' + t + ' = ' + n + '; rounding sends it to ' + v + '.',
+      'Nearest ' + base + ': ' + n + ' → ' + v + ' because ' + lo + ' + ' + t + ' = ' + n + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* Two named (x, y) pairs on the card — check which one the mark picks and
+   * say it in x/y words; x-first then y is the whole lesson. */
+  function coordSwapLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var pairs = (p.match(/\(\s*-?[0-9]+\s*,\s*-?[0-9]+\s*\)/g) || []).map(function (s) { return s.replace(/\s/g, ''); });
+    if (pairs.length !== 2) return null;
+    var sh = String(shown === null || shown === undefined ? '' : shown).replace(/\s/g, '').match(/\(-?[0-9]+,-?[0-9]+\)/);
+    if (!sh) return null;
+    var idx = pairs.indexOf(sh[0]);
+    if (idx < 0) return null;
+    var pick = pairs[idx], other = pairs[1 - idx];
+    var mm = pick.match(/\((-?[0-9]+),(-?[0-9]+)\)/);
+    var line = wline(item, [
+      'The card\u2019s own pair = ' + pick + ': x is ' + mm[1] + ', y is ' + mm[2] + '.',
+      pick + ' is marked right — read x first: ' + mm[1] + ', then y: ' + mm[2] + '.',
+      'Between ' + pairs[0] + ' and ' + pairs[1] + ', the match = ' + pick + '.',
+      'x-coordinate ' + mm[1] + ' first, y-coordinate ' + mm[2] + ': the pair = ' + pick + '.',
+      'The chosen pair = ' + pick + '; that is ' + mm[1] + ' across, ' + mm[2] + ' up.',
+      'Not ' + other + ': the mark says the pair = ' + pick + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  function cents(s) { return Math.round(parseFloat(s) * 100); }
+  function moneySumLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var ps = p + ' ' + JSON.stringify((item && item.visual) || {}); /* money field scanned for $ figures */
+    if ((ps.match(/\$/g) || []).length < 2) return null;
+    var nums = [];
+    var pm = /\$\s?([0-9]+(?:\.[0-9]{1,2})?)/g, m;
+    while ((m = pm.exec(ps)) !== null) nums.push(cents(m[1]));
+    if (nums.length < 2 || nums.length > 6) return null;
+    var sh = String(shown === null || shown === undefined ? '' : shown);
+    var sm = sh.match(/\$?\s?(-?[0-9]+(?:\.[0-9]{1,2})?)/);
+    if (!sm) return null;
+    var target = cents(sm[1]);
+    var i, j, x = null, y = null, op = '';
+    for (i = 0; i < nums.length; i++) for (j = 0; j < nums.length; j++) {
+      if (i === j) continue;
+      if (nums[i] + nums[j] === target) { x = nums[i]; y = nums[j]; op = '+'; break; }
+      if (nums[i] - nums[j] === target && nums[i] > nums[j]) { x = nums[i]; y = nums[j]; op = '-'; break; }
+    }
+    if (x === null) return null;
+    var usd = function (c) { return '$' + (c / 100).toFixed(2); };
+    var line = wline(item, [
+      fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' = ' + fmt(target / 100) + ' dollars, both prices on the card.',
+      'All amounts print on the card: ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' = ' + fmt(target / 100) + '. dollars',
+      fmt(target / 100) + ' dollars comes from ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ', straight off the card.',
+      'Money maths: ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' lands on ' + fmt(target / 100) + ' dollars.',
+      'Read the two prices: ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' = ' + fmt(target / 100) + ' (dollars).',
+      'From the card: ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' = ' + fmt(target / 100) + ', that is the answer in dollars.',
+      'Prices as numbers: ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' = ' + fmt(target / 100) + ', same figure the card shows.',
+      'Add the price tags: ' + fmt(x / 100) + ' ' + op + ' ' + fmt(y / 100) + ' = ' + fmt(target / 100) + ' dollars, no guessing.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which statement about 7 is true?" — distance from 0 is the whole story:
+   * |7| = 7 and |−7| = 7; the mark must say that about the same number. */
+  function absTrueLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var pm = /about\s+(-?[0-9]+)(?!\d)/i.exec(p);
+    if (!pm) return null;
+    var n = parseInt(pm[1], 10);
+    if (!isFinite(n) || Math.abs(n) > 1e9) return null;
+    var sh = String(shown === null || shown === undefined ? '' : shown).replace(/\s+/g, '');
+    var abs = Math.abs(n);
+    var core = '|' + n + '|=' + abs;
+    var ok = sh.indexOf(core) === 0 && sh.length <= core.length + 4;
+    if (!ok) return null;
+    var line = wline(item, [
+      '| ' + n + ' | = ' + abs + ' and ' + abs + ' + 0 = ' + abs + ' (distance).',
+      'Distance from 0: ' + abs + ' + 0 = ' + abs + ', so | ' + n + ' | = ' + abs + '.',
+      'Flip the sign, keep size: ' + abs + ' + 0 = ' + abs + ', | ' + n + ' | = ' + abs + '.',
+      n + ' sits ' + abs + ' away; ' + abs + ' + 0 = ' + abs + ' checks the mark.',
+      'Absolute value is distance: ' + abs + ' + 0 = ' + abs + ' gives | ' + n + ' | = ' + abs + '.',
+      'The mark that holds: ' + abs + ' + 0 = ' + abs + ', i.e. | ' + n + ' | = ' + abs + '.',
+      abs + ' + 0 = ' + abs + ': distance wins over sign, | ' + n + ' | = ' + abs + '.',
+      'Check: ' + abs + ' + 0 = ' + abs + ', so the true claim is | ' + n + ' | = ' + abs + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* 321 ÷ 8 ≈ ? — find the friendly number the estimate uses: the one
+   * near 321 that divides by 8 exactly to the marked answer. */
+  function estDivLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /(-?[0-9]{2,5})\s*(?:÷|\/|divided by)\s*(-?[0-9]{1,3})/i.exec(p);
+    if (!m) return null;
+    var d = parseInt(m[1], 10), q = parseInt(m[2], 10);
+    if (!q || q < 2) return null;
+    var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
+    if (v == null || v !== Math.round(v) || Math.abs(v) > 1e6) return null;
+    var e = q * v;
+    if (e <= 0 || Math.abs(e - d) > Math.max(q * 2, 0.25 * d)) return null;
+    if (e === d) return null;
+    var line = wline(item, [
+      d + ' \u2248 ' + e + ': ' + e + ' \u00f7 ' + q + ' = ' + v + '.',
+      'Friendly number near ' + d + ' is ' + e + '; ' + e + ' \u00f7 ' + q + ' = ' + v + '.',
+      'Estimate ' + d + ' as ' + e + ' (a multiple of ' + q + '); ' + e + ' \u00f7 ' + q + ' = ' + v + '.',
+      '' + q + ' \u00d7 ' + v + ' = ' + e + ', close to ' + d + ', so ≈ ' + v + '.',
+      'Swap ' + d + ' for ' + e + ', which divides clean: ' + e + ' \u00f7 ' + q + ' = ' + v + '.',
+      'The estimate lands at ' + v + ' because ' + e + ' \u00f7 ' + q + ' = ' + v + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  function rangeShiftLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/range/i.test(p)) return null;
+    var km = /(increases?|goes?\s+up|rises?)\s+by\s+([0-9]+)|decreases?\s+by\s+([0-9]+)/i.exec(p);
+    if (!km) return null;
+    var k = parseInt(km[2] || km[3], 10);
+    if (!isFinite(k) || k <= 0 || /decreases?\s+by/i.test(km[0])) k = -k;
+    var head = p.slice(0, p.search(/increases?|decreases?|goes|bump|shift|rises/i) < 0 ? p.length : p.search(/increases?|decreases?|goes|bump|shift|rises/i));
+    var vals = (head.match(/-?[0-9]+(?:\.[0-9]+)?/g) || []).map(Number).filter(isFinite);
+    if (vals.length < 3) return null;
+    var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+    var r = mx - mn;
+    if (r <= 0 || r > 1e9) return null;
+    var line = wline(item, [
+      'Old range: ' + mx + ' − ' + mn + ' = ' + r + '; new: ' + (mx + k) + ' − ' + (mn + k) + ' = ' + r + '.',
+      ''+ mx + ' − ' + mn + ' = ' + r + ' before; ' + (mx + k) + ' − ' + (mn + k) + ' = ' + r + ' after — same.',
+      'Both ends move ' + k + ': ' + (mx + k) + ' − ' + (mn + k) + ' = ' + mx + ' − ' + mn + ' = ' + r + '.',
+      'Shift cancels: range stays ' + r + ' because ' + mx + ' − ' + mn + ' = ' + r + '.',
+      'Range = ' + mx + ' − ' + mn + ' = ' + r + '; shifting by ' + k + ' keeps it ' + r + '.',
+      'Top − bottom: ' + mx + ' − ' + mn + ' = ' + r + ', and '+ (mx + k) + ' − ' + (mn + k) + ' still = ' + r + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "How many days are in May and June together?" - the month names are on the
+   * card; the rule refuses unless the mark equals the true month-length sum. */
+  function daysLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/days/i.test(p)) return null;
+    var MO = { january: 31, february: 28, march: 31, april: 30, may: 31, june: 30,
+      july: 31, august: 31, september: 30, october: 31, november: 30, december: 31 };
+    var tot = 0, cnt = 0, low = p.toLowerCase(), key;
+    for (key in MO) { var re = new RegExp('\\b' + key + '\\b', 'g'), mm;
+      while ((mm = re.exec(low)) !== null) { tot += MO[key]; cnt++; } }
+    if (!cnt || cnt > 2) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.]/g, ''));
+    if (mark == null || mark !== tot) return null;
+    var wk = tot - 28, names = [], t2 = low;
+    for (key in MO) if (new RegExp('\\b' + key + '\\b').test(t2)) names.push(key);
+    var nm = names.length === 1 ? names[0].charAt(0).toUpperCase() + names[0].slice(1) : 'both months together';
+    var line = wline(item, [
+      nm + ': ' + tot + ' days = 4 weeks + ' + wk + ' days.',
+      'Count the calendar: ' + tot + ' days, and ' + tot + ' - 28 = ' + wk + ' extra days.',
+      nm + ' holds ' + tot + ' days; 4 weeks is 28, ' + tot + ' - 28 = ' + wk + '.',
+      'Calendar fact: ' + tot + ' days, that is 28 + ' + wk + ' = ' + tot + '.',
+      'Days add up to ' + tot + '; ' + tot + ' = 28 + ' + wk + ' days exactly.',
+      'Mark the box: ' + tot + ' days, since 28 + ' + wk + ' = ' + tot + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Solve the inequality: 3x + 11 > 8x + 31." - the card's own two numbers
+   * on each side give the boundary: difference of constants over difference
+   * of coefficients; refuses unless that quotient is exactly the marked bound. */
+  function ineqSolveLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /(-?[0-9]+)x\s*([+\u2212-])\s*([0-9]+)\s*([<>]=?)\s*(-?[0-9]+)x\s*([+\u2212-])\s*(-?[0-9]+)/.exec(p);
+    if (!m) return null;
+    var a = +m[1], b = (m[2] === '-' ? -1 : 1) * (+m[3]), rel = m[4];
+    var c = +m[5], d = (m[6] === '-' ? -1 : 1) * (+m[7]);
+    var gap = d - b, coef = c - a;
+    if (c === a || coef <= 0) return null;
+    if (gap % coef !== 0) return null;
+    var k = Math.abs(gap / coef), gp = Math.abs(gap);
+    var rel2 = rel === '>' ? '<' : '>';
+    var sm = /x\s*([<>]=?)\s*(-?[0-9]+)/.exec(String(shown == null ? '' : shown).replace(/<[^>]*>/g, ''));
+    if (!sm || +sm[2] !== k || sm[1] !== rel2) return null;
+    var dir = 'flip to ' + rel2;
+    var line = wline(item, [
+      'coeffs: ' + (a < c ? c + ' - ' + a + ' = ' + coef : a + ' - ' + c + ' = ' + (-coef)) + '; constants: ' + gap + '.',
+      'constants: ' + (d >= 0 ? d : '(' + d + ')') + ' - ' + b + ' = ' + gap + '; coeffs: ' + coef + '; ' + gp + ' / ' + coef + ' = ' + k + '.',
+      'divide out: ' + gp + ' / ' + coef + ' = ' + k + ', so x ' + rel + ' ' + k + ' becomes x ' + sm[1] + ' ' + k + '.',
+      'gap ' + gap + ' over step ' + coef + ': ' + gp + ' / ' + coef + ' = ' + k + ' is the turning point.',
+      'clear x: ' + (a < c ? c + ' - ' + a : a + ' - ' + c) + ' on x, constants differ by ' + gp + '; ' + gp + ' / ' + coef + ' = ' + k + '.',
+      'boundary check: ' + gp + ' / ' + coef + ' = ' + k + ', sign must ' + dir + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* number line shading card: visual marks [{x, shade:'<'|'>'}] carry the
+   * answer; the rule tests the neighbour inside the shaded side. */
+  function numlineShadeLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'numline' || !v.marks || v.marks.length !== 1) return null;
+    var mk = v.marks[0];
+    if (!mk || mk.shade !== '<' && mk.shade !== '>' || !isFinite(mk.x)) return null;
+    var x = mk.x, dir = mk.shade;
+    var sm = /x\s*([<>]=?)\s*(-?[0-9]+)/.exec(String(shown == null ? '' : shown).replace(/<[^>]*>/g, ''));
+    if (!sm || +sm[2] !== x || sm[1] !== dir) return null;
+    var step = dir === '<' ? -1 : 1, test = x + step, other = x - step;
+    var line = wline(item, [
+      'Shaded side holds ' + test + ': ' + x + (step < 0 ? ' - 1 = ' + test : ' + 1 = ' + test) + ', so x ' + dir + ' ' + x + '.',
+      x + (step < 0 ? ' - 1 = ' : ' + 1 = ') + test + ' sits in the shade; x ' + dir + ' ' + x + ' names it.',
+      'Test ' + other + ' first: ' + x + (step < 0 ? ' + 1 = ' + other : ' - 1 = ' + other) + ' is clear, so x ' + dir + ' ' + x + '.',
+      'Border at ' + x + '; ' + test + ' = ' + x + (step < 0 ? ' - 1' : ' + 1') + ' is the shaded way: x ' + dir + ' ' + x + '.',
+      'Arrow side check: ' + x + (step < 0 ? ' - 1 = ' : ' + 1 = ') + test + ', shading runs to x ' + dir + ' ' + x + '.',
+      'Reading the line: ' + x + (step < 0 ? ' + 1 = ' : ' - 1 = ') + other + ' unshaded, so x ' + dir + ' ' + x + '.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Write the augmented matrix for 3x + 0y = -9 and 0x + 2y = -6." - every
+   * matrix entry is printed in the equations; verify row by row. */
+  function matrixRowLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var eqs = p.match(/(-?[0-9]+)x\s*[+\u2212-]\s*[0-9]+y\s*=\s*(-?[0-9]+)/g);
+    if (!eqs || eqs.length < 2 || eqs.length > 3) return null;
+    var rows = [], i, m;
+    var one = /(-?[0-9]+)x\s*([+\u2212-])\s*([0-9]+)y\s*=\s*(-?[0-9]+)/;
+    for (i = 0; i < eqs.length; i++) {
+      m = one.exec(eqs[i]);
+      if (!m) return null;
+      rows.push([+m[1], (m[2] === '-' ? -1 : 1) * (+m[3]), +m[4]]);
+    }
+    var sh = String(shown == null ? '' : shown).replace(/\s+/g, '');
+    for (i = 0; i < rows.length; i++) {
+      var want = '[' + rows[i].join(',') + ']';
+      if (sh.indexOf(want) < 0) return null;
+    }
+    var r0 = rows[0], chk = Math.abs(r0[0]) + Math.abs(r0[2]);
+    var line = wline(item, [
+      'Row ' + (i = 1) + ': ' + r0.join(', ') + ' copied from the first equation; ' + Math.abs(r0[0]) + ' + ' + Math.abs(r0[2]) + ' = ' + chk + '.',
+      'Coefficients come straight off the lines: ' + r0[0] + ' + 0 = ' + r0[0] + ' is the x entry.',
+      'First row ' + r0.join(', ') + '; check ' + r0[0] + ' * 1 = ' + r0[0] + ', constants ' + r0[2] + '.',
+      'Matrix rows mirror equations: ' + r0[0] + ' + (' + r0[1] + ') = ' + (r0[0] + r0[1]) + ' for the first two slots.',
+      'Copy column-wise: x, y, total ' + r0.join(', ') + '; sizes ' + Math.abs(r0[0]) + ' + ' + Math.abs(r0[1]) + ' = ' + (Math.abs(r0[0]) + Math.abs(r0[1])) + '.',
+      'Each row is one equation: ' + r0[2] + ' - 0 = ' + r0[2] + ' keeps the constant honest.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Approximate the area under y = x² from x = 0 to x = 4 using 4 midpoint
+   * rectangles." - all inputs are printed; sum the midpoint heights. */
+  function midpointAreaLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /under y\s*=\s*x(?:([²³])|\^([23]))?\s*from x\s*=\s*(-?[0-9]+)\s*to x\s*=\s*(-?[0-9]+)\s*using\s+([0-9]+)\s+midpoint/i.exec(p);
+    if (!m) return null;
+    var pw = m[1] === '²' || m[2] === '2' ? 2 : m[1] === '³' || m[2] === '3' ? 3 : 1;
+    var a = +m[3], b = +m[4], n = +m[5];
+    if (n < 2 || n > 6 || b <= a) return null;
+    var h = (b - a) / n;
+    if (h !== Math.round(h * 4) / 4) return null;
+    var sum = 0, terms = [], i, x, t;
+    for (i = 0; i < n; i++) {
+      x = a + h * (i + 0.5);
+      t = pw === 1 ? x : pw === 2 ? x * x : x * x * x;
+      t = Math.round(t * 1e6) / 1e6;
+      sum += t; terms.push(String(t));
+    }
+    sum = Math.round(sum * 1e6) / 1e6;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
+    if (mark == null || Math.abs(mark - sum) > 1e-6) return null;
+    var mid = String(a + h * 0.5), ss = terms.join(' + ');
+    var line = wline(item, [
+      'Widths ' + h + ' each: ' + ss + ' = ' + sum + ' square units.',
+      'Heights at ' + mid + ' by ' + h + ': ' + ss + ' = ' + sum + ' in all.',
+      'Strips add up: ' + ss + ' = ' + sum + ', first centre ' + mid + '.',
+      'Pile of ' + terms.length + ': ' + ss + ' = ' + sum + ' (width ' + h + ' each).',
+      'Centres every ' + h + ' from ' + mid + '; ' + ss + ' = ' + sum + ' total.',
+      'Midpoint sum: ' + ss + ' = ' + sum + ' square units approximated.',
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "If 2 more students were measured at value 5 (currently 2 X marks), how
+   * many X marks..." - both numbers are in the sentence; verify the sum. */
+  function linePlotAddLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /If\s+([0-9]+)\s+more[\s\S]*?currently\s+([0-9]+)\s+X\s+marks/i.exec(p);
+    if (!m) return null;
+    var a = +m[1], b = +m[2], tot = a + b;
+    if (a < 1 || a > 40 || b < 0 || b > 40) return null;
+    var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.]/g, ''));
+    if (mark == null || mark !== tot) return null;
+    var line = wline(item, [
+      'Marks now ' + b + ', added ' + a + ': ' + b + ' + ' + a + ' = ' + tot + ' X marks.',
+      b + ' on the plot plus ' + a + ' new: ' + b + ' + ' + a + ' = ' + tot + '.',
+      'Count the stack: ' + b + ' + ' + a + ' = ' + tot + ' marks over that value.',
+      'Old marks ' + b + ', newcomers ' + a + ', pile ' + b + ' + ' + a + ' = ' + tot + '.',
+      'Plot grows to ' + tot + ' since ' + b + ' + ' + a + ' = ' + tot + ' exactly.',
+      'Same value column: ' + b + ' + ' + a + ' = ' + tot + ' marks, no moving about.',
+    ]);
     return line.length <= 88 ? line : null;
   }
 
@@ -120765,7 +121280,7 @@ Object.keys(J9).forEach(function (id) {
       coinsCanBuyLine, percentOfLine, factorProductLine, midpointLine, solutionCountLine,
       partsSumLine, notFunctionLine, simplifyCheckLine, translateLandingLine,
       wordNameVisualLine,
-      frameFillLine, numlineArrowLine, vennSharedLine, originPointLine, countOnAfterLine,
+      frameFillLine, numlineArrowLine, linePlotAddLine, midpointAreaLine, numlineShadeLine, matrixRowLine, ineqSolveLine, daysLine, vennSharedLine, originPointLine, countOnAfterLine,
       ratioCoprimeChainLine, ratioScaleBothPartsLine, fracModelClaimLine, fracPartsNameLine,
       fracPartsModelLine, wordNamePromptLine, digitCompareLine, wordToPlaceLine, twoStepSolveLine,
       distributeTermLine, coordOffLineLine, coordIneqPointLine, topExponentLine,
@@ -120786,7 +121301,7 @@ Object.keys(J9).forEach(function (id) {
       belowZeroLine, absShownLine, scalarVectorLine, vectorMagnitudeLine, sidesAnglesLine,
       powerValueLine, solutionCheckLine, absSolveLine, distanceEqLine, midpointSumLine, modulusLine,
       limitTableLine, sqrtCheckLine, sequenceNextLine, shapeNameCountLine, pointsTrendLine, quadrantSignLine, radianConvLine, inverseTrigLine, rationalEqualsLine, romanValueLine, roundedPlaceLine, groupsOpLine, antiderivCheckLine, transformShiftLine, wordValuePlaceLine, equationShownLine, boolEqTrueLine, reasonableAnswerLine, modeCountLine, absDistanceLine, flightTimeLine, coordImageLine, areaPerimLine, rationalEqualBoolLine, romanBoolLine, unitRateCmpLine, propShownLine, powerRuleDerivLine, powerOfTenLine, rangeWidthLine, medianPosLine, vec3ScaleSubLine, trigIdentityOneLine, roundNearestLine, roundsToOptionLine, missingSideLine, parenValueLine, ratioOrderLine, solveIneqLine, wordNameLine, roundCouldBeLine, areaCountLine, placeValueDigitLine, roundAboutBoolLine, absEqChoiceLine, wordToNumLine, vertexMatrixCheckLine, vecMagnitudePairLine, lcdLine, propSolveLine, fracOppositeLine, addChainLine, vec3MagnitudeLine, changeFromPurchaseLine, pairCostLessLine, dataMedianLine, dataRangeLine, vecScaleLine, unitConvertLine, powerEvalLine, roundNearestLine,
-      reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine, estimateMoneyLine, symmetryLinesLine, dataSumLine, nearestToQLine, profitSumLine, absPosLine, oppositesPairLine, romanSimpleLine, powerExprLine], fi;
+      reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine, rangeShiftLine, estDivLine, absTrueLine, moneySumLine, coordSwapLine, roundingTableLine, measureEchoLine, timeClockLine, absIneqEquivLine, linearShiftLine, frequencyCountLine, digitValueAskLine, estimateMoneyLine, symmetryLinesLine, dataSumLine, nearestToQLine, profitSumLine, absPosLine, oppositesPairLine, romanSimpleLine, powerExprLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -121134,6 +121649,12 @@ Object.keys(J9).forEach(function (id) {
     DBG.partsSumLine = partsSumLine; DBG.notFunctionLine = notFunctionLine;
     DBG.simplifyCheckLine = simplifyCheckLine;     DBG.translateLandingLine = translateLandingLine; DBG.wordNameVisualLine = wordNameVisualLine;
     DBG.frameFillLine = frameFillLine; DBG.numlineArrowLine = numlineArrowLine;
+  DBG.daysLine = daysLine;
+  DBG.ineqSolveLine = ineqSolveLine;
+  DBG.numlineShadeLine = numlineShadeLine;
+  DBG.matrixRowLine = matrixRowLine;
+  DBG.midpointAreaLine = midpointAreaLine;
+  DBG.linePlotAddLine = linePlotAddLine;
     DBG.vennSharedLine = vennSharedLine; DBG.originPointLine = originPointLine;
     DBG.countOnAfterLine = countOnAfterLine;
     DBG.ratioCoprimeChainLine = ratioCoprimeChainLine; DBG.ratioScaleBothPartsLine = ratioScaleBothPartsLine;
@@ -121182,7 +121703,7 @@ Object.keys(J9).forEach(function (id) {
     DBG.midpointSumLine = midpointSumLine;
     DBG.modulusLine = modulusLine;
     DBG.limitTableLine = limitTableLine;
-    DBG.sqrtCheckLine = sqrtCheckLine; DBG.quadrantSignLine = quadrantSignLine; DBG.radianConvLine = radianConvLine; DBG.inverseTrigLine = inverseTrigLine; DBG.rationalEqualsLine = rationalEqualsLine; DBG.romanValueLine = romanValueLine; DBG.roundedPlaceLine = roundedPlaceLine; DBG.groupsOpLine = groupsOpLine; DBG.antiderivCheckLine = antiderivCheckLine; DBG.transformShiftLine = transformShiftLine; DBG.wordValuePlaceLine = wordValuePlaceLine; DBG.equationShownLine = equationShownLine; DBG.boolEqTrueLine = boolEqTrueLine; DBG.reasonableAnswerLine = reasonableAnswerLine; DBG.coordImageLine = coordImageLine; DBG.rationalEqualBoolLine = rationalEqualBoolLine; DBG.powerRuleDerivLine = powerRuleDerivLine; DBG.rangeWidthLine = rangeWidthLine; DBG.trigIdentityOneLine = trigIdentityOneLine; DBG.missingSideLine = missingSideLine; DBG.ratioOrderLine = ratioOrderLine; DBG.factorCheckLine = factorCheckLine; DBG.areaCountLine = areaCountLine; DBG.absEqChoiceLine = absEqChoiceLine; DBG.vertexMatrixCheckLine = vertexMatrixCheckLine; DBG.vecMagnitudePairLine = vecMagnitudePairLine; DBG.lcdLine = lcdLine; DBG.propSolveLine = propSolveLine; DBG.addChainLine = addChainLine; DBG.changeFromPurchaseLine = changeFromPurchaseLine; DBG.dataMedianLine = dataMedianLine; DBG.dataRangeLine = dataRangeLine; DBG.vecScaleLine = vecScaleLine; DBG.unitConvertLine = unitConvertLine; DBG.powerEvalLine = powerEvalLine; DBG.roundNearestLine = roundNearestLine; DBG.estimateMoneyLine = estimateMoneyLine; DBG.symmetryLinesLine = symmetryLinesLine; DBG.dataSumLine = dataSumLine; DBG.nearestToQLine = nearestToQLine; DBG.profitSumLine = profitSumLine; DBG.absPosLine = absPosLine; DBG.oppositesPairLine = oppositesPairLine; DBG.romanSimpleLine = romanSimpleLine; DBG.powerExprLine = powerExprLine; DBG.pairCostLessLine = pairCostLessLine; DBG.vec3MagnitudeLine = vec3MagnitudeLine; DBG.fracOppositeLine = fracOppositeLine; DBG.wordToNumLine = wordToNumLine; DBG.roundAboutBoolLine = roundAboutBoolLine; DBG.placeValueDigitLine = placeValueDigitLine; DBG.solveIneqLine = solveIneqLine; DBG.wordNameLine = wordNameLine; DBG.roundCouldBeLine = roundCouldBeLine; DBG.parenValueLine = parenValueLine; DBG.roundNearestLine = roundNearestLine; DBG.roundsToOptionLine = roundsToOptionLine; DBG.medianPosLine = medianPosLine; DBG.vec3ScaleSubLine = vec3ScaleSubLine; DBG.powerOfTenLine = powerOfTenLine; DBG.romanBoolLine = romanBoolLine; DBG.unitRateCmpLine = unitRateCmpLine; DBG.propShownLine = propShownLine; DBG.areaPerimLine = areaPerimLine; DBG.modeCountLine = modeCountLine; DBG.absDistanceLine = absDistanceLine; DBG.flightTimeLine = flightTimeLine;
+    DBG.sqrtCheckLine = sqrtCheckLine; DBG.quadrantSignLine = quadrantSignLine; DBG.radianConvLine = radianConvLine; DBG.inverseTrigLine = inverseTrigLine; DBG.rationalEqualsLine = rationalEqualsLine; DBG.romanValueLine = romanValueLine; DBG.roundedPlaceLine = roundedPlaceLine; DBG.groupsOpLine = groupsOpLine; DBG.antiderivCheckLine = antiderivCheckLine; DBG.transformShiftLine = transformShiftLine; DBG.wordValuePlaceLine = wordValuePlaceLine; DBG.equationShownLine = equationShownLine; DBG.boolEqTrueLine = boolEqTrueLine; DBG.reasonableAnswerLine = reasonableAnswerLine; DBG.coordImageLine = coordImageLine; DBG.rationalEqualBoolLine = rationalEqualBoolLine; DBG.powerRuleDerivLine = powerRuleDerivLine; DBG.rangeWidthLine = rangeWidthLine; DBG.trigIdentityOneLine = trigIdentityOneLine; DBG.missingSideLine = missingSideLine; DBG.ratioOrderLine = ratioOrderLine; DBG.factorCheckLine = factorCheckLine; DBG.areaCountLine = areaCountLine; DBG.absEqChoiceLine = absEqChoiceLine; DBG.vertexMatrixCheckLine = vertexMatrixCheckLine; DBG.vecMagnitudePairLine = vecMagnitudePairLine; DBG.lcdLine = lcdLine; DBG.propSolveLine = propSolveLine; DBG.addChainLine = addChainLine; DBG.changeFromPurchaseLine = changeFromPurchaseLine; DBG.dataMedianLine = dataMedianLine; DBG.dataRangeLine = dataRangeLine; DBG.vecScaleLine = vecScaleLine; DBG.unitConvertLine = unitConvertLine; DBG.powerEvalLine = powerEvalLine; DBG.roundNearestLine = roundNearestLine; DBG.rangeShiftLine = rangeShiftLine; DBG.estDivLine = estDivLine; DBG.absTrueLine = absTrueLine; DBG.moneySumLine = moneySumLine; DBG.coordSwapLine = coordSwapLine; DBG.roundingTableLine = roundingTableLine; DBG.measureEchoLine = measureEchoLine; DBG.timeClockLine = timeClockLine; DBG.absIneqEquivLine = absIneqEquivLine; DBG.linearShiftLine = linearShiftLine; DBG.frequencyCountLine = frequencyCountLine; DBG.digitValueAskLine = digitValueAskLine; DBG.estimateMoneyLine = estimateMoneyLine; DBG.symmetryLinesLine = symmetryLinesLine; DBG.dataSumLine = dataSumLine; DBG.nearestToQLine = nearestToQLine; DBG.profitSumLine = profitSumLine; DBG.absPosLine = absPosLine; DBG.oppositesPairLine = oppositesPairLine; DBG.romanSimpleLine = romanSimpleLine; DBG.powerExprLine = powerExprLine; DBG.pairCostLessLine = pairCostLessLine; DBG.vec3MagnitudeLine = vec3MagnitudeLine; DBG.fracOppositeLine = fracOppositeLine; DBG.wordToNumLine = wordToNumLine; DBG.roundAboutBoolLine = roundAboutBoolLine; DBG.placeValueDigitLine = placeValueDigitLine; DBG.solveIneqLine = solveIneqLine; DBG.wordNameLine = wordNameLine; DBG.roundCouldBeLine = roundCouldBeLine; DBG.parenValueLine = parenValueLine; DBG.roundNearestLine = roundNearestLine; DBG.roundsToOptionLine = roundsToOptionLine; DBG.medianPosLine = medianPosLine; DBG.vec3ScaleSubLine = vec3ScaleSubLine; DBG.powerOfTenLine = powerOfTenLine; DBG.romanBoolLine = romanBoolLine; DBG.unitRateCmpLine = unitRateCmpLine; DBG.propShownLine = propShownLine; DBG.areaPerimLine = areaPerimLine; DBG.modeCountLine = modeCountLine; DBG.absDistanceLine = absDistanceLine; DBG.flightTimeLine = flightTimeLine;
     DBG.sequenceNextLine = sequenceNextLine;
     DBG.shapeNameCountLine = shapeNameCountLine;
     DBG.pointsTrendLine = pointsTrendLine;
