@@ -268,6 +268,19 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .tf.dense .obj { width: 15px; height: 15px; }
 .tf.dense .obj.em { font-size: 14px; }
 .tf.dense .obj .obj-dot { width: 11px; height: 11px; }
+/* U.4: Pre-K pictures carry the whole question, so their icons are drawn
+   1.2x and stay on one screen: a pre-K learner reads the card, not the scroll. */
+.band-pk .obj { width: 29px; height: 29px; }
+.band-pk .obj.em { font-size: 25px; }
+.band-pk .obj .obj-dot { width: 19px; height: 19px; }
+.band-pk .obj svg { width: 29px; height: 29px; }
+.band-pk .dots { gap: 6px; }
+.band-pk .dots .d { width: 18px; height: 18px; }
+.band-pk .tf .frame { grid-template-columns: repeat(5, 31px); grid-auto-rows: 31px; gap: 3px; padding: 4px; }
+.band-pk .tf.dense .frame { grid-template-columns: repeat(5, 21px); grid-auto-rows: 21px; }
+.band-pk .tf.dense .obj { width: 18px; height: 18px; }
+.band-pk .areagrid .sq { width: 29px; height: 29px; }
+.band-pk .visual { overflow: visible; }
 .dots { display: grid; gap: 5px; }
 .dots .d { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); }
 .dots .d.hollow { background: transparent; border: 1.5px solid var(--ink-3); }
@@ -17529,6 +17542,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     if (!isFinite(n) || n < 0) return 'zero';
     if (n < 20) return ONES[n];
     if (n < 100) { var t = Math.floor(n / 10), o = n % 10; return TENS[t] + (o ? '-' + ONES[o] : ''); }
+    if (n >= 1000) { var th = Math.floor(n / 1000), r2 = n % 1000; return wordName(th) + ' thousand' + (r2 ? (r2 < 100 ? ' ' : ' ') + wordName(r2) : ''); }
     var h = Math.floor(n / 100), r = n % 100, head = (ONES[h] || 'one') + ' hundred';
     return r === 0 ? head : head + ' ' + wordName(r);
   }
@@ -17631,7 +17645,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var smallN = n < 100;
         return I_num(ct + ', write the number: ' + (smallN ? t + ' ten' + (t === 1 ? '' : 's') + ' and ' + o + ' one' + (o === 1 ? '' : 's') : wordName(n)), n, {
           visual: blocks(n), b: lo,
-          explain: smallN ? ['' + t + ' ten' + (t === 1 ? '' : 's') + ' is ' + (t * 10) + '.', o + ' one' + (o === 1 ? '' : 's') + ' is ' + o + '.', t * 10 + ' + ' + o + ' = ' + n + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + n + '</b>.'] : ['The word name is ' + wordName(n) + '.', 'Write the digits in the order they are spoken.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + n + '</b>.'],
+          explain: smallN ? ['' + t + ' ten' + (t === 1 ? '' : 's') + ' is ' + (t * 10) + '.', o + ' one' + (o === 1 ? '' : 's') + ' is ' + o + '.', t * 10 + ' + ' + o + ' = ' + n + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + n + '</b>.'] : ['The word name is ' + wordName(n) + '.', (function () { var nn = String(n), pp = [], k2; for (k2 = 0; k2 < nn.length; k2++) { var dd = +nn.charAt(nn.length - 1 - k2); if (dd) pp.unshift(dd * Math.pow(10, k2)); } return 'Spell it out: ' + pp.join(' + ') + ' = ' + n + '.'; })(), 'Write the digits in the order they are spoken.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + n + '</b>.'],
           teach: teach
         });
       },
@@ -33044,8 +33058,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return calc(rng, {
           expr: UP.comma(n),
           spec: { k: 'n', v: digit },
-          steps: [UP.comma(n) + ' has ' + s.length + ' digits.', 'Count from the right: ' + placeName(s.length - 1) + ', ' + placeName(s.length - 2) + ', and so on.',
-            'The ' + placeName(place) + ' place holds ' + digit + '.'],
+          steps: [UP.comma(n) + ' has ' + s.length + ' digits.', (function () { var pl = [], oj2; for (oj2 = 0; oj2 < s.length; oj2++) pl.push((oj2 + 1) + ' ' + placeName(oj2)); return 'Count the places from the right: ' + pl.join(', ') + ' — ' + s.length + ' places in all.'; })(),
+            'The ' + placeName(place) + ' place holds ' + digit + ': ' + digit + ' + 0 = ' + digit + '.'],
           wrongs: otherDigits,
           teach: 'Places grow by a factor of ten from right to left, so the digit in a place is worth that digit times the place.',
           qs: ['Which digit is in the {e} ' + placeName(place) + ' place?', 'What digit appears in the ' + placeName(place) + ' place of {e}?',
@@ -33170,6 +33184,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = built.slice(1).map(function (v) { return UP.comma(v); });
         return UP.mc(rng, 'In which number does the digit ' + digit + ' sit in the ' + BC.place(place) + ' place?',
           UP.comma(built[rightIdx]), wrongs, {
+          explain: [pick(rng, ['Check the right answer, ' + UP.comma(built[rightIdx]) + ': ' + digit + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(digit * Math.pow(10, place)) + ' sits there.', 'Put ' + digit + ' in the ' + BC.place(place) + ' place: ' + digit + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(digit * Math.pow(10, place)) + ' of the total.', 'In ' + UP.comma(built[rightIdx]) + ', the ' + BC.place(place) + ' place is worth ' + Math.pow(10, place) + ': ' + digit + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(digit * Math.pow(10, place)) + '.'])],
           teach: 'Build the number: the digit goes in the named place and the other digits fill lower places.',
           b: 0.4
         });
@@ -33279,6 +33294,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         });
         return UP.mc(rng, 'In ' + UP.comma(g.n) + ', what is the value of the digit ' + g.digit + '?',
           UP.comma(val), wrongs, {
+          explain: [pick(rng, [g.digit + ' sits in the ' + BC.place(g.place) + ' place: ' + g.digit + ' × ' + Math.pow(10, g.place) + ' = ' + UP.comma(val) + '.', 'Read the place off ' + UP.comma(g.n) + ': ' + g.digit + ' × ' + Math.pow(10, g.place) + ' = ' + UP.comma(val) + ' worth.', 'Place value multiplies: ' + g.digit + ' × ' + Math.pow(10, g.place) + ' = ' + UP.comma(val) + '.'])],
           teach: 'Multiply the digit by the value of its place to find what it is worth.',
           b: 0.1
         });
@@ -33319,6 +33335,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (wrongs.length < 2) return null;
         return UP.mc(rng, 'In ' + UP.comma(n) + ', which digit has the value ' + UP.comma(val) + '?',
           String(digit), wrongs, {
+          explain: [pick(rng, [digit + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(val) + ', and ' + digit + ' sits in that place of ' + UP.comma(n) + '.', 'Work back: ' + UP.comma(val) + ' ÷ ' + Math.pow(10, place) + ' = ' + digit + ', the digit in the ' + placeName(place) + ' place.', 'The ' + placeName(place) + ' place of ' + UP.comma(n) + ' holds ' + digit + ': ' + digit + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(val) + '.'])],
           teach: 'Find the place whose value times a digit gives the stated value, then read that digit.',
           b: 0.4
         });
@@ -33679,6 +33696,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = [k + ' ten thousands', k + ' ' + placeName(place + 1), k + ' ' + placeName(Math.max(0, place - 1))];
         return UP.mc(rng, 'Which expression has the value ' + UP.comma(ans) + '?',
           k + ' ' + placeName(place), wrongs, {
+          explain: [pick(rng, [k + ' ' + placeName(place) + ' means ' + k + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(ans) + '.', 'Multiply it out: ' + k + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(ans) + '.', 'Only that name fixes ' + Math.pow(10, place) + ': ' + k + ' × ' + Math.pow(10, place) + ' = ' + UP.comma(ans) + '.'])],
           teach: 'The place name decides how many zeros follow the digit.',
           b: 0.3
         });
@@ -34568,6 +34586,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           }
           return UP.mc(rng, 'Which property is shown by ' + f.a + ' ÷ 1 = ' + f.a + '?',
             'identity property', ['zero property', 'commutative property', 'associative property'], {
+            explain: [pick(rng, ['Do the division: ' + f.a + ' ÷ 1 = ' + f.a + ' — the number survives.', f.a + ' ÷ 1 = ' + f.a + ', unchanged: that is the identity for division.', 'Dividing by 1 changes nothing: ' + f.a + ' ÷ 1 = ' + f.a + '.'])],
             teach: 'Dividing by 1 leaves a number unchanged, so 1 is the identity for division.', b: 0
           });
         }
@@ -114468,7 +114487,7 @@ Object.keys(J9).forEach(function (id) {
   /* Two numbers and a mark: the operation has to be the one the question asks
      for, so the wording chooses, and if the numbers fit more than one operation
      the line is dropped rather than guessed. */
-  function pairLine(text, shown, ok) {
+  function pairLine(text, shown, ok, it) {
     /* a triangle's area is base × height ÷ 2: an addition that happens to
        land on the answer is not the working, so this card belongs to the rule
        that shows the halving */
@@ -114505,7 +114524,7 @@ Object.keys(J9).forEach(function (id) {
     var alts = [eq, OPS[op][0] + eq, OPS[op][1] + eq, OPS[op][2] + eq];
     var pickL = alts.filter(function (s) { return s.length <= 64; });
     if (!pickL.length) return null;
-    var line = pickL.length === 1 ? pickL[0] : wline({ prompt: chosen + '|' + shown + '|' + String((item && item.choices && item.choices.join) ? item.choices.join(',') : (item && item.choices ? '' : '')) }, pickL);
+    var line = pickL.length === 1 ? pickL[0] : wline({ prompt: chosen + '|' + shown + '|' + String(it && it.choices && it.choices.join ? it.choices.join(',') : '') }, pickL);
     return line.length <= 64 ? line : null;
   }
 
@@ -116891,17 +116910,34 @@ Object.keys(J9).forEach(function (id) {
   function roundedToLine(item, text, shown) {
     var mark = numOf(String(shown == null ? '' : shown).replace(/[^0-9.\-]/g, ''));
     if (mark == null) return null;
-    var m = new RegExp('(\\d+)[^.!?]{0,20}?rounded to the nearest (ten|hundred|thousand|tenth| hundredth)', 'i').exec(text);
+    var mBk = /([0-9][\d,.]*)\s+is between\s+([0-9][\d,.]*)\s+and\s+([0-9][\d,.]*)/i.exec(text);
+    if (mBk) {
+      var xb = numOf(mBk[1]), loB = numOf(mBk[2]), hiB = numOf(mBk[3]);
+      if (xb === null || loB === null || hiB === null) return null;
+      if (!(loB < xb && xb < hiB)) return null;
+      var ub = hiB - loB;
+      if (ub <= 0 || Math.abs(Math.round(ub) - ub) > 1e-9) return null;
+      var midB = loB + ub / 2, landB = xb < midB ? loB : hiB;
+      var mt = /(?:missing output|output|rule gives|says)\s+(-?[0-9][\d,]*)/i.exec(String((item && item.prompt) || '') + ' ' + String(text));
+      var said = mt ? numOf(mt[1]) : null;
+      var sb = boolMark(shown);
+      if (sb === null) { if (said === null || Math.abs(said - landB) > 1e-6) return null; }
+      else if (said !== null && sb !== (said === landB)) return null;
+      var dL = xb - loB, dH = hiB - xb;
+      var lB = fmt(xb) + ' − ' + fmt(loB) + ' = ' + fmt(dL) + ' and ' + fmt(hiB) + ' − ' + fmt(xb) + ' = ' + fmt(dH) + ', so it lands on ' + fmt(landB) + '.';
+      return lB.length <= 88 ? lB : null;
+    }
+    var m = /([0-9][\d,.]*)[^.!?\n]{0,24}?to the nearest (ten[- ]thousand|million|thousandth|tenth|hundredth|ten|hundred|thousand)/i.exec(text);
     if (!m) return null;
-    var v = numOf(m[1]), unitName = String(m[2]).toLowerCase();
-    var unit = { ten: 10, hundred: 100, thousand: 1000, tenth: 0.1, hundredth: 0.01 }[unitName];
+    var v = numOf(m[1]), unitName = String(m[2]).toLowerCase().replace(/[-\s]+/g, ' ').trim();
+    var unit = { ten: 10, hundred: 100, thousand: 1000, 'ten thousand': 10000, million: 1000000, tenth: 0.1, hundredth: 0.01, thousandth: 0.001 }[unitName];
     if (!unit || v == null) return null;
     var low = Math.floor(v / unit) * unit, high = low + unit, mid = low + unit / 2;
     var roundTo = v < mid ? low : high;
     if (Math.abs(roundTo - mark) > 1e-9) return null;
-    var line = fmt(low) + ' and ' + fmt(high) + ' are either side of ' + fmt(v) + ', and the middle is ' + fmt(mid) +
-      ', so ' + fmt(v) + ' goes to ' + fmt(mark) + '.';
-    if (line.length > 88) line = fmt(v) + ' is ' + (v < mid ? 'under' : 'at or over') + ' the middle ' + fmt(mid) + ', so it rounds to ' + fmt(mark) + '.';
+    var midCalc = '(' + fmt(low) + ' + ' + fmt(high) + ') ÷ 2 = ' + fmt(mid);
+    var line = fmt(low) + ' and ' + fmt(high) + ' are either side of ' + fmt(v) + ': ' + midCalc + ', so ' + fmt(v) + ' rounds to ' + fmt(mark) + '.';
+    if (line.length > 88) line = midCalc + ', so it rounds to ' + fmt(mark) + '.';
     return line.length <= 88 ? line : null;
   }
 
@@ -120586,7 +120622,14 @@ Object.keys(J9).forEach(function (id) {
     var chosen = (n - lo) >= base / 2 ? hi : lo;
     var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
     if (v == null || v !== chosen) return null;
-    var line = fmt(n) + ' is only ' + fmt(Math.abs(chosen - n)) + ' away from ' + fmt(chosen) + ', its nearest ' + m[1].toLowerCase().replace(/s$/, '') + '.';
+    var dA = Math.abs(chosen - n), bigA = fmt(Math.max(chosen, n)), smallA = fmt(Math.min(chosen, n)), unitA = m[1].toLowerCase().replace(/s$/, '');
+    var altsN = [
+      bigA + ' − ' + smallA + ' = ' + fmt(dA) + ', so ' + fmt(n) + ' goes to its nearest ' + unitA + ' ' + fmt(chosen) + '.',
+      'Its nearest ' + unitA + ' is ' + fmt(chosen) + ': ' + bigA + ' − ' + smallA + ' = ' + fmt(dA) + ' away.',
+      bigA + ' − ' + smallA + ' = ' + fmt(dA) + ' — nearer than the other way, so ' + fmt(chosen) + '.'
+    ].filter(function (x) { return x.length <= 88; });
+    if (!altsN.length) return null;
+    var line = altsN.length === 1 ? altsN[0] : wline(item, altsN);
     return line.length <= 88 ? line : null;
   }
 
@@ -121384,7 +121427,7 @@ Object.keys(J9).forEach(function (id) {
       limitTableLine, sqrtCheckLine, sequenceNextLine, shapeNameCountLine, pointsTrendLine, quadrantSignLine, radianConvLine, inverseTrigLine, rationalEqualsLine, romanValueLine, roundedPlaceLine, groupsOpLine, antiderivCheckLine, transformShiftLine, wordValuePlaceLine, equationShownLine, boolEqTrueLine, reasonableAnswerLine, modeCountLine, absDistanceLine, flightTimeLine, coordImageLine, areaPerimLine, rationalEqualBoolLine, romanBoolLine, unitRateCmpLine, propShownLine, powerRuleDerivLine, powerOfTenLine, rangeWidthLine, medianPosLine, vec3ScaleSubLine, trigIdentityOneLine, roundNearestLine, roundsToOptionLine, missingSideLine, parenValueLine, ratioOrderLine, solveIneqLine, wordNameLine, roundCouldBeLine, areaCountLine, placeValueDigitLine, roundAboutBoolLine, absEqChoiceLine, wordToNumLine, vertexMatrixCheckLine, vecMagnitudePairLine, lcdLine, propSolveLine, fracOppositeLine, addChainLine, vec3MagnitudeLine, changeFromPurchaseLine, pairCostLessLine, dataMedianLine, dataRangeLine, vecScaleLine, unitConvertLine, powerEvalLine, roundNearestLine,
       reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine, rangeShiftLine, estDivLine, absTrueLine, moneySumLine, coordSwapLine, roundingTableLine, measureEchoLine, timeClockLine, absIneqEquivLine, linearShiftLine, frequencyCountLine, digitValueAskLine, estimateMoneyLine, symmetryLinesLine, dataSumLine, nearestToQLine, profitSumLine, absPosLine, oppositesPairLine, romanSimpleLine, powerExprLine,
       absGreaterChoiceLine, powerOfTenTurnLine, dividedByToGetLine, perpSlopeLine, realImagLine, sub3Line, scatterMeanLine, constVarLine, betweenMidLine, matrixEqLine, slopeDescLine, countSidesWalkLine,
-      roundIsEqualLine, scatterOutlierLine, pointOnLineLine, definedMultLine, absLossTrueLine, absEqFarLine, invDetLine, parallelPairLine, timeConvLine, roundDecLine, placeDigitLine], fi;
+      roundIsEqualLine, scatterOutlierLine, pointOnLineLine, definedMultLine, absLossTrueLine, absEqFarLine, invDetLine, parallelPairLine, timeConvLine, roundDecLine, placeDigitLine, fillBlankLine, placeRoundedLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -121516,8 +121559,8 @@ Object.keys(J9).forEach(function (id) {
     var line = (n === r)
       ? fmt(n) + ' is already a multiple of ' + fmt(pw) + ': ' + fmt(n) + ' = ' + fmt(r) + '.'
       : wline(item, [
-          fmt(n) + ' − ' + fmt(off) + ' = ' + fmt(df) + ', and ' + fmt(near) + ' − ' + fmt(n) + ' = ' + fmt(dn) + ' is nearer.',
-          fmt(near) + ' − ' + fmt(n) + ' = ' + fmt(dn) + ', and ' + fmt(n) + ' − ' + fmt(off) + ' = ' + fmt(df) + ', so ' + fmt(near) + ' wins.'
+          fmt(Math.max(n, off)) + ' − ' + fmt(Math.min(n, off)) + ' = ' + fmt(df) + ', and ' + fmt(Math.max(near, n)) + ' − ' + fmt(Math.min(near, n)) + ' = ' + fmt(dn) + ' is nearer.',
+          fmt(Math.max(near, n)) + ' − ' + fmt(Math.min(near, n)) + ' = ' + fmt(dn) + ', and ' + fmt(Math.max(n, off)) + ' − ' + fmt(Math.min(n, off)) + ' = ' + fmt(df) + ', so ' + fmt(near) + ' wins.'
         ]);
     if (line.length > 88) line = fmt(dn) + ' < ' + fmt(df) + ', so the nearest is ' + fmt(near) + '.';
     return line.length <= 88 ? line : null;
@@ -122188,6 +122231,68 @@ Object.keys(J9).forEach(function (id) {
     return line.length <= 88 ? line : null;
   }
 
+  /* "Complete the equation: 90 ÷ ___ = 90." — put the mark in the box,
+     do the arithmetic, and only speak when the line balances. */
+  function fillBlankLine(item, text, shown) {
+    var p = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    var mv = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (mv === null || mv <= 0) return null;
+    var numT = function (x) { var v = Number(String(x).replace(/,/g, '').replace(/−/g, '-')); return isFinite(v) ? v : null; };
+    var left = /([0-9][\d,.]*)\s*([÷×+\-−])\s*(?:_{2,}|□|○|\[\s*\])\s*=\s*([0-9][\d,.]*)/.exec(p);
+    var rgt = /(?:_{2,}|□|○|\[\s*\])\s*([÷×+\-−])\s*([0-9][\d,.]*)\s*=\s*([0-9][\d,.]*)/.exec(p);
+    var a = null, op = null, b = null, res = null;
+    if (left) { a = numT(left[1]); op = left[2]; b = mv; res = numT(left[3]); }
+    else if (rgt) { op = rgt[1]; b = numT(rgt[2]); a = mv; res = numT(rgt[3]); }
+    else return null;
+    if (a === null || b === null || res === null) return null;
+    var got = null, sym = op === '÷' ? '÷' : op === '×' ? '×' : op === '−' ? '−' : op;
+    if (sym === '÷') { if (b === 0) return null; got = a / b; }
+    else if (sym === '×') got = a * b;
+    else if (sym === '−') got = a - b;
+    else got = a + b;
+    if (Math.abs(got - res) > 1e-6) return null;
+    var eqn = fmt(a) + ' ' + sym + ' ' + fmt(b) + ' = ' + fmt(res) + '.';
+    var alts = [
+      'Fill in the blank: ' + eqn,
+      'Try ' + fmt(mv) + ': ' + eqn + ' The line balances.',
+      'Put ' + fmt(mv) + ' in the box: ' + eqn
+    ].filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    var line = alts.length === 1 ? alts[0] : wline(item, alts);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "748,391 became 748,000. To which place was it rounded?" — measure the
+     jump against half the place step; the marked place must be consistent. */
+  function placeRoundedLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /([0-9][\d,]*)\s+became\s+([0-9][\d,]*)[^.?!]*which place/i.exec(p);
+    if (!m) return null;
+    var n = numOf(m[1]), out = numOf(m[2]);
+    if (n === null || out === null || n === out) return null;
+    var mw = /nearest\s+(ten[\s-]thousand|millions?|ones?|tens?|hundreds?|thousands?)/i.exec(String(shown == null ? '' : shown));
+    if (!mw) return null;
+    var key = mw[1].toLowerCase().replace(/s$/, '').replace(/[\s-]+/g, ' ');
+    if (key === 'one') key = 'one';
+    if (key === 'ten thousand') key = 'ten thousand';
+    var W = { one: 1, ten: 10, hundred: 100, thousand: 1000, 'ten thousand': 10000, million: 1000000 };
+    if (!(key in W)) return null;
+    var sc = W[key];
+    var cand = Math.round(n / sc) * sc;
+    if (Math.abs(cand - out) > 1e-6) return null;
+    var d = Math.abs(n - out), half = sc / 2;
+    if (Math.abs(Math.abs(n % sc) - half) < 1e-9) return null;
+    var big2 = fmt(Math.max(n, out)), small2 = fmt(Math.min(n, out));
+    var alts = [
+      big2 + ' − ' + small2 + ' = ' + fmt(d) + ', and ' + fmt(d) + ' &lt; ' + fmt(half) + ' of ' + fmt(sc) + ': nearest ' + mw[1].toLowerCase() + '.',
+      'It jumped ' + big2 + ' − ' + small2 + ' = ' + fmt(d) + ', under half of ' + fmt(sc) + ', so the ' + mw[1].toLowerCase() + ' place it is.',
+      'Half of ' + fmt(sc) + ' is ' + fmt(half) + ': ' + fmt(d) + ' is under that, so nearest ' + mw[1].toLowerCase() + '.'
+    ].filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    var line = alts.length === 1 ? alts[0] : wline(item, alts);
+    return line.length <= 88 ? line : null;
+  }
+
   function staleSteps(item, steps) {
     var card = (String(item.prompt || '') + ' ' + String(item.sub || '') + ' ' +
       ((item.choices || []).join(' ')) + ' ' + JSON.stringify(item.visual || {}))
@@ -122372,7 +122477,7 @@ Object.keys(J9).forEach(function (id) {
         var st = statLine(item, text, want);
         if (st && st.length <= 88) { line = st; from = 'stat'; }
       }
-      if (!line) { line = pairLine(text, shownAns, ok); if (line) from = 'pair'; }
+      if (!line) { line = pairLine(text, shownAns, ok, item); if (line) from = 'pair'; }
       if (!line) { line = roundingLine(item, text, shownAns); if (line) from = 'round'; }
       if (!line) { line = roundingLine(item, wtext, shownAns); if (line) from = 'roundW'; }
       if (!line) { line = familyLine(item, text, wtext, shownAns); if (line) from = 'family'; }
@@ -122475,6 +122580,119 @@ Object.keys(J9).forEach(function (id) {
     return item;
   }
 
+  /* U.4 — the little ones answer by tapping and the picture IS the task:
+     Pre-K and Kindergarten cards become choice-only (Pre-K under 3 options,
+     Kindergarten under 5), and every one of them carries a true picture. */
+  function youngFix(item, sk) {
+    var band = sk && sk.band;
+    if (!item || (band !== 'PK' && band !== 'K')) return item;
+    if (item.__young) return item;
+    item.__young = 1;
+    var MAXO = band === 'PK' ? 2 : 4, i;
+    function isNum(x) { return typeof x === 'number' && isFinite(x); }
+    function hsh(x) { var h2 = 0, i2, s2 = String(x); for (i2 = 0; i2 < s2.length; i2++) h2 = (h2 * 31 + s2.charCodeAt(i2)) | 0; return Math.abs(h2); }
+    var sp = item.spec;
+    if (sp && sp.k === 'n' && isNum(sp.v)) {
+      var v = sp.v;
+      var cand = band === 'PK' ? [v + 1, v - 1, v + 2, v + 10] : [v + 1, v - 1, v + 2, v - 2, v + 10, v - 10];
+      var ds = [];
+      for (i = 0; i < cand.length && ds.length < MAXO - 1; i++) if (cand[i] >= 0 && cand[i] !== v) ds.push(cand[i]);
+      var opts = ds.slice();
+      var pos = hsh(item.prompt || v) % (opts.length + 1);
+      opts.splice(pos, 0, v);
+      item.spec = { k: 'choice', i: pos, opts: opts, text: String(v) };
+      item.choices = opts;
+    } else if (sp && sp.k === 'list' && sp.vals && (sp.vals.length === 2 || sp.vals.length === 3)) {
+      var va = sp.vals[0] && sp.vals[0].v, vb = sp.vals[1] && sp.vals[1].v, vc = sp.vals[2] && sp.vals[2].v;
+      var three = sp.vals.length === 3;
+      if (three && !(isNum(va) && isNum(vb) && isNum(vc) && va + vb === vc)) {
+        var big = Math.max(va || 0, vb || 0), small = Math.min(va || 0, vb || 0);
+        var posB = hsh(item.prompt || big) % 2;
+        var optsB = posB === 0 ? [big, small] : [small, big];
+        item.prompt = 'The parts are ' + va + ' and ' + vb + '. Tap the bigger part.';
+        item.spec = { k: 'choice', i: posB, opts: optsB, text: String(big) };
+        item.choices = optsB;
+        if (item.labels) delete item.labels;
+        item.answerText = String(big);
+        item.visual = item.visual || (big === 0
+          ? { k: 'table', head: [], rows: [['0']], opts: { label: 'Nothing here: zero.' } }
+          : { k: 'array', rows: big <= 5 ? 1 : 2, cols: big <= 5 ? big : Math.ceil(big / 2), opts: { label: 'The bigger part has ' + big + '.' } });
+        return item;
+      }
+      var a = three ? va : sp.vals[0] && sp.vals[0].v, b = three ? vb : sp.vals[1] && sp.vals[1].v;
+      if (isNum(a) && isNum(b) && a >= 0 && b >= 0) {
+        var sum = three ? vc : a + b, ds2 = [];
+        if (sum - 1 >= 0) ds2.push(sum - 1);
+        ds2.push(sum + 1);
+        var keep2 = ds2.slice(0, MAXO - 1), opts2 = keep2.slice();
+        var pos2 = hsh(item.prompt || sum) % (opts2.length + 1);
+        opts2.splice(pos2, 0, sum);
+        item.prompt = 'The parts are ' + a + ' and ' + b + '. Push them together: how many in all?';
+        item.spec = { k: 'choice', i: pos2, opts: opts2, text: String(sum) };
+        item.choices = opts2;
+        if (item.labels) delete item.labels;
+        item.answerText = String(sum);
+        item.visual = item.visual || (sum === 0
+          ? { k: 'table', head: [], rows: [['0']], opts: { label: 'Both parts are zero: none at all.' } }
+          : { k: 'array', rows: sum <= 5 ? 1 : 2, cols: sum <= 5 ? sum : Math.ceil(sum / 2), opts: { label: a + ' and ' + b + ' make ' + sum + '.' } });
+      }
+    } else if (sp && sp.k === 'cmp' && band === 'PK') {
+      var sv = typeof sp.v === 'string' ? sp.v : '';
+      sv = sv === '≥' ? '>' : sv === '≤' ? '<' : sv;
+      var pair = sv === '=' ? ['=', '<'] : ['>', '<'];
+      var idx = pair.indexOf(sv);
+      if (idx >= 0 && (item.choices || []).length !== 2) {
+        item.spec = { k: 'choice', i: idx, opts: pair, text: sv };
+        item.choices = pair;
+        item.answerText = sv;
+      }
+    } else if (sp && sp.k === 'choice') {
+      var os0 = item.choices || item.opts || sp.opts || [];
+      if (os0.length > MAXO) {
+        var ci = typeof sp.i === 'number' ? sp.i : 0, keep = [];
+        for (i = 0; i < os0.length && keep.length < MAXO - 1; i++) if (i !== ci) keep.push(os0[i]);
+        keep.unshift(os0[ci]);
+        item.choices = keep;
+        item.spec = { k: 'choice', i: 0, opts: keep, text: sp.text != null ? String(sp.text) : String(keep[0]) };
+      }
+    } else if (sp && sp.k === 'point' && sp.coords && sp.coords.length === 2) {
+      var cx = sp.coords[0], cy = sp.coords[1];
+      if (isNum(cx) && isNum(cy) && cx >= 0 && cy >= 0) {
+        var decoys = [];
+        if (cx + 1 !== cx) decoys.push(cx + 1);
+        if (cy !== cx && decoys.length < MAXO - 1) decoys.push(cy);
+        if (cx - 1 >= 0 && cx - 1 !== cx && cx - 1 !== cy) { if (decoys.length < MAXO - 1) decoys.push(cx - 1); }
+        var optsP = decoys.slice(0, MAXO - 1), posP = hsh(item.prompt || cx) % (optsP.length + 1);
+        optsP.splice(posP, 0, cx);
+        item.prompt = String(item.prompt || 'Give the position of the star as (column, row).') + ' First: tap the star\'s column.';
+        item.spec = { k: 'choice', i: posP, opts: optsP, text: String(cx) };
+        item.choices = optsP;
+        item.answerText = String(cx);
+      }
+    }
+    if (item.spec && item.spec.k === 'choice' && item.type && item.type !== 'choice') item.type = 'choice';
+    if (!item.visual) {
+      var ans = null, spc = item.spec;
+      if (spc && spc.k === 'choice' && /^-?\d+(\.\d+)?$/.test(String(spc.text == null ? '' : spc.text))) ans = Number(String(spc.text));
+      var pnums = [], pm = String(item.prompt || '').match(/\d+(\.\d+)?/g);
+      if (pm) for (i = 0; i < pm.length && pnums.length < 3; i++) pnums.push(Number(pm[i]));
+      var isk = spc && spc.k;
+      if (isk !== 'bool' && ans != null && ans >= 1 && ans <= 20) {
+        item.visual = { k: 'array', rows: ans <= 5 ? 1 : 2, cols: ans <= 5 ? ans : Math.ceil(ans / 2), opts: { label: 'This many: ' + ans + '.' } };
+      } else if (ans === 0) {
+        item.visual = { k: 'table', head: [], rows: [['0']], opts: { label: 'None here: zero.' } };
+      } else if (pnums.length) {
+        var rws = pnums.map(function (x) { return [String(x)]; });
+        item.visual = { k: 'table', head: [], rows: rws, opts: { label: 'The numbers in this card.' } };
+      } else if (ans != null) {
+        item.visual = { k: 'table', head: [], rows: [[String(ans)]], opts: { label: 'The answer: ' + ans + '.' } };
+      } else {
+        item.visual = { k: 'table', head: [], rows: [[String((spc && spc.text != null) ? spc.text : '•')]] };
+      }
+    }
+    return item;
+  }
+
   /* chain onto the writing pass so the words are settled before a line is added
      (diction may re-print a number, and the inserted line has to survive that) */
   (function hook() {
@@ -122482,7 +122700,7 @@ Object.keys(J9).forEach(function (id) {
     var prev = GLOB.DP.polish;
     GLOB.DP.polish = function (item, sk, lvl) {
       var out = prev(item, sk, lvl);
-      return syncModelNoun(attachModel(addWorkLine(out || item)));
+      return youngFix(syncModelNoun(attachModel(addWorkLine(out || item))), sk);
     };
     GLOB.__workcheck = addWorkLine;
     /* ONE object, not a new one: the counters live in the DBG the pass closed
@@ -122493,7 +122711,7 @@ Object.keys(J9).forEach(function (id) {
     DBG.whoMoreLine = whoMoreLine; DBG.whoStepLine = whoStepLine; DBG.successorLine = successorLine;
     DBG.stepPairLine = stepPairLine; DBG.askPair = askPair; DBG.amountFor = amountFor; DBG.symOf = symOf;
     DBG.ineqLine = ineqLine; DBG.roundingLine = roundingLine; DBG.sequenceLine = sequenceLine;
-    DBG.familyLine = familyLine; DBG.absGreaterChoiceLine = absGreaterChoiceLine; DBG.powerOfTenTurnLine = powerOfTenTurnLine; DBG.dividedByToGetLine = dividedByToGetLine; DBG.perpSlopeLine = perpSlopeLine; DBG.realImagLine = realImagLine; DBG.sub3Line = sub3Line; DBG.scatterMeanLine = scatterMeanLine; DBG.constVarLine = constVarLine; DBG.betweenMidLine = betweenMidLine; DBG.matrixEqLine = matrixEqLine; DBG.slopeDescLine = slopeDescLine; DBG.countSidesWalkLine = countSidesWalkLine; DBG.powerFormLine = powerFormLine; DBG.tenMarkK = tenMarkK; DBG.roundIsEqualLine = roundIsEqualLine; DBG.scatterOutlierLine = scatterOutlierLine; DBG.pointOnLineLine = pointOnLineLine; DBG.definedMultLine = definedMultLine; DBG.timeConvLine = timeConvLine; DBG.roundDecLine = roundDecLine; DBG.placeDigitLine = placeDigitLine; DBG.exprWordsLine = exprWordsLine; DBG.absLossTrueLine = absLossTrueLine; DBG.absEqFarLine = absEqFarLine; DBG.invDetLine = invDetLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
+    DBG.familyLine = familyLine; DBG.absGreaterChoiceLine = absGreaterChoiceLine; DBG.powerOfTenTurnLine = powerOfTenTurnLine; DBG.dividedByToGetLine = dividedByToGetLine; DBG.perpSlopeLine = perpSlopeLine; DBG.realImagLine = realImagLine; DBG.sub3Line = sub3Line; DBG.scatterMeanLine = scatterMeanLine; DBG.constVarLine = constVarLine; DBG.betweenMidLine = betweenMidLine; DBG.matrixEqLine = matrixEqLine; DBG.slopeDescLine = slopeDescLine; DBG.countSidesWalkLine = countSidesWalkLine; DBG.powerFormLine = powerFormLine; DBG.tenMarkK = tenMarkK; DBG.roundIsEqualLine = roundIsEqualLine; DBG.scatterOutlierLine = scatterOutlierLine; DBG.pointOnLineLine = pointOnLineLine; DBG.definedMultLine = definedMultLine; DBG.timeConvLine = timeConvLine; DBG.fillBlankLine = fillBlankLine; DBG.placeRoundedLine = placeRoundedLine; DBG.roundDecLine = roundDecLine; DBG.placeDigitLine = placeDigitLine; DBG.exprWordsLine = exprWordsLine; DBG.absLossTrueLine = absLossTrueLine; DBG.absEqFarLine = absEqFarLine; DBG.invDetLine = invDetLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
     DBG.fracNameLine = fracNameLine; DBG.partsWordLine = partsWordLine; DBG.fracTakenLine = fracTakenLine;
     DBG.beforeAfterLine = beforeAfterLine; DBG.tableRuleLine = tableRuleLine;
     DBG.slopeStepLine = slopeStepLine; DBG.sameSlopeLine = sameSlopeLine;
@@ -124122,7 +124340,7 @@ Object.keys(J9).forEach(function (id) {
       }
       return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }, g), caption(o.label)]);
     },
-    array: function (v) {
+    array: function (v, pk) {
       var o = v.opts || {};
       /* The count IS the lesson. A model may never drop objects to fit the
          card: a layout wider than the card is re-flowed into rows that fit,
@@ -124151,7 +124369,8 @@ Object.keys(J9).forEach(function (id) {
         });
         return h('div', { class: 'viz' }, [field, caption(o.label)]);
       }
-      var grid = h('div', { class: 'dots', style: { gridTemplateColumns: 'repeat(' + cols + ', 15px)' } });
+      var dotPx = pk ? 18 : 15;
+      var grid = h('div', { class: 'dots', style: { gridTemplateColumns: 'repeat(' + cols + ', ' + dotPx + 'px)' } });
       for (var i = 0; i < total; i++) grid.appendChild(h('div', { class: 'd' }));
       return h('div', { class: 'viz' }, [grid, caption(o.label)]);
     },
@@ -124590,11 +124809,11 @@ Object.keys(J9).forEach(function (id) {
     }
   };
 
-  function renderVisual(v) {
+  function renderVisual(v, pk) {
     if (!v || !v.k) return null;
     var fn = DRAW[v.k] || DRAW.table && v.k === 'table';
     try {
-      if (DRAW[v.k]) return DRAW[v.k](v);
+      if (DRAW[v.k]) return DRAW[v.k](v, pk);
       /* unknown model: degrade to a readable caption instead of breaking the item */
       return h('div', { class: 'viz' }, [caption(v.label || v.text || '')]);
     } catch (e) { return null; }
@@ -124883,7 +125102,7 @@ Object.keys(J9).forEach(function (id) {
         whyChip, lv
       ]),
       lvLine,
-      item.visual ? h('div', { class: 'visual' }, [renderVisual(item.visual)]) : null,
+      item.visual ? h('div', { class: 'visual' + (sk.band === 'PK' ? ' band-pk' : sk.band === 'K' ? ' band-k' : '') }, [renderVisual(item.visual, sk.band === 'PK')]) : null,
       h('div', { class: 'prompt' + ((sk.band === 'PK' || sk.band === 'K' || sk.band === 'G1') ? ' big' : ''), html: TEX.html(item.prompt) }),
       item.sub ? h('div', { class: 'sub', html: TEX.html(item.sub) }) : null,
       h('div', { class: 'answer', id: 'answer' }, [buildAnswer(item)]),
