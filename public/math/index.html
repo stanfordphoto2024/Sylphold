@@ -264,27 +264,35 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .tf .cell { border-radius: 4px; background: color-mix(in srgb, var(--ink-3) 12%, transparent); }
 .tf .cell.on { background: var(--accent); }
 /* many frames (count-to-100 cards) shrink so every picture stays on screen */
-.tf.dense .frame { grid-template-columns: repeat(5, 18px); grid-auto-rows: 18px; gap: 2px; padding: 3px; }
-.tf.dense .obj { width: 15px; height: 15px; }
-.tf.dense .obj.em { font-size: 14px; }
-.tf.dense .obj .obj-dot { width: 11px; height: 11px; }
+.tf.dense .frame { grid-template-columns: repeat(5, 22px); grid-auto-rows: 22px; gap: 2px; padding: 3px; }
+.tf.dense .obj { width: 22px; height: 22px; }
+.tf.dense .obj.em { font-size: 20px; }
+.tf.dense .obj .obj-dot { width: 18px; height: 18px; }
 /* U.4: Pre-K pictures carry the whole question. Their icons are drawn at
    double size in full colour and stay on one screen — a pre-K learner reads
    the card, not the scroll. Kindergarten keeps the base size. */
-.band-pk .obj { width: 48px; height: 48px; }
-.band-pk .obj.em { font-size: 42px; }
-.band-pk .obj .obj-dot { width: 32px; height: 32px; }
-.band-pk .obj svg { width: 48px; height: 48px; }
+.band-pk .obj { width: 44px; height: 44px; }
+.band-pk .obj.em { font-size: 40px; }
+.band-pk .obj .obj-dot { width: 36px; height: 36px; }
+.band-pk .obj svg { width: 44px; height: 44px; }
 .band-pk .dots { gap: 8px; }
-.band-pk .dots .d { width: 30px; height: 30px; }
+.band-pk .dots .d { width: 36px; height: 36px; }
 .band-pk .tf .frame { grid-template-columns: repeat(5, 44px); grid-auto-rows: 44px; gap: 3px; padding: 4px; }
-.band-pk .tf.dense .frame { grid-template-columns: repeat(5, 26px); grid-auto-rows: 26px; }
-.band-pk .tf.dense .obj { width: 26px; height: 26px; }
-.band-pk .areagrid .sq { width: 36px; height: 36px; }
+.band-pk .tf.dense .frame { grid-template-columns: repeat(5, 30px); grid-auto-rows: 30px; }
+.band-pk .tf.dense .obj { width: 30px; height: 30px; }
+.band-pk .tf.dense .obj .obj-dot { width: 24px; height: 24px; }
+.band-pk .areagrid .sq { width: 40px; height: 40px; }
 .band-pk .ringbox { width: 240px; height: 240px; }
 .band-pk .visual { overflow: visible; }
+/* PK/K choice buttons answered with a tap: the picture leads, the word is a
+   whisper underneath so early readers never have to decode the option. */
+.opt .picon { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 46px; }
+.picon.ok::before { content: '✓'; font-size: 30px; font-weight: 900; color: #16a34a; line-height: 1; }
+.picon.no::before { content: '✗'; font-size: 30px; font-weight: 900; color: #dc2626; line-height: 1; }
+.picon .word { font-size: 12px; opacity: .55; }
+.picon svg { display: block; width: 36px; height: 36px; }
 .dots { display: grid; gap: 5px; }
-.dots .d { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); }
+.dots .d { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); }
 .dots .d.hollow { background: transparent; border: 1.5px solid var(--ink-3); }
 /* real objects in a picture model: a card that says "count the bunnies" must
    draw bunnies, never a row of anonymous dots */
@@ -295,7 +303,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .obj { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; }
 .obj svg { display: block; }
 .obj.em { font-size: 21px; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif; }
-.obj .obj-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.obj .obj-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: inline-block; }
 .obj .obj-dot.hollow { background: transparent; border: 2px solid var(--ink-3); }
 .ringbox { position: relative; width: 190px; height: 190px; margin: 4px auto; border-radius: 50%; border: 1.5px dashed color-mix(in srgb, var(--ink-3) 55%, transparent); }
 /* inside/outside position cards need a real box: thick walls with a heavier
@@ -318,7 +326,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 /* a model of a hundred or more unit squares: the same cells, small enough that
    all of them stay on the card and every one can still be counted */
 .areagrid.big { gap: 1px; }
-.areagrid.big .sq { width: 12px; height: 12px; border-radius: 2px; }
+.areagrid.big .sq { width: 16px; height: 16px; border-radius: 2px; }
 .fracbar { margin: 6px 0; }
 .fracbar .strip { display: flex; width: min(300px, 70vw); height: 30px; border: 1.5px solid var(--ink-3); border-radius: 6px; overflow: hidden; }
 .fracbar .seg { flex: 1; border-right: 1px solid var(--ink-3); }
@@ -114550,6 +114558,143 @@ Object.keys(J9).forEach(function (id) {
     return line.length <= 88 ? line : null;
   }
 
+  /* A line plot card carries its own data AND its own tally: the measurements
+     in the prompt, the stack heights in the option. Counting the data into the
+     stacks is arithmetic the card can show, so show it. */
+  function linePlotLine(item, text, shownAns) {
+    var cor = String((item && item.choices && item.spec && item.choices[item.spec.i]) || String(shownAns == null ? '' : shownAns));
+    var mm = /plot with ([0-9]+(?:\s*,\s*[0-9]+){1,8})\s+marks?/i.exec(cor);
+    if (!mm) return null;
+    var marks = mm[1].split(',').map(function (x) { return +x.trim(); });
+    var dm = String(text).match(/(?:measured?|measurements?|data|dot|marks?)\s*(?:are|is|:)?\s*([0-9/ ,and]+(?:m\s*)?)/i);
+    var toks = String(text).match(/\b\d+\/\d+\b|\b\d+\b(?![\d/])/g) || [];
+    var data = toks.filter(function (t) { return t.indexOf('/') >= 0 ? /^[0-9]+\/[0-9]+$/.test(t) : true; });
+    if (!data.length || marks.length < 2) return null;
+    var freq = {}, order = [];
+    data.forEach(function (t) { var k = t.replace(/\s+/g, ''); if (!(k in freq)) { freq[k] = 0; order.push(k); } freq[k]++; });
+    var fv = function (k) { return String(k).indexOf('/') >= 0 ? Number(String(k).split('/')[0]) / Number(String(k).split('/')[1]) : Number(k); };
+    order.sort(function (a, b) { return fv(a) - fv(b); });
+    var expect = order.map(function (k) { return freq[k]; });
+    if (expect.length !== marks.length) return null;
+    for (var q = 0; q < marks.length; q++) if (expect[q] !== marks[q]) return null;
+    var top = 0, topK = order[0], second = 0;
+    order.forEach(function (k) { if (freq[k] > top) { second = top; top = freq[k]; topK = k; } else if (freq[k] > second) second = freq[k]; });
+    var n = data.length, alts = [];
+    var sum = marks.reduce(function (a, b) { return a + b; }, 0);
+    if (marks.length <= 7) alts.push('One dot per measurement: ' + marks.join(' + ') + ' = ' + sum + ' dots for the ' + n + ' numbers.');
+    alts.push('Tally the data: ' + topK + ' shows up ' + top + ' times, so its stack stands ' + top + ' high — ' + top + ' − ' + second + ' = ' + (top - second) + ' taller than the next stack.');
+    var v1 = order[order.length - 1], c1 = freq[v1];
+    alts.push('Count each value: ' + topK + ' appears ' + top + ' times and ' + v1 + ' appears ' + c1 + ' times — ' + top + ' + ' + c1 + ' = ' + (top + c1) + ' of the ' + n + ' dots sit there.');
+    alts = alts.filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + cor + '|' + String((item && item.choices && item.choices.join) ? item.choices.join(',') : '') }, alts);
+  }
+  /* A pattern-rule card states the rule in words; running the rule IS the work,
+     and the result is checkable against the card's own answer. */
+  function runRule(S, A, upto) { var t = [S]; while (t.length < upto) t.push(t[t.length - 1] + A); return t; }
+  function patternFixLine(item, text, shownAns) {
+    var mA = /add\s+(\d+)/i.exec(String(text));
+    var mseq = /([0-9]+(?:\s*,\s*[0-9]+){2,5})/.exec(String(text));
+    if (!mA || !mseq || !/^add\b/i.test(String(text).replace(/[^“"]*[“"]|\$/g, '').replace(/^[^“"]*[“"]\s*/i, '').trim()) ) { /* rule wording may be quoted */ }
+    if (!mA || !mseq) return null;
+    var A = +mA[1], seq = mseq[1].split(',').map(function (x) { return +x.trim(); });
+    var want = Number(String(shownAns).replace(/[^0-9.\-]/g, ''));
+    if (!(want >= 0)) return null;
+    var bad = -1, i;
+    var chain = runRule(seq[0], A, seq.length);
+    for (i = 0; i < seq.length; i++) if (seq[i] !== chain[i]) { if (bad >= 0) return null; bad = i; }
+    if (bad < 0 || chain[bad] !== want) return null;
+    var prev = chain[bad - 1 >= 0 ? bad - 1 : 0], base = bad - 1 >= 0 ? seq[bad - 1] : seq[0];
+    var alts = [
+      'The rule adds ' + A + ' each time: ' + base + ' + ' + A + ' = ' + want + ', so that spot must read ' + want + ', not ' + seq[bad] + '.',
+      'Follow the rule: ' + base + ' + ' + A + ' = ' + want + '. The card prints ' + seq[bad] + ' there — it breaks the pattern.',
+      'Fix it with the rule: ' + want + ' = ' + base + ' + ' + A + ', while ' + seq[bad] + ' − ' + want + ' = ' + (seq[bad] - want) + ' puts it off pattern.'
+    ].filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + String(shownAns) + '|' + String((item && item.choices && item.choices.join) ? item.choices.join(',') : '') }, alts);
+  }
+  function patternClaimLine(item, text, shownAns) {
+    var mr = /start at (\d+) and add (\d+)/i.exec(String(text));
+    if (!mr) return null;
+    var S = +mr[1], A = +mr[2], t = runRule(S, A, 4);
+    var cor = String((item && item.choices && item.spec && item.choices[item.spec.i]) || String(shownAns == null ? '' : shownAns));
+    var claim = /second term/i.test(cor) ? [t[1], 'second'] : /third term/i.test(cor) ? [t[2], 'third'] : /fourth term/i.test(cor) ? [t[3], 'fourth'] : /starts at (\d+)/i.test(cor) ? [Number(/starts at (\d+)/i.exec(cor)[1]), 'start'] : null;
+    if (!claim) return null;
+    var alts = [
+      'Run the rule: ' + t[0] + ' + ' + A + ' = ' + t[1] + ', ' + t[1] + ' + ' + A + ' = ' + t[2] + ' — the ' + claim[1] + ' value is ' + claim[0] + '.',
+      'Start ' + t[0] + ', add ' + A + ' each time: ' + t[0] + ' + ' + A + ' = ' + t[1] + ', then ' + t[1] + ' + ' + A + ' = ' + t[2] + '; the ' + claim[1] + ' term is ' + claim[0] + '.',
+      'Step it out from ' + t[0] + ': terms ' + t.slice(0, 4).join(', ') + ' — ' + claim[1] + ' lands on ' + claim[0] + '.'
+    ].filter(function (x) { return x.length <= 88 && x.indexOf(String(claim[0])) >= 0; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + cor }, alts);
+  }
+  /* A strip/bar model percent card prints both numbers it slices; the slice IS
+     the lesson, and it is exact division whenever the deck chose clean percents. */
+  function percentBarLine(item, text, shownAns, ok) {
+    var mp = /(\d+)\s*%\s*of\s*(\d+)/i.exec(String(text));
+    if (!mp) return null;
+    var p = +mp[1], N = +mp[2];
+    if (!(p > 0 && p <= 100) || N <= 0 || (N * p) % 100 !== 0) return null;
+    var val = N * p / 100;
+    if (!ok(val) || String(shownAns).trim() !== String(val)) return null;
+    var w = N / 100, alts = [];
+    if (w >= 1 && w * p === val && w !== 1) alts.push('1% of ' + N + ' is ' + N + ' ÷ 100 = ' + w + ', so ' + p + '% is ' + w + ' × ' + p + ' = ' + val + '.');
+    if (p === 25 || p === 50 || p === 10 || p === 20 || p === 75) {
+      var d = { 10: 10, 20: 5, 25: 4, 50: 2, 75: 4 }[p];
+      if (N % d === 0) {
+        if (p === 75) alts.push('A quarter of ' + N + ' is ' + N + ' ÷ 4 = ' + (N / 4) + ', and three quarters: ' + (N / 4) + ' × 3 = ' + val + '.');
+        else alts.push('The whole bar is ' + N + '; ' + ({ 10: 'a tenth', 20: 'a fifth', 25: 'a quarter', 50: 'half' })[p] + ' of it: ' + N + ' ÷ ' + d + ' = ' + val + '.');
+      }
+    }
+    alts.push('Take the percent off the whole: ' + N + ' × ' + p + ' ÷ 100 = ' + val + ' — that is the part of the bar.');
+    alts.push('Read the strip: ' + p + '% of ' + N + ' means ' + p + ' parts of 100: ' + N + ' ÷ 100 = ' + (N / 100 || 'a fraction') + ', and × ' + p + ' lands on ' + val + '.');
+    alts = alts.filter(function (x) { return x.length <= 88 && x.indexOf('÷ 100 = a') < 0; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + String(shownAns) }, alts);
+  }
+  /* A transformation-matrix card can be worked by feeding the unit corners
+     through the matrix (row-vector order the deck uses) and reading where they
+     land — real multiplication, and the deck's own right answer passes. */
+  function matrixApplyLine(item, text, shownAns) {
+    var cor = String((item && item.choices && item.spec && item.choices[item.spec.i]) || String(shownAns == null ? '' : shownAns));
+    var m = /\[\s*\[?\s*(-?\d+)\s*,\s*(-?\d+)\s*\]?\s*,\s*\[?\s*(-?\d+)\s*,\s*(-?\d+)\s*\]?\s*\]?/.exec(cor.replace(/\s+/g, ' '));
+    if (!m) return null;
+    var a = +m[1], b = +m[2], c = +m[3], d = +m[4], tl = String(text).toLowerCase();
+    var want = null;
+    if (/90[^.]{0,20}counterclockwise|90[^.]{0,20}anticlockwise/.test(tl)) want = [0, 1, -1, 0];
+    else if (/90[^.]{0,20}clockwise|\b90\s*(degrees?)?\s*rotat/.test(tl) && !/counter|anti/.test(tl)) want = [0, -1, 1, 0];
+    else if (/180|half turn/.test(tl) && /rotat|turn/.test(tl)) want = [-1, 0, 0, -1];
+    else if (/x-axis|x axis/.test(tl) && /reflect/.test(tl)) want = [1, 0, 0, -1];
+    else if (/y-axis|y axis/.test(tl) && /reflect/.test(tl)) want = [-1, 0, 0, 1];
+    else if (/origin/.test(tl) && /reflect/.test(tl)) want = [-1, 0, 0, -1];
+    else if (/\bidentity|no change|stays/.test(tl)) want = [1, 0, 0, 1];
+    if (!want) return null;
+    if (a !== want[0] || b !== want[1] || c !== want[2] || d !== want[3]) return null;
+    var alts = [
+      'Put (1, 0) through it: 1 × ' + a + ' + 0 × ' + c + ' = ' + a + ' and 1 × ' + b + ' + 0 × ' + d + ' = ' + b + ', so (1, 0) becomes (' + a + ', ' + b + ').',
+      'Feed in (0, 1): 0 × ' + a + ' + 1 × ' + c + ' = ' + c + ' and 0 × ' + b + ' + 1 × ' + d + ' = ' + d + ', so (0, 1) becomes (' + c + ', ' + d + ').',
+      'Test the corners: (1, 0) → (' + a + ', ' + b + ') since 1 × ' + a + ' + 0 × ' + c + ' = ' + a + ', and (0, 1) → (' + c + ', ' + d + ') since 0 × ' + b + ' + 1 × ' + d + ' = ' + d + '.'
+    ].filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + cor }, alts);
+  }
+  /* A map card that says "7 right and 5 up" owns the swap lesson: the right-
+     count leads the pair. The arithmetic names the gap between the numbers. */
+  function coordSwapLine(item, text, shownAns) {
+    var mr = /(\d+)\s*right and\s*(\d+)\s*up/i.exec(String(text));
+    if (!mr) return null;
+    var r = +mr[1], u = +mr[2];
+    var cor = String(shownAns == null ? '' : shownAns).replace(/\s+/g, ' ').trim();
+    var cor1 = cor.match(/\((-?\d+),\s*(-?\d+)\)/);
+    if (!cor1 || +cor1[1] !== r || +cor1[2] !== u) return null;
+    var alts = [
+      'The pair writes right first: ' + r + ' right and ' + u + ' up is (' + r + ', ' + u + '), because ' + r + ' counts across and ' + u + ' counts up.',
+      'Across goes first: right ' + r + ' and up ' + u + ' give (' + r + ', ' + u + '); ' + r + ' − ' + u + ' = ' + (r - u) + ' more steps right than up.',
+      'Swapping would read (' + u + ', ' + r + ') — that is ' + u + ' across, but the map says ' + r + ' across, and ' + r + ' ≠ ' + u + '.'
+    ].filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + cor }, alts);
+  }
   function gridLine(item, shown) {
     var v = item.visual;
     if (!v || v.k !== 'grid' || !v.opts || !Object.prototype.hasOwnProperty.call(v.opts, 'cells') || shown == null) return null;
@@ -122493,6 +122638,8 @@ Object.keys(J9).forEach(function (id) {
       if (!line) { line = successorLine(item, text, shownAns); if (line) from = 'successor'; }
       if (!line) { line = successorLine(item, wtext, shownAns); if (line) from = 'successorW'; }
       if (!line) { line = sequenceLine(item, text, shownAns); if (line) from = 'sequence'; }
+      if (!line) { line = patternFixLine(item, text, shownAns); if (line) from = 'patFix'; }
+      if (!line) { line = percentBarLine(item, text, shownAns, ok); if (line) from = 'pctBar'; }
     }
     /* an ordinal word or a grid cell names a place, not a value; its derivation
        is the ordered count, which the card itself supplies */
@@ -122517,6 +122664,10 @@ Object.keys(J9).forEach(function (id) {
     }
     if (!line && !canPrint) { line = powerFormLine(item, text, shownAns) || powerFormLine(item, wtext, shownAns); if (line) from = 'powerForm'; }
     if (!line && !canPrint) { line = exprWordsLine(item, text, shownAns) || exprWordsLine(item, wtext, shownAns); if (line) from = 'exprWords'; }
+    if (!line) { line = linePlotLine(item, text, shownAns); if (line) from = 'linePlot'; }
+    if (!line) { line = patternClaimLine(item, text, shownAns); if (line) from = 'patClaim'; }
+    if (!line && !canPrint) { line = matrixApplyLine(item, text, shownAns); if (line) from = 'matApply'; }
+    if (!line && !canPrint) { line = coordSwapLine(item, text, shownAns); if (line) from = 'coordSwap'; }
     if (!line) return exit(item, canPrint ? 'noSource' : 'notPrintable');
     if (line.length > 88) return exit(item, 'lineTooLong');
     item.__wc = from || 'unknown';
@@ -122737,7 +122888,7 @@ Object.keys(J9).forEach(function (id) {
     DBG.whoMoreLine = whoMoreLine; DBG.whoStepLine = whoStepLine; DBG.successorLine = successorLine;
     DBG.stepPairLine = stepPairLine; DBG.askPair = askPair; DBG.amountFor = amountFor; DBG.symOf = symOf;
     DBG.ineqLine = ineqLine; DBG.roundingLine = roundingLine; DBG.sequenceLine = sequenceLine;
-    DBG.familyLine = familyLine; DBG.absGreaterChoiceLine = absGreaterChoiceLine; DBG.powerOfTenTurnLine = powerOfTenTurnLine; DBG.dividedByToGetLine = dividedByToGetLine; DBG.perpSlopeLine = perpSlopeLine; DBG.realImagLine = realImagLine; DBG.sub3Line = sub3Line; DBG.scatterMeanLine = scatterMeanLine; DBG.constVarLine = constVarLine; DBG.betweenMidLine = betweenMidLine; DBG.matrixEqLine = matrixEqLine; DBG.slopeDescLine = slopeDescLine; DBG.countSidesWalkLine = countSidesWalkLine; DBG.powerFormLine = powerFormLine; DBG.tenMarkK = tenMarkK; DBG.roundIsEqualLine = roundIsEqualLine; DBG.scatterOutlierLine = scatterOutlierLine; DBG.pointOnLineLine = pointOnLineLine; DBG.definedMultLine = definedMultLine; DBG.timeConvLine = timeConvLine; DBG.fillBlankLine = fillBlankLine; DBG.placeRoundedLine = placeRoundedLine; DBG.roundDecLine = roundDecLine; DBG.placeDigitLine = placeDigitLine; DBG.exprWordsLine = exprWordsLine; DBG.absLossTrueLine = absLossTrueLine; DBG.absEqFarLine = absEqFarLine; DBG.invDetLine = invDetLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
+    DBG.familyLine = familyLine; DBG.absGreaterChoiceLine = absGreaterChoiceLine; DBG.powerOfTenTurnLine = powerOfTenTurnLine; DBG.dividedByToGetLine = dividedByToGetLine; DBG.perpSlopeLine = perpSlopeLine; DBG.realImagLine = realImagLine; DBG.sub3Line = sub3Line; DBG.scatterMeanLine = scatterMeanLine; DBG.constVarLine = constVarLine; DBG.betweenMidLine = betweenMidLine; DBG.matrixEqLine = matrixEqLine; DBG.slopeDescLine = slopeDescLine; DBG.countSidesWalkLine = countSidesWalkLine; DBG.powerFormLine = powerFormLine; DBG.tenMarkK = tenMarkK; DBG.roundIsEqualLine = roundIsEqualLine; DBG.scatterOutlierLine = scatterOutlierLine; DBG.pointOnLineLine = pointOnLineLine; DBG.definedMultLine = definedMultLine; DBG.timeConvLine = timeConvLine; DBG.fillBlankLine = fillBlankLine; DBG.placeRoundedLine = placeRoundedLine; DBG.roundDecLine = roundDecLine; DBG.placeDigitLine = placeDigitLine; DBG.exprWordsLine = exprWordsLine; DBG.linePlotLine = linePlotLine; DBG.patternFixLine = patternFixLine; DBG.patternClaimLine = patternClaimLine; DBG.percentBarLine = percentBarLine; DBG.matrixApplyLine = matrixApplyLine; DBG.coordSwapLine = coordSwapLine; DBG.absLossTrueLine = absLossTrueLine; DBG.absEqFarLine = absEqFarLine; DBG.invDetLine = invDetLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
     DBG.fracNameLine = fracNameLine; DBG.partsWordLine = partsWordLine; DBG.fracTakenLine = fracTakenLine;
     DBG.beforeAfterLine = beforeAfterLine; DBG.tableRuleLine = tableRuleLine;
     DBG.slopeStepLine = slopeStepLine; DBG.sameSlopeLine = sameSlopeLine;
@@ -124394,7 +124545,7 @@ Object.keys(J9).forEach(function (id) {
          total is drawn as unit squares, all of them, small enough to fit. */
       if (total > 100) {
         var gc = clamp(rawCols > 0 ? rawCols : 12, 6, 15);
-        var g2 = h('div', { class: 'areagrid big', style: { gridTemplateColumns: 'repeat(' + gc + ', 12px)' } });
+        var g2 = h('div', { class: 'areagrid big', style: { gridTemplateColumns: 'repeat(' + gc + ', 16px)' } });
         for (var q2 = 0; q2 < total; q2++) g2.appendChild(h('div', { class: 'sq' }));
         return h('div', { class: 'viz' }, [g2, caption(o.label)]);
       }
@@ -124406,7 +124557,7 @@ Object.keys(J9).forEach(function (id) {
         });
         return h('div', { class: 'viz' }, [field, caption(o.label)]);
       }
-      var dotPx = pk ? 30 : 15;
+      var dotPx = pk ? 36 : 20;
       var grid = h('div', { class: 'dots', style: { gridTemplateColumns: 'repeat(' + cols + ', ' + dotPx + 'px)' } });
       for (var i = 0; i < total; i++) grid.appendChild(h('div', { class: 'd', style: { background: PAL[i % PAL.length] } }));
       return h('div', { class: 'viz' }, [grid, caption(o.label)]);
@@ -124996,16 +125147,43 @@ Object.keys(J9).forEach(function (id) {
     return inp;
   }
 
+  /* PK/K options are tapped, not read: a word option becomes a picture. */
+  function youngOptArt(txt, band) {
+    if (band !== 'PK' && band !== 'K') return null;
+    var t = String(txt).replace(/<[^>]*>/g, '').trim().toLowerCase();
+    if (!t) return null;
+    if (t === 'yes' || t === 'true') return { glyph: '✓', cls: 'ok' };
+    if (t === 'no' || t === 'false') return { glyph: '✗', cls: 'no' };
+    var C = { red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#3b82f6', purple: '#8b5cf6', pink: '#ec4899', brown: '#92400e', black: '#111318', grey: '#6b7280', gray: '#6b7280', white: '#f8fafc' };
+    if (C[t]) return { swatch: C[t] };
+    if (/^(a |an |the )?(round|circle)$/.test(t)) return { shape: 'circle' };
+    if (/^(a |an |the )?square$/.test(t)) return { shape: 'square' };
+    if (/^(a |an |the )?(rectangle|rectangular|oblong)$/.test(t)) return { shape: 'rectangle' };
+    if (/^(a |an |the )?triangle$/.test(t)) return { shape: 'triangle' };
+    if (/^(a |an |the )?(diamond|rhombus)$/.test(t)) return { shape: 'diamond' };
+    if (/^(a |an |the )?star$/.test(t)) return { shape: 'star' };
+    if (/^(a |an |the )?heart$/.test(t)) return { shape: 'heart' };
+    if (/^(a |an |the )?hexagon$/.test(t)) return { shape: 'hexagon' };
+    if (/^(a |an |the )?(oval|ellipse)$/.test(t)) return { shape: 'oval' };
+    return null;
+  }
   function buildAnswer(item) {
     var kind = widgetKind(item);
     if (kind === 'choice') {
       var opts = optionList(item, 'choice');
       var box = h('div', { class: 'opts' + (opts.length > 3 || String(opts[0]).length > 14 ? ' stackone' : '') });
+      var yband = bandOf(item);
       opts.forEach(function (c, i) {
+        var kids = [h('span', { class: 'key', text: String(i + 1) })];
+        var ya = youngOptArt(String(c), yband);
+        if (ya && ya.glyph) kids.push(h('span', { class: 'grow picon ' + (ya.cls === 'ok' ? 'ok' : 'no'), text: String(c) }));
+        else if (ya && ya.swatch) kids.push(h('span', { class: 'grow picon' }, [s('svg', { viewBox: '0 0 24 24', width: 36, height: 36 }, [s('circle', { cx: 12, cy: 12, r: 10, fill: ya.swatch, stroke: 'rgba(0,0,0,.3)', 'stroke-width': 1 })]), h('span', { class: 'word', text: String(c) })]));
+        else if (ya && ya.shape) kids.push(h('span', { class: 'grow picon' }, [shapeNode(ya.shape, PAL[i % PAL.length]), h('span', { class: 'word', text: String(c) })]));
+        else kids.push(h('span', { class: 'grow', html: TEX.html(String(c)) }));
         box.appendChild(h('button', {
           class: 'opt', type: 'button', 'data-i': i,
           on: { click: function () { pick(i); } }
-        }, [h('span', { class: 'key', text: String(i + 1) }), h('span', { class: 'grow', html: TEX.html(String(c)) })]));
+        }, kids));
       });
       return box;
     }
