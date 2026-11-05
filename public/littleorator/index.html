@@ -953,7 +953,7 @@ const DSP = (() => {
     if (!samples || samples.length < 2048 || Math.abs(f - 1) < 0.004) return Float32Array.from(samples || []);
     const W = 1024, hop = W >> 1, seek = 96;
     const out = new Float32Array(Math.max(W * 4, Math.round(samples.length * f) + W * 2));
-    const win = k => 0.5 - 0.5 * Math.cos(2 * Math.PI * k / W);   /* Hann: sums to 0.5 at 50% overlap */
+    const win = k => 0.5 - 0.5 * Math.cos(2 * Math.PI * k / W);   /* Hann: neighbours sum to 1.0 at 50% overlap */
     let outPos = 0, inPos = 0;
     while (inPos + W < samples.length && outPos + W < out.length){
       const nominal = Math.round(inPos);
@@ -972,8 +972,11 @@ const DSP = (() => {
       outPos += hop;
     }
     const len = clamp(outPos + W, 0, out.length);
+    /* Two Hann windows at 50% overlap already sum to 1.0, so the old ×2 left every
+       stretched phrase twice as loud and drove the voice into clipping — the other
+       half of the "broken clone": a matched line crackled on every stressed word. */
     const done = new Float32Array(len);
-    for (let i = 0; i < len; i++) done[i] = out[i] * 2;
+    for (let i = 0; i < len; i++) done[i] = clamp(out[i], -1, 1);
     return done;
   }
   function pitchShift(samples, sampleRate, cents){
@@ -1012,16 +1015,28 @@ const DSP = (() => {
   function rePitch(samples, sampleRate, centsAt){
     const sr = sampleRate || 24000, n = samples ? samples.length : 0;
     if (!n) return new Float32Array(0);
-    const K = Math.max(8, Math.round(sr * 0.02));
-    const out = new Float32Array(n);
-    let pos = 0;
-    for (let k = 0; k * K < n && pos < n - 2; k++){
+    const K = Math.max(8, Math.round(sr * 0.012));
+    /* The playhead walks the audio and the block decides how far it moves. It used to
+       stop when the block counter ran out, which meant a voice pulled down never had
+       its ending read at all, and a voice pulled up ended in a hole of silence — the
+       "broken clone". Now the pass ends when the audio ends, and the result is eased
+       back to the original length so the word timings still line up. */
+    const cap = Math.round(n * 2.5) + K * 6;
+    const out = new Float32Array(cap);
+    let pos = 0, written = 0, rate = 1;
+    while (pos < n - 2 && written + K < cap){
       let c = 0;
-      try { c = Number(centsAt((k + 0.5) * K / sr)) || 0; } catch (e){ c = 0; }
-      const step = Math.pow(2, clamp(c, -900, 900) / 1200);   /* reading faster = higher */
-      for (let j = 0; j < K; j++){ out[k * K + j] = sampleAt(samples, Math.min(pos, n - 2)); pos += step; }
+      try { c = Number(centsAt(pos / sr)) || 0; } catch (e){ c = 0; }
+      const want = clamp(Math.pow(2, clamp(c, -900, 900) / 1200), 0.5, 2);
+      rate = rate * 0.72 + want * 0.28;                        /* a word that jumps up must not click */
+      for (let j = 0; j < K; j++){ out[written++] = sampleAt(samples, Math.min(pos, n - 2)); pos += rate; }
     }
-    return out;
+    let done = out.subarray(0, written);
+    if (Math.abs(done.length / n - 1) > 0.02 && Math.abs(done.length / n - 1) < 1.5){
+      const fixed = timeStretch(done, n / done.length);
+      if (fixed && Math.abs(fixed.length - n) < n * 0.2) done = fixed;
+    }
+    return done.length >= n ? Float32Array.from(done.subarray(0, n)) : Float32Array.from(done);
   }
   /* Pull the melody toward one flat note (deadpan, “keep the line flat”). */
   function flatten(samples, sampleRate, amount = 0.85){
@@ -1663,7 +1678,7 @@ const VoiceLab = (() => {
    app asks for in words — chin level, open palms, narrow the eyes — becomes a
    number here, eased over frames so a person can copy what they see.
    ══════════════════════════════════════════════════════════════════════════ */
-const Avatar3D = (() => {
+const Avatar2D = (() => {
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   const lerp = (a, b, t) => a + (b - a) * t;
   const num = v => Number.isFinite(v) ? v : 0;
@@ -2170,6 +2185,840 @@ const Avatar3D = (() => {
 
   return { create, POSES:{ presence:Object.keys(POSES.presence), gesture:Object.keys(POSES.gesture), face:Object.keys(POSES.face) },
     poseFromCue, BASE, drawStage };
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AVATAR3D — the presenter as a real person: a young woman modelled in
+   three.js, lit like a studio, driven by the same stage directions the
+   coach already writes. The drawn rig above is still here as the fallback.
+   ══════════════════════════════════════════════════════════════════════════ */
+const Avatar3D = (() => {
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const num = v => Number.isFinite(v) ? v : 0;
+  const ease = (cur, tgt, k) => cur + (tgt - cur) * clamp(k, 0, 1);
+
+  /* ── the body in metres ─────────────────────────────────────────────── */
+  const BONE = [
+    ["footL", "ankleL", 0.05], ["ankleL", "kneeL", 0.055], ["kneeL", "hipL", 0.065],
+    ["footR", "ankleR", 0.05], ["ankleR", "kneeR", 0.055], ["kneeR", "hipR", 0.065],
+    ["hipL", "pelvis", 0.07], ["hipR", "pelvis", 0.07], ["pelvis", "waist", 0.085],
+    ["waist", "chest", 0.1], ["chest", "neck", 0.09],
+    ["shoulderL", "elbowL", 0.062], ["elbowL", "handL", 0.05],
+    ["shoulderR", "elbowR", 0.062], ["elbowR", "handR", 0.05],
+    ["shoulderL", "chest", 0.02], ["shoulderR", "chest", 0.02],
+  ];
+  const REST = {
+    footL:[-0.11, 0.02, 0.02], footR:[0.11, 0.02, -0.02],
+    ankleL:[-0.11, 0.09, 0], ankleR:[0.11, 0.09, 0],
+    kneeL:[-0.115, 0.5, 0.01], kneeR:[0.115, 0.5, -0.01],
+    hipL:[-0.11, 0.9, 0], hipR:[0.11, 0.9, 0], pelvis:[0, 0.93, 0],
+    waist:[0, 1.1, 0.005], chest:[0, 1.3, 0.01], neck:[0, 1.46, 0.005], head:[0, 1.6, 0.01],
+    shoulderL:[-0.19, 1.41, 0.01], shoulderR:[0.19, 1.41, 0.01],
+    elbowL:[-0.24, 1.16, 0.03], elbowR:[0.24, 1.16, 0.03],
+    handL:[-0.22, 0.95, 0.06], handR:[0.22, 0.95, 0.06],
+  };
+  const NAMES = Object.keys(REST);
+
+  /* ── pose: every word the app uses lands on one of these numbers ────── */
+  const BASE = {
+    spread:1, weight:0.5, knee:0, hipForward:0, spineTall:0, chestOpen:0, shoulderDrop:0,
+    shoulderBack:0, chin:0, neckLong:0, headYaw:0, headPitch:0, headRoll:0, stillness:0.25,
+    lean:0, stepFwd:0, faceForward:1,
+    armL:{ out:0.9, down:0.92, fwd:0.06, palm:0.15, bend:0.15 },
+    armR:{ out:0.9, down:0.92, fwd:0.06, palm:0.15, bend:0.15 },
+    brow:0, lid:0, squint:0, eyeWide:0, smile:0.06, gazeX:0, gazeY:0, browAngle:0,
+    jaw:0, talk:0, loudness:0.6, pitch:0.5, rate:0.5, emphasis:0, gest:1, breath:1,
+  };
+  const POSES = {
+    presence: {
+      neutral:         {},
+      chin_level:      { chin:0, headPitch:-0.05, neckLong:1 },
+      shoulders_back:  { shoulderDrop:1, shoulderBack:1, chestOpen:0.6 },
+      feet_flat:       { knee:0, spread:1.05, weight:0.5, hipForward:0 },
+      tall_still:      { spineTall:1, stillness:1, breath:0.55, gest:0.55 },
+      in_the_light:    { stepFwd:0.1, faceForward:1 },
+      hands_quiet:     { armL:{ down:0.95, out:0.86, palm:0.1, bend:0.1 }, armR:{ down:0.95, out:0.86, palm:0.1, bend:0.1 }, gest:0.5 },
+      chest_open:      { chestOpen:1, shoulderBack:0.7, spineTall:0.7 },
+      weight_forward:  { lean:0.55, knee:0.12 },
+      weight_back:     { lean:-0.4, knee:0.05 },
+      leaning_in:      { lean:0.75, stepFwd:0.06 },
+      still_no_fidget: { stillness:1, breath:0.4, weight:0.5, spread:1.08 },
+      crown_up:        { spineTall:1, chin:0.15, shoulderDrop:1 },
+      turn_from_hips:  { headYaw:0, faceForward:0.6 },
+    },
+    gesture: {
+      hands_quiet:      { armL:{ down:0.95, out:0.86, palm:0.1, bend:0.1 }, armR:{ down:0.95, out:0.86, palm:0.1, bend:0.1 }, gest:0.45 },
+      both_hands_down:  { armL:{ down:1, out:0.84, palm:0.1 }, armR:{ down:1, out:0.84, palm:0.1 }, gest:0.4 },
+      clicker_at_hip:   { armR:{ down:0.9, out:0.7, fwd:0.12, palm:0.2, bend:0.35 }, armL:{ down:0.95, out:0.86, palm:0.1 }, gest:0.5 },
+      open_palms:       { armL:{ down:0.42, out:1.5, fwd:0.42, palm:1, bend:-0.1 }, armR:{ down:0.42, out:1.5, fwd:0.42, palm:1, bend:-0.1 }, gest:1.1 },
+      palms_up:         { armL:{ down:0.55, out:1.3, fwd:0.36, palm:1, bend:-0.05 }, armR:{ down:0.55, out:1.3, fwd:0.36, palm:1, bend:-0.05 }, gest:1 },
+      one_chop:         { armR:{ down:0.5, out:1.15, fwd:0.5, palm:0.25, bend:0.15 }, armL:{ down:0.9, out:0.9, palm:0.1 }, gest:1.15 },
+      both_arms_wide:   { armL:{ down:-0.05, out:2.1, fwd:0.15, palm:0.7, bend:-0.25 }, armR:{ down:-0.05, out:2.1, fwd:0.15, palm:0.7, bend:-0.25 }, gest:1.25 },
+      point_hold:       { armR:{ down:0.16, out:0.75, fwd:0.95, palm:0.3, bend:-0.35 }, armL:{ down:0.95, out:0.86, palm:0.1 }, gest:1 },
+      count_on_fingers: { armR:{ down:0.3, out:0.95, fwd:0.45, palm:0.8, bend:0.2 }, armL:{ down:0.9, out:0.88, palm:0.1 }, gest:0.95 },
+      hand_to_chest:    { armR:{ down:0.35, out:0.55, fwd:0.55, palm:0.4, bend:0.75 }, armL:{ down:0.95, out:0.86, palm:0.1 }, gest:0.6 },
+      hold_the_room:    { armL:{ down:0.1, out:1.15, fwd:0.5, palm:0.9, bend:0.1 }, armR:{ down:0.1, out:1.15, fwd:0.5, palm:0.9, bend:0.1 }, gest:0.35 },
+      no_waving:        { gest:0.35 },
+      step_to_mark:     { stepFwd:0.16, lean:0.35 },
+      paint_shape:      { armL:{ down:0.05, out:1.6, fwd:0.35, palm:0.6, bend:-0.15 }, armR:{ down:0.05, out:1.6, fwd:0.35, palm:0.6, bend:-0.15 }, gest:1.2 },
+    },
+    face: {
+      soft_eyes:          { lid:0.35, squint:-0.1, eyeWide:-0.1, brow:0.05 },
+      direct_eye_contact: { gazeX:0, gazeY:0, lid:0 },
+      narrow_on_point:    { squint:0.7, browAngle:-0.5, lid:0.1 },
+      wide_open:          { eyeWide:0.85, squint:-0.3, brow:0.35 },
+      brow_raise:         { brow:0.85, eyeWide:0.25 },
+      faint_smile:        { smile:0.35, lid:0.1 },
+      serious_warm:       { smile:-0.05, brow:0, lid:0.05, browAngle:-0.2 },
+      curiosity:          { brow:0.5, smile:0.25, eyeWide:0.2 },
+      furrow:             { browAngle:-0.9, squint:0.35, brow:-0.2 },
+      fallen_face:        { smile:-0.45, brow:-0.35, lid:0.3 },
+      bright_eyes:        { eyeWide:0.55, smile:0.3, brow:0.3 },
+      grin:               { smile:0.9, lid:0.2, brow:0.2 },
+      locked:             { squint:0.45, lid:-0.05, smile:-0.2, browAngle:-0.4 },
+      still_face:         { brow:0, smile:0, lid:0.15, eyeWide:-0.2, squint:0.1 },
+      blinking_slow:      { lid:0.25 },
+      jaw_loose:          { smile:0.1 },
+      one_person_one_thought:{ gazeX:0, gazeY:0 },
+    },
+  };
+  const NAMES_BY_DIM = { appearance:Object.keys(POSES.presence), gesture:Object.keys(POSES.gesture), face:Object.keys(POSES.face) };
+
+  /* coaching sentence → the poses that demonstrate it */
+  const CUE_RULES = [
+    [/feet under your hips|both heels down|both feet flat|plant both feet|do not sway|weight even|feet flat/, ["feet_flat","still_no_fidget"], "presence"],
+    [/shoulders down and back|shoulders still under the shirt|drop the shoulders/, ["shoulders_back"], "presence"],
+    [/chin level|neck long/, ["chin_level"], "presence"],
+    [/spine tall|lengthen the crown|crown of your head/, ["tall_still","crown_up"], "presence"],
+    [/stand in the light|in the light, not at the edge/, ["in_the_light"], "presence"],
+    [/hold the silence on your feet|hold through the silence|stop moving entirely|hands still|still hands|rest your hands|let the words move/, ["still_no_fidget","hands_quiet"], "presence"],
+    [/hands quiet at your sides|thumbs out of pockets|no lectern|let them see all of you|both hands free/, ["hands_quiet","chest_open"], "presence"],
+    [/turn from the hips|face the whole room|square up again/, ["turn_from_hips"], "presence"],
+    [/lean on the front foot/, ["weight_forward","leaning_in"], "presence"],
+    [/open both palms|palms up on the invitation|both hands free, palms up/, ["open_palms","palms_up"], "gesture"],
+    [/rest your hands|still hands|hands still|let the words move instead of the fingers|do not touch your face|no waving/, ["hands_quiet","no_waving"], "gesture"],
+    [/clicker loosely at your hip|no waving/, ["clicker_at_hip","no_waving"], "gesture"],
+    [/point at one person/, ["point_hold"], "gesture"],
+    [/count the three points|one finger per point/, ["count_on_fingers"], "gesture"],
+    [/open the arms on the widening|bring them in|paint the shape in the air/, ["both_arms_wide","paint_shape"], "gesture"],
+    [/hold one hand up, palm out/, ["hold_the_room"], "gesture"],
+    [/hand to (your )?chest|palm over the heart/, ["hand_to_chest"], "gesture"],
+    [/chop once/, ["one_chop"], "gesture"],
+    [/step in half a pace|walk to the mark|move to the next mark|plant before you speak|step back only after/, ["step_to_mark","feet_flat"], "gesture"],
+    [/soft eyes|glance down once|back wall/, ["soft_eyes"], "face"],
+    [/direct eye contact|one person, one complete thought|meet one pair of eyes|keep them there/, ["direct_eye_contact","one_person_one_thought"], "face"],
+    [/brows up|small smile|private smile|small, private smile/, ["curiosity","faint_smile"], "face"],
+    [/relax the forehead/, ["still_face"], "face"],
+    [/brow furrow/, ["furrow"], "face"],
+    [/face fall|no saving smile/, ["fallen_face"], "face"],
+    [/eyes bright|chin up|let them see it/, ["bright_eyes"], "face"],
+    [/narrow the eyes/, ["narrow_on_point"], "face"],
+    [/open them wide|eyes wide/, ["wide_open"], "face"],
+    [/grin on the absurd/, ["grin"], "face"],
+    [/jaw set, eyes locked/, ["locked"], "face"],
+    [/still face, closed mouth|calm eyes/, ["still_face"], "face"],
+    [/blink slowly/, ["blinking_slow"], "face"],
+    [/snap still/, ["still_face","still_no_fidget"], "face"],
+  ];
+  function poseFromCue(text, dim){
+    const t = String(text || "").toLowerCase();
+    /* the app calls the first dimension "appearance"; the rig calls it presence */
+    const want = dim === "appearance" ? "presence" : dim === "presence" ? "presence" : dim;
+    const out = { presence:[], gesture:[], face:[], audience:null };
+    if (!t.trim()) return out;
+    let sweepHint = /sweep left|left → centre → right|left → center → right|turn from the hips|whole room/.test(t);
+    let leftHint = /turn your whole body to the left|left side of the room|look at the back wall/.test(t);
+    let d = /dive into one face|back up|rest on one face/.test(t);
+    for (const [re, names, kind] of CUE_RULES){
+      if (want && kind !== want) continue;
+      if (re.test(t)) out[kind] = out[kind].concat(names);
+    }
+    if (/sweep left → centre → right|left → centre → right/.test(t)) out.audience = "sweep";
+    else if (leftHint) out.audience = "left";
+    else if (/square up|plant before you speak|direct eye contact|one person/.test(t)) out.audience = "front";
+    else if (sweepHint) out.audience = "sweep";
+    else if (d) out.audience = "front";
+    if (/then drop them|bring them in/.test(t)) out.gesture.push("hands_quiet");
+    out.presence = [...new Set(out.presence)]; out.gesture = [...new Set(out.gesture)]; out.face = [...new Set(out.face)];
+    return out;
+  }
+  /* ══════════════════════════════════════════════════════════════════════
+     THE 3D PRESENTER
+     The coach's vocabulary above (BASE / POSES / CUE_RULES / poseFromCue) is
+     untouched — the same words still drive the rig. What changed is the body
+     that hears them: a young woman built in three.js from primitives and a
+     couple of hand-lofted buffers. Layered skin with a pore bump map, lids
+     that blink, a jaw that opens on the syllable clock, brows and lashes, an
+     iris painted by hand, hair as strands with clearcoat and sheen, a pleated
+     dress, and studio lights that throw a soft shadow on the floor.
+     If three.js cannot be fetched, the hand-drawn rig takes over, so there is
+     always a presenter on the stage.
+     ══════════════════════════════════════════════════════════════════════ */
+  const CDN = [
+    "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js",
+    "https://unpkg.com/three@0.160.0/build/three.module.min.js",
+  ];
+  let LIB = null, loadingLib = null;
+  function loadThree(){
+    if (LIB) return Promise.resolve(LIB);
+    if (loadingLib) return loadingLib;
+    loadingLib = (async () => {
+      for (const url of CDN){
+        try { const m = await import(/* webpackIgnore: true */ url); if (m && m.WebGLRenderer) return (LIB = m); }
+        catch (e){ /* next mirror */ }
+      }
+      loadingLib = null;                       /* a page opened offline should be able to try again */
+      throw new Error("three.js did not load");
+    })();
+    return loadingLib;
+  }
+  function canWebGL(){
+    try { const c = document.createElement("canvas");
+      return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e){ return false; }
+  }
+
+  /* ── painted maps: pores, the iris, the light pool on the floor ─────── */
+  function canvasOf(T, size, paint){
+    const c = document.createElement("canvas"); c.width = c.height = size;
+    paint(c.getContext("2d"), size);
+    const t = new T.CanvasTexture(c); t.needsUpdate = true; return t;
+  }
+  function poreMap(T){
+    return canvasOf(T, 256, (g, S) => {
+      g.fillStyle = "#808080"; g.fillRect(0, 0, S, S);
+      for (let i = 0; i < 5200; i++){
+        const x = Math.random() * S, y = Math.random() * S, r = 0.5 + Math.random() * 1.9, d = Math.random() < 0.5 ? -1 : 1;
+        g.fillStyle = `rgba(${128 + d * (18 + Math.random() * 26)},${128 + d * (16 + Math.random() * 22)},${128 + d * (14 + Math.random() * 20)},0.55)`;
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+      }
+      g.strokeStyle = "rgba(150,150,150,.20)"; g.lineWidth = 0.7;
+      for (let i = 0; i < 90; i++){
+        const x = Math.random() * S, y = Math.random() * S;
+        g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y + 10, x + 20, y + 2); g.stroke();
+      }
+    });
+  }
+  function irisMap(T){
+    return canvasOf(T, 128, (g, S) => {
+      const R = S / 2, ring = g.createRadialGradient(R, R, R * 0.15, R, R, R);
+      ring.addColorStop(0, "#7d5c3a"); ring.addColorStop(0.42, "#5f7f86");
+      ring.addColorStop(0.78, "#3c5c66"); ring.addColorStop(1, "#22303a");
+      g.fillStyle = ring; g.fillRect(0, 0, S, S);
+      g.strokeStyle = "rgba(255,255,255,.16)"; g.lineWidth = 1.1;
+      for (let i = 0; i < 190; i++){
+        const a = Math.random() * Math.PI * 2, r0 = R * (0.22 + Math.random() * 0.1), r1 = R * (0.72 + Math.random() * 0.26);
+        g.beginPath(); g.moveTo(R + Math.cos(a) * r0, R + Math.sin(a) * r0);
+        g.lineTo(R + Math.cos(a) * r1, R + Math.sin(a) * r1); g.stroke();
+      }
+      g.fillStyle = "rgba(20,14,10,.5)";
+      for (let i = 0; i < 130; i++){
+        const a = Math.random() * Math.PI * 2, r = R * (0.6 + Math.random() * 0.35);
+        g.beginPath(); g.arc(R + Math.cos(a) * r, R + Math.sin(a) * r, 1.6, 0, Math.PI * 2); g.fill();
+      }
+    });
+  }
+  function poolMap(T){
+    return canvasOf(T, 256, (g, S) => {
+      const r = g.createRadialGradient(S / 2, S / 2, 2, S / 2, S / 2, S / 2);
+      r.addColorStop(0, "rgba(255,244,226,.34)"); r.addColorStop(0.5, "rgba(255,236,214,.10)");
+      r.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = r; g.fillRect(0, 0, S, S);
+    });
+  }
+
+  function makeMaterials(T){
+    const pores = poreMap(T); pores.wrapS = pores.wrapT = T.RepeatWrapping; pores.repeat.set(3, 3);
+    const iris = irisMap(T);
+    const skin = n => new T.MeshStandardMaterial(Object.assign(
+      { color: 0xe0b895, roughness: 0.62, metalness: 0, bumpMap: pores, bumpScale: 0.0022 }, n || {}));
+    return {
+      skin: skin(), skinLight: skin({ color: 0xedccae, roughness: 0.56 }), skinDeep: skin({ color: 0xc69377, roughness: 0.78 }),
+      blush: new T.MeshStandardMaterial({ color: 0xe08a7e, roughness: 0.8, transparent: true, opacity: 0.26 }),
+      hair: new T.MeshPhysicalMaterial({ color: 0x40261c, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.35,
+        sheen: 0.6, sheenColor: new T.Color(0xb2703f), sheenRoughness: 0.5 }),
+      hairLight: new T.MeshPhysicalMaterial({ color: 0x6c4327, roughness: 0.46, clearcoat: 0.4, sheen: 0.5, sheenColor: new T.Color(0xd18f5c) }),
+      brow: new T.MeshStandardMaterial({ color: 0x35201a, roughness: 0.6 }),
+      lash: new T.MeshStandardMaterial({ color: 0x1a1210, roughness: 0.5 }),
+      sclera: new T.MeshStandardMaterial({ color: 0xf6f2ea, roughness: 0.28 }),
+      iris: new T.MeshStandardMaterial({ map: iris, roughness: 0.22, metalness: 0.05 }),
+      pupil: new T.MeshPhysicalMaterial({ color: 0x07060a, roughness: 0.05, clearcoat: 1 }),
+      glint: new T.MeshBasicMaterial({ color: 0xffffff }),
+      lid: skin({ color: 0xd6b091, roughness: 0.6 }),
+      lip: new T.MeshPhysicalMaterial({ color: 0xc56a62, roughness: 0.42, clearcoat: 0.55, clearcoatRoughness: 0.25 }),
+      mouth: new T.MeshStandardMaterial({ color: 0x4a1c1e, roughness: 0.9 }),
+      teeth: new T.MeshStandardMaterial({ color: 0xf2ece2, roughness: 0.35 }),
+      nail: new T.MeshPhysicalMaterial({ color: 0xe6b7ae, roughness: 0.3, clearcoat: 0.7 }),
+      cloth: new T.MeshPhysicalMaterial({ color: 0x232a3b, roughness: 0.72, clearcoat: 0.16, clearcoatRoughness: 0.6, side: T.DoubleSide }),
+      clothEdge: new T.MeshStandardMaterial({ color: 0x8d9aad, roughness: 0.6, side: T.DoubleSide }),
+      belt: new T.MeshStandardMaterial({ color: 0xa9754a, roughness: 0.5, metalness: 0.15 }),
+      shoe: new T.MeshPhysicalMaterial({ color: 0x1b1c22, roughness: 0.35, clearcoat: 0.7 }),
+      audience: new T.MeshStandardMaterial({ color: 0x0d1017, roughness: 0.95 }),
+      floor: new T.MeshStandardMaterial({ color: 0x0a0c11, roughness: 0.92 }),
+    };
+  }
+
+  /* a lofted, pleated skirt: rings in local metres around the hips */
+  function skirtGeometry(T){
+    /* the top ring sits at the waist, under the bodice, so the dress reads as one */
+    const rings = [ { y:0.16, r:0.150 }, { y:0.06, r:0.152 }, { y:-0.02, r:0.172 },
+                    { y:-0.14, r:0.206 }, { y:-0.28, r:0.243 }, { y:-0.40, r:0.276 } ];
+    const N = 96, pos = [], uv = [], idx = [];
+    for (let ri = 0; ri < rings.length; ri++){
+      const ring = rings[ri], v = ri / (rings.length - 1);
+      for (let i = 0; i < N; i++){
+        const a = i / N * Math.PI * 2, pleat = Math.pow(Math.max(0, Math.cos(a * 7)), 3) * 0.019 * (1 - v * 0.35), r = ring.r + pleat;
+        pos.push(Math.cos(a) * r, ring.y + pleat * 0.25, Math.sin(a) * r * 0.8 + pleat * 0.4);
+        uv.push(i / N, v);
+      }
+    }
+    for (let ri = 0; ri < rings.length - 1; ri++) for (let i = 0; i < N; i++){
+      const a = ri * N + i, b = (ri + 1) * N + i, c = (ri + 1) * N + (i + 1) % N, d = ri * N + (i + 1) % N;
+      idx.push(a, b, d, b, c, d);
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals(); g.computeBoundingSphere();
+    return g;
+  }
+
+  /* a tube through a few points — brows, lashes, hair */
+  function strand(T, points, radius, mat, segs){
+    const curve = new T.CatmullRomCurve3(points.map(p => new T.Vector3(p[0], p[1], p[2])));
+    const m = new T.Mesh(new T.TubeGeometry(curve, segs || 14, radius, 7, false), mat);
+    m.castShadow = true; return m;
+  }
+  const ell = (T, r, sx, sy, sz, mat) => { const m = new T.Mesh(new T.SphereGeometry(r, 34, 24), mat); m.scale.set(sx, sy, sz); m.castShadow = true; return m; };
+  const at = (m, x, y, z) => { m.position.set(x, y, z); return m; };
+
+  /* ── the face ───────────────────────────────────────────────────────────
+     Everything sits ON the skull, whose surface is z ≈ 0.105 at eye level and
+     falls away toward the jaw. Bury a feature two millimetres and it vanishes;
+     push it two millimetres too far and it reads as plastic. These numbers are
+     measured against that surface.                                          */
+  function makeHead(T, M){
+    const parts = {}, head = new T.Group();
+
+    /* skull: the bones of a young face — narrow jaw, full cranium */
+    const skull = new T.Mesh(new T.SphereGeometry(0.112, 48, 36), M.skin);
+    skull.scale.set(0.99, 1.08, 0.94); skull.position.y = 0.012; skull.castShadow = true; head.add(skull);
+    head.add(at(ell(T, 0.115, 1, 0.95, 0.98, M.skin), 0, 0.05, -0.02));
+
+    const jawG = new T.Group(); jawG.position.set(0, -0.02, 0.006); head.add(jawG);
+    jawG.add(at(ell(T, 0.076, 0.9, 0.62, 0.6, M.skin), 0, -0.05, 0.024));
+    jawG.add(at(ell(T, 0.026, 1.25, 0.6, 0.42, M.skin), 0, -0.078, 0.052));
+    parts.jaw = jawG;
+
+    for (const s of [-1, 1]){
+      /* cheeks: full at the front, a flush ring of blush under the skin */
+      head.add(at(ell(T, 0.038, 1, 0.78, 0.44, M.skin), s * 0.048, -0.03, 0.05));
+      head.add(at(ell(T, 0.026, 1.1, 0.7, 0.32, M.blush), s * 0.052, -0.032, 0.072));
+      head.add(at(ell(T, 0.035, 0.7, 1, 0.6, M.skin), s * 0.08, 0.028, 0.015));
+      /* ear: flat against the side of the head, not floating off it */
+      head.add(at(ell(T, 0.026, 0.4, 1, 0.75, M.skinDeep), s * 0.10, -0.01, -0.005));
+    }
+
+    /* nose: bridge, tip, wings — all forward of the skull surface */
+    const nose = new T.Group(); nose.position.set(0, -0.01, 0.085); head.add(nose);
+    nose.add(at(ell(T, 0.022, 0.7, 1.45, 0.85, M.skinLight), 0, 0.03, -0.008));
+    nose.add(at(ell(T, 0.017, 1, 0.8, 1, M.skinLight), 0, -0.02, 0.011));
+    for (const s of [-1, 1]) nose.add(at(ell(T, 0.0105, 1.2, 0.7, 0.6, M.skinDeep), s * 0.016, -0.026, 0.008));
+
+    /* mouth: two full lips, a dark interior, teeth that only show when open */
+    const mouth = new T.Group(); mouth.position.set(0, -0.055, 0.07); head.add(mouth);
+    mouth.add(at(ell(T, 0.028, 1.32, 0.4, 0.42, M.lip), 0, 0.011, 0.003));
+    const lowerG = new T.Group(); mouth.add(lowerG);
+    lowerG.add(at(ell(T, 0.026, 1.24, 0.36, 0.4, M.lip), 0, -0.013, 0.002));
+    parts.lowerLip = lowerG;
+    const inner = ell(T, 0.024, 1.15, 0.4, 0.34, M.mouth); inner.position.set(0, -0.003, -0.008); mouth.add(inner);
+    parts.inner = inner;
+    const teeth = new T.Mesh(new T.BoxGeometry(0.046, 0.011, 0.018), M.teeth);
+    teeth.position.set(0, 0.006, -0.004); teeth.visible = false; mouth.add(teeth);
+    parts.teeth = teeth;
+    for (const s of [-1, 1]) mouth.add(at(ell(T, 0.011, 0.6, 1, 0.5, M.skinDeep), s * 0.04, 0, -0.004));
+
+    parts.eyes = []; parts.lids = []; parts.brows = [];
+    for (const s of [-1, 1]){
+      const eye = new T.Group(); eye.position.set(s * 0.046, 0.018, 0.088); head.add(eye);
+      eye.add(at(ell(T, 0.026, 1.15, 0.8, 0.45, M.skinDeep), 0, 0, -0.012));      /* the socket */
+      const ball = new T.Mesh(new T.SphereGeometry(0.016, 28, 20), M.sclera);
+      ball.scale.set(1.02, 1, 0.82); eye.add(ball);
+      const irisM = new T.Mesh(new T.SphereGeometry(0.011, 24, 18), M.iris);
+      irisM.scale.set(1, 1, 0.6); irisM.position.set(0, 0, 0.0115); eye.add(irisM);
+      const pup = new T.Mesh(new T.SphereGeometry(0.0052, 18, 12), M.pupil);
+      pup.scale.set(1, 1, 0.55); pup.position.set(0, 0, 0.0155); eye.add(pup);
+      const glint = new T.Mesh(new T.SphereGeometry(0.002, 10, 8), M.glint);
+      glint.position.set(-0.003, 0.004, 0.0175); eye.add(glint);
+      parts.eyes.push({ eye, iris: irisM, pupil: pup, glint, ball });
+
+      /* lids ride on the eyeball: the upper one closes the eye on a blink */
+      const upperLid = new T.Mesh(new T.SphereGeometry(0.0168, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), M.lid);
+      upperLid.rotation.x = Math.PI; upperLid.position.set(0, 0.0098, 0.0035); upperLid.scale.set(1.06, 0.9, 0.92); eye.add(upperLid);
+      const lowerLid = new T.Mesh(new T.SphereGeometry(0.0165, 22, 12, 0, Math.PI * 2, Math.PI * 0.45, Math.PI * 0.55), M.lid);
+      lowerLid.position.set(0, -0.0085, 0.0035); lowerLid.scale.set(1.06, 0.9, 0.92); eye.add(lowerLid);
+      const lashes = new T.Group(); eye.add(lashes);
+      for (let i = 0; i < 9; i++){
+        const a = -0.6 + i * 0.15;
+        lashes.add(strand(T, [[Math.sin(a) * 0.014, 0.0105, 0.011 + Math.cos(a) * 0.003],
+                              [Math.sin(a) * 0.018, 0.0145 + i * 0.0002, 0.0155]], 0.0006, M.lash, 5));
+      }
+      parts.lids.push({ upper: upperLid, lower: lowerLid, lashes });
+
+      /* brow ridge, then individual hairs laid along it */
+      const browG = new T.Group(); browG.position.set(s * 0.046, 0.048, 0.096); head.add(browG);
+      browG.add(strand(T, [[s * -0.027, -0.0015, 0], [0, 0.004, 0.005], [s * 0.027, 0.001, 0]], 0.0034, M.brow, 12));
+      for (let i = 0; i < 9; i++){
+        const px = (i / 8 - 0.5) * 0.054;
+        browG.add(strand(T, [[px, 0, 0.002], [px + s * 0.004, 0.005, 0.005]], 0.001, M.brow, 4));
+      }
+      parts.brows.push({ g: browG, s });
+    }
+
+    /* hair. A spherical cap would fall to eye level in front, so the cap is
+       lifted until its rim sits just above the brows, and the length is built
+       behind and beside the head instead.                                   */
+    const hair = new T.Group(); head.add(hair); parts.hair = hair;
+    const cap = new T.Mesh(new T.SphereGeometry(0.129, 44, 26, 0, Math.PI * 2, 0, Math.PI * 0.5), M.hair);
+    cap.scale.set(1.02, 1.02, 1.0); cap.position.set(0, 0.03, -0.014); cap.castShadow = true; hair.add(cap);
+    hair.add(at(ell(T, 0.12, 0.98, 1.12, 0.62, M.hair), 0, -0.05, -0.055));       /* length down the back */
+    for (const s of [-1, 1]) hair.add(at(ell(T, 0.062, 0.6, 1.62, 0.78, M.hair), s * 0.084, -0.05, -0.03));
+    const fringe = new T.Mesh(new T.SphereGeometry(0.127, 32, 18, 0, Math.PI, 0, Math.PI * 0.34), M.hair);
+    fringe.rotation.z = Math.PI * 0.05; fringe.rotation.y = -Math.PI * 0.22;
+    fringe.scale.set(1.02, 0.58, 1.0); fringe.position.set(-0.01, 0.056, 0.006); fringe.castShadow = true; hair.add(fringe);
+    parts.strands = [];
+    for (let i = 0; i < 14; i++){
+      const s = i % 2 ? 1 : -1, k = Math.floor(i / 2);
+      const st = strand(T, [
+        [s * (0.03 + k * 0.014), 0.096 - k * 0.004, -0.035 - k * 0.004],
+        [s * (0.082 + k * 0.006), 0.03, -0.028],
+        [s * (0.1 + k * 0.006), -0.045, -0.032],
+        [s * (0.094 + k * 0.008), -0.115, -0.042 + k * 0.01]],
+        0.0052 + (i % 3) * 0.001, i % 3 === 0 ? M.hairLight : M.hair, 18);
+      hair.add(st); parts.strands.push({ m: st, s });
+    }
+    return { group: head, parts };
+  }
+
+  /* ── a hand: palm, four fingers, a thumb, nails ─────────────────────── */
+  function makeHand(T, M, s){
+    const hand = new T.Group(), fingers = [];
+    const palm = new T.Mesh(new T.SphereGeometry(0.036, 22, 16), M.skin);
+    palm.scale.set(0.95, 0.42, 1.25); palm.castShadow = true; hand.add(palm);
+    for (let i = 0; i < 4; i++){
+      const x = s * (-0.024 + i * 0.016), len = 0.05 - Math.abs(i - 1.2) * 0.008;
+      const f = new T.Group(); f.position.set(x, -0.004, 0.034); hand.add(f);
+      const prox = new T.Mesh(new T.CapsuleGeometry(0.0072, len * 0.5, 4, 10), M.skin);
+      prox.position.set(0, 0, len * 0.28); prox.rotation.x = Math.PI / 2; prox.castShadow = true; f.add(prox);
+      const distal = new T.Group(); distal.position.set(0, 0, len * 0.55); f.add(distal);
+      const tipM = new T.Mesh(new T.CapsuleGeometry(0.0062, len * 0.42, 4, 10), M.skin);
+      tipM.position.set(0, 0, len * 0.2); tipM.rotation.x = Math.PI / 2; tipM.castShadow = true; distal.add(tipM);
+      const nail = new T.Mesh(new T.SphereGeometry(0.006, 12, 8), M.nail);
+      nail.scale.set(0.9, 0.5, 0.9); nail.position.set(0, 0.002, len * 0.44); distal.add(nail);
+      fingers.push({ f, distal });
+    }
+    const thumb = new T.Group(); thumb.position.set(s * 0.03, -0.006, 0.012); hand.add(thumb);
+    const th = new T.Mesh(new T.CapsuleGeometry(0.0085, 0.038, 4, 10), M.skin);
+    th.rotation.set(0.2, s * 0.7, Math.PI / 2); th.position.set(s * 0.012, 0, 0.018); th.castShadow = true; thumb.add(th);
+    return { group: hand, fingers, thumb };
+  }
+
+  /* ── the whole woman, in metres, standing on y = 0 ─────────────────── */
+  function makePresenter(T, M){
+    const world = new T.Group(), root = new T.Group(); world.add(root);
+    const hips = new T.Group(); hips.position.y = 0.94; root.add(hips);
+    const waist = new T.Group(); waist.position.y = 0.155; hips.add(waist);
+    const chest = new T.Group(); chest.position.y = 0.175; waist.add(chest);
+    const neck = new T.Group(); neck.position.y = 0.205; chest.add(neck);
+    const headG = makeHead(T, M); headG.group.position.y = 0.132; neck.add(headG.group);
+
+    const skirt = new T.Mesh(skirtGeometry(T), M.cloth); skirt.castShadow = true; hips.add(skirt);
+    const hem = new T.Mesh(new T.TorusGeometry(0.271, 0.008, 8, 90), M.clothEdge);
+    hem.rotation.x = Math.PI / 2; hem.scale.z = 0.8; hem.position.y = -0.40; hips.add(hem);
+    const bodice = new T.Mesh(new T.CapsuleGeometry(0.132, 0.175, 6, 24), M.cloth);
+    bodice.scale.set(1.06, 1, 0.8); bodice.position.set(0, -0.045, -0.006); bodice.castShadow = true; chest.add(bodice);
+    /* a modest round neckline: the cloth comes up over the shoulders */
+    const collar = new T.Mesh(new T.TorusGeometry(0.078, 0.016, 8, 32), M.cloth);
+    collar.rotation.x = Math.PI / 2; collar.scale.set(1.12, 1, 0.9); collar.position.set(0, 0.16, 0.004); chest.add(collar);
+    const beltG = new T.Mesh(new T.TorusGeometry(0.152, 0.016, 10, 48), M.belt);
+    beltG.rotation.x = Math.PI / 2; beltG.scale.set(1.05, 1, 0.84); beltG.position.y = 0.02; waist.add(beltG);
+    const decollete = ell(T, 0.052, 1.25, 0.5, 0.45, M.skin);
+    decollete.position.set(0, 0.146, 0.006); chest.add(decollete);
+    const neckSkin = new T.Mesh(new T.CapsuleGeometry(0.042, 0.11, 4, 18), M.skin);
+    neckSkin.position.set(0, 0.05, -0.004); neck.add(neckSkin);
+
+    const rig = { arms: {}, legs: {} };
+    for (const s of [-1, 1]){
+      const side = s < 0 ? "L" : "R";
+      const sh = new T.Group(); sh.position.set(s * 0.152, 0.115, 0.006); chest.add(sh);
+      const ball = ell(T, 0.05, 0.85, 0.9, 0.8, M.skin); sh.add(ball);
+      /* a cap of cloth over the joint, so the arm does not read as a ball */
+      const sleeve = ell(T, 0.056, 1, 0.8, 0.95, M.cloth); sleeve.position.y = 0.018; sh.add(sleeve);
+      const upper = new T.Mesh(new T.CapsuleGeometry(0.037, 0.2, 5, 18), M.skin);
+      upper.position.y = -0.145; upper.castShadow = true; sh.add(upper);
+      const elbow = new T.Group(); elbow.position.y = -0.28; sh.add(elbow);
+      const fore = new T.Mesh(new T.CapsuleGeometry(0.031, 0.185, 5, 18), M.skin);
+      fore.position.y = -0.125; fore.castShadow = true; elbow.add(fore);
+      const wrist = new T.Group(); wrist.position.y = -0.252; elbow.add(wrist);
+      const handG = makeHand(T, M, s); wrist.add(handG.group);
+      rig.arms[side] = { sh, elbow, wrist, handG };
+
+      const hip = new T.Group(); hip.position.set(s * 0.088, -0.02, 0); hips.add(hip);
+      const thigh = new T.Mesh(new T.CapsuleGeometry(0.058, 0.34, 5, 20), M.skin);
+      thigh.position.y = -0.21; thigh.castShadow = true; hip.add(thigh);
+      const knee = new T.Group(); knee.position.y = -0.44; hip.add(knee);
+      const shin = new T.Mesh(new T.CapsuleGeometry(0.038, 0.3, 5, 18), M.skin);
+      shin.position.y = -0.19; shin.castShadow = true; knee.add(shin);
+      const ankle = new T.Group(); ankle.position.y = -0.4; knee.add(ankle);
+      const last = new T.Mesh(new T.CapsuleGeometry(0.03, 0.075, 4, 16), M.shoe);
+      last.rotation.x = Math.PI / 2; last.scale.set(1, 1, 1.25); last.position.set(0, -0.024, 0.028); last.castShadow = true; ankle.add(last);
+      const heel = new T.Mesh(new T.CylinderGeometry(0.013, 0.01, 0.07, 12), M.shoe);
+      heel.position.set(0, -0.03, -0.032); heel.castShadow = true; ankle.add(heel);
+      rig.legs[side] = { hip, knee, ankle };
+    }
+    Object.assign(rig, { world, root, hips, waist, chest, neck, head: headG.group, headParts: headG.parts, skirt, hem, belt: beltG });
+    return rig;
+  }
+
+  function makeStage(T, M, opts){
+    const g = new T.Group();
+    const floor = new T.Mesh(new T.CircleGeometry(2.6, 64), M.floor);
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; g.add(floor);
+    const pool = new T.Mesh(new T.CircleGeometry(1.05, 48), new T.MeshBasicMaterial({
+      map: poolMap(T), transparent: true, opacity: 0.85, blending: T.AdditiveBlending, depthWrite: false }));
+    pool.rotation.x = -Math.PI / 2; pool.position.y = 0.004; g.add(pool);
+    for (const m of [-0.42, 0.42]){
+      const tape = new T.Mesh(new T.CircleGeometry(0.09, 24), new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }));
+      tape.rotation.x = -Math.PI / 2; tape.scale.z = 0.35; tape.position.set(m, 0.006, 0.05); g.add(tape);
+    }
+    if (!opts.hideAudience){
+      for (let i = 0; i < 5; i++){
+        const x = -0.62 + i * 0.31;
+        const head = new T.Mesh(new T.SphereGeometry(0.085, 18, 12), M.audience);
+        head.position.set(x, 0.12, 1.62); head.scale.set(1, 1.15, 0.8); g.add(head);
+        const shoulders = new T.Mesh(new T.SphereGeometry(0.16, 18, 12), M.audience);
+        shoulders.scale.set(1.1, 0.75, 0.6); shoulders.position.set(x, -0.06, 1.62); g.add(shoulders);
+      }
+    }
+    return { group: g, pool };
+  }
+
+  function makeLights(T){
+    const g = new T.Group();
+    g.add(new T.HemisphereLight(0xc8dcff, 0x121017, 1.15));
+    const key = new T.DirectionalLight(0xfff1df, 2.4);
+    key.position.set(0.9, 2.7, 1.9); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+    const c = key.shadow.camera; c.left = -1.4; c.right = 1.4; c.top = 2.2; c.bottom = -0.4; c.near = 0.4; c.far = 7;
+    key.shadow.bias = -0.0007; key.shadow.radius = 3; g.add(key);
+    const rim = new T.PointLight(0x8ba6ff, 7, 6, 2); rim.position.set(-1.05, 1.75, -0.75); g.add(rim);
+    const warm = new T.PointLight(0xff83ad, 2.6, 4.2, 2); warm.position.set(0.72, 1.25, -0.55); g.add(warm);
+    const fill = new T.PointLight(0x9fc4ff, 2.1, 4.6, 2); fill.position.set(-0.5, 1.35, 1.45); g.add(fill);
+    const face = new T.PointLight(0xffe9d8, 1.2, 2.2, 2); face.position.set(0.12, 1.55, 0.95); g.add(face);
+    return { group: g, key, rim, warm, fill, face };
+  }
+
+  /* ── the handle: the same methods the app already calls ─────────────── */
+  function create(canvas, opts = {}){
+    const reduce = (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) ? 0.35 : 1;
+    const target = JSON.parse(JSON.stringify(BASE));
+    const cur = JSON.parse(JSON.stringify(BASE));
+    let gestureName = "hands_quiet", gestureT = 0, audience = "front", audYaw = 0, audTarget = 0;
+    let speakUntil = 0, talkPhase = 0, nod = 0, headShake = 0, blinkAt = 0.6, blink = 0, stepX = 0, stepAt = -10, stepDir = 1;
+    let alive = true, raf = 0, view = null;
+    const dyn = { chop:0, paint:0, count:0 };
+
+    function applyPose(pose){
+      if (!pose) return;
+      const lists = [["appearance", "presence"], ["gesture", "gesture"], ["face", "face"]];
+      let names = [];
+      if (Array.isArray(pose)) names = pose.slice();
+      else {
+        for (const [dim, key] of lists){
+          const v = pose[dim] || pose[key];
+          if (v) names = names.concat(typeof v === "string" ? [v] : v);
+        }
+        if (Array.isArray(pose.presence)) names = names.concat(pose.presence);
+      }
+      for (const n of names){
+        const src = POSES.presence[n] || POSES.gesture[n] || POSES.face[n];
+        if (!src) continue;
+        for (const k of Object.keys(src)){
+          if (k === "armL" || k === "armR") Object.assign(target[k], src[k]);
+          else if (typeof target[k] === "number") target[k] = clamp(src[k], -2, 2);
+        }
+        if (POSES.gesture[n]) gestureName = n, gestureT = 0;
+      }
+    }
+    function setProsody(p){
+      if (!p) return;
+      if (p.loudness !== undefined) target.loudness = clamp(num(p.loudness), 0, 1);
+      if (p.pitch !== undefined){ target.pitch = clamp(num(p.pitch), 0, 1);
+        target.brow = clamp(target.brow + (target.pitch - 0.5) * 0.5, -1, 1); }
+      if (p.rate !== undefined) target.rate = clamp(num(p.rate), 0, 1);
+      if (p.emphasis !== undefined) target.emphasis = clamp(num(p.emphasis), 0, 1);
+    }
+    function snap(kind){
+      if (kind === "step-left" || kind === "step-right"){
+        stepDir = kind === "step-left" ? -1 : 1;
+        stepX = clamp(stepX + stepDir * 0.16, -0.42, 0.42); stepAt = performance.now() / 1000;
+        target.stepFwd = clamp(target.stepFwd + stepDir * 0.05, -0.2, 0.3);
+      } else if (kind === "settle"){ target.weight = 0.5; target.spread = 1.05; target.knee = 0; }
+      else if (kind === "nod") nod = 1;
+      else if (kind === "shake") headShake = clamp(num(headShake) + 1, 0, 1.4);
+    }
+
+    /* the clocks: identical to the ones the drawn rig ran on */
+    function stepRig(t, dt){
+      const idle = (1 - cur.stillness) * reduce;
+      for (const k of Object.keys(BASE)){
+        if (k === "armL" || k === "armR"){ for (const s of Object.keys(BASE.armL)) cur[k][s] = ease(cur[k][s], target[k][s], 0.16); continue; }
+        cur[k] = ease(cur[k], target[k], 0.14);
+      }
+      if (audience === "sweep") audTarget = Math.sin(t * 0.32) * 0.5;
+      audYaw = ease(audYaw, audTarget, 0.1);
+      const syll = 3.0 + cur.rate * 3.2;
+      if (performance.now() < speakUntil) talkPhase += dt * syll; else talkPhase = 0;
+      cur.jaw = ease(cur.jaw, talkPhase ? (0.3 + 0.35 * Math.abs(Math.sin(talkPhase * Math.PI * 2)) + cur.loudness * 0.25) : cur.smile * 0.06, 0.3);
+      blinkAt -= dt;
+      if (blinkAt <= 0){ blink = 1; blinkAt = 1.9 + Math.random() * 3.6; }
+      blink = Math.max(0, blink - dt * 8.5);
+      const breathA = (0.006 + 0.004 * cur.loudness) * cur.breath * idle + 0.0022 * cur.breath;
+      const sway = Math.sin(t * 0.42) * 0.014 * idle;
+      gestureT += dt;
+      dyn.chop = gestureName === "one_chop" ? Math.max(0, Math.sin(gestureT * 1.9)) : ease(dyn.chop, 0, 0.2);
+      dyn.paint = (gestureName === "paint_shape" || gestureName === "both_arms_wide") ? Math.sin(gestureT * 0.75) : ease(dyn.paint, 0, 0.2);
+      dyn.count = gestureName === "count_on_fingers" ? Math.floor(clamp(gestureT * 0.9, 0, 3)) : 0;
+      return { idle, breathA, sway };
+    }
+
+    /* …and the mapping from those numbers onto bones */
+    function poseRig(rig, c, clk, t, dt0){
+      const { idle, breathA, sway } = clk;
+      rig.root.position.x = ease(rig.root.position.x, stepX, 0.12);
+      rig.root.position.z = -c.stepFwd * 0.4;
+      rig.root.rotation.y = ease(rig.root.rotation.y, -audYaw + sway * 0.35, 0.1);
+      rig.hips.position.y = 0.94 - c.knee * 0.05 + breathA * 0.35;
+      rig.hips.rotation.x = c.lean * 0.04;
+      rig.waist.rotation.x = ease(rig.waist.rotation.x, -c.spineTall * 0.035 + c.lean * 0.045, 0.1);
+      rig.waist.rotation.z = sway * 0.25;
+      rig.chest.rotation.x = ease(rig.chest.rotation.x, -c.chestOpen * 0.07 - c.spineTall * 0.02 + c.lean * 0.03, 0.1);
+      rig.chest.rotation.y = sway * 0.2;
+      rig.chest.scale.set(1 + breathA * 0.6, 1 + breathA * 0.35, 1 + breathA * 0.8);
+      rig.neck.rotation.x = ease(rig.neck.rotation.x, -c.neckLong * 0.05 + c.headPitch * 0.16, 0.1);
+      rig.neck.rotation.y = c.headYaw * 0.22;
+      const bob = Math.sin(t * 2.1) * 0.004 * idle + nod * 0.05;
+      rig.head.rotation.x = ease(rig.head.rotation.x, c.headPitch * 0.42 - c.chin * 0.14 + bob, 0.12);
+      rig.head.rotation.y = ease(rig.head.rotation.y, c.headYaw * 0.3 + c.gazeX * 0.1 + sway * 0.5, 0.12);
+      rig.head.rotation.z = ease(rig.head.rotation.z, c.headRoll * 0.4 - sway * 0.2, 0.12);
+      rig.head.rotation.y += headShake * Math.sin(t * 13) * 0.11;
+      nod = ease(nod, 0, 0.06);
+      headShake = Math.max(0, headShake - dt0 * 1.5);
+
+      const P = rig.headParts, sm = clamp(c.smile, -1, 1);
+      P.jaw.rotation.x = c.jaw * 0.42;
+      P.lowerLip.position.y = -c.jaw * 0.02;
+      P.inner.scale.set(1.25, 0.5 + c.jaw * 1.5, 0.42);
+      P.teeth.visible = c.jaw > 0.16;
+      P.teeth.position.y = 0.008 - c.jaw * 0.006;
+      P.eyes.forEach(e => {
+        e.eye.rotation.y = -(c.gazeX * 0.16 + sway * 0.2);
+        e.eye.rotation.x = c.gazeY * 0.12;
+        e.iris.position.x = c.gazeX * 0.004; e.iris.position.y = -c.gazeY * 0.003;
+        e.pupil.position.x = c.gazeX * 0.004; e.pupil.position.y = -c.gazeY * 0.003;
+        e.pupil.scale.setScalar(1 + c.emphasis * 0.16 + c.loudness * 0.08);
+      });
+      const lidClose = clamp(blink + c.lid * 0.55 + Math.max(0, c.squint) * 0.45 - c.eyeWide * 0.35, 0, 1);
+      P.lids.forEach(l => {
+        l.upper.position.y = 0.0098 - lidClose * 0.021;
+        l.upper.scale.y = 1 - lidClose * 0.16;
+        l.lower.position.y = -0.0085 + Math.max(0, c.squint) * 0.006;
+        l.lashes.rotation.x = -lidClose * 0.5;
+      });
+      P.brows.forEach(b => {
+        b.g.position.y = 0.05 + c.brow * 0.014 - Math.max(0, c.squint) * 0.004;
+        b.g.rotation.z = b.s * (c.browAngle * 0.32 + sm * 0.12);
+        b.g.rotation.x = -c.brow * 0.12;
+      });
+      P.hair.rotation.z = sway * 0.12;
+      P.strands.forEach((s, i) => {
+        s.m.rotation.z = Math.sin(t * 0.7 + i) * 0.02 * idle + s.s * c.shoulderBack * 0.02;
+        s.m.rotation.x = Math.sin(t * 0.5 + i * 0.6) * 0.015 * idle;
+      });
+
+      const armOf = (side, s) => {
+        const a = side === "L" ? c.armL : c.armR, A = rig.arms[side];
+        const lift = clamp((1 - a.down) * 1.5, -0.12, 1.75) + (a.out - 0.9) * 0.26;
+        const chop = side === "R" ? dyn.chop * 0.55 : 0;
+        const raised = side === "R" && gestureName === "count_on_fingers" ? dyn.count * 0.03 : 0;
+        const wave = (gestureName === "both_arms_wide" ? Math.sin(gestureT * 0.9) * 0.22 : 0) * s * 0.5;
+        A.sh.rotation.z = ease(A.sh.rotation.z, -s * (lift * 0.85 + chop * 0.1) - wave, 0.16);
+        A.sh.rotation.x = ease(A.sh.rotation.x, -a.fwd * 1.15 - chop * 0.5 + dyn.paint * 0.16 * s, 0.16);
+        A.sh.rotation.y = s * (a.palm * 0.35 - 0.05) - s * c.shoulderBack * 0.12;
+        A.sh.position.y = 0.115 - c.shoulderDrop * 0.014 + raised;
+        A.elbow.rotation.x = ease(A.elbow.rotation.x, -(0.22 + a.bend * 1.25) + chop * 0.35, 0.16);
+        A.elbow.rotation.y = s * a.palm * 0.4;
+        A.wrist.rotation.z = s * (a.palm - 0.2) * 0.5;
+        A.wrist.rotation.x = Math.sin(t * 1.4 + s) * 0.03 * idle * c.gest;
+        for (let i = 0; i < A.handG.fingers.length; i++){
+          const folded = clamp((a.bend - 0.55) * 1.6, 0, 1);
+          const up = gestureName === "count_on_fingers" && side === "R" && i >= 3 - dyn.count ? 0 : 1;
+          A.handG.fingers[i].f.rotation.x = ease(A.handG.fingers[i].f.rotation.x, -folded * 0.9 * up, 0.2);
+          A.handG.fingers[i].distal.rotation.x = ease(A.handG.fingers[i].distal.rotation.x, -folded * 0.7 * up, 0.2);
+        }
+        A.handG.thumb.rotation.z = s * (0.2 + a.palm * 0.5);
+      };
+      armOf("L", -1); armOf("R", 1);
+
+      rig.legs.L.hip.position.x = -0.088 * c.spread; rig.legs.R.hip.position.x = 0.088 * c.spread;
+      rig.legs.L.hip.rotation.x = -c.knee * 0.12 + c.lean * 0.04 - (c.weight - 0.5) * 0.05;
+      rig.legs.R.hip.rotation.x = -c.knee * 0.10 + c.lean * 0.05 + (c.weight - 0.5) * 0.05;
+      rig.legs.L.knee.rotation.x = c.knee * 0.22; rig.legs.R.knee.rotation.x = c.knee * 0.18;
+      const stepLift = clamp(1 - (performance.now() / 1000 - stepAt) * 1.8, 0, 1);
+      const lead = stepDir < 0 ? "L" : "R", trail = stepDir < 0 ? "R" : "L";
+      rig.legs[lead].ankle.rotation.x = -stepLift * 0.35;
+      rig.legs[trail].ankle.rotation.x = 0;
+      rig.hem.rotation.y = Math.sin(t * 0.5) * 0.02 * idle;
+    }
+
+    /* remembered so nothing is lost while three.js downloads */
+    let lastPose = null, lastProsody = null, lastAudience = "front";
+    const wrap = {
+      resize(){ if (view) view.resize(); },
+      setAudience(mode){
+        lastAudience = mode;
+        audience = ["front", "left", "right", "sweep"].includes(mode) ? mode : "front";
+        audTarget = audience === "left" ? -0.45 : audience === "right" ? 0.45 : audience === "sweep" ? audTarget : 0;
+      },
+      setPose(p){ lastPose = p; applyPose(p); },
+      setProsody(p){ lastProsody = p; setProsody(p); },
+      speak(seconds){ speakUntil = performance.now() + Math.max(0.2, num(seconds)) * 1000 * 1.1; },
+      idle(){ speakUntil = 0; },
+      pulse(strength){ nod = clamp(num(strength), 0, 1) * 0.9; snap("nod"); },
+      snap,
+      getState(){
+        const out = {};
+        for (const k of Object.keys(cur)){ const v = cur[k];
+          out[k] = typeof v === "number" ? Math.round(v * 1000) / 1000
+            : (v && typeof v === "object") ? Object.keys(v).reduce((o, kk) => (o[kk] = Math.round(v[kk] * 1000) / 1000, o), {})
+            : Array.isArray(v) ? v.slice() : v; }
+        out.audience = audience; out.gestureName = gestureName; return out;
+      },
+      stop(){ alive = false; cancelAnimationFrame(raf); if (view) view.dispose(); },
+    };
+
+    /* three.js may not arrive — the drawn rig keeps the stage alive until it does */
+    let drawn = null;
+    function adoptDrawn(){
+      if (typeof Avatar2D === "undefined" || drawn) return drawn;
+      drawn = Avatar2D.create(canvas, opts);
+      applyPose(lastPose); setProsody(lastProsody); wrap.setAudience(lastAudience);
+      wrap.resize = () => drawn.resize();
+      wrap.setAudience = m => { lastAudience = m; drawn.setAudience(m); };
+      wrap.setPose = p => { lastPose = p; drawn.setPose(p); };
+      wrap.setProsody = p => { lastProsody = p; drawn.setProsody(p); };
+      wrap.speak = sec => drawn.speak(sec);
+      wrap.idle = () => drawn.idle();
+      wrap.pulse = k => drawn.pulse(k);
+      wrap.snap = k => drawn.snap(k);
+      wrap.stop = () => { alive = false; drawn.stop(); };
+      return drawn;
+    }
+    /* a 2D context cannot be traded for a WebGL one, so the canvas is replaced
+       when the library finally shows up — a page opened offline still grows a
+       three-dimensional presenter once the network returns */
+    function handBackToThree(){
+      try {
+        const fresh = canvas.cloneNode(false);
+        if (!fresh || !canvas.parentNode) return false;
+        canvas.parentNode.replaceChild(fresh, canvas);
+        if (drawn) drawn.stop();
+        try { for (const k of Object.keys(els)) if (els[k] === canvas) els[k] = fresh; } catch (e){ /* els not ready */ }
+        canvas = fresh; drawn = null;
+        return true;
+      } catch (e){ return false; }
+    }
+    function whenOnline(){
+      if (typeof window === "undefined" || !window.addEventListener) return;
+      window.addEventListener("online", () => {
+        if (!alive || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+        if (handBackToThree()) start();
+      }, { once: true });
+    }
+    function degrade(){ if (alive){ adoptDrawn(); wrap.resize(); whenOnline(); } }
+    let tries = 0;
+    function start(){
+      loadThree().then(T => { if (alive) build(T); }).catch(() => {
+        if (!alive) return;
+        const online = typeof navigator === "undefined" || navigator.onLine !== false;
+        if (online && ++tries < 3){ setTimeout(() => { if (alive) start(); }, tries * 2500); return; }
+        degrade();
+      });
+    }
+    function build(T){
+      let renderer = null;
+      try { renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" }); }
+      catch (e){ renderer = null; }
+      if (!renderer){ degrade(); return; }
+      const M = makeMaterials(T), rig = makePresenter(T, M), stg = makeStage(T, M, opts), lights = makeLights(T);
+      const scene = new T.Scene(), camera = new T.PerspectiveCamera(46, 1, 0.05, 60);
+      rig.world.add(stg.group); scene.add(rig.world, lights.group);
+      if (opts.mirror) rig.world.scale.x = -1;
+      renderer.setClearColor(0x000000, 0);
+      renderer.outputColorSpace = T.SRGBColorSpace;
+      renderer.toneMapping = T.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.04;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = T.PCFSoftShadowMap;
+      view = {
+        resize(){
+          const box = canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : { width:canvas.width, height:canvas.height };
+          const w = Math.max(64, Math.round(box.width || canvas.width || 360));
+          const h = Math.max(80, Math.round(box.height || canvas.height || 420));
+          renderer.setPixelRatio(clamp((typeof devicePixelRatio === "undefined" ? 1 : devicePixelRatio) || 1, 1, opts.mirror ? 1.6 : 2));
+          renderer.setSize(w, h, false);
+          camera.aspect = w / h;
+          const half = camera.fov * Math.PI / 360, needH = 2.02, needW = 0.94;
+          const dist = Math.max(needH / 2 / Math.tan(half), needW / 2 / (camera.aspect * Math.tan(half))) * 1.04;
+          camera.position.set(0.14, 1.16, dist); camera.lookAt(0, 0.96, 0);
+          camera.updateProjectionMatrix();
+        },
+        dispose(){
+          try {
+            scene.traverse(o => {
+              if (o.geometry) o.geometry.dispose();
+              const m = o.material;
+              if (m) (Array.isArray(m) ? m : [m]).forEach(x => {
+                for (const k of ["map", "bumpMap", "alphaMap"]) if (x[k]) x[k].dispose();
+                x.dispose();
+              });
+            });
+            renderer.dispose(); if (renderer.forceContextLoss) renderer.forceContextLoss();
+          } catch (e){ /* the page is going away */ }
+        },
+      };
+      view.resize();
+      applyPose(lastPose); setProsody(lastProsody); wrap.setAudience(lastAudience);
+      let prev = performance.now(), t0 = prev;
+      const frame = now => {
+        if (!alive) return;
+        const dt = clamp((now - prev) / 1000, 0.001, 0.05), t = (now - t0) / 1000;
+        prev = now;
+        poseRig(rig, cur, stepRig(t, dt), t, dt);
+        lights.face.intensity = 1.3 + cur.loudness * 0.9;
+        stg.pool.material.opacity = 0.55 + 0.3 * (1 - cur.stillness * 0.5);
+        renderer.render(scene, camera);
+        raf = requestAnimationFrame(frame);
+      };
+      raf = requestAnimationFrame(frame);
+    }
+    if (!canWebGL()){ adoptDrawn(); return wrap; }
+    start();
+
+    return wrap;
+  }
+
+  return { create, POSES:{ presence:Object.keys(POSES.presence), gesture:Object.keys(POSES.gesture), face:Object.keys(POSES.face) },
+    poseFromCue, BASE, drawStage: Avatar2D.drawStage };
 })();
 
 /* ── app ── Screens and the copy-then-compare loop. ─────────────────────────────────────────── */
