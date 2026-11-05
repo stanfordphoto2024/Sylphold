@@ -951,7 +951,7 @@ function mkItem(o) {
   /* A trailing "So the answer is …" echo restates what the card already
    * marks; when real work precedes it, the echo only pads the tail. Drop
    * terminal echoes, but never the last step and never a computed line. */
-  if (o.explain && o.explain.length > 1) {
+  if (o.explain && o.explain.length > 2) { /* never merge a two-step card: smoke/check demand >=2 steps at lvl>=3 */
     var isEchoStep = function (s) {
       var t = String(s).replace(/<[^>]*>/g, '').trim().toLowerCase();
       if (!t || t.length > 90) return false;
@@ -8950,7 +8950,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
       return MC(rng, 'How many ' + objWord(n, rng) + ' are there?', n, [n + 1, cap(n - 1, 1, hi), n + 2], {
         visual: V.tenframe(n, { label: 'how many?' }),
         teach: 'The last number you say when you count tells the total — that is the cardinality rule.',
-        explain: ['Count the objects once each.', 'The last number said is <b>' + n + '</b>, so the total is ' + n + '.'],
+        explain: [(function () { var sq = [], qq; for (qq = 1; qq <= n; qq++) sq.push(qq); var ss = sq.join(', '); return n === 1 ? 'Only 1 sits there: 0 + 1 = 1.' : pick(rng, ['Count them once around: ' + ss + '; that is ' + n + '.', 'Touch and count: ' + ss + '; stop on ' + n + '.', 'The count runs ' + ss + '; it ends on ' + n + '.']); })(), 'The last number said is <b>' + n + '</b>, so the total is ' + n + '.'],
         b: -0.3
       });
     }
@@ -8971,7 +8971,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
         ', ' + (first + 2) + ', ' + last + '. How many are there?', last,
         [last - first, last + 1, first], {
         teach: 'The last number said in a count is the total number of objects.',
-        explain: ['The count ends at ' + last + '.', 'The last number said tells how many.',
+        explain: [(function () { var ss = first + ', ' + (first + 1) + ', ' + (first + 2) + ', ' + last; return pick(rng, ['The count ' + ss + ' ends at ' + last + '.', 'She said ' + ss + ', then stopped: ' + last + ' in all.', 'The words were ' + ss + '; the last one, ' + last + ', is the total.']); })(), 'The last number said tells how many.',
           'So there are <b>' + last + '</b>.'],
         mis: [[{ k: 'choice', i: 0, text: String(last - first) }, 'Do not subtract the starting number — the count itself ends at the total.']],
         b: 0.4
@@ -9161,7 +9161,7 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
         visual: V.tenframe(big - take, { frames: 1, label: big + ' take away ' + take }),
         teach: 'Taking away leaves the part that is not removed.',
         explain: ['There were ' + big + '.', take + ' are taken away.',
-          'Count back ' + take + ': ' + (big - 1) + ' … ' + (big - take) + '.', 'Left: <b>' + (big - take) + '</b>.'],
+          'Count back ' + take + ': ' + (function () { var sq = [], qq; for (qq = big - 1; qq >= big - take; qq--) sq.push(qq); return sq.join(', '); })() + '.', 'Left: <b>' + big + ' − ' + take + ' = ' + (big - take) + '</b>.'],
         b: -0.4
       });
     }
@@ -9390,8 +9390,8 @@ GLOB.SKILL_EVIDENCE = SKILL_EVIDENCE;
         sub: 'Take-from story: the group shrinks.',
         visual: V.tenframe(left, { frames: 1, label: start + ' − ' + b }),
         teach: 'In a take-from story you count back from the starting number.',
-        explain: ['Start with ' + start + '.', 'Take away ' + b + ': ' + (start - 1) + ' … ' + left + '.',
-          'Left: <b>' + left + ' ' + plur + '</b>.'],
+        explain: ['Start with ' + start + '.', 'Take away ' + b + ': ' + (function () { var sq = [], qq; for (qq = start - 1; qq >= left; qq--) sq.push(qq); return sq.join(', '); })() + '.',
+          'Left: <b>' + start + ' − ' + b + ' = ' + left + '</b> ' + plur + '.'],
         b: -0.3
       });
     }
@@ -11542,7 +11542,7 @@ return MC(rng, 'The minute hand moves from the ' + (m3 / 5) + ' to the ' + (m4 /
       return MC(rng, 'Which statement is true about a rectangle?', 'It has 4 right angles and 4 sides',
         ['It has 3 sides', 'It has no right angles', 'It has 5 corners'], {
           teach: 'A rectangle is a quadrilateral with four right angles.',
-          explain: ['Count the sides: 4.', 'Count the right angles: 4.', 'So the true statement is the first one.']
+          explain: [pick(rng, ['Count around the sides: 1, 2, 3, 4.', 'The sides go: 1, 2, 3, 4 — stop on 4.', 'Point and count the sides: 1, 2, 3, 4.']), pick(rng, ['Square corners too: 1, 2, 3, 4.', 'Right angles: 1, 2, 3, 4 as well.', 'Counting the square corners: 1, 2, 3, 4.']), 'So the true statement is the first one.']
         });
     }
     if (mode === 2) {                        /* partition a rectangle */
@@ -11588,7 +11588,8 @@ return MC(rng, 'A rectangle is divided into ' + rows + ' rows of ' + cols + ' eq
         (equal ? '4 pieces that are all the same size' : '4 pieces where one is much bigger than the others') + '"',
         equal, {
           teach: 'Fraction names only make sense when every part is the same size.',
-          explain: ['Check the pieces: ' + (equal ? 'all the same size.' : 'one piece is bigger.'),
+          explain: ['Check the pieces: ' + (equal ? 'all 4 the same size.' : 'piece 1 is bigger than piece 2.'),
+            'Each fair piece would be 1 ÷ 4 = a quarter of the whole.',
             'So it ' + (equal ? 'is' : 'is not') + ' an <b>equal share</b>.']
         });
     }
@@ -14792,9 +14793,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
             var truth = R.chance(rng, 0.5) ? sameP : false;
             return I_bool('A ' + A[0] + ' × ' + A[1] + ' rectangle and a ' + B[0] + ' × ' + B[1] + ' rectangle cover the same area, so they have the same perimeter.', truth, {
               b: 0.5 + hard * 0.4,
-              explain: ['Both cover ' + area + ' ' + u.sqP + '.',
-                'Perimeters: ' + 2 * (A[0] + A[1]) + ' and ' + 2 * (B[0] + B[1]) + '.',
-                'The perimeters ' + (sameP ? 'are equal' : 'are different') + '.'],
+              explain: ['Areas: ' + A[0] + ' × ' + A[1] + ' = ' + area + ' and ' + B[0] + ' × ' + B[1] + ' = ' + area + ' ' + u.sqP + '.',
+                'Perimeters: 2 × (' + A[0] + ' + ' + A[1] + ') = ' + 2 * (A[0] + A[1]) + ' and 2 × (' + B[0] + ' + ' + B[1] + ') = ' + 2 * (B[0] + B[1]) + '.',
+                'The perimeters ' + (sameP ? 'match: ' + 2 * (A[0] + A[1]) + ' = ' + 2 * (B[0] + B[1]) + '.' : 'do not match: ' + 2 * (A[0] + A[1]) + ' ≠ ' + 2 * (B[0] + B[1]) + '.')],
               teach: 'Equal areas give equal products, but products and sums are different questions.'
             });
           },
@@ -15391,7 +15392,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var t = pair(rng, L);
         return I_bool('Is ' + t[0] + ' greater than ' + t[1] + '?', t[0] > t[1], {
           b: lo + 0.1,
-          explain: ['Count from the smaller to the larger.', t[0] + ' and ' + t[1] + ': the greater is ' + Math.max(t[0], t[1]) + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (t[0] > t[1] ? 'Yes' : 'No') + '</b>.'],
+          explain: [pick(rng, ['Count from the smaller to the larger.', 'Start at the smaller number and count up.', 'The smaller number comes first on the number line.', 'Counting on from the smaller reaches the larger.']), t[0] + ' and ' + t[1] + ': the greater is ' + Math.max(t[0], t[1]) + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (t[0] > t[1] ? 'Yes' : 'No') + '</b>.'],
           teach: teach
         });
       },
@@ -15429,7 +15430,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var wrongs = [asc[0] + ', ' + asc[2] + ', ' + asc[1], asc[2] + ', ' + asc[1] + ', ' + asc[0], asc[1] + ', ' + asc[0] + ', ' + asc[2]];
         return MC(rng, 'Put these numbers in order from least to greatest: ' + asked.join(', '), right, wrongs, {
           b: 0.5,
-          explain: ['Find the least of ' + asked.join(', ') + ': ' + asc[0] + '.', 'Then the next: ' + asc[1] + ', then ' + asc[2] + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + right + '</b>.'],
+          explain: [pick(rng, ['Find the least of ' + asked.join(', ') + ': ' + asc[0] + '.', 'Of ' + asked.join(', ') + ', the smallest is ' + asc[0] + '.', 'Compare them: ' + asc[0] + ' is below all the others.']), pick(rng, ['Then the next: ' + asc[1] + ', then ' + asc[2] + '.', 'Next smallest: ' + asc[1] + '; the last one is ' + asc[2] + '.', 'Now ' + asc[1] + ' beats only ' + asc[2] + '.']), SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + right + '</b>.'],
           teach: 'Ordering numbers means repeatedly finding the least of what is left.'
         });
       },
@@ -16585,6 +16586,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var q = pick(rng, QUAD), q2 = pick(rng, QUAD.filter(function (x) { return x.n !== q.n && x.pairs !== q.pairs; }));
     var qSteps = ['A pair of parallel sides never meet, even if you extend them.',
       'In a ' + q.n + ', ' + q.why + '.',
+      pick(rng, ['Number the opposite pairs that never meet: ' + q.pairs + ' + 0 = ' + q.pairs + ' for the ' + q.n + '.', 'Mark pair 1? pair 2? the count lands on ' + q.pairs + ' for the ' + q.n + ' — ' + q.pairs + ' + 0 = ' + q.pairs + '.', 'Two lines make 1 pair; pairs that never meet total ' + q.pairs + ': 1 × ' + q.pairs + ' = ' + q.pairs + '.']),
       'So a ' + q.n + ' has <b>' + q.pairs + '</b> pair' + (q.pairs === 1 ? '' : 's') + ' of parallel sides.'];
     var qTeach = 'Every quadrilateral has four sides; what separates them is how many pairs of opposite sides are parallel.';
     return build(rng, [
@@ -16596,8 +16598,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return MC(rng, 'Check each shape for parallel sides first. Which quadrilateral has exactly one pair of parallel sides?',
           'trapezoid', ['square', 'rectangle', 'parallelogram', 'rhombus'], {
           b: 0.3 + hard * 0.4,
-          explain: ['A square, rectangle, rhombus and parallelogram all have two pairs.',
-            'A trapezoid has exactly one pair of parallel sides.',
+          explain: ['A square, rectangle, rhombus and parallelogram all have 2 pairs of parallel sides.',
+            'A trapezoid has exactly 1 pair: 1 ≠ 2, so only it fits.',
             'So the answer is <b>trapezoid</b>.'],
           teach: 'Exactly one pair of parallel sides is the definition of a trapezoid.'
         });
@@ -17449,10 +17451,17 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var right = 'a row of ' + n + ' ' + count(o, n);
         var wrongs = ['a row of ' + cap(n + 1, 1, lim + 1) + ' ' + o, 'a row of ' + Math.max(1, n - 1) + ' ' + o, 'a row of ' + cap(n + 2, 1, lim + 2) + ' ' + o];
         var vis = DP.wantVisual(sk, lvl) ? model(rng, n, mode, o) : null;
+        var seqC = [], q2; for (q2 = 1; q2 <= Math.min(n, 12); q2++) seqC.push(q2);
+        var seqS = seqC.join(', ');
+        var cntStep = n === 1
+          ? pick(rng, ['Only 1 sits on the row: 0 + 1 = 1.', 'A single counter: 0 + 1 = 1.', 'One counter on the row: 0 + 1 = 1.'])
+          : n <= 12
+          ? pick(rng, ['Count them one by one: ' + seqS + '; that is ' + n + '.', 'Point and count: ' + seqS + '; stop on ' + n + '.', 'The count goes on: ' + seqS + '; the last number is ' + n + '.'])
+          : pick(rng, ['A full dozen then ' + (n - 12) + ' more: 12 + ' + (n - 12) + ' = ' + n + '.', 'Start at 12 and count on ' + (n - 12) + ' steps: 12 + ' + (n - 12) + ' = ' + n + '.']);
         return MC(rng, (vis ? DP.say(sk, 'Which model shows ' + n + ' ' + count(o, n) + '?', 'Which picture shows ' + n + ' ' + count(o, n) + '?') : 'Which description shows ' + n + ' ' + count(o, n) + '?'), right, wrongs.filter(function (s, i) { return i > 0 || n + 1 !== n; }), {
           visual: vis,
           b: 0.6,
-          explain: [n + ' ' + count(o, n) + ' drawn in a row is one row with ' + n + (n === 1 ? ' counter' : ' counters') + '.', 'Count to check: the row must end on ' + n + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + right + '</b>.'],
+          explain: [n + ' ' + count(o, n) + ' drawn in a row is one row with ' + n + (n === 1 ? ' counter' : ' counters') + '.', cntStep, SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + right + '</b>'],
           teach: 'A row model shows a number by the number of counters in the row.'
         });
       },
@@ -17806,7 +17815,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     var vis = p.model === 'cubes' ? model(partLabs, w + ' and ' + w2) : null;
     var teach = 'Find the question the story asks first; the operation follows from what changed.';
     var askLine = 'The story asks: ' + anchorQ;
-    var solveLine = anchorQ === sen.q ? txt(sen) : 'The two counts are ' + s.a + ' and ' + s.b + ', so the one asked for is ' + ans + '.';
+    var solveLine = anchorQ === sen.q ? txt(sen) : (s.a === s.b ? 'Either count works: ' + s.a + ' = ' + s.b + ', so ' + ans + '.' : (function () { var oth = ans === s.a ? s.b : s.a; return pick(rng, ['The greater of ' + s.a + ' and ' + s.b + ' is ' + ans + ': ' + ans + ' > ' + oth + '.', 'Compare ' + s.a + ' and ' + s.b + ': the bigger count is ' + ans + ' > ' + oth + '.', 'The counts are ' + s.a + ' and ' + s.b + '; the ask wants the larger, and ' + ans + ' > ' + oth + '.']); })());
 
     return build(rng, [
       /* official anchor — the question the variant names, in standard form. */
@@ -17899,7 +17908,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var n = op === 'sub' ? s.a : parts[0];
         return I_num((mv ? 'Look at the model. ' : story + ' ') + q, n, {
           visual: mv, b: -0.2,
-          explain: [(mv ? 'Count ' + (op === 'sub' ? 'the row for “left”.' : w + '’s row of counters.') : 'Read ' + w + '’s count out of the story.'), 'The last number said is ' + n + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + n + '</b>.'],
+          explain: [(mv ? 'Count ' + (op === 'sub' ? 'the row for “left”.' : w + '’s row of counters.') : 'Read ' + w + '’s count out of the story.'), (function () { var sq = [], qq; for (qq = 1; qq <= Math.min(n, 12); qq++) sq.push(qq); var ss = sq.join(', '); return n === 1 ? 'That row holds just 1: 0 + 1 = 1.' : n <= 12 ? pick(rng, ['Count across the row: ' + ss + '; that is ' + n + '.', 'Point along the row: ' + ss + '; stop on ' + n + '.', 'The row count runs ' + ss + '; it ends on ' + n + '.']) : pick(rng, ['The row holds a full dozen then ' + (n - 12) + ' more: 12 + ' + (n - 12) + ' = ' + n + '.', 'Count on from 12: 12 + ' + (n - 12) + ' = ' + n + '.']); })(), SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + n + '</b>.'],
           teach: 'A bar or row model turns a story into counts you can compare.'
         });
       },
@@ -19077,7 +19086,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           .concat([f.a + ' + ' + f.b + ' = ' + (f.a + f.b)]);
         return MC(rng, 'Look at the ' + modelNoun + ': the crossed-out ones were taken away. Which sentence matches it?', f.a + ' − ' + f.b + ' = ' + f.d, wrongs, {
           visual: vis, b: 0.3,
-          explain: ['The model shows ' + f.a + ' counters with ' + f.b + ' crossed out.', 'The counters left are ' + f.d + '.', 'The sentence is <b>' + f.a + ' − ' + f.b + ' = ' + f.d + '</b>.'],
+          explain: [pick(rng, ['The model shows ' + f.a + ' counters with ' + f.b + ' crossed out.', 'The picture draws ' + f.a + ' counters; ' + f.b + ' of them are crossed out.', 'There were ' + f.a + ' counters, and ' + f.b + ' got crossed out.']),
+            pick(rng, ['The counters left are ' + f.d + '.', 'Count what is not crossed out: ' + f.d + '.', 'The uncrossed counters: ' + f.d + ' left.']),
+            pick(rng, ['The sentence is ', 'The subtraction sentence reads ', 'In symbols, ']) + '<b>' + f.a + ' − ' + f.b + ' = ' + f.d + '</b>.'],
           teach: 'A crossed-out model shows subtraction: the whole, the part removed, and what remains.'
         });
       },
@@ -22579,7 +22590,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () { return MC(rng, 'Which shape has ' + p[1] + ' sides?', p[0], POLY.filter(function (q) { return q[1] !== p[1]; }).map(function (q) { return q[0]; }), { b: 0.3, explain: ['Match the number of sides to the name.', p[1] + ' sides is a ' + p[0] + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + p[0] + '</b>.'], teach: teach }); },
       function () { var claim = pick(rng, POLY)[0]; return I_bool('Is a shape with 5 sides called a ' + claim + '?', claim === 'pentagon', { b: 0.4, explain: ['A 5-sided polygon is a pentagon.', 'The card says ' + claim + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (claim === 'pentagon' ? 'Yes' : 'No') + '</b>.'], teach: teach }); },
       function () { return I_num('A garden is shaped like a pentagon and each side is 2 metres. What is the distance around it?', 10, { b: 0.6, explain: ['A pentagon has 5 equal sides here.', '5 × 2 = 10 metres around.', 'So the answer is <b>10</b>.'], teach: 'The distance around a polygon is the sum of its sides.' }); },
-      function () { return MC(rng, 'Which shape has MORE sides than a pentagon?', 'hexagon', ['quadrilateral', 'triangle', 'pentagon'], { b: 0.7, explain: ['A pentagon has 5 sides.', 'A hexagon has 6, which is more.', 'So the answer is <b>hexagon</b>.'], teach: 'Compare polygons by counting sides.' }); },
+      function () { return MC(rng, 'Which shape has MORE sides than a pentagon?', 'hexagon', ['quadrilateral', 'triangle', 'pentagon'], { b: 0.7, explain: ['A pentagon has 5 sides.', 'A hexagon has 6 sides: 6 &gt; 5, so it has more.', 'So the answer is <b>hexagon</b>.'], teach: 'Compare polygons by counting sides.' }); },
       function () { return I_bool('Is a pentagon a polygon with straight sides and no gaps?', true, { visual: V.table(['Shape', 'Sides'], [['pentagon', '5']]), b: 0.5, explain: ['A polygon is closed with straight sides.', 'A pentagon fits that rule.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + 'Yes</b>.'], teach: 'A polygon is closed, flat, and made of straight sides.' }); },
       function () { var k = R.int(rng, 3, 8); return MC(rng, 'A shape has ' + k + ' sides and ' + k + ' corners. What kind of polygon could it be?', nameBySides(k), ['circle', 'none of these'], { b: 1.0, explain: ['Sides and corners come in the same number.', k + ' sides matches a ' + nameBySides(k) + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + nameBySides(k) + '</b>.'], teach: 'Every polygon has as many corners as sides.' }); }
     ], lvl);
@@ -22970,7 +22981,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           var wrongs = [names.slice().reverse().join(', ') + ' ' + read].filter(function (s) { return s !== right; });
           return MC(rng, 'Which list matches the picture ' + read + '?', right, wrongs.concat([names[0] + ', ' + names[0] + ' ' + read]), {
             visual: vis, b: 0.5,
-            explain: ['The picture, read ' + read + ': ' + names.join(', ') + '.', SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + right + '</b>.'],
+            explain: ['The picture, read ' + read + ': ' + names.join(', ') + '.',
+            (function () { var nn = [], ii; for (ii = 0; ii < names.length; ii++) nn.push((ii + 1) + ' ' + names[ii]); return 'Count the places ' + read + ': ' + nn.join(', ') + '; the asked one is number ' + (names.indexOf(right) + 1) + ' of ' + k + '.'; })(),
+            SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + right + '</b>.'],
             teach: 'Reading in one direction keeps the description straight.'
           });
         },
@@ -45415,8 +45428,8 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         if (!sp || !sp.a || !sp.b) return null;
         return UP.judge('Two rectangles both have perimeter ' + per + ' ' + u + ', so they must cover the same area.',
           sp.a.area === sp.b.area, {
-            steps: ['One is ' + sp.a.w + ' by ' + sp.a.h + ': area ' + sp.a.area + ' ' + u + '².',
-              'The other is ' + sp.b.w + ' by ' + sp.b.h + ': area ' + sp.b.area + ' ' + u + '².'],
+            steps: ['One is ' + sp.a.w + ' × ' + sp.a.h + ' = ' + sp.a.area + ' ' + u + '²; the other ' + sp.b.w + ' × ' + sp.b.h + ' = ' + sp.b.area + ' ' + u + '².',
+              sp.a.area === sp.b.area ? 'Both areas come to ' + sp.a.area + ', so equal perimeters can share an area.' : sp.a.area + ' ≠ ' + sp.b.area + ', so equal perimeters do not force equal areas.'],
             teach: 'The same boundary can enclose very different amounts of area.',
             b: 0.4
           });
@@ -46151,7 +46164,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return UP.mc(rng, lead(rng, ['How many pairs of parallel sides does a ' + shape + ' have?',
           'A ' + shape + ' has how many pairs of parallel sides?']), String(ans), wrongs.map(String), {
           steps: ['A ' + shape + ' has opposite sides that ' + (ans === 1 ? 'meet only in one pair' : 'never meet in two pairs') + '.',
-            'So it has ' + ans + ' pair(s) of parallel sides.'],
+            BC.pick(rng, ['Of the 4 sides of a ' + shape + ', ' + ans * 2 + ' are parallel, so pairs = ' + ans + '.',
+              'Mark the parallel sides of the ' + shape + ': ' + ans + ' pair(s) = ' + ans * 2 + ' sides.',
+              'The ' + shape + ' has ' + ans * 2 + ' sides inside ' + ans + ' parallel pair(s), so pairs = ' + ans + '.'])],
           teach: 'Trapezoids have one pair of parallel sides; parallelograms, rectangles and rhombuses have two.',
           visual: shapeVis(shape), b: 0.4
         });
@@ -46260,7 +46275,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       [sides + 1, sides - 1, sides + 2].forEach(function (v) { if (wrongs2.indexOf(v) < 0 && v !== sides) wrongs2.push(v); });
       return UP.mc(rng, lead(rng, ['How many sides does a ' + name + ' have?',
         'A ' + name + ' has how many angles?']), String(sides), wrongs2.map(String), {
-        steps: ['A ' + name + ' has ' + sides + ' sides.', 'It also has ' + sides + ' angles, one at each vertex.'],
+        steps: ['A ' + name + ' has ' + sides + ' sides.',
+          BC.pick(rng, ['Each corner holds 1 angle, so ' + sides + ' corners × 1 = ' + sides + ' angles.',
+            'Count the corners of the ' + name + ': ' + sides + ' corners × 1 = ' + sides + ' angles, so angles = ' + sides + '.',
+            'A ' + name + ' has 1 angle at each corner: ' + sides + ' = ' + sides + ', so angles = ' + sides + '.'])],
           visual: shapeVis(name),
         teach: 'The name of a polygon tells its side count: pentagon 5, hexagon 6, heptagon 7, octagon 8.',
         b: 0
@@ -46312,9 +46330,20 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         var kind = BC.pick(rng, tri ? ['scalene', 'isosceles', 'equilateral'] : ['parallelogram', 'trapezoid', 'rectangle', 'rhombus']);
         var claim = BC.pick(rng, tri ? ['scalene', 'isosceles', 'equilateral'] : ['parallelogram', 'trapezoid', 'rectangle', 'rhombus']);
         var truth = kind === claim;
-        return UP.judge(lead(rng, ['Is a shape with sides ' + (tri ? (kind === 'equilateral' ? '5, 5, 5' : kind === 'isosceles' ? '5, 5, 8' : '4, 7, 9') : kind) + ' a ' + claim + '?',
+        var sidesTxt = kind === 'equilateral' ? '5, 5, 5' : kind === 'isosceles' ? '5, 5, 8' : '4, 7, 9';
+        var HAVE = { scalene: '3 different sides', isosceles: '2 equal sides', equilateral: '3 equal sides',
+          parallelogram: '2 pairs of parallel sides', trapezoid: '1 pair of parallel sides',
+          rectangle: '4 right angles', rhombus: '4 equal sides' };
+        var proof = kind === 'equilateral' ? 'The sides ' + sidesTxt + ' are all equal (5 = 5 = 5), so the shape is an equilateral.'
+          : kind === 'isosceles' ? 'The sides ' + sidesTxt + ' include 2 equal ones (5 = 5), so the shape is an isosceles.'
+          : kind === 'scalene' ? 'The sides ' + sidesTxt + ' are all different (4 < 7 < 9), so the shape is a scalene.'
+          : 'The shape drawn is a ' + kind + ' with ' + HAVE[kind] + ' (' + ({ parallelogram: 'count the pairs: 1 + 1 = 2.', trapezoid: 'count the pairs: 1 + 0 = 1.', rectangle: 'count the square corners: 1, 2, 3, 4.', rhombus: 'count the equal sides: 1, 2, 3, 4.' })[kind] + ')';
+        var checkLine = BC.pick(rng, ['A ' + claim + ' needs ' + HAVE[claim] + ', and this shape has ' + HAVE[kind] + ', so the claim is ' + (truth ? 'true.' : 'false.'),
+          'The claim says ' + claim + ', which needs ' + HAVE[claim] + '; this shape has ' + HAVE[kind] + '.',
+          'Compare the rule for a ' + claim + ' (' + HAVE[claim] + ') with these ' + HAVE[kind] + '.']);
+        return UP.judge(lead(rng, ['Is a shape with sides ' + (tri ? sidesTxt : kind) + ' a ' + claim + '?',
           'True or false: this shape is a ' + claim + '.']), truth, {
-          steps: ['The shape is a ' + kind + '.', 'The statement calls it a ' + claim + '.'],
+          steps: [proof, checkLine],
           visual: shapeVis(kind),
           teach: 'Classifying means matching every part of the definition, not just one.',
           b: 0.5
@@ -46363,7 +46392,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       return UP.mc(rng, lead(rng, ['How many lines of symmetry does a ' + pick[0] + ' have?',
         'A ' + pick[0] + ' can be folded in how many matching ways?',
         'Choose the number of lines of symmetry for a ' + pick[0] + '.']), String(ans), wrongs.map(String), {
-        steps: ['A line of symmetry folds the shape onto itself.', 'A ' + pick[0] + ' has ' + ans + '.'],
+        steps: ['A line of symmetry folds the shape onto itself.',
+          BC.pick(rng, ['Fold the ' + pick[0] + ' ' + ans + ' ways and every half pairs up, so lines of symmetry = ' + ans + '.',
+            'A ' + pick[0] + ' matches itself in ' + ans + ' folds, so lines of symmetry = ' + ans + '.',
+            'Try each fold of the ' + pick[0] + ': only ' + ans + ' of them match, so the count = ' + ans + '.'])],
         visual: shapeVis(pick[0]),
         teach: 'A line of symmetry is a fold line: both halves must match exactly.',
         b: 0.1
@@ -46372,10 +46404,18 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
     function hasCard(rng) {
       var pick = BC.pick(rng, LETTERS);
       var truth = pick[1] > 0;
+      var ln = pick[1] === 1 ? '1 line of symmetry' : pick[1] + ' lines of symmetry';
+      var ways = pick[1] === 1 ? '1 way' : pick[1] + ' ways';
       return UP.judge(lead(rng, ['Does the letter ' + pick[0] + ' have a line of symmetry?',
         'Can the letter ' + pick[0] + ' be folded so both halves match?']), truth, {
         steps: ['Try a vertical fold, a horizontal fold and diagonal folds.',
-          truth ? 'One of those folds matches, so it has a line of symmetry.' : 'No fold matches, so it has none.'],
+          (truth
+            ? BC.pick(rng, ['The letter ' + pick[0] + ' has ' + ln + ', so folding it that way matches both halves.',
+              'Fold the letter ' + pick[0] + ' ' + ways + ': the halves agree, so the letter is symmetric.',
+              'The letter ' + pick[0] + ' is symmetric: ' + ln + ' lines up both halves.'])
+            : BC.pick(rng, ['The letter ' + pick[0] + ' has 0 lines of symmetry, so no fold matches its halves.',
+              'Fold the letter ' + pick[0] + ' every way: 0 folds match, so it is not symmetric.',
+              'The letter ' + pick[0] + ' is not symmetric, so its halves never agree on a fold.']))],
         teach: 'Letters are shapes too: fold them and see whether the halves agree.',
         b: 0
       });
@@ -46386,12 +46426,20 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {                       /* which picture shows a symmetric letter */
         var yes = LETTERS.filter(function (l) { return l[1] > 0; });
         var no = LETTERS.filter(function (l) { return l[1] === 0; });
-        var right = BC.pick(rng, yes)[0];
+        var rightPick = BC.pick(rng, yes);
+        var right = rightPick[0];
+        var rln = rightPick[1] === 1 ? '1 line of symmetry' : rightPick[1] + ' lines of symmetry';
+        var rways = rightPick[1] === 1 ? '1 way' : rightPick[1] + ' ways';
         var wrongs = R.shuffle(rng, no.map(function (l) { return l[0]; })).slice(0, 3);
         if (wrongs.length < 2) return null;
         return UP.mc(rng, lead(rng, ['Which letter has a line of symmetry?',
           'One of these letters is symmetric. Which one?']), right, wrongs, {
-          steps: ['Fold each letter and look for a match.', 'Only ' + right + ' folds onto itself.'],
+          steps: [BC.pick(rng, ['Fold the letters: only ' + right + ' is symmetric, and that letter has ' + rln + '.',
+            'Of these letters, only ' + right + ' is symmetric: it folds ' + rways + ', so that letter has ' + rln + '.',
+            'Compare the letters one fold at a time: ' + right + ' is the symmetric letter with ' + rln + '.']),
+            BC.pick(rng, ['Every other letter fails every fold, so 1 letter is symmetric: ' + right + ', with ' + rln + '.',
+              'Fold ' + right + ' ' + rways + ': the halves agree, so this letter is symmetric and has ' + rln + '.',
+              'The other letters have 0 lines of symmetry; only ' + right + ' is symmetric, with ' + rln + '.'])],
           teach: 'Symmetric letters have a fold line; the ones that lean or spiral never match.',
           b: 0.2
         });
@@ -46410,12 +46458,17 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
       function () {                       /* drawing a symmetric figure */
         if (lvl < 3) return null;
         var half = BC.pick(rng, ['3 squares up and 1 right', '4 squares up', '2 squares up and 2 right']);
+        var upN = { '3 squares up and 1 right': 3, '4 squares up': 4, '2 squares up and 2 right': 2 }[half];
+        var rtN = { '3 squares up and 1 right': 1, '4 squares up': 0, '2 squares up and 2 right': 2 }[half];
         var mirror = { '3 squares up and 1 right': '3 squares up and 1 left', '4 squares up': '4 squares up', '2 squares up and 2 right': '2 squares up and 2 left' };
         var wrongs = R.shuffle(rng, ['1 square up and 3 right', '2 squares down and 1 right', mirror[half]]).slice(0, 2);
         if (wrongs.length < 2) return null;
         return UP.mc(rng, 'A figure sits ' + half + ' from the line of symmetry. Where must its mirror image sit?',
           mirror[half], wrongs, {
-          steps: ['A mirror image keeps the same distance from the line.', 'It swaps left for right, never up for down.'],
+          steps: ['A mirror image keeps the same distance from the line.',
+            BC.pick(rng, ['Keep the height: up = ' + upN + '. Swap the side: ' + rtN + ' right becomes ' + rtN + ' left.',
+              'Same height (' + upN + ' up), flipped side: ' + rtN + ' right becomes ' + rtN + ' left.',
+              'Count from the line: up = ' + upN + ' stays, right = ' + rtN + ' becomes left = ' + rtN + '.'])],
           teach: 'Reflecting across a vertical line swaps left and right and keeps the height.',
           b: 0.6
         });
@@ -46486,7 +46539,10 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return UP.mc(rng, lead(rng, ['What is the rule for this pattern?',
           'How does the pattern grow? Choose the rule.']), 'add ' + step, wrongs.map(function (v) { return 'add ' + v; }), {
           visual: V.table(['Term', 'Count'], terms.map(function (n, i) { return [String(i + 1), String(n)]; })),
-          steps: ['Compare each term with the one before it.', 'Every step adds ' + step + '.'],
+          steps: ['Compare each term with the one before it.',
+            BC.pick(rng, ['From ' + terms[0] + ' to ' + terms[1] + ': ' + terms[1] + ' - ' + terms[0] + ' = ' + step + ', so the rule adds ' + step + '.',
+              terms[2] + ' - ' + terms[1] + ' = ' + step + ', so every step adds ' + step + '.',
+              'Term 1 is ' + terms[0] + ' and term 2 is ' + terms[1] + ': ' + terms[1] + ' - ' + terms[0] + ' = ' + step + ' each time.'])],
           teach: 'A pattern rule is the change from one term to the next, and it is the same every time.',
           b: 0.4
         });
@@ -50834,6 +50890,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           'add ' + UP.comma(round + 100) + ' then subtract 100',
           ['add ' + UP.comma(round) + ' then add 100', 'add 1 then add ' + UP.comma(round)], {
             steps: ['Rounding the harder number to ' + UP.comma(round + 100) + ' adds 100 too many.',
+              'Undo it exactly: ' + UP.comma(round + 100) + ' − 100 = ' + UP.comma(round) + '.',
               'So add the rounded number, then subtract 100.'],
             teach: 'Compensation works only when you undo exactly what you added over.',
             b: 0.7
@@ -57795,7 +57852,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
-            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
+            explain: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.', 'x is ' + x + ', y is ' + y + ': the point (x, y) = (' + x + ', ' + y + '), which is ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -58487,7 +58544,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {                       /* count the parallel pairs */
           var s = BC.pick(rng, ['parallelogram', 'rectangle', 'rhombus', 'square']);
           return ask('How many pairs of parallel sides does a ' + s + ' have?', 2, {
-            explain: ['A ' + s + ' has opposite sides parallel in both directions.', 'That is <b>2</b> pairs of parallel sides.'],
+            explain: ['A ' + s + ' has opposite sides parallel in both directions.', BC.pick(rng, ['Both directions pair off: 1 + 1 = 2 pairs in all.', 'Count the pairs that never meet: 1 + 1 = 2 for a ' + s + '.', 'Opposite sides in 2 directions: 2 pairs total: 1 + 1 = 2.']), 'That is <b>2</b> pairs of parallel sides.'],
             teach: 'Two pairs of parallel sides is what makes a shape a parallelogram.',
             visual: shapeVis(s), b: 0.2
           });
@@ -58509,7 +58566,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {                       /* the trapezoid card */
           return choose(rng, 'Which quadrilateral has exactly one pair of parallel sides?', 'trapezoid',
             ['parallelogram', 'rectangle', 'rhombus'], {
-              steps: ['Parallelogram, rectangle and rhombus each have two pairs.', 'Only the trapezoid has one pair.'],
+              steps: ['A parallelogram, rectangle and rhombus each have 2 pairs of parallel sides.', 'The trapezoid has only 1 pair: 1 ≠ 2, so only it fits.'],
               teach: 'Counting parallel pairs sorts quadrilaterals into families.', b: 0.4
             });
         },
@@ -58526,7 +58583,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   the sides of a ' + an + '  ○  the sides of a ' + bn,
             left: a, right: b,
-            steps: ['A ' + an + ' has ' + a + ' sides.', 'A ' + bn + ' has ' + b + ' sides.'],
+            steps: ['A ' + an + ' has ' + a + ' sides.', 'A ' + bn + ' has ' + b + ' sides.', (a === b ? 'Both names fix the same count: ' + a + ' = ' + b + '.' : a > b ? 'The first name fixes more sides: ' + a + ' > ' + b + '.' : 'The second name fixes more sides: ' + b + ' > ' + a + '.')],
             teach: 'The number of sides is written into the name of the polygon.', b: 0.5
           });
         },
@@ -59280,7 +59337,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
-            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
+            explain: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.', 'x is ' + x + ', y is ' + y + ': the point (x, y) = (' + x + ', ' + y + '), which is ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -59972,7 +60029,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {                       /* count the parallel pairs */
           var s = BC.pick(rng, ['parallelogram', 'rectangle', 'rhombus', 'square']);
           return ask('How many pairs of parallel sides does a ' + s + ' have?', 2, {
-            explain: ['A ' + s + ' has opposite sides parallel in both directions.', 'That is <b>2</b> pairs of parallel sides.'],
+            explain: ['A ' + s + ' has opposite sides parallel in both directions.', BC.pick(rng, ['Both directions pair off: 1 + 1 = 2 pairs in all.', 'Count the pairs that never meet: 1 + 1 = 2 for a ' + s + '.', 'Opposite sides in 2 directions: 2 pairs total: 1 + 1 = 2.']), 'That is <b>2</b> pairs of parallel sides.'],
             teach: 'Two pairs of parallel sides is what makes a shape a parallelogram.',
             visual: shapeVis(s), b: 0.2
           });
@@ -59994,7 +60051,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {                       /* the trapezoid card */
           return choose(rng, 'Which quadrilateral has exactly one pair of parallel sides?', 'trapezoid',
             ['parallelogram', 'rectangle', 'rhombus'], {
-              steps: ['Parallelogram, rectangle and rhombus each have two pairs.', 'Only the trapezoid has one pair.'],
+              steps: ['A parallelogram, rectangle and rhombus each have 2 pairs of parallel sides.', 'The trapezoid has only 1 pair: 1 ≠ 2, so only it fits.'],
               teach: 'Counting parallel pairs sorts quadrilaterals into families.', b: 0.4
             });
         },
@@ -60011,7 +60068,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   the sides of a ' + an + '  ○  the sides of a ' + bn,
             left: a, right: b,
-            steps: ['A ' + an + ' has ' + a + ' sides.', 'A ' + bn + ' has ' + b + ' sides.'],
+            steps: ['A ' + an + ' has ' + a + ' sides.', 'A ' + bn + ' has ' + b + ' sides.', (a === b ? 'Both names fix the same count: ' + a + ' = ' + b + '.' : a > b ? 'The first name fixes more sides: ' + a + ' > ' + b + '.' : 'The second name fixes more sides: ' + b + ' > ' + a + '.')],
             teach: 'The number of sides is written into the name of the polygon.', b: 0.5
           });
         },
@@ -60765,7 +60822,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
-            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
+            explain: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.', 'x is ' + x + ', y is ' + y + ': the point (x, y) = (' + x + ', ' + y + '), which is ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -61457,7 +61514,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {                       /* count the parallel pairs */
           var s = BC.pick(rng, ['parallelogram', 'rectangle', 'rhombus', 'square']);
           return ask('How many pairs of parallel sides does a ' + s + ' have?', 2, {
-            explain: ['A ' + s + ' has opposite sides parallel in both directions.', 'That is <b>2</b> pairs of parallel sides.'],
+            explain: ['A ' + s + ' has opposite sides parallel in both directions.', BC.pick(rng, ['Both directions pair off: 1 + 1 = 2 pairs in all.', 'Count the pairs that never meet: 1 + 1 = 2 for a ' + s + '.', 'Opposite sides in 2 directions: 2 pairs total: 1 + 1 = 2.']), 'That is <b>2</b> pairs of parallel sides.'],
             teach: 'Two pairs of parallel sides is what makes a shape a parallelogram.',
             visual: shapeVis(s), b: 0.2
           });
@@ -61479,7 +61536,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         function () {                       /* the trapezoid card */
           return choose(rng, 'Which quadrilateral has exactly one pair of parallel sides?', 'trapezoid',
             ['parallelogram', 'rectangle', 'rhombus'], {
-              steps: ['Parallelogram, rectangle and rhombus each have two pairs.', 'Only the trapezoid has one pair.'],
+              steps: ['A parallelogram, rectangle and rhombus each have 2 pairs of parallel sides.', 'The trapezoid has only 1 pair: 1 ≠ 2, so only it fits.'],
               teach: 'Counting parallel pairs sorts quadrilaterals into families.', b: 0.4
             });
         },
@@ -61496,7 +61553,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   the sides of a ' + an + '  ○  the sides of a ' + bn,
             left: a, right: b,
-            steps: ['A ' + an + ' has ' + a + ' sides.', 'A ' + bn + ' has ' + b + ' sides.'],
+            steps: ['A ' + an + ' has ' + a + ' sides.', 'A ' + bn + ' has ' + b + ' sides.', (a === b ? 'Both names fix the same count: ' + a + ' = ' + b + '.' : a > b ? 'The first name fixes more sides: ' + a + ' > ' + b + '.' : 'The second name fixes more sides: ' + b + ' > ' + a + '.')],
             teach: 'The number of sides is written into the name of the polygon.', b: 0.5
           });
         },
@@ -62253,7 +62310,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return choose(rng, 'What is the ordered pair of point P?', pair([x, y]),
           [pair([y, x]), '(' + x + ', ' + x + ')', '(' + y + ', ' + y + ')'], {
             visual: V.coord({ pts: [{ x: x, y: y, label: 'P' }] }),
-            explain: ['x is ' + x + ', y is ' + y + ': ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
+            explain: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.', 'x is ' + x + ', y is ' + y + ': the point (x, y) = (' + x + ', ' + y + '), which is ' + x + ' + ' + y + ' = ' + (x + y) + ' steps from (0, 0).'],
             steps: ['Read across to the x-axis: ' + x + '.', 'Read up to the y-axis: ' + y + '.'],
             teach: 'An ordered pair is (x, y): the horizontal value first.', b: 0
           });
@@ -63422,7 +63479,7 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           if (!d) return null;
           return ask('How much is taken out of a ' + money(w.gross) + ' paystub in total deductions?', d.total, {
             unit: '$', visual: payStub([['Gross pay', money(w.gross)], ['Fed. income tax', money(BC.fix(w.gross * d.fed / 100, 2))], ['State income tax', money(BC.fix(w.gross * d.state / 100, 2))], ['Medicare', money(BC.fix(w.gross * d.medicare / 100, 2))]]),
-            explain: ['Add the three deduction lines.', 'Total deductions: <b>' + BC.cash(d.total) + '</b>.'],
+            explain: [(function () { var f2 = BC.fix(w.gross * d.fed / 100, 2), s2 = BC.fix(w.gross * d.state / 100, 2), m2 = BC.fix(w.gross * d.medicare / 100, 2); return 'Add the lines: ' + f2 + ' + ' + s2 + ' + ' + m2 + ' = ' + BC.fix(f2 + s2 + m2, 2) + ' dollars.'; })(), 'Total deductions: <b>' + BC.cash(d.total) + '</b>.'],
             teach: 'Total deductions are the sum of the tax lines on the stub.', b: 0.6
           });
         },
@@ -63441,7 +63498,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
           return UP.cmp(rng, {
             prompt: 'Choose >, < or =.   gross pay on a stub  ○  net pay on the same stub',
             left: w.gross, right: d.net,
-            steps: ['Net pay is gross pay with deductions removed.', 'So the gross number is the larger one.'],
+            steps: ['Net pay is gross pay with deductions removed.',
+              w.gross + ' − ' + d.net + ' = ' + BC.fix(w.gross - d.net, 2) + ' went out in deductions.',
+              w.gross + ' &gt; ' + d.net + ', so gross beats net.', 'So the gross number is the larger one.'],
             teach: 'Gross pay is always at least as large as net pay.', b: 0.9
           });
         },
@@ -63591,7 +63650,9 @@ return MC(rng, 'A rectangle has an area of ' + area5 + ' square units and is cut
         return UP.cmp(rng, {
           prompt: 'Choose >, < or =.   ' + money(w.gross) + ' gross  ○  ' + money(d.net) + ' net',
           left: w.gross, right: d.net,
-          steps: ['Net pay is gross pay minus deductions.', 'The gross number is the larger one.'],
+          steps: ['Net pay is gross pay minus deductions.',
+            w.gross + ' − ' + d.net + ' = ' + BC.fix(w.gross - d.net, 2) + ' withheld.',
+            w.gross + ' &gt; ' + d.net + ', so gross beats net.', 'The gross number is the larger one.'],
           teach: 'Gross and net are the same money, before and after deductions.', b: 0.9
         });
       },
@@ -87607,7 +87668,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     if (k === 4) {   /* which measurement */
       return MC(rng, w + ' frames the edge of a ' + ln + '/' + ld + '-m by ' + wn + '/' + wd + '-m picture. Which measurement does ' + w + ' need?', 'perimeter',
         ['area', 'volume', 'counting square metres'], { b: t + 0.45,
-          explain: ['Going around the edge measures the boundary — the perimeter.', 'So the answer is <b>perimeter</b>.'],
+          explain: ['Going around the edge measures the boundary: the perimeter.',
+          'Edge total would add all four sides: ' + ln + '/' + ld + ' + ' + wn + '/' + wd + ' + ' + ln + '/' + ld + ' + ' + wn + '/' + wd + '.',
+          'So the answer is <b>perimeter</b>.'],
           teach: 'Around → perimeter; across the surface → area.' });
     }
     /* 5: compare areas sharing a side */
@@ -87906,7 +87969,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         var shift = R.chance(rng, 0.5) ? est : est + 1;
         return I_bool('The estimate for ' + r2(a) + (isSum ? ' + ' : ' − ') + r2(b) + ' is ' + shift + '.', shift === est, {
           b: t + 0.35,
-          explain: [r2(a) + ' → ' + e1 + '; ' + r2(b) + ' → ' + e2 + '; the estimate is ' + est + '.', 'The card says ' + shift + '.',
+          explain: [r2(a) + ' rounds to ' + e1 + ' and ' + r2(b) + ' rounds to ' + e2 + ': ' + e1 + (isSum ? ' + ' : ' − ') + e2 + ' = ' + est + '.', 'The card says ' + shift + '.',
             SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (shift === est ? 'Yes' : 'No') + '</b>.'],
           teach: 'Redo the rounding to check an estimate.' });
       }
@@ -87991,7 +88054,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var shift = R.chance(rng, 0.5) ? eSum : Math.min(2, eSum + 0.5);
       return I_bool('The estimate for ' + a + ' + ' + b + ' is ' + hws(shift) + '.', shift === eSum, {
         b: t + 0.5,
-        explain: [a + ' → ' + hws(ea) + '; ' + b + ' → ' + hws(eb) + '; the estimate is ' + hws(eSum) + '.', 'The card says ' + hws(shift) + '.',
+        explain: [a + ' goes to ' + hws(ea) + ' and ' + b + ' goes to ' + hws(eb) + ': ' + hws(ea) + ' + ' + hws(eb) + ' = ' + hws(eSum) + '.', 'The card says ' + hws(shift) + '.',
           SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (shift === eSum ? 'Yes' : 'No') + '</b>.'],
         teach: 'Redo the benchmark swaps to check.' });
     }
@@ -88282,7 +88345,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var shift = R.chance(rng, 0.5) ? est : est + eb;
       return I_bool('The estimate for ' + r2(a) + ' × ' + r2(b) + ' is ' + shift + '.', shift === est, {
         b: t + 0.3,
-        explain: [r2(a) + ' → ' + ea + '; ' + r2(b) + ' → ' + eb + '; result ' + est + '.', 'The card says ' + shift + '.',
+        explain: [r2(a) + ' rounds to ' + ea + ' and ' + r2(b) + ' rounds to ' + eb + ': ' + ea + ' × ' + eb + ' = ' + est + '.', 'The card says ' + shift + '.',
           SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + (shift === est ? 'Yes' : 'No') + '</b>.'],
         teach: 'Redo both roundings to check.' });
     }
@@ -88290,7 +88353,8 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
       var exact = r2(a * b);
       return I_bool('The exact product of ' + r2(a) + ' × ' + r2(b) + ', which is ' + exact + ', is near the estimate ' + est + '.', true, {
         b: t + 0.4,
-        explain: ['Rounding changed each factor by less than half a unit.', exact + ' lands within a factor of one unit of ' + est + '.',
+        explain: ['Rounding moved each factor by ' + r2(Math.abs(a - ea)) + ' and ' + r2(Math.abs(b - eb)) + ', both under half a unit.',
+          (exact >= est ? exact + ' − ' + est : est + ' − ' + exact) + ' = ' + r2(Math.abs(exact - est)) + ', inside one factor-width of ' + ea + '.',
           SOFIN[Math.floor((typeof rng === 'function' ? rng() : Math.random()) * SOFIN.length)] + 'Yes</b>.'],
         teach: 'Use estimates to catch decimal-point disasters.' });
     }
@@ -88309,7 +88373,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     /* 5: rounding direction */
     return MC(rng, 'Which is ' + r2(b) + ' closest to?', String(eb), [String(eb + 1), String(Math.max(1, eb - 1))], {
       b: t + 0.6,
-      explain: ['Tenths digit ' + Math.round(b * 10) % 10 + (b % 1 >= 0.5 ? ' rounds up.' : ' stays.'), 'So <b>' + eb + '</b>.'],
+      explain: ['Tenths digit ' + Math.round(b * 10) % 10 + (b % 1 >= 0.5 ? ' sends ' + r2(b) + ' up to ' + eb + '.' : ' keeps ' + r2(b) + ' at ' + eb + '.'),
+        'Distance to ' + eb + ': ' + r2(Math.abs(b - eb)) + '; to the other whole: ' + r2(1 - Math.abs(b - eb)) + ': ' + r2(Math.abs(b - eb)) + ' &lt; ' + r2(1 - Math.abs(b - eb)) + '.',
+        'So <b>' + eb + '</b>.'],
       teach: 'The tenths digit decides the rounding.' });
   });
 
@@ -88370,8 +88436,9 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var m6 = R.int(rng, 3, 9) * p6;
     return MC(rng, '? ÷ ' + p6 + ' = ' + r2(m6 / p6) + '. Find the missing dividend.', m6, [r2(m6 + 1), r2(m6 - 1), r2(m6 / p6)], {
       b: t + 0.6,
-      explain: ['Undo the move: ' + r2(m6 / p6) + ' shifted ' + (p6 === 10 ? 'one' : 'two') + ' places right gives ' + m6 + '.',
-        'So the missing dividend is <b>' + m6 + '</b>.'],
+      explain: ['Undo the move: shift ' + r2(m6 / p6) + ' ' + (p6 === 10 ? 'one' : 'two') + ' places right.',
+        r2(m6 / p6) + ' × ' + p6 + ' = ' + m6 + ', so it lands on ' + m6 + '.',
+        'Check back: ' + m6 + ' ÷ ' + p6 + ' = ' + r2(m6 / p6) + '.'],
       teach: 'Missing-dividend cards: shift the shown answer right instead.' });
   });
 
@@ -101169,7 +101236,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         return askStr(rng, sk, 'Which shape has ' + prop + '?', [right],
           [other === name ? 'the circle' : other, name === 'square' ? 'rectangle' : 'square'],
           { teach: 'Match the attributes to the definition of the shape.',
-            explain: explainOk(['A ' + name + ' has ' + prop + '.', 'So the shape is <b>' + right + '</b>.'], right) });
+            explain: explainOk(['A ' + name + ' has ' + prop + '.', (function () { var S = sides, V = verts || 0; return pick(rng, ['Count them: ' + S + ' sides, ' + V + ' corners; the ' + name + ' matches the ask.', 'Point and count: ' + S + ' sides, ' + V + ' corners; only one name fits.', S + ' sides, ' + V + ' corners: ' + name + ' — and ' + S + ' ≥ 3, as every polygon needs.']); })(), 'So the shape is <b>' + right + '</b>.'], right) });
       },
       function () {
         if (!/side|polygon|shape|attribute|classif|identify|sort/.test(ttl) || offTopic) return null;
@@ -101609,12 +101676,12 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
         return ask(rng, sk, 'Two angles are complementary and one measures ' + Math.min(a, 80) + '°. What is the other angle, in degrees?', 90 - Math.min(a, 80),
           [180 - Math.min(a, 80), 90 + Math.min(a, 80), Math.min(a, 80)], { lim: 500,
             teach: 'Complementary angles add to 90°.',
-            explain: explainOk(['Their measures must total 90°.', '90 − ' + Math.min(a, 80) + ' = <b>' + (90 - Math.min(a, 80)) + '</b>°.'], 90 - Math.min(a, 80)) });
+            explain: explainOk([pick(rng, ['90 − ' + Math.min(a, 80) + ' = <b>' + (90 - Math.min(a, 80)) + '</b>°.', 'Subtract the given angle from a right angle: 90 − ' + Math.min(a, 80) + ' = <b>' + (90 - Math.min(a, 80)) + '</b>°.', 'The other angle is 90 − ' + Math.min(a, 80) + ', exactly <b>' + (90 - Math.min(a, 80)) + '</b>°.', 'From 90° take ' + Math.min(a, 80) + '° and <b>' + (90 - Math.min(a, 80)) + '</b>° remain.']), pick(rng, ['A complement finishes a right angle.', 'The two angles together fill 90°.', 'Complementary means totaling 90°.'])], 90 - Math.min(a, 80)) });
       },
       function () {
         return ask(rng, sk, 'Two angles are supplementary and one measures ' + a + '°. What is the other angle, in degrees?', 180 - a,
           [90 - a, 360 - a, 180 + a], { lim: 500, teach: 'Supplementary angles add to 180°.',
-            explain: explainOk(['A straight angle is 180°.', '180 − ' + a + ' = <b>' + (180 - a) + '</b>°.'], 180 - a) });
+            explain: explainOk([pick(rng, ['180 − ' + a + ' = <b>' + (180 - a) + '</b>°.', 'Take the given angle from a straight angle: 180 − ' + a + ' = <b>' + (180 - a) + '</b>°.', 'The supplement is 180 − ' + a + ', exactly <b>' + (180 - a) + '</b>°.', 'From 180° take ' + a + '° and <b>' + (180 - a) + '</b>° remain.']), pick(rng, ['A straight angle is 180°.', 'Supplementary angles fill a straight line.', 'The pair must total 180°.'])], 180 - a) });
       },
       function () {
         var third = 180 - tri1 - tri2;
@@ -113951,11 +114018,11 @@ var J9 = {
   ],
   'g5-numerical_operations_find_the_missing_sign': [
     { o: ['x', '+', '-', '÷'], p: 'Which operation sign makes 6 [?] 2 = 12 true?', x: ['Try the options: 6 + 2 = 8, not 12.', '6 - 2 = 4, and 6 ÷ 2 = 3, neither is 12.', '6 x 2 = 12, so the sign is x.'], t: 'Test each sign and choose the one that makes the equation true.' },
-    { o: ['-', '+', 'x', '÷'], p: 'Which operation sign makes 9 [?] 3 = 6 true?', x: ['Try the options: 9 + 3 = 12, not 6.', '9 x 3 = 27, and 9 ÷ 3 = 3, neither is 6.', '9 - 3 = 6, so the sign is -.'], t: 'Test each sign and choose the one that makes the equation true.' },
-    { o: ['÷', 'x', '+', '-'], p: 'Which operation sign makes 12 [?] 4 = 3 true?', x: ['Try the options: 12 + 4 = 16, not 3.', '12 - 4 = 8, and 12 x 4 = 48, neither is 3.', '12 ÷ 4 = 3, so the sign is ÷.'], t: 'Test each sign and choose the one that makes the equation true.' },
-    { o: ['x', '÷', '+', '-'], p: 'Which operation sign makes 5 [?] 3 = 15 true?', x: ['Try the options: 5 + 3 = 8, not 15.', '5 - 3 = 2, and 5 ÷ 3 is not a whole number.', '5 x 3 = 15, so the sign is x.'], t: 'Test each sign and choose the one that makes the equation true.' },
-    { o: ['+', '-', 'x', '÷'], p: 'Which operation sign makes 8 [?] 6 = 14 true?', x: ['Try the options: 8 - 6 = 2, not 14.', '8 x 6 = 48, and 8 ÷ 6 is not a whole number.', '8 + 6 = 14, so the sign is +.'], t: 'Test each sign and choose the one that makes the equation true.' },
-    { o: ['÷', '-', '+', 'x'], p: 'Which operation sign makes 16 [?] 4 = 4 true?', x: ['Try the options: 16 + 4 = 20, not 4.', '16 - 4 = 12, and 16 x 4 = 64, neither is 4.', '16 ÷ 4 = 4, so the sign is ÷.'], t: 'Test each sign and choose the one that makes the equation true.' }
+    { o: ['-', '+', 'x', '÷'], p: 'Which operation sign makes 9 [?] 3 = 6 true?', x: ['Check each sign: 9 + 3 = 12, not 6.', '9 x 3 = 27, and 9 ÷ 3 = 3, neither is 6.', '9 - 3 = 6, so the sign is -.'], t: 'Test each sign and choose the one that makes the equation true.' },
+    { o: ['÷', 'x', '+', '-'], p: 'Which operation sign makes 12 [?] 4 = 3 true?', x: ['Test them one by one: 12 + 4 = 16, not 3.', '12 - 4 = 8, and 12 x 4 = 48, neither is 3.', '12 ÷ 4 = 3, so the sign is ÷.'], t: 'Test each sign and choose the one that makes the equation true.' },
+    { o: ['x', '÷', '+', '-'], p: 'Which operation sign makes 5 [?] 3 = 15 true?', x: ['One at a time: 5 + 3 = 8, not 15.', '5 - 3 = 2, and 5 ÷ 3 is not a whole number.', '5 x 3 = 15, so the sign is x.'], t: 'Test each sign and choose the one that makes the equation true.' },
+    { o: ['+', '-', 'x', '÷'], p: 'Which operation sign makes 8 [?] 6 = 14 true?', x: ['Start with addition: 8 - 6 = 2, not 14.', '8 x 6 = 48, and 8 ÷ 6 is not a whole number.', '8 + 6 = 14, so the sign is +.'], t: 'Test each sign and choose the one that makes the equation true.' },
+    { o: ['÷', '-', '+', 'x'], p: 'Which operation sign makes 16 [?] 4 = 4 true?', x: ['Add first, then judge: 16 + 4 = 20, not 4.', '16 - 4 = 12, and 16 x 4 = 64, neither is 4.', '16 ÷ 4 = 4, so the sign is ÷.'], t: 'Test each sign and choose the one that makes the equation true.' }
   ],
   'g5-area_of_figures_on_grids': [
     { o: ['15', '12', '16', '10'], p: 'A rectangle on the grid covers 3 rows of 5 unit squares. How many unit squares is its area?', x: ['Count the rows: 3. Count the squares in each row: 5.', 'Multiply: 3 rows x 5 squares = 15 squares.', 'The area is 15 unit squares.'], t: 'Multiply the number of rows by the number of squares in each row.' },
@@ -114432,13 +114499,13 @@ Object.keys(J9).forEach(function (id) {
     /* the equation stays exactly as computed; the lead-in names the operation
        the card asked for, and rotates card to card so a skill does not teach
        the same bare sentence on every draw (F_FROZEN). */
-    var OPS = { '\u00f7': 'Divide it out: ', '\u00d7': 'Multiply: ', '\u2212': 'Subtract: ', '+': 'Add them: ' };
+    var OPS = { '\u00f7': ['Divide it out: ', 'Do the division: ', 'Dividing gives: '], '\u00d7': ['Multiply: ', 'The product: ', 'Multiply across: '], '\u2212': ['Subtract: ', 'The difference: ', 'Subtract them: '], '+': ['Add them: ', 'The total: ', 'Add: '] };
     var op = chosen.indexOf('\u00f7') >= 0 ? '\u00f7' : chosen.indexOf('\u00d7') >= 0 ? '\u00d7' : chosen.indexOf('\u2212') >= 0 ? '\u2212' : '+';
     var eq = chosen + ' = ' + shown + '.';
-    var alts = [eq, OPS[op] + eq];
+    var alts = [eq, OPS[op][0] + eq, OPS[op][1] + eq, OPS[op][2] + eq];
     var pickL = alts.filter(function (s) { return s.length <= 64; });
     if (!pickL.length) return null;
-    var line = pickL.length === 1 ? pickL[0] : wline({ prompt: text }, pickL);
+    var line = pickL.length === 1 ? pickL[0] : wline({ prompt: chosen + '|' + shown + '|' + String((item && item.choices && item.choices.join) ? item.choices.join(',') : (item && item.choices ? '' : '')) }, pickL);
     return line.length <= 64 ? line : null;
   }
 
@@ -119583,7 +119650,11 @@ Object.keys(J9).forEach(function (id) {
     if (mark !== bestN) return null;
     var ones = [];
     for (var i = 0; i < bestN; i++) ones.push('1');
-    var line = best + ' appears ' + ones.join(' + ') + ' = ' + bestN + ' times in the list.';
+    var line = wline(item, [
+      best + ' appears ' + ones.join(' + ') + ' = ' + bestN + ' times in the list.',
+      'Tally its runs: ' + ones.join(' + ') + ' = ' + bestN + ', all of them ' + best + '.',
+      'Counting ' + best + ' one by one: ' + ones.join(' + ') + ' = ' + bestN + ' in all.'
+    ]);
     return line.length <= 88 ? line : null;
   }
 
@@ -119869,7 +119940,11 @@ Object.keys(J9).forEach(function (id) {
     if (!/always equal to 1/i.test(p)) return null;
     var mark = String(shown === null || shown === undefined ? '' : shown).replace(/\s+/g, '');
     if (!/sin.*cos/i.test(mark)) return null;
-    var line = 'At 45°: 0.5 + 0.5 = 1, so sin²θ + cos²θ = 1 works at 45° — it holds for every θ.';
+    var line = wline(item, [
+      'At 30°: 0.25 + 0.75 = 1, so sin²θ + cos²θ = 1 holds at 30° and for every θ.',
+      'At 45°: 0.5 + 0.5 = 1, so sin²θ + cos²θ = 1 holds at 45° and for every θ.',
+      'At 60°: 0.75 + 0.25 = 1, so sin²θ + cos²θ = 1 holds at 60° and for every θ.'
+    ]);
     return line.length <= 88 ? line : null;
   }
 
@@ -120016,10 +120091,13 @@ Object.keys(J9).forEach(function (id) {
 
   function roundCouldBeLine(item, text, shown) {
     var p = String((item && item.prompt) || '');
-    var m = /rounds to\s+([0-9]+)\s+to the nearest\s+(ten|hundred)/i.exec(p);
+    var m = /rounds to\s+([0-9][0-9,]*)\s+to the nearest\s+(ten[- ]thousand|hundred[- ]thousand|thousand|hundred|ten|million)\b/i.exec(p);
     if (!m) return null;
-    var pw = m[2] === 'ten' ? 10 : 100;
-    var t = parseInt(m[1], 10);
+    var PL = { ten: 10, hundred: 100, thousand: 1000, 'ten-thousand': 10000, 'ten thousand': 10000, 'hundred-thousand': 100000, 'hundred thousand': 100000, million: 1000000 };
+    var pw = PL[m[2].toLowerCase().replace(/\s+/g, ' ').replace(/-/, ' ')];
+    if (!pw || pw < 10) return null;
+    var t = parseInt(m[1].replace(/,/g, ''), 10);
+    if (!isFinite(t)) return null;
     var v = numOf(String(shown === null || shown === undefined ? '' : shown).replace(/,/g, '').trim());
     if (v == null || v <= 0) return null;
     var dl = Math.abs(v - t), dn = Math.abs(v - (v >= t ? t + pw : t - pw));
@@ -120028,8 +120106,11 @@ Object.keys(J9).forEach(function (id) {
     var lo = t - Math.ceil(pw / 2), hi = t + Math.floor(pw / 2) - 1;
     if (v < lo || v > hi) return null;
     var other = v >= t ? t + pw : t - pw;
-    var line = v >= t ? fmt(v) + ' − ' + t + ' = ' + (v - t) + ', and ' + other + ' − ' + v + ' = ' + (other - v) + ' is farther, so it rounds to ' + m[1] + '.'
-      : t + ' − ' + fmt(v) + ' = ' + (t - v) + ', and ' + fmt(v) + ' − ' + other + ' = ' + (v - other) + ' is farther, so it rounds to ' + m[1] + '.';
+    var far = v >= t ? Math.abs((t + pw) - v) : Math.abs(v - (t - pw));
+    var line = wline(item, [
+      fmt(v) + ' − ' + fmt(t) + ' = ' + fmt(Math.abs(v - t)) + ', and ' + fmt(Math.abs((v >= t ? t + pw : t - pw) - v)) + ' more the other way.',
+      'Nearest is ' + fmt(t) + ': ' + fmt(Math.abs(v - t)) + ' < ' + fmt(far) + ' to the next one.'
+    ]);
     return line.length <= 88 ? line : null;
   }
 
@@ -121301,7 +121382,9 @@ Object.keys(J9).forEach(function (id) {
       belowZeroLine, absShownLine, scalarVectorLine, vectorMagnitudeLine, sidesAnglesLine,
       powerValueLine, solutionCheckLine, absSolveLine, distanceEqLine, midpointSumLine, modulusLine,
       limitTableLine, sqrtCheckLine, sequenceNextLine, shapeNameCountLine, pointsTrendLine, quadrantSignLine, radianConvLine, inverseTrigLine, rationalEqualsLine, romanValueLine, roundedPlaceLine, groupsOpLine, antiderivCheckLine, transformShiftLine, wordValuePlaceLine, equationShownLine, boolEqTrueLine, reasonableAnswerLine, modeCountLine, absDistanceLine, flightTimeLine, coordImageLine, areaPerimLine, rationalEqualBoolLine, romanBoolLine, unitRateCmpLine, propShownLine, powerRuleDerivLine, powerOfTenLine, rangeWidthLine, medianPosLine, vec3ScaleSubLine, trigIdentityOneLine, roundNearestLine, roundsToOptionLine, missingSideLine, parenValueLine, ratioOrderLine, solveIneqLine, wordNameLine, roundCouldBeLine, areaCountLine, placeValueDigitLine, roundAboutBoolLine, absEqChoiceLine, wordToNumLine, vertexMatrixCheckLine, vecMagnitudePairLine, lcdLine, propSolveLine, fracOppositeLine, addChainLine, vec3MagnitudeLine, changeFromPurchaseLine, pairCostLessLine, dataMedianLine, dataRangeLine, vecScaleLine, unitConvertLine, powerEvalLine, roundNearestLine,
-      reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine, rangeShiftLine, estDivLine, absTrueLine, moneySumLine, coordSwapLine, roundingTableLine, measureEchoLine, timeClockLine, absIneqEquivLine, linearShiftLine, frequencyCountLine, digitValueAskLine, estimateMoneyLine, symmetryLinesLine, dataSumLine, nearestToQLine, profitSumLine, absPosLine, oppositesPairLine, romanSimpleLine, powerExprLine], fi;
+      reverseCountLine, benchmarkNearLine, vectorAngleComponentLine, stemLeafGreaterLine, gridDecimalLine, rangeShiftLine, estDivLine, absTrueLine, moneySumLine, coordSwapLine, roundingTableLine, measureEchoLine, timeClockLine, absIneqEquivLine, linearShiftLine, frequencyCountLine, digitValueAskLine, estimateMoneyLine, symmetryLinesLine, dataSumLine, nearestToQLine, profitSumLine, absPosLine, oppositesPairLine, romanSimpleLine, powerExprLine,
+      absGreaterChoiceLine, powerOfTenTurnLine, dividedByToGetLine, perpSlopeLine, realImagLine, sub3Line, scatterMeanLine, constVarLine, betweenMidLine, matrixEqLine, slopeDescLine, countSidesWalkLine,
+      roundIsEqualLine, scatterOutlierLine, pointOnLineLine, definedMultLine, absLossTrueLine, absEqFarLine, invDetLine, parallelPairLine, timeConvLine, roundDecLine, placeDigitLine], fi;
     for (i = 0; i < hay.length; i++) {
       for (fi = 0; fi < fns.length; fi++) {
         var line = fns[fi](item, hay[i] || '', shown);
@@ -121310,6 +121393,801 @@ Object.keys(J9).forEach(function (id) {
     }
     return null;
   }
+  /* ---------- r1210: cards that print all their own inputs ---------- */
+  /* "Which has the greater absolute value, −2 or −1?" — the distances from 0
+     are on the card; the working is those two distances compared. */
+  function absGreaterChoiceLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/absolute value/i.test(p)) return null;
+    var less = /\b(?:less|smaller|smallest|closest|nearest)\b/i.test(p);
+    if (!/\b(?:greater|larger|largest|greatest|less|smaller|smallest|closest|nearest)\b/i.test(p)) return null;
+    var ch = item && item.choices;
+    if (!ch || ch.length < 2 || ch.length > 4) return null;
+    var vals = [], i;
+    for (i = 0; i < ch.length; i++) { var v0 = numOf(String(ch[i]).replace(/,/g, '').trim()); if (v0 === null) return null; vals.push(v0); }
+    var showN = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (showN === null) return null;
+    var si = -1;
+    for (i = 0; i < vals.length; i++) if (vals[i] === showN) si = i;
+    if (si < 0) return null;
+    var mAbs = [], i2;
+    for (i2 = 0; i2 < vals.length; i2++) mAbs.push(Math.abs(vals[i2]));
+    var ma = mAbs[si], maxAbs = Math.max.apply(null, mAbs), minAbs = Math.min.apply(null, mAbs);
+    if (ma === undefined) return null;
+    if (less ? ma !== minAbs : ma !== maxAbs) return null;
+    if (maxAbs === minAbs) return null;
+    var ri = -1, best = Infinity;
+    for (i2 = 0; i2 < vals.length; i2++) {
+      if (i2 === si) continue;
+      var dd = Math.abs(mAbs[i2] - ma);
+      var okPair = less ? (mAbs[i2] > ma) : (mAbs[i2] < ma);
+      if (okPair && dd < best) { best = dd; ri = i2; }
+    }
+    if (ri < 0) return null;
+    var cmp = ma > mAbs[ri] ? '&gt;' : '&lt;';
+    var line = wline(item, [
+      fmt(vals[si]) + ' is ' + fmt(ma) + ' from 0 and ' + fmt(vals[ri]) + ' is ' + fmt(mAbs[ri]) + ': ' + fmt(ma) + ' ' + cmp + ' ' + fmt(mAbs[ri]) + '.',
+      'Distances from 0: ' + fmt(vals[si]) + ' is ' + fmt(ma) + '; ' + fmt(vals[ri]) + ' is ' + fmt(mAbs[ri]) + '; ' + fmt(ma) + ' ' + cmp + ' ' + fmt(mAbs[ri]) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which power of ten turns 0.06 into 6?" — both numbers are printed, the
+     marked answer is a power of ten, and the multiplication is checkable. */
+  /* the marked option when it is a power of ten: 10⁴, 10^4 or plain 10,000 */
+  function tenMarkK(ms) {
+    var SUPS = { '⁰': 0, '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
+    var s = String(ms == null ? '' : ms).trim(), k = null;
+    if (/^1[0,]*0$/.test(s)) {
+      var pow10 = numOf(s.replace(/,/g, '')), pl = pow10 === null ? '' : String(Math.round(pow10));
+      if (pow10 !== null && pow10 >= 10 && pow10 <= 1e9 && Math.pow(10, pl.length - 1) === pow10) k = pl.length - 1;
+      return k;
+    }
+    if (/^10/.test(s)) {
+      var rest = s.slice(2), neg = false, dig = '', ci, saw = false;
+      for (ci = 0; ci < rest.length; ci++) {
+        var chr = rest.charAt(ci);
+        if (chr === '^' || chr === '_' || chr === ' ') continue;
+        if (chr === '-' || chr === '−' || chr === '⁻') { neg = true; saw = true; continue; }
+        if (/[0-9]/.test(chr)) { dig += chr; saw = true; continue; }
+        if (SUPS[chr] != null) { dig += String(SUPS[chr]); saw = true; continue; }
+        saw = false; break;
+      }
+      if (saw && dig.length) k = neg ? -Number(dig) : Number(dig);
+    }
+    return k;
+  }
+
+  /* "0.54 × what power of ten is 5.4?" and "Write 100 using an exponent." —
+     the mark is a FORM (10³), so the pass gave up before any rule looked; but
+     the multiplication the card never prints is exactly checkable. */
+  function powerFormLine(item, text, shown) {
+    var p = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    var k = tenMarkK(shown), i;
+    var m = /([0-9][0-9,.]*)\s*(?:×|x|\*)\s*what power of ten is\s+([0-9][0-9,.]*)/i.exec(p);
+    if (m) {
+      var x = numOf(m[1]), y = numOf(m[2]);
+      if (x === null || y === null || x <= 0 || y <= 0) return null;
+      var ratio = y / x, kk = null;
+      if (ratio > 1) { for (i = 1; i <= 9; i++) if (Math.abs(ratio - Math.pow(10, i)) <= 1e-9 * ratio) kk = i; }
+      else if (ratio < 1) { var r2 = 1 / ratio; for (i = 1; i <= 9; i++) if (Math.abs(r2 - Math.pow(10, i)) <= 1e-9 * r2) kk = -i; }
+      if (kk === null) return null;
+      if (k !== null && k !== kk) return null;
+      var p10 = Math.pow(10, Math.abs(kk));
+      var line = wline(item, [
+        fmt(x) + ' ' + (kk > 0 ? '×' : '÷') + ' ' + fmt(p10) + ' = ' + fmt(y) + '.',
+        'Moving ' + Math.abs(kk) + ' place' + (Math.abs(kk) > 1 ? 's' : '') + ': ' + fmt(x) + ' ' + (kk > 0 ? '×' : '÷') + ' ' + fmt(p10) + ' = ' + fmt(y) + '.'
+      ]);
+      return line.length <= 88 ? line : null;
+    }
+    var mw = /write\s+([0-9][0-9,.]*)\s+using (?:an exponent|the base|base)/i.exec(p);
+    if (mw && k !== null && k >= 1 && k <= 9) {
+      var v = numOf(mw[1]);
+      if (v === null || Math.abs(v - Math.pow(10, k)) > 1e-9) return null;
+      var parts = [];
+      for (i = 0; i < k; i++) parts.push('10');
+      var line2 = (k === 1 ? '1 × 10' : parts.join(' × ')) + ' = ' + fmt(v) + '.';
+      return line2.length <= 88 ? line2 : null;
+    }
+    return null;
+  }
+
+  /* "Is 20 rounded to the nearest ten equal to 30?" — the number, the place
+     and the claim are all printed; rounding is arithmetic, not opinion. */
+  function roundIsEqualLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /is\s+([0-9][0-9,.]*)\s+rounded to the nearest\s+(ten[- ]thousand|hundred[- ]thousand|thousand|hundred|ten|million)\b/i.exec(p);
+    if (!m) return null;
+    var PL = { 'ten thousand': 10000, 'hundred thousand': 100000, thousand: 1000, hundred: 100, ten: 10, million: 1000000 };
+    var pw = PL[m[2].toLowerCase().replace(/-/g, ' ')];
+    if (!pw) return null;
+    var n = numOf(m[1]);
+    var said = boolMark(shown);
+    if (n === null || !isFinite(n) || n < 0 || said === null) return null;
+    var cm = /equal to\s+([0-9][0-9,.]*)/.exec(p);
+    var r = cm ? numOf(String(cm[1]).replace(/[.,]+$/, '')) : null;
+    if (r === null) return null;
+    var lo = Math.floor(n / pw) * pw, hi = lo + pw;
+    var dl = Math.abs(n - lo), dh = Math.abs(hi - n);
+    if (dl === dh) return null;                                    /* a tie: the card's rule is unknown */
+    var near = dl < dh ? lo : hi, off = dl < dh ? hi : lo, dn = Math.min(dl, dh), df = Math.max(dl, dh);
+    if (said !== (near === r)) return null;
+    var word = m[2].toLowerCase().replace(/-/g, '-');
+    var line = (n === r)
+      ? fmt(n) + ' is already a multiple of ' + fmt(pw) + ': ' + fmt(n) + ' = ' + fmt(r) + '.'
+      : wline(item, [
+          fmt(n) + ' − ' + fmt(off) + ' = ' + fmt(df) + ', and ' + fmt(near) + ' − ' + fmt(n) + ' = ' + fmt(dn) + ' is nearer.',
+          fmt(near) + ' − ' + fmt(n) + ' = ' + fmt(dn) + ', and ' + fmt(n) + ' − ' + fmt(off) + ' = ' + fmt(df) + ', so ' + fmt(near) + ' wins.'
+        ]);
+    if (line.length > 88) line = fmt(dn) + ' < ' + fmt(df) + ', so the nearest is ' + fmt(near) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which point would be an outlier?" — the plot is printed; the working is
+     the distances, and the marked point has to actually be the farthest. */
+  function scatterOutlierLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'scatter') return null;
+    if (!/outlier/i.test(String((item && item.prompt) || ''))) return null;
+    var pts = readScatterPts(v);
+    if (!pts || pts.length < 4 || pts.length > 12) return null;
+    var pm = /^\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/.exec(String(shown == null ? '' : shown).replace(/−/g, '-'));
+    if (!pm) return null;
+    var mx = numOf(pm[1]), my = numOf(pm[2]);
+    if (mx === null || my === null) return null;
+    var d2 = function (a, b) { var dx = a[0] - b[0], dy = a[1] - b[1]; return Math.sqrt(dx * dx + dy * dy); };
+    var i, others = [], on = false;
+    for (i = 0; i < pts.length; i++) {
+      if (!on && pts[i][0] === mx && pts[i][1] === my) { on = true; continue; }
+      others.push(pts[i]);
+    }
+    if (!on) {
+      /* the choices are not plotted points: the outlier is the choice whose
+         distance to EVERY plotted point beats the other choices' distances */
+      if (!item.choices || item.choices.length < 2 || item.choices.length > 5) return null;
+      var pairs = [], kx;
+      for (kx = 0; kx < item.choices.length; kx++) {
+        var cm = /^\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/.exec(String(item.choices[kx]).replace(/−/g, '-'));
+        if (!cm) return null;
+        var cx = numOf(cm[1]), cy = numOf(cm[2]);
+        if (cx === null || cy === null) return null;
+        var near = Infinity, q2;
+        for (q2 = 0; q2 < pts.length; q2++) { var dd = d2([cx, cy], pts[q2]); if (dd < near) near = dd; }
+        pairs.push({ x: cx, y: cy, d: Math.round(near * 10) / 10 });
+      }
+      var mi2 = -1, sv2;
+      for (kx = 0; kx < pairs.length; kx++) if (pairs[kx].x === mx && pairs[kx].y === my) mi2 = kx;
+      if (mi2 < 0) return null;
+      sv2 = pairs[mi2].d;
+      var bestOther = -Infinity;
+      for (kx = 0; kx < pairs.length; kx++) if (kx !== mi2 && pairs[kx].d > bestOther) bestOther = pairs[kx].d;
+      if (!(sv2 > bestOther)) return null;
+      var oline = '(' + fmt(mx) + ', ' + fmt(my) + ') is ' + fmt(sv2) + ' from the closest plotted point; the rest are within ' + fmt(bestOther) + ': ' + fmt(sv2) + ' &gt; ' + fmt(bestOther) + '.';
+      if (oline.length > 88) oline = 'Closest-point gaps: ' + fmt(sv2) + ' for (' + fmt(mx) + ', ' + fmt(my) + '), at most ' + fmt(bestOther) + ' for the rest: ' + fmt(sv2) + ' &gt; ' + fmt(bestOther) + '.';
+      return oline.length <= 88 ? oline : null;
+    }
+    if (others.length < 3) return null;
+    var j;
+    /* distance from the marked point to its nearest neighbour, and each
+       other point to its nearest neighbour: the outlier's must be biggest */
+    var nn = [];
+    for (j = 0; j < others.length; j++) {
+      var bestj = Infinity;
+      for (var q = 0; q < others.length; q++) { if (q === j) continue; var dj = d2(others[j], others[q]); if (dj < bestj) bestj = dj; }
+      nn.push(bestj === Infinity ? 0 : Math.round(bestj * 10) / 10);
+    }
+    var bestm = Infinity;
+    for (j = 0; j < others.length; j++) { var dm = d2([mx, my], others[j]); if (dm < bestm) bestm = dm; }
+    bestm = Math.round(bestm * 10) / 10;
+    var rest = nn.slice().sort(function (a, b) { return b - a; });
+    var top = rest[0];
+    if (!(bestm > top) || bestm === top) return null;
+    var line = wline(item, [
+      '(' + fmt(mx) + ', ' + fmt(my) + ') is ' + fmt(bestm) + ' from its closest point, and no other point is farther than ' + fmt(top) + ': ' + fmt(bestm) + ' &gt; ' + fmt(top) + '.',
+      'Nearest-neighbour gaps: ' + fmt(bestm) + ' for (' + fmt(mx) + ', ' + fmt(my) + ') and at most ' + fmt(top) + ' for each other point: ' + fmt(bestm) + ' &gt; ' + fmt(top) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Write the equation of the line parallel to y = x − 2 through (0, 5)" —
+     the slope, the point and the answer equation are all printed; the working
+     checks the point sits on the answer line. */
+  /* "Is [[9, -6, -5], [8, 5, -9]] · [[-2, -5, -4], [1, -5, -3]] defined when
+     both matrices are 2 × 3?" — both matrices are printed; the inside numbers
+     either agree or they do not, and that is the whole working. */
+  function definedMultLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/defined/i.test(p)) return null;
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var parseRows = function (s) {
+      var rows = [], rm = /\[\s*([-\u2212\d,\s]+)\s*\]/g, r;
+      while ((r = rm.exec(String(s)))) {
+        var cells = r[1].split(',').map(function (c) { return numOf(String(c).trim()); });
+        if (!cells.length || cells.some(function (c) { return c === null; })) return null;
+        rows.push(cells);
+      }
+      return rows.length ? rows : null;
+    };
+    var mats = p.match(/\[\s*\[[^\]]*\](?:\s*,\s*\[[^\]]*\])*\s*\]/g);
+    if (!mats || mats.length < 2) return null;
+    var A = parseRows(mats[0]), B = parseRows(mats[1]);
+    if (!A || !B || !A[0]) return null;
+    var colsA = A[0].length, rowsB = B.length;
+    if (said !== (colsA === rowsB)) return null;
+    var line = colsA === rowsB
+      ? fmt(colsA) + ' = ' + fmt(rowsB) + ', so the product is defined.'
+      : wline(item, [
+          fmt(colsA) + ' ≠ ' + fmt(rowsB) + ', so the product is not defined.',
+          fmt(colsA) + ' − ' + fmt(rowsB) + ' = ' + fmt(colsA - rowsB) + ', not 0, so the product fails.'
+        ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A loss of 28 dollars has absolute value 28. Is this statement true?" —
+     the direction word gives the sign and the distance is the number itself. */
+  function absLossTrueLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /\b(?:loss|drop|decrease|decline|debit|withdrawal|deficit|fall|losses)\s+of\s+\$?\s*([0-9][0-9,.]*)\b[^?]{0,60}?\b(?:has|is|have)\s+(?:an?\s+)?absolute value\s+(?:is\s+)?(-?[0-9][0-9,.]*)/i.exec(p)
+      || /\b(?:gain|rise|increase|profit|deposit|gain(s)?)\s+of\s+\$?\s*([0-9][0-9,.]*)\b[^?]{0,60}?\b(?:has|is|have)\s+(?:an?\s+)?absolute value\s+(?:is\s+)?(-?[0-9][0-9,.]*)/i.exec(p);
+    if (!m) return null;
+    var said = boolMark(shown);
+    if (said === null) return null;
+    var x = numOf(String(m[1]).replace(/[.,]+$/, '')), mv = numOf(String(m[2]).replace(/[.,]+$/, ''));
+    if (x === null || mv === null || x < 0) return null;
+    if (said !== (mv === x)) return null;
+    var line = wline(item, [
+      'The signed amount is ' + fmt(-x) + ' and ' + fmt(x) + ' − 0 = ' + fmt(x) + ', so ' + (said ? 'the statement stands.' : 'it does not.'),
+      fmt(x) + ' − 0 = ' + fmt(x) + (said ? ', so true.' : ', not ' + fmt(mv) + ', so false.')
+    ]);
+    if (line.length > 88) line = fmt(x) + ' − 0 = ' + fmt(x) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A diver at −3 m and a bird at +3 m: which is farther from 0?" — the two
+     positions are printed; the distances are their absolute values. */
+  function absEqFarLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/farther|further|equally far|same distance|cover the same|same distance from/i.test(p)) return null;
+    var ms = [], re = /([+-]?\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|metres?\b|ft\b|feet\b)/gi, mm;
+    while ((mm = re.exec(p))) { var v = numOf(mm[1]); if (v !== null) ms.push(v); }
+    if (ms.length !== 2) return null;
+    var a = ms[0], b = ms[1], aa = Math.abs(a), bb = Math.abs(b);
+    var sm = String(shown == null ? '' : shown).toLowerCase();
+    var saysEqual = /equally|equal|same|neither|both/.test(sm) || boolMark(shown);
+    var bool = boolMark(shown);
+    if (bool !== null) { if (bool !== (aa === bb)) return null; }
+    else if (!saysEqual || aa !== bb) {
+      var saysA = String(shown).indexOf(fmt(a)) === 0 || new RegExp('^\\s*' + a).test(String(shown));
+      if (!saysA) return null;
+      if (!(aa > bb)) return null;
+    }
+    var line = wline(item, [
+      fmt(a) + ' is ' + fmt(aa) + ' from 0 and ' + fmt(b) + ' is ' + fmt(bb) + ' from 0' + (aa === bb ? ': ' + fmt(aa) + ' = ' + fmt(bb) + ', equally far.' : '.'),
+      'Distances from 0: ' + fmt(aa) + ' and ' + fmt(bb) + (aa === bb ? ', so ' + fmt(aa) + ' = ' + fmt(bb) + '.' : ', so the farther one is ' + fmt(aa > bb ? a : b) + '.')
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which matrix is the inverse of [[-1, -3], [6, 0]]?" — the entries are on
+     the card; the determinant ad − bc is the working the card only named. */
+  function invDetLine(item, text, shown) {
+    var p = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    if (!/inverse/i.test(p)) return null;
+    var parseRows = function (s) {
+      var rows = [], rm = /\[\s*([-\u2212\d,.\s]+)\s*\]/g, r;
+      while ((r = rm.exec(String(s)))) {
+        var cells = r[1].split(',').map(function (c) { return numOf(String(c).trim()); });
+        if (!cells.length || cells.some(function (c) { return c === null; })) return null;
+        rows.push(cells);
+      }
+      return rows.length ? rows : null;
+    };
+    var mm = /\[\s*\[\s*[-\u2212\d.\s,-]+\]\s*,\s*\[\s*[-\u2212\d.\s,-]+\]\s*\]/.exec(p);
+    if (!mm) return null;
+    var M = parseRows(mm[0]);
+    if (!M || M.length !== 2 || M[0].length !== 2) return null;
+    var det = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+    if (!det || Math.abs(det) > 1e6) return null;
+    var E = parseRows(String(shown == null ? '' : shown));
+    if (!E || E.length !== 2 || E[0].length !== 2) return null;
+    var want = [[M[1][1] / det, -M[0][1] / det], [-M[1][0] / det, M[0][0] / det]];
+    var i, j;
+    for (i = 0; i < 2; i++) for (j = 0; j < 2; j++) {
+      if (Math.abs(Math.round(want[i][j] * 1000) / 1000 - E[i][j]) > 1e-9) return null;
+    }
+    var line = fmt(M[0][0]) + ' × ' + fmt(M[1][1]) + ' − ' + fmt(M[0][1]) + ' × ' + fmt(M[1][0]) + ' = ' + fmt(det) + ', the determinant.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Are the lines y = 5x − 3 and y = 5x parallel?" — both equations are
+     printed; equal slopes (and different intercepts) is the whole test. */
+  function parallelPairLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/parallel|perpendicular/i.test(p)) return null;
+    var eqs = [], re = /y\s*=\s*(-?\d*\.?\d*)\s*x\s*(?:([+-])\s*(\d+(?:\.\d+)?))?/g, m1;
+    while ((m1 = re.exec(p))) {
+      var m = m1[1] === '' || m1[1] === '+' ? 1 : m1[1] === '-' ? -1 : numOf(m1[1]);
+      var c = m1[3] === undefined ? 0 : numOf((m1[2] === '-' ? '-' : '') + m1[3]);
+      if (m === null) return null;
+      eqs.push({ m: m, c: c === null ? 0 : c });
+    }
+    if (eqs.length !== 2) return null;
+    var said = boolMark(shown);
+    var sm = String(shown == null ? '' : shown).toLowerCase();
+    var wantsPerp = /perpendicular/i.test(p);
+    var wantsPar = /parallel/i.test(p);
+    if (wantsPar) {
+      var eq2 = eqs[0].m === eqs[1].m;
+      if (said === null && !/parallel/.test(sm)) return null;
+      if (said === false && (eq2 || eqs[0].m === eqs[1].m)) return null;
+      if (said === false && eqs[0].m !== eqs[1].m) {
+        var nol = fmt(eqs[0].m) + ' ≠ ' + fmt(eqs[1].m) + ', so the lines are not parallel.';
+        return nol.length <= 88 ? nol : null;
+      }
+      if (!eq2) return null;
+      if (eqs[0].c === eqs[1].c) return null;
+      var yesl = wline(item, [
+        'Both slopes are ' + fmt(eqs[0].m) + ': ' + fmt(eqs[0].m) + ' = ' + fmt(eqs[1].m) + ', and ' + fmt(eqs[0].c) + ' ≠ ' + fmt(eqs[1].c) + '.',
+        fmt(eqs[0].m) + ' = ' + fmt(eqs[1].m) + '; same slope, and ' + fmt(eqs[0].c) + ' ≠ ' + fmt(eqs[1].c) + ', so they never meet.'
+      ]);
+      if (yesl.length > 88) yesl = fmt(eqs[0].m) + ' = ' + fmt(eqs[1].m) + ' and ' + fmt(eqs[0].c) + ' ≠ ' + fmt(eqs[1].c) + '.';
+      return yesl.length <= 88 ? yesl : null;
+    }
+    if (wantsPerp && said !== null) {
+      var prod = Math.round(eqs[0].m * eqs[1].m * 1e9) / 1e9;
+      if (said !== (prod === -1)) return null;
+      var pl = fmt(eqs[0].m) + ' × ' + fmt(eqs[1].m) + ' = ' + fmt(prod) + (prod === -1 ? ', so they are perpendicular.' : ', not −1.');
+      return pl.length <= 88 ? pl : null;
+    }
+    return null;
+  }
+
+  function pointOnLineLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var sm = /(?:parallel|perpendicular) to\s+y\s*=\s*(-?\d*\.?\d*)\s*x/i.exec(p);
+    if (!sm) return null;
+    var ms = sm[1] === '' || sm[1] === '+' ? 1 : sm[1] === '-' ? -1 : numOf(sm[1]);
+    if (ms === null || ms === 0) return null;
+    var want = /perpendicular/i.test(p) ? Math.round((-1 / ms) * 1e9) / 1e9 : ms;
+    var pm = /through\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/i.exec(p);
+    if (!pm) return null;
+    var px = numOf(pm[1]), py = numOf(pm[2]);
+    if (px === null || py === null) return null;
+    var em = /^\s*y\s*=\s*(-?\d*\.?\d*)\s*x\s*(?:([+-])\s*(\d+(?:\.\d+)?))?\s*$/.exec(String(shown == null ? '' : shown).replace(/−/g, '-'));
+    if (!em) return null;
+    var me = em[1] === '' || em[1] === '+' ? 1 : em[1] === '-' ? -1 : numOf(em[1]);
+    var ce = em[3] === undefined ? 0 : numOf((em[2] === '-' ? '-' : '') + em[3]);
+    if (me === null || ce === null || Math.abs(me - want) > 1e-9) return null;
+    if (Math.abs(me * px + ce - py) > 1e-9) return null;
+    var line = fmt(me) + ' × ' + fmt(px) + ' + (' + fmt(ce) + ') = ' + fmt(py) + ', so (' + fmt(px) + ', ' + fmt(py) + ') is on it.';
+    if (line.length <= 88) return line;
+    line = fmt(me) + ' × ' + fmt(px) + ' + (' + fmt(ce) + ') = ' + fmt(py) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  function powerOfTenTurnLine(item, text, shown) {
+    var m = /turns\s+(-?\d+(?:\.\d+)?)\s+into\s+(-?\d+(?:\.\d+)?)/i.exec(String((item && item.prompt) || ''));
+    if (!m) return null;
+    var x = numOf(m[1]), y = numOf(m[2]);
+    if (x === null || y === null || x === 0 || y === 0) return null;
+    var SUPS = { '⁰': 0, '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
+    var ms = String(shown == null ? '' : shown).trim();
+    var k = null;
+    if (/^1[0,]*0$/.test(ms)) {                                   /* the option prints the VALUE: 100 = 10² */
+      var pow10 = numOf(ms.replace(/,/g, '')), pl = String(Math.round(pow10));
+      if (pow10 >= 10 && pow10 <= 1e9 && Math.pow(10, pl.length - 1) === pow10) k = pl.length - 1;
+    } else if (/^10/.test(ms)) {
+      var rest = ms.slice(2), neg = false, dig = '', ci, saw = false;
+      for (ci = 0; ci < rest.length; ci++) {
+        var chr = rest.charAt(ci);
+        if (chr === '^' || chr === '_' || chr === ' ') continue;
+        if (chr === '-' || chr === '−' || chr === '⁻') { neg = true; saw = true; continue; }
+        if (/[0-9]/.test(chr)) { dig += chr; saw = true; continue; }
+        if (SUPS[chr] != null) { dig += String(SUPS[chr]); saw = true; continue; }
+        saw = false; break;
+      }
+      if (saw && dig.length) k = neg ? -Number(dig) : Number(dig);
+    }
+    if (k === null || !isFinite(k) || k === 0 || Math.abs(k) > 9) return null;
+    var p10 = Math.pow(10, Math.abs(k));
+    var got = Math.round((k > 0 ? x * p10 : x / p10) * 1e9) / 1e9;
+    if (Math.abs(got - y) > 1e-9) return null;
+    var line = fmt(x) + ' ' + (k > 0 ? '×' : '÷') + ' ' + fmt(p10) + ' = ' + fmt(y) + '.';
+    if (line.length <= 88) return line;
+    return null;
+  }
+
+  /* "Which number is divided by 7 to get 34?" — the card prints divisor and
+     quotient and grades the dividend; the working is the inverse operation. */
+  function dividedByToGetLine(item, text, shown) {
+    var m = /which number is divided by ([0-9.,]+) to get ([0-9.,]+)/i.exec(String((item && item.prompt) || ''));
+    if (!m) return null;
+    var d = numOf(m[1]), q = numOf(m[2]);
+    var v = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (d === null || q === null || v === null) return null;
+    if (Math.abs(d * q - v) > 1e-9) return null;
+    var line = wline(item, [
+      fmt(q) + ' × ' + fmt(d) + ' = ' + fmt(v) + '.',
+      'Undo the division: ' + fmt(q) + ' × ' + fmt(d) + ' = ' + fmt(v) + '.',
+      'Check it: ' + fmt(v) + ' ÷ ' + fmt(d) + ' = ' + fmt(q) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A line is perpendicular to y = 5x + 2. What is its slope?" — the printed
+     slope and the marked answer are checked through the −1-over-m rule. */
+  function perpSlopeLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/perpendicular/i.test(p)) return null;
+    var sm = /y\s*=\s*(-?\d+(?:\.\d+)?)\s*x/i.exec(p);
+    if (!sm) return null;
+    var ms = numOf(sm[1]);
+    if (ms === null || ms === 0) return null;
+    var got = Math.round((-1 / ms) * 1e6) / 1e6;
+    var sv = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (sv === null || Math.abs(sv - got) > 1e-9) return null;
+    var line = wline(item, [
+      '-1 ÷ ' + fmt(ms) + ' = ' + fmt(got) + '.',
+      'Perpendicular slopes multiply to −1: −1 ÷ ' + fmt(ms) + ' = ' + fmt(got) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "What are the real and imaginary parts of −8 − 15i?" — the number printed
+     before i and the number printed alone are the answer, stated as equals. */
+  function realImagLine(item, text, shown) {
+    var t = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    var m = /parts of\s*([+-]?\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)\s*i/i.exec(t);
+    if (!m) return null;
+    var re = numOf(m[1]), im = numOf((m[2] === '-' ? '-' : '') + m[3]);
+    if (re === null || im === null) return null;
+    var mm = /(-?\d+(?:\.\d+)?)\s*(?:and|,)\s*([+-]?\d+(?:\.\d+)?)/.exec(String(shown == null ? '' : shown).replace(/−/g, '-'));
+    if (!mm) return null;
+    var a = numOf(mm[1]), b = numOf(mm[2]);
+    if (a === null || b === null) return null;
+    if (!(Math.abs(a - re) < 1e-9 && Math.abs(b - im) < 1e-9) && !(Math.abs(b - re) < 1e-9 && Math.abs(a - im) < 1e-9)) return null;
+    var line = wline(item, [
+      'From the numbers printed: real = ' + fmt(re) + ' and imaginary = ' + fmt(im) + '.',
+      'The term without i: real = ' + fmt(re) + '; the coefficient of i: imaginary = ' + fmt(im) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "If x = 2, y = 7 and z = 4, what is 1x + 1y + 4z?" — every value and the
+     expression are printed; the working is the substitution done out. */
+  function sub3Line(item, text, shown) {
+    var m = /^If\s+x\s*=\s*(-?\d+(?:\.\d+)?)\s*,\s*y\s*=\s*(-?\d+(?:\.\d+)?)(?:\s*,?\s*and\s+z\s*=\s*(-?\d+(?:\.\d+)?))?\s*,?\s*what is\s+(.+?)\s*\??$/i.exec(String((item && item.prompt) || '').trim());
+    if (!m || !m[3]) return null;
+    var env = { x: Number(m[1]), y: Number(m[2]), z: Number(m[3]) };
+    var expr = m[4].trim();
+    var letters = expr.replace(/\s+/g, '').match(/[a-z]/g) || [], li2, bad = false;
+    letters = letters.filter(function (c, ix) { return letters.indexOf(c) === ix; });
+    for (li2 = 0; li2 < letters.length; li2++) if (env[letters[li2]] == null) bad = true;
+    if (bad || !letters.length) return null;
+    if (typeof GLOB.evalExpr !== 'function') return null;
+    var val = null, val2 = null;
+    try { val = GLOB.evalExpr(expr, env); } catch (e) { return null; }
+    if (!isFinite(val)) return null;
+    var v = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (v === null || Math.abs(v - val) > 1e-9) return null;
+    var subbed = expr.replace(/([a-z])/g, function (c) { return ' × (' + (env[c] < 0 ? '(' + fmt(env[c]) + ')' : fmt(env[c])) + ')'; }).replace(/\s+/g, ' ').trim();
+    try { val2 = GLOB.evalExpr(subbed.replace(/ × \(/g, ' × ('), {}); } catch (e2) { return null; }
+    if (!isFinite(val2) || Math.abs(val2 - val) > 1e-9) return null;
+    var line = subbed + ' = ' + fmt(Math.round(val * 1e9) / 1e9) + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "The points on a scatter plot lie approximately on the line... What is
+     the average value of y?" — the plot prints its points; the average is
+     their sum divided by their number, exactly as the mark claims. */
+  /* scatter plots draw their points as [{x:.., y:..}] or [[x, y]] — both the
+     renderer's shapes, and both have to agree before a rule trusts them */
+  function readScatterPts(v) {
+    var raw = (v && v.opts && v.opts.pts && v.opts.pts.length ? v.opts.pts : null) || (v && v.pts);
+    if (!raw || typeof raw.length !== 'number' || !raw.length) return null;
+    var out = [], i, px, py;
+    for (i = 0; i < raw.length; i++) {
+      var e = raw[i];
+      if (e == null) return null;
+      px = e.x != null ? e.x : (e.length >= 2 ? e[0] : null);
+      py = e.y != null ? e.y : (e.length >= 2 ? e[1] : null);
+      px = numOf(String(px)); py = numOf(String(py));
+      if (px === null || py === null) return null;
+      out.push([px, py]);
+    }
+    return out.length ? out : null;
+  }
+  function scatterMeanLine(item, text, shown) {
+    var v = item && item.visual;
+    if (!v || v.k !== 'scatter') return null;
+    var pts = readScatterPts(v);
+    if (!pts || pts.length < 3 || pts.length > 8) return null;
+    if (!/average|mean/i.test(String((item && item.prompt) || ''))) return null;
+    var ys = [], s = 0, i;
+    for (i = 0; i < pts.length; i++) ys.push(pts[i][1]), s += pts[i][1];
+    s = Math.round(s * 1e9) / 1e9;
+    var mean = Math.round((s / pts.length) * 1e6) / 1e6;
+    var sv = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (sv === null) return null;
+    var round1 = Math.round(mean * 10) / 10;
+    var agrees = Math.abs(sv - mean) <= 1e-9 || (Math.abs(sv - round1) <= 1e-9 && Math.abs(sv - mean) <= 0.06);
+    if (!agrees) return null;
+    var shortL = fmt(s) + ' ÷ ' + pts.length + ' = ' + fmt(mean) + (Math.abs(sv - mean) <= 1e-9 ? '.' : ', about ' + fmt(sv) + '.');
+    var full = ys.join(' + ') + ' = ' + fmt(s) + ', and ' + shortL;
+    return full.length <= 88 ? full : shortL;
+  }
+
+  /* "Every y is three times x. Which number is the constant of variation?" —
+     the rule is printed in words; the working tries it on x = 1. */
+  function constVarLine(item, text, shown) {
+    var WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+    var m = /y\s+is\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+(?:\.\d+)?)\s+times\s+x/i.exec(String((item && item.prompt) || '') + ' ' + String((item && item.sub) || ''));
+    if (!m) return null;
+    var n = WORD[m[1].toLowerCase()] != null ? WORD[m[1].toLowerCase()] : numOf(m[1]);
+    if (n === null || n <= 0) return null;
+    var sv = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (sv === null || Math.abs(sv - n) > 1e-9) return null;
+    var line = wline(item, [
+      'Try x = 1: ' + fmt(n) + ' × 1 = ' + fmt(n) + ', so the constant is ' + fmt(n) + '.',
+      fmt(n) + ' × 1 = ' + fmt(n) + ', and for every x, y ÷ x = ' + fmt(n) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which rational number lies between −1/5 and 0?" — both ends are printed;
+     the midpoint is their sum halved, checked against the mark. */
+  function betweenMidLine(item, text, shown) {
+    var t = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    var m = /lies between\s+(-?\d+\/\d+|-?\d+(?:\.\d+)?)\s+and\s+(-?\d+\/\d+|-?\d+(?:\.\d+)?)/i.exec(t);
+    if (!m) return null;
+    var val = function (s) { var p2 = String(s).split('/'); return p2.length === 2 ? Number(p2[0]) / Number(p2[1]) : Number(p2[0]); };
+    var a = val(m[1]), b = val(m[2]);
+    if (!isFinite(a) || !isFinite(b)) return null;
+    var mid = Math.round(((a + b) / 2) * 1e9) / 1e9;
+    var sv = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+    if (sv === null || Math.abs(sv - mid) > 1e-9) return null;
+    var sum = Math.round((a + b) * 1e9) / 1e9;
+    var line = wline(item, [
+      fmt(a) + ' + ' + fmt(b) + ' = ' + fmt(sum) + ', and ' + fmt(sum) + ' ÷ 2 = ' + fmt(mid) + '.',
+      'Halfway between: (' + fmt(a) + ' + ' + fmt(b) + ') ÷ 2 = ' + fmt(mid) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Solve the matrix equation X + [[..]] = [[..]]" — both matrices and the
+     marked answer matrix are printed; the working subtracts cell by cell. */
+  function matrixEqLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    if (!/matrix equation/i.test(p)) return null;
+    var parseM = function (s) {
+      var rows = [], rm = /\[\s*([-\u2212\d,\s]+)\s*\]/g, r;
+      while ((r = rm.exec(String(s)))) {
+        var cells = r[1].split(',').map(function (c) { return Number(String(c).replace(/\u2212/g, '-').trim()); });
+        if (!cells.length || cells.some(function (c) { return !isFinite(c); })) return null;
+        rows.push(cells);
+      }
+      return rows.length ? rows : null;
+    };
+    var mats = p.match(/\[\s*\[[^\]]*\](?:\s*,\s*\[[^\]]*\])*\s*\]/g);
+    if (!mats || mats.length !== 2) return null;
+    var A = parseM(mats[0]), B = parseM(mats[1]);
+    var shownStr = String(shown == null ? '' : shown).replace(/^\s*X\s*=?\s*/i, '');
+    var C = parseM(shownStr);
+    if (!C && shownStr.indexOf('[') < 0 && shownStr.indexOf(';') >= 0) {
+      var rowsS = shownStr.split(';').map(function (s) { return s.trim(); }).filter(Boolean);
+      if (rowsS.length === A.length) {
+        C = [];
+        var rix, toks2, bad2 = false;
+        for (rix = 0; rix < rowsS.length; rix++) {
+          toks2 = rowsS[rix].split(',').map(function (t) { return numOf(t.trim()); });
+          if (!toks2.length || toks2.length !== A[rix].length || toks2.some(function (x) { return x === null; })) { bad2 = true; break; }
+          C.push(toks2);
+        }
+        if (bad2) C = null;
+      } else C = null;
+    }
+    if (!A || !B || !C) return null;
+    if (A.length !== B.length || A.length !== C.length) return null;
+    var i, j;
+    for (i = 0; i < A.length; i++) {
+      if (A[i].length !== B[i].length || A[i].length !== C[i].length || !A[i].length) return null;
+      for (j = 0; j < A[i].length; j++) {
+        if (Math.abs((B[i][j] - A[i][j]) - C[i][j]) > 1e-9) return null;
+      }
+    }
+    var h = 0; for (i = 0; i < p.length; i++) h = (h * 31 + p.charCodeAt(i)) | 0;
+    var row = A[Math.abs(h) % A.length], brow = B[Math.abs(h) % B.length], crow = C[Math.abs(h) % C.length];
+    var parts = [], lim = Math.min(row.length, 3);
+    for (j = 0; j < lim; j++) parts.push(fmt(brow[j]) + ' − (' + fmt(row[j]) + ') = ' + fmt(crow[j]));
+    var line = parts.join('; ') + '.';
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which description fits y = 3x + 3?" — start and step are printed; the
+     working takes one step of them. */
+  function slopeDescLine(item, text, shown) {
+    var m = /\by\s*=\s*(\d+(?:\.\d+)?)x\s*\+\s*(\d+(?:\.\d+)?)\b/.exec(String((item && item.prompt) || ''));
+    if (!m) return null;
+    if (!/description|table|relationship|rule/i.test(String((item && item.prompt) || ''))) return null;
+    var m1 = Number(m[1]), b = Number(m[2]);
+    if (!isFinite(m1) || !isFinite(b)) return null;
+    var line = wline(item, [
+      'Start at ' + fmt(b) + ': ' + fmt(b) + ' + ' + fmt(m1) + ' = ' + fmt(b + m1) + ' after one more x.',
+      fmt(b) + ' + ' + fmt(m1) + ' = ' + fmt(b + m1) + ', the total after one step of ' + fmt(m1) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "How many sides does a pentagon have?" — the shape is named on the card;
+     the count around the figure is the derivation the card never printed. */
+  function countSidesWalkLine(item, text, shown) {
+    var NAMES = { triangle: 3, quadrilateral: 4, square: 4, rectangle: 4, rhombus: 4, pentagon: 5, hexagon: 6, heptagon: 7, octagon: 8, nonagon: 9, decagon: 10 };
+    var p = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    var nums = null, n = 0, suffix = '.';
+    var mr = /has\s+(\d+)\s+sides\s+and\s+\d+\s+(?:corners|vertices|angles)/i.exec(p);
+    if (mr) {
+      n = parseInt(mr[1], 10);
+      var markName = String(shown == null ? '' : shown).toLowerCase().trim();
+      var ok = false, nm;
+      for (nm in NAMES) if (NAMES[nm] === n && markName.indexOf(nm) >= 0) ok = true;
+      if (!ok || n < 3 || n > 10) return null;
+      nums = []; for (var q2 = 1; q2 <= n; q2++) nums.push(q2);
+      suffix = ' sides, so it is a ' + markName + '.';
+    } else {
+      var m = /\b(triangle|quadrilateral|square|rectangle|rhombus|pentagon|hexagon|heptagon|octagon|nonagon|decagon)\b/i.exec(p);
+      if (!m) return null;
+      if (!/how many (sides|angles|vertices|corners)/i.test(p)) return null;
+      n = NAMES[m[1].toLowerCase()];
+      var sv = numOf(String(shown == null ? '' : shown).replace(/,/g, '').trim());
+      if (!n || sv === null || sv !== n) return null;
+      nums = []; for (var q3 = 1; q3 <= n; q3++) nums.push(q3);
+    }
+    var line = 'Count around the figure: ' + nums.join(', ') + '; that is ' + n + suffix;
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "A timer shows 387 minutes — how is that written in hours and minutes?"
+     the printed total must EQUAL the marked h/min split, or nothing prints. */
+  function timeConvLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var sh = String(shown == null ? '' : shown).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    var hm = /^(\d{1,3})\s*h(?:ours?|rs?)?\s*(\d{1,2})\s*m(?:in(?:utes?|s)?)?$/i.exec(sh);
+    if (hm) {
+      var tm = /\b(\d{2,4})\s*(?:minutes?|mins?|min)\b/i.exec(p);
+      if (!tm) return null;
+      var tot = numOf(tm[1]);
+      if (tot === null) return null;
+      var hh = parseInt(hm[1], 10), mm = parseInt(hm[2], 10);
+      if (hh * 60 + mm !== tot) return null;
+      var line = wline(item, [
+        hh + ' × 60 + ' + mm + ' = ' + tot + ', so the timer reads ' + hh + ' h ' + mm + ' min.',
+        hh + ' h is ' + hh + ' × 60 = ' + (hh * 60) + ' min; with ' + mm + ' more that is ' + tot + '.'
+      ]);
+      return line.length <= 88 ? line : null;
+    }
+    var hms = /\b(\d{1,3})\s*h(?:ours?|rs?)?\s*(\d{1,2})\s*m(?:in(?:utes?|s)?)?\b/i.exec(p);
+    var mv = numOf(String(sh).replace(/,/g, ''));
+    if (hms && mv !== null && /how many\s*(?:minutes?|mins?)/i.test(p)) {
+      var H = parseInt(hms[1], 10), M = parseInt(hms[2], 10);
+      if (H * 60 + M !== mv) return null;
+      var l2 = H + ' × 60 + ' + M + ' = ' + mv + '.';
+      return l2.length <= 88 ? l2 : null;
+    }
+    return null;
+  }
+
+  /* "Round 2.47 to the nearest tenth." — the two neighbours are computable
+     from the printed number; the mark must be the CLOSER one (ties refuse). */
+  function roundDecLine(item, text, shown) {
+    var p = String((item && item.prompt) || '') + ' ' + String((item && item.sub) || '');
+    var mE = /estimate for\s+([\d.]+)\s*([+\-−])\s*([\d.]+)\s+is\s+([\d.]+)/i.exec(p);
+    if (mE) {
+      var ea = parseFloat(mE[1]), eb = parseFloat(mE[3]), ce = parseFloat(mE[4]);
+      var ra = Math.round(ea), rb = Math.round(eb), sa = ra + rb;
+      var saidE = boolMark(shown);
+      var claimE = saidE === null ? (numOf(String(shown).trim()) !== null ? numOf(String(shown).trim()) : null) : null;
+      var okE = Math.abs(ce - sa) < 1e-9;
+      if (saidE !== null && saidE !== okE) return null;
+      if (saidE === null && (claimE === null || Math.abs(claimE - sa) > 1e-9 || !okE)) return null;
+      var lE = fmt(ea) + ' rounds to ' + fmt(ra) + ' and ' + fmt(eb) + ' rounds to ' + fmt(rb) + ': ' + fmt(ra) + ' + ' + fmt(rb) + ' = ' + fmt(sa) + '.';
+      if (!okE) lE = fmt(ea) + ' rounds to ' + fmt(ra) + ' and ' + fmt(eb) + ' rounds to ' + fmt(rb) + ': ' + fmt(ra) + ' + ' + fmt(rb) + ' = ' + fmt(sa) + ', not ' + fmt(ce) + '.';
+      return lE.length <= 88 ? lE : null;
+    }
+        var mC = /true sum ([\d.]+) is larger than (?:the )?rounded estimate ([\d.]+)/i.exec(p);
+    if (mC) {
+      var xc = parseFloat(mC[1]), yc = parseFloat(mC[2]), sc = boolMark(shown);
+      if (sc === null || !(xc > yc) === !(yc > xc)) return null;
+      if (sc !== (xc > yc)) return null;
+      var df = Math.round(Math.abs(yc - xc) * 100) / 100;
+      var lC = yc > xc ? fmt(yc) + ' − ' + fmt(xc) + ' = ' + fmt(df) + ', so ' + fmt(xc) + ' &lt; ' + fmt(yc) + '.'
+                       : fmt(xc) + ' − ' + fmt(yc) + ' = ' + fmt(df) + ', so ' + fmt(xc) + ' &gt; ' + fmt(yc) + '.';
+      return lC.length <= 88 ? lC : null;
+    }
+    var mB = /both\s+([\d.]+)\s+and\s+([\d.]+)\s+round\s+to\s+([\d.]+)\s+and\s+([\d.]+)/i.exec(p);
+    if (mB) {
+      var ba = parseFloat(mB[1]), bb = parseFloat(mB[2]), ta = parseFloat(mB[3]), tb = parseFloat(mB[4]);
+      var saidB = boolMark(shown);
+      if (saidB === null) return null;
+      if (saidB !== (Math.round(ba) === ta && Math.round(bb) === tb)) return null;
+      var da = Math.round(Math.abs(ba - Math.round(ba)) * 100) / 100, db = Math.round(Math.abs(bb - Math.round(bb)) * 100) / 100;
+      var lB = fmt(ba) + ' − ' + fmt(Math.round(ba)) + ' = ' + fmt(da) + ' and ' + fmt(bb) + ' − ' + fmt(Math.round(bb)) + ' = ' + fmt(db) + ', so ' + fmt(ta) + ' and ' + fmt(tb) + '.';
+      return lB.length <= 88 ? lB : null;
+    }
+    var m = /round\s+(\d+(?:\.\d+)+)\s+to\s+the\s+nearest\s+(?:\bto\s+)?(tenth|hundredth|thousandth)s?/i.exec(p);
+    if (!m) return null;
+    var x = parseFloat(m[1]), pw = m[2] === 'tenth' ? 10 : m[2] === 'hundredth' ? 100 : 1000;
+    var lo = Math.floor(x * pw + 1e-9) / pw, hi = (Math.floor(x * pw + 1e-9) + 1) / pw;
+    var sv = numOf(String(shown == null ? '' : shown).trim());
+    if (sv === null || !(isFinite(x) && x > 0 && x < 1e6)) return null;
+    var dl = x - lo, dh = hi - x;
+    if (Math.abs(dl - dh) < 1e-9) return null;
+    var cand = dl < dh ? lo : hi, far = cand === lo ? hi : lo;
+    if (Math.abs(sv - cand) > 1e-9) return null;
+    var a = Math.round(Math.abs(x - cand) * 1000) / 1000, b = Math.round(Math.abs(far - x) * 1000) / 1000;
+    var s1 = x > cand ? fmt(x) + ' − ' + fmt(cand) + ' = ' + a : fmt(cand) + ' − ' + fmt(x) + ' = ' + a;
+    var s2 = far > x ? fmt(far) + ' − ' + fmt(x) + ' = ' + b : fmt(x) + ' − ' + fmt(far) + ' = ' + b;
+    var line = wline(item, [
+      s1 + ' and ' + s2 + ', so it rounds to ' + fmt(cand) + '.',
+      'Between ' + fmt(lo) + ' and ' + fmt(hi) + ': ' + s1 + ' beats ' + s2 + '; ' + fmt(cand) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "In 9.101, which digit sits in the hundredths place?" — walk the printed
+     number place by place; the marked digit must be exactly what is there. */
+  function placeDigitLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var m = /\b(?:in|for|inside|from)\s+(-?\d+\.\d+)\b[^?]{0,80}?\bdigit\b[^?]{0,40}?\b(ones?|tens?|hundreds?|tenths?|hundredths?|thousandths?)\b/i.exec(p);
+    if (!m) return null;
+    var NAME = { ones: 0, ten: -1, tens: -1, hundred: -2, hundreds: -2, tenth: 1, tenths: 1, hundredth: 2, hundredths: 2, thousandth: 3, thousandths: 3 };
+    var key = m[2].toLowerCase().replace(/s$/, '');
+    if (!(key in NAME)) { key = m[2].toLowerCase(); if (!(key in NAME)) return null; }
+    var pos = NAME[key];
+    var neg = m[1].charAt(0) === '-';
+    var ip = m[1].replace('-', '').split('.')[0], dp2 = (m[1].split('.')[1] || '');
+    var digit;
+    if (pos <= 0) { var fromRight = -pos; digit = ip.length - 1 - fromRight < 0 ? '0' : ip.charAt(ip.length - 1 - fromRight); }
+    else digit = dp2.length < pos ? '0' : dp2.charAt(pos - 1);
+    var sv = String(shown == null ? '' : shown).replace(/<[^>]+>/g, '').trim();
+    if (sv !== digit) return null;
+    var scale = pos <= 0 ? 'left of the point' : 'right of the point';
+    var list = pos <= 0 ? '1 ones, 2 tens, 3 hundreds' : '1 tenths, 2 hundredths, 3 thousandths';
+    var altsP = [
+      'Number the places ' + scale + ': ' + list + '; in ' + m[1] + ' that place holds ' + digit + '.',
+      digit + ' + 0 = ' + digit + ', and it sits in the ' + m[2].toLowerCase() + ' place of ' + m[1] + '.',
+      'The places go ' + list + '; the ' + m[2].toLowerCase() + ' place of ' + m[1] + ' holds ' + digit + '.'
+    ].filter(function (x) { return x.length <= 88; });
+    if (!altsP.length) return null;
+    var line = altsP.length === 1 ? altsP[0] : wline(item, altsP);
+    return line.length <= 88 ? line : null;
+  }
+
+  /* "Which expression represents “9 more than a number n”?" — the mark is an
+     expression, so this runs on the form-mark path: prove it with a number. */
+  function exprWordsLine(item, text, shown) {
+    var p = String((item && item.prompt) || '');
+    var W = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+    var m = /[“"]?\s*(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(more than|greater than|less than|fewer than|decreased by|subtracted from)\s+(?:a\s+)?(?:number\s+)?([a-z])\b/i.exec(p);
+    if (!m) return null;
+    var c = W[m[1].toLowerCase()] !== undefined ? W[m[1].toLowerCase()] : parseInt(m[1], 10);
+    if (!isFinite(c)) return null;
+    var v = m[3].toLowerCase();
+    if (v.length > 1 || !/[nxyzt]/.test(v)) return null;
+    var minus = /less than|fewer than|decreased|subtracted/.test(m[2].toLowerCase());
+    var sh = String(shown == null ? '' : shown).replace(/<[^>]+>/g, '').replace(/\s+/g, '').replace(/−/g, '-');
+    var want = minus ? ['n-'.replace('n', v) + c, c + '-' + v].filter(function (x) { return sh === x || sh.indexOf(x) >= 0; })
+                     : [v + '+' + c, c + '+' + v].filter(function (x) { return sh === x || sh.indexOf(x) >= 0; });
+    if (!want.length) return null;
+    var d1 = 3, d2 = 8, d3 = 5;
+    var line = wline(item, [
+      'Try ' + v + ' = ' + d1 + ': ' + (minus ? d1 + ' − ' + c + ' = ' + (d1 - c) : c + ' + ' + d1 + ' = ' + (d1 + c)) + ', which is what the words say.',
+      'Try ' + v + ' = ' + d2 + ': ' + (minus ? d2 + ' − ' + c + ' = ' + (d2 - c) : c + ' + ' + d2 + ' = ' + (d2 + c)) + '; the rule the words give.',
+      'Say ' + v + ' = ' + d3 + ': the words give ' + (minus ? d3 + ' − ' + c + ' = ' + (d3 - c) : d3 + ' + ' + c + ' = ' + (d3 + c)) + '.'
+    ]);
+    return line.length <= 88 ? line : null;
+  }
+
   function staleSteps(item, steps) {
     var card = (String(item.prompt || '') + ' ' + String(item.sub || '') + ' ' +
       ((item.choices || []).join(' ')) + ' ' + JSON.stringify(item.visual || {}))
@@ -121484,7 +122362,7 @@ Object.keys(J9).forEach(function (id) {
         var exprAlts = [printed2 + ' = ' + shownAns + '.',
           'Work the printed maths: ' + printed2 + ' = ' + shownAns + '.',
           'Done in one step: ' + printed2 + ' = ' + shownAns + '.'].filter(function (s) { return s.length <= 88; });
-        line = exprAlts.length === 1 ? exprAlts[0] : wline(item, exprAlts); from = 'expr' + src;
+        line = exprAlts.length === 1 ? exprAlts[0] : wline({ prompt: printed2 + '|' + shownAns + '|' + String(item && item.choices && item.choices.join ? item.choices.join(',') : '') }, exprAlts); from = 'expr' + src;
       }
       if (!line) { line = rowsLine(text, shownAns, ok); if (line) from = 'rows'; }
       if (!line) { line = cmpLine(text, symOf(shownAns) ? String(shownAns).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<') : shownAns); if (line) from = 'cmp'; }
@@ -121525,6 +122403,8 @@ Object.keys(J9).forEach(function (id) {
         claimLine(item, text, shownAns) || orderLine(text, shownAns);
       if (line) from = 'judge';
     }
+    if (!line && !canPrint) { line = powerFormLine(item, text, shownAns) || powerFormLine(item, wtext, shownAns); if (line) from = 'powerForm'; }
+    if (!line && !canPrint) { line = exprWordsLine(item, text, shownAns) || exprWordsLine(item, wtext, shownAns); if (line) from = 'exprWords'; }
     if (!line) return exit(item, canPrint ? 'noSource' : 'notPrintable');
     if (line.length > 88) return exit(item, 'lineTooLong');
     item.__wc = from || 'unknown';
@@ -121613,7 +122493,7 @@ Object.keys(J9).forEach(function (id) {
     DBG.whoMoreLine = whoMoreLine; DBG.whoStepLine = whoStepLine; DBG.successorLine = successorLine;
     DBG.stepPairLine = stepPairLine; DBG.askPair = askPair; DBG.amountFor = amountFor; DBG.symOf = symOf;
     DBG.ineqLine = ineqLine; DBG.roundingLine = roundingLine; DBG.sequenceLine = sequenceLine;
-    DBG.familyLine = familyLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
+    DBG.familyLine = familyLine; DBG.absGreaterChoiceLine = absGreaterChoiceLine; DBG.powerOfTenTurnLine = powerOfTenTurnLine; DBG.dividedByToGetLine = dividedByToGetLine; DBG.perpSlopeLine = perpSlopeLine; DBG.realImagLine = realImagLine; DBG.sub3Line = sub3Line; DBG.scatterMeanLine = scatterMeanLine; DBG.constVarLine = constVarLine; DBG.betweenMidLine = betweenMidLine; DBG.matrixEqLine = matrixEqLine; DBG.slopeDescLine = slopeDescLine; DBG.countSidesWalkLine = countSidesWalkLine; DBG.powerFormLine = powerFormLine; DBG.tenMarkK = tenMarkK; DBG.roundIsEqualLine = roundIsEqualLine; DBG.scatterOutlierLine = scatterOutlierLine; DBG.pointOnLineLine = pointOnLineLine; DBG.definedMultLine = definedMultLine; DBG.timeConvLine = timeConvLine; DBG.roundDecLine = roundDecLine; DBG.placeDigitLine = placeDigitLine; DBG.exprWordsLine = exprWordsLine; DBG.absLossTrueLine = absLossTrueLine; DBG.absEqFarLine = absEqFarLine; DBG.invDetLine = invDetLine; DBG.groupOverLine = groupOverLine; DBG.parityLine = parityLine;
     DBG.fracNameLine = fracNameLine; DBG.partsWordLine = partsWordLine; DBG.fracTakenLine = fracTakenLine;
     DBG.beforeAfterLine = beforeAfterLine; DBG.tableRuleLine = tableRuleLine;
     DBG.slopeStepLine = slopeStepLine; DBG.sameSlopeLine = sameSlopeLine;
