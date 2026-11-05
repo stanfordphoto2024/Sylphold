@@ -268,21 +268,36 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .tf.dense .obj { width: 22px; height: 22px; }
 .tf.dense .obj.em { font-size: 20px; }
 .tf.dense .obj .obj-dot { width: 18px; height: 18px; }
-/* U.4: Pre-K pictures carry the whole question. Their icons are drawn at
-   double size in full colour and stay on one screen — a pre-K learner reads
-   the card, not the scroll. Kindergarten keeps the base size. */
+/* U.4: every Pre-K picture draws its icons at ONE size — 44px, twice the base
+   — so nothing on a PK card is忽大忽小, and the whole card stays on screen. */
 .band-pk .obj { width: 44px; height: 44px; }
-.band-pk .obj.em { font-size: 40px; }
-.band-pk .obj .obj-dot { width: 36px; height: 36px; }
+.band-pk .obj.em { font-size: 44px; }
+.band-pk .obj .obj-dot { width: 44px; height: 44px; }
 .band-pk .obj svg { width: 44px; height: 44px; }
 .band-pk .dots { gap: 8px; }
-.band-pk .dots .d { width: 36px; height: 36px; }
-.band-pk .tf .frame { grid-template-columns: repeat(5, 44px); grid-auto-rows: 44px; gap: 3px; padding: 4px; }
-.band-pk .tf.dense .frame { grid-template-columns: repeat(5, 30px); grid-auto-rows: 30px; }
-.band-pk .tf.dense .obj { width: 30px; height: 30px; }
-.band-pk .tf.dense .obj .obj-dot { width: 24px; height: 24px; }
-.band-pk .areagrid .sq { width: 40px; height: 40px; }
+.band-pk .dots .d { width: 44px; height: 44px; }
+.band-pk .tf .frame { grid-template-columns: repeat(5, 46px); grid-auto-rows: 46px; gap: 3px; padding: 4px; }
+.band-pk .tf.dense .frame { grid-template-columns: repeat(5, 46px); grid-auto-rows: 46px; }
+.band-pk .tf.dense .obj { width: 44px; height: 44px; }
+.band-pk .tf.dense .obj .obj-dot { width: 44px; height: 44px; }
+.band-pk .areagrid .sq { width: 44px; height: 44px; }
 .band-pk .ringbox { width: 240px; height: 240px; }
+.band-pk .picon svg { width: 44px; height: 44px; }
+.band-pk .picon.ok::before { font-size: 40px; }
+.band-pk .picon.no::before { font-size: 40px; }
+/* Kindergarten keeps the base size everywhere: one 24px icon, any card. */
+.band-k .obj { width: 24px; height: 24px; }
+.band-k .obj.em { font-size: 24px; }
+.band-k .obj .obj-dot { width: 24px; height: 24px; }
+.band-k .obj svg { width: 24px; height: 24px; }
+.band-k .dots .d { width: 24px; height: 24px; }
+.band-k .tf.dense .frame { grid-template-columns: repeat(5, 26px); grid-auto-rows: 26px; gap: 3px; padding: 4px; }
+.band-k .tf.dense .obj { width: 24px; height: 24px; }
+.band-k .tf.dense .obj.em { font-size: 24px; }
+.band-k .tf.dense .obj .obj-dot { width: 24px; height: 24px; }
+.band-k .picon svg { width: 24px; height: 24px; }
+.band-k .picon.ok::before { font-size: 26px; }
+.band-k .picon.no::before { font-size: 26px; }
 .band-pk .visual { overflow: visible; }
 /* PK/K choice buttons answered with a tap: the picture leads, the word is a
    whisper underneath so early readers never have to decode the option. */
@@ -114561,7 +114576,44 @@ Object.keys(J9).forEach(function (id) {
   /* A line plot card carries its own data AND its own tally: the measurements
      in the prompt, the stack heights in the option. Counting the data into the
      stacks is arithmetic the card can show, so show it. */
+  /* The stack data of a line plot is plain numbers: total, mode and the gap
+     between two stacks are all real subtractions the card can show. */
+  function lineplotVisualLine(item, text, shownAns, v) {
+    var labels = v.labels || [], counts = v.counts || [], i;
+    if (counts.length < 2 || labels.length !== counts.length) return null;
+    var total = 0; for (i = 0; i < counts.length; i++) total += counts[i];
+    var alts = [], m;
+    if (/how many measurements/i.test(text)) {
+      var nz = counts.filter(function (c) { return c > 0; });
+      if (String(shownAns).trim() === String(total)) {
+        if (nz.length <= 8) alts.push('Stack on stack: ' + nz.join(' + ') + ' = ' + total + ' dots, one per measurement.');
+        alts.push('Add the stacks: the plot holds ' + total + ' dots in all, and each dot is one measurement, so ' + total + ' measurements are shown.');
+      }
+    } else if (/most often|most frequent|appears most/i.test(text)) {
+      var top = -1, topI = -1, second = -1;
+      for (i = 0; i < counts.length; i++) { if (counts[i] > top) { second = top; top = counts[i]; topI = i; } else if (counts[i] > second) second = counts[i]; }
+      if (topI >= 0 && second >= 0 && top > second && String(shownAns).trim().replace(/\s+/g, '') === String(labels[topI]).replace(/\s+/g, '')) {
+        alts.push('Tally each stack: ' + labels[topI] + ' carries ' + top + ' dots and ' + second + ' is the next tallest — ' + top + ' − ' + second + ' = ' + (top - second) + ' clear of it, so ' + labels[topI] + ' is the mode.');
+        alts.push('Read every stack: the tallest is ' + top + ' dots at ' + labels[topI] + ', and ' + top + ' − ' + second + ' = ' + (top - second) + ' more than the runner-up.');
+      }
+    } else if ((m = /how many more[^.?!]{0,30}?at\s+([0-9/]+)[^.?!]{0,10}?than at\s+([0-9/]+)/i.exec(text))) {
+      var want = function (tok) { tok = String(tok).replace(/\s+/g, ''); for (var q = 0; q < labels.length; q++) if (String(labels[q]).replace(/\s+/g, '') === tok) return q; return -1; };
+      var ia = want(m[1]), ib = want(m[2]);
+      if (ia >= 0 && ib >= 0 && counts[ia] - counts[ib] === Number(String(shownAns).replace(/[^0-9.\-]/g, ''))) {
+        alts.push('At ' + m[1] + ' the stack is ' + counts[ia] + ' dots; at ' + m[2] + ' it is ' + counts[ib] + ' — ' + counts[ia] + ' − ' + counts[ib] + ' = ' + (counts[ia] - counts[ib]) + ' more measurements at ' + m[1] + '.');
+        alts.push('Compare the two stacks: ' + counts[ia] + ' − ' + counts[ib] + ' = ' + (counts[ia] - counts[ib]) + ', so ' + m[1] + ' beats ' + m[2] + ' by ' + (counts[ia] - counts[ib]) + ' dots.');
+      }
+    }
+    alts = alts.filter(function (x) { return x.length <= 88; });
+    if (!alts.length) return null;
+    return alts.length === 1 ? alts[0] : wline({ prompt: String(text) + '|' + String(shownAns) + '|' + labels.join(',') }, alts);
+  }
   function linePlotLine(item, text, shownAns) {
+    var v = item && item.visual;
+    if (v && v.k === 'lineplot' && Array.isArray(v.counts)) {
+      var lv = lineplotVisualLine(item, text, shownAns, v);
+      if (lv) return lv;
+    }
     var cor = String((item && item.choices && item.spec && item.choices[item.spec.i]) || String(shownAns == null ? '' : shownAns));
     var mm = /plot with ([0-9]+(?:\s*,\s*[0-9]+){1,8})\s+marks?/i.exec(cor);
     if (!mm) return null;
@@ -124452,7 +124504,7 @@ Object.keys(J9).forEach(function (id) {
       return h('div', { class: 'viz' }, [box, caption((v.opts || {}).label)]);
     },
     /* ten-frame(s) with n counters */
-    tenframe: function (v) {
+    tenframe: function (v, band) {
       var o = v.opts || {};
       /* A frame may count anything: "5 apples on the frame" draws apples, not
          generic counters, so the picture agrees with the words on the card. */
@@ -124469,6 +124521,7 @@ Object.keys(J9).forEach(function (id) {
         for (var i = 0; i < 10; i++) {
           var idx = f * 10 + i;
           if (named && idx < left) fr.appendChild(h('div', { class: 'cell on objcell' }, [objectNode(o, idx)]));
+          else if (idx < left && (band === 'PK' || band === 'K')) fr.appendChild(h('div', { class: 'cell on', style: { background: PAL[idx % PAL.length] } }));
           else fr.appendChild(h('div', { class: 'cell' + (idx < left ? ' on' : '') }));
         }
         wrap.appendChild(fr);
@@ -124528,7 +124581,7 @@ Object.keys(J9).forEach(function (id) {
       }
       return h('div', { class: 'viz' }, [s('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }, g), caption(o.label)]);
     },
-    array: function (v, pk) {
+    array: function (v, band) {
       var o = v.opts || {};
       /* The count IS the lesson. A model may never drop objects to fit the
          card: a layout wider than the card is re-flowed into rows that fit,
@@ -124557,7 +124610,7 @@ Object.keys(J9).forEach(function (id) {
         });
         return h('div', { class: 'viz' }, [field, caption(o.label)]);
       }
-      var dotPx = pk ? 36 : 20;
+      var dotPx = band === 'PK' ? 44 : (band === 'K' ? 24 : 20);
       var grid = h('div', { class: 'dots', style: { gridTemplateColumns: 'repeat(' + cols + ', ' + dotPx + 'px)' } });
       for (var i = 0; i < total; i++) grid.appendChild(h('div', { class: 'd', style: { background: PAL[i % PAL.length] } }));
       return h('div', { class: 'viz' }, [grid, caption(o.label)]);
@@ -124997,11 +125050,11 @@ Object.keys(J9).forEach(function (id) {
     }
   };
 
-  function renderVisual(v, pk) {
+  function renderVisual(v, band) {
     if (!v || !v.k) return null;
     var fn = DRAW[v.k] || DRAW.table && v.k === 'table';
     try {
-      if (DRAW[v.k]) return DRAW[v.k](v, pk);
+      if (DRAW[v.k]) return DRAW[v.k](v, band);
       /* unknown model: degrade to a readable caption instead of breaking the item */
       return h('div', { class: 'viz' }, [caption(v.label || v.text || '')]);
     } catch (e) { return null; }
@@ -125317,7 +125370,7 @@ Object.keys(J9).forEach(function (id) {
         whyChip, lv
       ]),
       lvLine,
-      item.visual ? h('div', { class: 'visual' + (sk.band === 'PK' ? ' band-pk' : sk.band === 'K' ? ' band-k' : '') }, [renderVisual(item.visual, sk.band === 'PK')]) : null,
+      item.visual ? h('div', { class: 'visual' + (sk.band === 'PK' ? ' band-pk' : sk.band === 'K' ? ' band-k' : '') }, [renderVisual(item.visual, sk.band)]) : null,
       h('div', { class: 'prompt' + ((sk.band === 'PK' || sk.band === 'K' || sk.band === 'G1') ? ' big' : ''), html: TEX.html(item.prompt) }),
       item.sub ? h('div', { class: 'sub', html: TEX.html(item.sub) }) : null,
       h('div', { class: 'answer', id: 'answer' }, [buildAnswer(item)]),
