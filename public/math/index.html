@@ -136169,6 +136169,14 @@ Object.keys(J9).forEach(function (id) {
       }
       return row;
     }
+    var xm = /^([a-z]+) x (\d+)$/.exec(String(t).trim().toLowerCase());
+    /* a cell that says "buttons x 3" means three buttons, so it draws three of
+       them — a generator uses this grammar for the arrays and matching rows */
+    if (xm && +xm[2] <= 12) {
+      var grp = h('div', { class: 'dots chipdots' });
+      for (var gz = 0; gz < +xm[2]; gz++) { var p1 = youngPicture(xm[1], band); if (p1) grp.appendChild(p1); }
+      if (grp.children.length) return grp;
+    }
     var np = (typeof EMOJI_NOUN === 'object' && EMOJI_NOUN) ? EMOJI_NOUN[String(t).toLowerCase().replace(/[^a-z]/g, '')] : null;
     if (np) return emojiImg(np);
     return null;
