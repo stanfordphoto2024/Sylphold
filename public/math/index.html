@@ -99674,6 +99674,14 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        asking "how many cards in all?" with no numbers and no picture cannot be
        answered at all. Keep the numbers, whatever the word count costs. */
     if (p && p.tier <= 2 && /[0-9]/.test(long) && !/[0-9]/.test(short)) return long;
+    /* The same rule for the NAMED thing. "Which group does the duck go in?"
+       shortened to "Which group does it go in?" asks a four-year-old to sort an
+       object the sentence never names — the picture draws the two groups, not the
+       thing being sorted, so the dropped word was the whole question. A short form
+       that replaces a named object with a pronoun is not saying the same thing, so
+       the name stays. */
+    if (p && p.tier <= 2 && /\b(?:the|a|an)\s+[a-z][a-z '-]{1,18}\b/i.test(long) &&
+        /\b(?:it|they|them|one)\b/i.test(short) && !/\b(?:it|they|them)\b/i.test(long)) return long;
     return (p && p.tier <= 2) ? short : long;
   };
   /* the answer this card is built to test, delivered the way THIS grade should
