@@ -335,9 +335,6 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
    lip, so a toy framed inside it and a toy standing beside an empty one are
    unmistakable before a pre-K learner reads a single word. */
 .boxdraw { width: 62px; height: 46px; border: 3px solid var(--ink-3); border-top-width: 6px; border-radius: 4px 4px 8px 8px; background: color-mix(in srgb, var(--accent) 9%, transparent); display: grid; place-items: center; }
-/* the box on a young position card is part of its picture, so it is drawn in the
-   young palette too — the same eight colours the counters wear. */
-.band-pk .boxdraw, .band-k .boxdraw { border-color: #39d05f; background: color-mix(in srgb, #39d05f 12%, var(--card)); }
 .band-pk .boxdraw { width: 76px; height: 60px; }
 .band-k .boxdraw { width: 62px; height: 48px; }
 .vtable.objgrid td { padding: 4px 6px; }
@@ -361,7 +358,6 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .tally { display: inline-flex; gap: 12px; align-items: flex-end; min-height: 26px; }
 .tally .tgrp { position: relative; width: 30px; height: 26px; display: inline-block; }
 .tally .tstk { position: absolute; bottom: 3px; width: 2px; height: 20px; background: var(--ink); border-radius: 1px; }
-.band-pk .tally .tstk, .band-pk .tally .tstrk, .band-k .tally .tstk, .band-k .tally .tstrk { background: #395fd0; }
 .tally .tstrk { position: absolute; left: -3px; top: 13px; width: 34px; height: 2px; background: var(--ink); transform: rotate(-18deg); border-radius: 1px; }
 .tchart { display: flex; flex-direction: column; gap: 6px; }
 .tchart .trow { display: flex; align-items: flex-end; gap: 12px; }
@@ -136012,21 +136008,18 @@ Object.keys(J9).forEach(function (id) {
   /* --------------------------------------------------------- visuals ------ */
   var PAL = ['#4f46e5', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316'];
 
-  /* Pre-K and Kindergarten are seen by children who judge a card by its picture,
-     so those two bands draw from ONE harmonious palette: eight hues evenly spaced
-     around the wheel at one matched tone (same saturation, same lightness), so a
-     card of counters reads as a set rather than as eight unrelated crayons. Every
-     colour a young card can show — counters, shapes, frame cells, table tints,
-     tally strokes — comes from this list; nothing young draws in raw black.
-     A named colour on a card ("put the red one in the box") still has to LOOK the
-     colour it names, so those words map onto this wheel at the hue a parent would
-     call that name, at the same tone. */
+  /* A picture draws in ONE colour. A row of cubes, a field of counters, the dots
+     under a number: they are one set of one thing, and painting each of them a
+     different hue asks a four-year-old to ignore the decoration before she can
+     see the set. The young palette is kept for the cards that actually NAME a
+     colour — a swatch, a colour pattern, "put the red one in the box" — where the
+     hue is the answer. Everything else wears the app's own colour. */
   var YPAL = ['#d04d39', '#d08a39', '#d0c439', '#39d05f', '#39c4d0', '#395fd0', '#8a39d0', '#d03999'];
   var YNAME = {
     red: 0, orange: 1, yellow: 2, green: 3, teal: 4, blue: 5, purple: 6, violet: 6,
     pink: 7, brown: 1, grey: 4, gray: 4, black: 5, white: 2
   };
-  function yc(i, band) { return (band === 'PK' || band === 'K') ? YPAL[((i % YPAL.length) + YPAL.length) % YPAL.length] : PAL[((i % PAL.length) + PAL.length) % PAL.length]; }
+  function yc(i, band) { return 'var(--accent)'; }
   /* the same colour, washed out — the tint a cell or an empty slot wears */
   function ycSoft(i, band) { return (band === 'PK' || band === 'K') ? 'color-mix(in srgb, ' + YPAL[i % YPAL.length] + ' 22%, var(--card))' : null; }
 
@@ -136143,8 +136136,8 @@ Object.keys(J9).forEach(function (id) {
     var key = YOUNG_GLYPH[String(t).trim()] || YOUNG_WORD[String(t).toLowerCase().replace(/[^a-z]/g, '')];
     if (key === 'boxin') return youngBoxNode(true, band);
     if (key === 'boxout') return youngBoxNode(false, band);
-    if (key === 'check') return youngMarkNode('check', yc(3, band));
-    if (key === 'cross') return youngMarkNode('cross', yc(0, band));
+    if (key === 'check') return youngMarkNode('check', 'var(--good)');
+    if (key === 'cross') return youngMarkNode('cross', 'var(--bad)');
     if (key && SHAPE_ATTR[key]) { var w = h('span', { class: 'obj' }); var n = shapeNode(key, yc(0, band)); if (n) w.appendChild(n); return w; }
     if (key && YNAME[key] != null) {
       var sw = h('span', { class: 'swatch' });
@@ -136156,9 +136149,7 @@ Object.keys(J9).forEach(function (id) {
       if (n > 12) return null;
       var row = h('div', { class: 'dots chipdots' });
       for (var k = 0; k < n; k++) {
-        var d = h('span', { class: 'd' });
-        d.style.background = yc(k, band);
-        row.appendChild(d);
+        row.appendChild(h('span', { class: 'd' }));
       }
       return row;
     }
@@ -136205,11 +136196,7 @@ Object.keys(J9).forEach(function (id) {
     td.appendChild(chip);
     if (/^\d+$/.test(t) && +t >= 0 && +t <= 12) {
       var row = h('div', { class: 'dots chipdots' });
-      for (var k = 0; k < +t; k++) {
-        var d = h('span', { class: 'd' });
-        d.style.background = yc(k, band);
-        row.appendChild(d);
-      }
+      for (var k = 0; k < +t; k++) row.appendChild(h('span', { class: 'd' }));
       td.appendChild(row);
     }
     return td;
@@ -136252,13 +136239,6 @@ Object.keys(J9).forEach(function (id) {
   function dotNode(hollow, col, band) {
     var n = h('span', { class: 'obj-dot' + (hollow ? ' hollow' : '') });
     if (!hollow && col) n.style.background = col;
-    /* A young card counts its counters in colour, so an outlined counter is
-       still one of the palette's own colours — grey is the one colour a Pre-K
-       card should not be wearing. Older bands keep the plain outline. */
-    if (hollow && col && (band === 'PK' || band === 'K')) {
-      n.style.borderColor = col;
-      n.style.background = 'color-mix(in srgb, ' + col + ' 18%, var(--card))';
-    }
     return n;
   }
   /* one object, drawn from the model's own description. `idx` lets a model of
@@ -136272,8 +136252,12 @@ Object.keys(J9).forEach(function (id) {
     if (o.kind === 'shapes') art = { shape: o.shape || SHAPE_CYCLE[(idx || 0) % SHAPE_CYCLE.length] };
     if (o.kind === 'cubes') art = { cube: 1 };
     if (art.cyc) art = { shape: SHAPE_CYCLE[(idx || 0) % SHAPE_CYCLE.length] };
-    /* every object wears its own colour from the palette: counters read as
-       full-colour pictures, and each item in a row is easy to point at */
+    /* one picture, one colour: a row of cubes is a row of CUBES, and painting
+       each one a different hue only asks a four-year-old to look past the
+       decoration to see the set. The young bands therefore draw in the app's own
+       colour; the multi-hue palette is left to the charts, where a hue is a
+       series, and to the cards that NAME a colour (a swatch, a colour pattern).
+       `idx` still drives the shape cycle above. */
     var col = yc(idx || 0, band);
     if (art.shape) { var n = shapeNode(art.shape, col); if (n) return h('span', { class: 'obj' }, [n]); }
     if (art.cube) return h('span', { class: 'obj' }, [cubeNode(col)]);
@@ -136384,7 +136368,6 @@ Object.keys(J9).forEach(function (id) {
         for (var i = 0; i < 10; i++) {
           var idx = f * 10 + i;
           if (named && idx < left) fr.appendChild(h('div', { class: 'cell on objcell' }, [objectNode(o, idx, band)]));
-          else if (idx < left && (band === 'PK' || band === 'K')) fr.appendChild(h('div', { class: 'cell on', style: { background: yc(idx, band) } }));
           else fr.appendChild(h('div', { class: 'cell' + (idx < left ? ' on' : '') }));
         }
         wrap.appendChild(fr);
@@ -136408,17 +136391,17 @@ Object.keys(J9).forEach(function (id) {
         if (!mk || mk.x == null) return;
         var px = X(+mk.x);
         if (mk.arrow) {
-          g.push(s('path', { d: 'M' + px + ' ' + (y - 12) + ' l-5 -9 l10 0 z', fill: (band === 'PK' || band === 'K') ? yc(0, band) : 'currentColor', opacity: .8 }));
+          g.push(s('path', { d: 'M' + px + ' ' + (y - 12) + ' l-5 -9 l10 0 z', fill: 'currentColor', opacity: .8 }));
         } else if (mk.shade != null) {
           /* an inequality solution set: a ray from the boundary, with a closed
              circle when the boundary belongs to the set */
           var dir = String(mk.shade).indexOf('>') >= 0 ? 1 : -1;
           var tx = dir > 0 ? max : min;
           g.push(s('line', { x1: px, y1: y, x2: X(tx), y2: y, stroke: 'currentColor', 'stroke-width': 3, opacity: .7 }));
-          var mcol = (band === 'PK' || band === 'K') ? yc(4, band) : 'currentColor';
+          var mcol = 'currentColor';
           g.push(s('circle', { cx: px, cy: y, r: 5, fill: mk.closed ? mcol : 'none', stroke: mcol, 'stroke-width': 2 }));
         } else {
-          g.push(s('circle', { cx: px, cy: y, r: 5, class: 'pt', fill: (band === 'PK' || band === 'K') ? yc(6, band) : null }));
+          g.push(s('circle', { cx: px, cy: y, r: 5, class: 'pt', fill: null }));
         }
         if (mk.label != null) g.push(s('text', { x: px, y: y - 24, 'text-anchor': 'middle' }, String(mk.label)));
       });
@@ -136485,12 +136468,7 @@ Object.keys(J9).forEach(function (id) {
       var kids = bars.map(function (b, bi) {
         var d = clamp(Math.round(b.d || 1), 1, 12), n = clamp(Math.round(b.n || 0), 0, d * 3);
         var segs = [];
-        var bc = (band === 'PK' || band === 'K') ? yc(bi, band) : null;
-        for (var i = 0; i < d; i++) {
-          var sg = h('div', { class: 'seg' + (i < n ? ' on' : '') });
-          if (bc && i < n) sg.style.background = bc;
-          segs.push(sg);
-        }
+        for (var i = 0; i < d; i++) segs.push(h('div', { class: 'seg' + (i < n ? ' on' : '') }));
         return h('div', { class: 'fracbar' }, [h('div', { class: 'strip' }, segs), b.label ? h('div', { class: 'lab', text: String(b.label) }) : null]);
       });
       return h('div', { class: 'viz' }, kids);
@@ -136526,7 +136504,6 @@ Object.keys(J9).forEach(function (id) {
     /* base-ten blocks */
     blocks: function (v, band) {
       var BLOCKC = { 0: '#f97316', 1: '#0ea5e9', 2: '#10b981', 3: '#8b5cf6' };
-      if (band === 'PK' || band === 'K') BLOCKC = { 0: YPAL[1], 1: YPAL[5], 2: YPAL[3], 3: YPAL[6] };
       var YOUNGB = band === 'PK' || band === 'K';
       var clsCol = { flat: BLOCKC[2], rod: BLOCKC[1], cube: BLOCKC[0] };
       var grp = function (cls, n) {
@@ -136873,18 +136850,14 @@ Object.keys(J9).forEach(function (id) {
     /* number bond */
     numberbond: function (v, band) {
       var parts = v.parts || [];
-      var YOUNG = band === 'PK' || band === 'K';
       /* core marks the circle the card is asking for; it prints ▢, not the answer */
       var whole = v.hideWhole ? '▢' : nfmt(v.whole);
       var wholeC = h('div', { class: 'circ whole', text: whole });
-      if (YOUNG) { wholeC.style.background = 'color-mix(in srgb, ' + yc(0, band) + ' 32%, var(--card))'; wholeC.style.borderColor = yc(0, band); }
       var kids = [wholeC, h('div', { class: 'ln' })];
       var col = h('div', { class: 'parts' });
       parts.forEach(function (p, i) {
         var hidden = (v.hideParts || []).indexOf(i) >= 0;
-        var pc = h('div', { class: 'circ', text: hidden ? '▢' : nfmt(p) });
-        if (YOUNG) { pc.style.background = 'color-mix(in srgb, ' + yc(i + 1, band) + ' 32%, var(--card))'; pc.style.borderColor = yc(i + 1, band); }
-        col.appendChild(pc);
+        col.appendChild(h('div', { class: 'circ', text: hidden ? '▢' : nfmt(p) }));
       });
       kids.push(col);
       return h('div', { class: 'viz' }, [h('div', { class: 'bond' }, kids)]);
@@ -137148,7 +137121,7 @@ Object.keys(J9).forEach(function (id) {
         var kids = [h('span', { class: 'key', text: String(i + 1) })];
         var ya = youngOptArt(String(c), yband);
         if (ya && ya.glyph) kids.push(yband === 'PK'
-          ? h('span', { class: 'grow picon' }, [youngMarkNode(ya.cls === 'ok' ? 'check' : 'cross', yc(ya.cls === 'ok' ? 3 : 0, yband), String(c))])
+          ? h('span', { class: 'grow picon' }, [youngMarkNode(ya.cls === 'ok' ? 'check' : 'cross', ya.cls === 'ok' ? 'var(--good)' : 'var(--bad)', String(c))])
           : h('span', { class: 'grow picon ' + (ya.cls === 'ok' ? 'ok' : 'no'), text: String(c) }));
         else if (ya && ya.swatch) kids.push(h('span', { class: 'grow picon' }, [s('svg', { viewBox: '0 0 24 24', width: 36, height: 36 }, [s('circle', { cx: 12, cy: 12, r: 10, fill: ya.swatch, stroke: 'rgba(0,0,0,.3)', 'stroke-width': 1 })]), h('span', { class: 'word', text: String(c) })]));
         else if (ya && ya.shape) kids.push(h('span', { class: 'grow picon' }, [shapeNode(ya.shape, yc(i, yband)), h('span', { class: 'word', text: String(c) })]));
