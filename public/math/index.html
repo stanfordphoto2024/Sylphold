@@ -124089,6 +124089,51 @@ Object.keys(J9).forEach(function (id) {
         item.choices = optsP;
         item.answerText = String(cx);
       }
+    /* U.4b — a young card whose answer is a WORD becomes a tap choice too
+       (P.1 and its family were serving a typed answer to a 4-year-old). */
+    } else if (sp && sp.k === 'str' && item.answerText && !item.choices) {
+      var aw = String(item.answerText).trim().toLowerCase();
+      var pool = (typeof SHAPE_ATTR === 'object' && SHAPE_ATTR[aw]) ? Object.keys(SHAPE_ATTR) : null;
+      if (pool && pool.length > 1) {
+        var dsx = [];
+        for (i = 0; i < pool.length && dsx.length < MAXO - 1; i++) if (pool[i] !== aw) dsx.push(pool[i]);
+        var optx = dsx.slice(); var posx = hsh(item.prompt || aw) % (optx.length + 1);
+        optx.splice(posx, 0, aw);
+        item.spec = { k: 'choice', i: posx, opts: optx, text: aw };
+        item.choices = optx;
+      }
+    }
+    /* U.4c — the picture is the record. When the row was shuffled after the
+       answer was written, an ordinal answer has to move with the picture,
+       otherwise the card offers no correct answer at all (O.1 / O.2). */
+    {
+      var pmt = String(item.prompt || '').toLowerCase();
+      if (/does not belong|is wrong|odd one|is different/.test(pmt) && item.choices && item.choices.length) {
+        var vc = item.visual && (item.visual.cells || (item.visual.opts && item.visual.opts.cells));
+        if (vc && vc.length) {
+          var fv = [];
+          for (var fa = 0; fa < vc.length; fa++) { var rw = vc[fa]; if (Object.prototype.toString.call(rw) === '[object Array]') for (var fb = 0; fb < rw.length; fb++) fv.push(String(rw[fb] || '').toLowerCase()); else fv.push(String(rw || '').toLowerCase()); }
+          var cn2 = [], kd2 = [];
+          fv.forEach(function (x) { if (x && x !== '?') { if (cn2.indexOf(x) < 0) cn2.push(x); } });
+          cn2.forEach(function (x) { var n = 0; fv.forEach(function (y) { if (y === x) n++; }); kd2.push([x, n]); });
+          var mjr = kd2.filter(function (z) { return z[1] > 1; }), mnr = kd2.filter(function (z) { return z[1] === 1; });
+          if (mjr.length === 1 && mnr.length === 1) {
+            var ORD2 = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth'];
+            var px = -1; fv.forEach(function (x, ix) { if (x === mnr[0][0]) px = ix; });
+            if (px >= 0 && ORD2[px]) {
+              var lbl = ORD2[px] + ' one';
+              var nz = function (q) { return String(q || '').trim().toLowerCase().replace(/^the /, '').replace(/ one$/, '').replace(/\.$/, ''); };
+              var hitx = -1; item.choices.forEach(function (o, j) { if (nz(o) === lbl.replace(/ one$/, '')) hitx = j; });
+              if (hitx < 0) { for (var j2 = 0; j2 < item.choices.length; j2++) if (nz(item.choices[j2]) !== lbl.replace(/ one$/, '')) { hitx = j2; break; } if (hitx >= 0) item.choices[hitx] = 'the ' + lbl; }
+              if (hitx >= 0) {
+                item.spec = { k: 'choice', i: hitx, opts: item.choices, text: 'the ' + lbl };
+                item.answerText = 'the ' + lbl;
+                item.type = 'choice';
+              }
+            }
+          }
+        }
+      }
     }
     if (item.spec && item.spec.k === 'choice' && item.type && item.type !== 'choice') item.type = 'choice';
     if (!item.visual) {
