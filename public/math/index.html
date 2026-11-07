@@ -63,7 +63,6 @@ font: 16px/1.5 var(--text-font);
 
 header.bar {
 background: color-mix(in srgb, var(--bg) 88%, transparent);
-border-bottom: 1px solid var(--line);
 }
 .bar-in { max-width: 780px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
 .bar-in > * { min-width: 0; flex: 0 1 auto; }
@@ -396,27 +395,28 @@ repeating-linear-gradient(0deg, transparent 0 5px, color-mix(in srgb, var(--ink-
 
 .modal {
 position: fixed; inset: 0; z-index: 45; display: grid; place-items: center;
-padding: 20px; background: color-mix(in srgb, var(--ink) 26%, transparent);
+padding: 16px; background: color-mix(in srgb, var(--ink) 26%, transparent);
 backdrop-filter: blur(3px);
 }
 .modal[hidden] { display: none; }
 .modal-card {
-width: 100%; max-width: 560px; max-height: calc(100vh - 40px); overflow: auto;
+width: 100%; max-width: 440px; max-height: calc(100vh - 32px); overflow: auto;
 background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
-box-shadow: var(--shadow); padding: 22px 22px 18px;
+box-shadow: var(--shadow); padding: 16px 16px 13px;
 }
-.modal-card h2 { font-size: 18px; margin: 0 0 12px; letter-spacing: -.01em; }
-.modal-card h3 { font-size: 12.5px; margin: 16px 0 5px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
-.modal-card p { margin: 0 0 8px; font-size: 14px; line-height: 1.62; color: var(--ink-2); }
+.modal-card h2 { font-size: 15px; margin: 0 0 9px; letter-spacing: -.01em; }
+.modal-card h3 { font-size: 11px; margin: 12px 0 4px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.modal-card p { margin: 0 0 6px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
 .agree {
-display: flex; gap: 10px; align-items: flex-start; margin: 18px 0 2px;
-font-size: 14.5px; line-height: 1.5; color: var(--ink); cursor: pointer;
+display: flex; gap: 8px; align-items: flex-start; margin: 13px 0 2px;
+font-size: 12.5px; line-height: 1.45; color: var(--ink); cursor: pointer;
 }
-.agree input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); flex: 0 0 auto; cursor: pointer; }
-.modal-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.agree input { width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--accent); flex: 0 0 auto; cursor: pointer; }
+.modal-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.modal-foot .btn { font-size: 13px; padding: 9px 14px; border-radius: 9px; }
 .modal-foot .btn:disabled { opacity: .45; cursor: default; }
 
-.foot { border-top: 1px solid var(--line); padding: 18px 16px 40px; }
+.foot { padding: 18px 16px 40px; }
 .foot-in { max-width: 780px; margin: 0 auto; }
 .foot p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.55; color: var(--ink-3); }
 .foot p:last-child { margin-bottom: 0; }
@@ -432,6 +432,8 @@ font-size: 14.5px; line-height: 1.5; color: var(--ink); cursor: pointer;
 nav.tabs button { padding: 6px 9px; font-size: 12.5px; }
 .keypad { grid-template-columns: repeat(5, 1fr); }
 .foot { padding: 16px 14px 34px; }
+.modal { padding: 12px; }
+.modal-card { max-height: calc(100vh - 24px); padding: 14px 13px 11px; }
 }
 @media (max-width: 400px) {
 .bar-in { gap: 6px; }
@@ -76723,12 +76725,12 @@ var lim = ceil(p, sk), t = pick(rng, NOUNS), a = int(rng, 2, lim), b = int(rng, 
 while (b === a && g++ < 30) b = int(rng, 2, lim);
 if (b === a) b = cap(a + 1, 2, lim);
 var ans = wantMore ? (a > b ? ROW2[0] : ROW2[1]) : (a < b ? ROW2[0] : ROW2[1]);
-return mc(rng, sk, say(rng, sk, 'Which group has more ' + t + '?', 'Which group has more ' + t + '?'),
+return mc(rng, sk, say(rng, sk, 'Which group has ' + (wantMore ? 'more ' : 'fewer ') + t + '?', 'Which group has ' + (wantMore ? 'more' : 'fewer') + ' ' + t + '?'),
 'the ' + ans, ['the ' + ROW2[0], 'the ' + ROW2[1], 'they are the same'].filter(function (v) { return v !== 'the ' + ans; }), {
 visual: twoRows(a, b, t, 'count each row'),
 explain: ['Count the top row: ' + a + '.', 'Count the bottom row: ' + b + '.',
 'So the answer is the <b>' + ans + '</b>.'],
-teach: 'Count both groups before you say which has more.', b: 0
+teach: 'Count both groups before you say which has ' + (wantMore ? 'more' : 'fewer') + '.', b: 0
 });
 }
 
@@ -76737,7 +76739,7 @@ var lim = ceil(p, sk), t = 'cubes', a = int(rng, 3, lim), b = int(rng, 2, lim), 
 while (b === a && g++ < 30) b = int(rng, 2, lim);
 if (b === a) b = cap(a + 1, 2, lim);
 var ans = wantLong ? (a > b ? ROW2[0] : ROW2[1]) : (a < b ? ROW2[0] : ROW2[1]);
-return mc(rng, sk, say(rng, sk, 'Which row of ' + t + ' is longer?', 'Which row is longer?'),
+return mc(rng, sk, say(rng, sk, 'Which row of ' + t + ' is ' + (wantLong ? 'longer' : 'shorter') + '?', 'Which row is ' + (wantLong ? 'longer' : 'shorter') + '?'),
 'the ' + ans, ['the ' + ROW2[0], 'the ' + ROW2[1], 'they are the same'].filter(function (v) { return v !== 'the ' + ans; }), {
 visual: twoRows(a, b, t, 'line them up at the left'),
 explain: ['Both rows start in the same place.', 'The top row has ' + a + ' and the bottom row has ' + b + '.',
@@ -76810,12 +76812,12 @@ var lim = ceil(p, sk), t = pick(rng, NOUNS), a = int(rng, 2, lim), b = int(rng, 
 while (b === a && g++ < 30) b = int(rng, 1, lim);
 var wantHeavy = chance(rng, 0.6);
 var ans = wantHeavy ? (a > b ? 'the left one' : 'the right one') : (a < b ? 'the left one' : 'the right one');
-return mc(rng, sk, say(rng, sk, 'Which side has more ' + t + '?', 'Which side has more?'),
+return mc(rng, sk, say(rng, sk, 'Which side has ' + (wantHeavy ? 'more ' : 'fewer ') + t + '?', 'Which side has ' + (wantHeavy ? 'more' : 'fewer') + '?'),
 ans, ['the left one', 'the right one', 'they are the same'].filter(function (v) { return v !== ans; }), {
 visual: V.bar([{ v: a, label: 'left' }, { v: b, label: 'right' }], { noun: t, label: 'compare the two sides' }),
-explain: ['Count the ' + t + ' on each side.', a + ' is more than ' + b + ', so that side is bigger.',
-'So the answer is <b>' + ans + '</b>.'],
-teach: 'More of the same thing on a side makes it the heavier side.', b: 0.2
+explain: ['Count the ' + t + ' on each side.', 'The left side has ' + a + ' and the right side has ' + b + '.',
+'The side the card asks about is <b>' + ans + '</b>.'],
+teach: 'Count both sides: more of the same thing makes that side the heavier one.', b: 0.2
 });
 }
 
