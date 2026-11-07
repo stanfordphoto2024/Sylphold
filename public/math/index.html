@@ -82604,8 +82604,10 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var g = pick(rng, GROUPS), a = pick(rng, g.any), b = pick(rng, g.any), guard = 0;
     while (b === a && guard++ < 30) b = pick(rng, g.any);
     var ab = chance(rng, 0.5) || lvl <= 2;
-    var row = ab ? [a, b, a, b, a] : [a, b, b, a, b];
-    var ans = ab ? b : a;
+    var unit = ab ? [a, b] : [a, b, b];
+    var row = [], iu;
+    for (iu = 0; iu < 5; iu++) row.push(unit[iu % unit.length]);
+    var ans = unit[5 % unit.length];
     return mc(rng, sk, say(rng, sk, 'What comes next in the pattern?', 'What comes next?'), ans,
       [a, b].filter(function (v) { return v !== ans; }).concat([pick(rng, otherGroup(rng, g).any)]), {
       visual: V.grid({ rows: 1, cols: 6, cells: [[row[0], row[1], row[2], row[3], row[4], '?']], label: 'say the pattern as you read it' }),
@@ -82620,13 +82622,15 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   function sPatternMiddle(rng, lvl, p, sk) {
     var g = pick(rng, GROUPS), a = pick(rng, g.any), b = pick(rng, g.any), guard = 0;
     while (b === a && guard++ < 30) b = pick(rng, g.any);
-    var cells = [a, b, '?', a, b];
-    var ans = chance(rng, 0.5) ? a : b;
-    cells[2] = ans;
+    var unit = chance(rng, 0.5) ? [a, b] : [b, a];
+    var row = [], iu;
+    for (iu = 0; iu < 5; iu++) row.push(unit[iu % unit.length]);
+    var ans = row[2];
+    row[2] = '?';
     return mc(rng, sk, say(rng, sk, 'What comes in the middle of the pattern?', 'What comes in the middle?'), ans,
-      [a, b].filter(function (v) { return v !== ans; }), {
-      visual: V.grid({ rows: 1, cols: 5, cells: [[cells[0], cells[1], '?', cells[3], cells[4]]], label: 'find the missing one' }),
-      explain: ['Read the pattern from the left.', 'The middle spot is between ' + cells[1] + ' and ' + cells[3] + '.',
+      unit.filter(function (v) { return v !== ans; }), {
+      visual: V.grid({ rows: 1, cols: 5, cells: [row], label: 'find the missing one' }),
+      explain: ['Say the pattern as it is drawn.', 'It repeats ' + unit[0] + ', ' + unit[1] + ' over and over.',
         'So the answer is <b>' + ans + '</b>.'],
       teach: 'The pattern tells you what belongs in the blank.', b: 0
     });
