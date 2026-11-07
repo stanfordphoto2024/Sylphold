@@ -99576,6 +99576,13 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
   DP.maxNum = function (sk) { var p = POLICY[(sk && sk.band) || '']; return p ? p.maxNum : 1000000; };
   DP.words = function (sk) { var p = POLICY[(sk && sk.band) || '']; return p ? p.words : 14; };
   DP.options = function (sk) { var p = POLICY[(sk && sk.band) || '']; return p ? p.options : 4; };
+  /* the fewest near-misses a card needs before it can be handed over as a pick.
+     For the reading grades that is two, which makes a normal four-option question.
+     For the two bands still learning to read it is ONE: answer plus a single
+     near-miss is two boxes to tap, and two boxes to tap beats a keyboard — those
+     grades cannot type an answer, so a generator that only had one honest wrong
+     answer must still get a pick, not silently fall back to typing. */
+  function minWrong(p) { return p && p.tier <= 2 ? 1 : 2; }
   DP.lvl01 = function (lvl) { return (lvl - 1) / 4; };
   /* the step budget at THIS level. lvl 1 is the simplest shape of the standard —
      the model, one method, the answer — and lvl 5 is the hardest this band allows,
@@ -99694,7 +99701,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
     var p = POLICY[(sk && sk.band) || ''];
     o = o || {};
     if (p && p.noHint) delete o.hint;
-    if (!p || !p.pickFirst || !wrongs || wrongs.length < 2) return I_num(prompt, answer, o);
+    if (!p || !p.pickFirst || !wrongs || wrongs.length < minWrong(p)) return I_num(prompt, answer, o);
     var opts = buildOptions(answer, wrongs, p.options);
     if (opts.length < 2) return I_num(prompt, answer, o);
     var sh = R.shuffle(rng, opts);
@@ -99729,7 +99736,7 @@ function packOne(k) { return { boxes: 'box', bags: 'bag', trays: 'tray', baskets
        keyboard, and numeric and symbolic answers keep what their band asked
        for. */
     var wordAnswer = pats.length === 1 && right.length <= 22 && /^[a-z][a-z '’-]*$/i.test(right);
-    if (!p || (!p.pickFirst && !wordAnswer) || !wrongs || wrongs.length < 2) return I_str(prompt, pats, o);
+    if (!p || (!p.pickFirst && !wordAnswer) || !wrongs || wrongs.length < minWrong(p)) return I_str(prompt, pats, o);
     var opts = buildOptions(right, wrongs, p.options);
     if (opts.length < 2) return I_str(prompt, pats, o);
     /* The bands that were already picking keep the shuffle they were given. A
