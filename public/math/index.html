@@ -62,18 +62,17 @@ font: 16px/1.5 var(--text-font);
 .wrap { max-width: 780px; margin: 0 auto; padding: 0 16px 72px; }
 
 header.bar {
-position: sticky; top: 0; z-index: 20;
 background: color-mix(in srgb, var(--bg) 88%, transparent);
-backdrop-filter: saturate(1.4) blur(10px);
 border-bottom: 1px solid var(--line);
 }
-.bar-in { max-width: 780px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -.02em; font-size: 17px; }
+.bar-in { max-width: 780px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.bar-in > * { min-width: 0; flex: 0 1 auto; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -.02em; font-size: 17px; flex: 0 0 auto; }
 .brand .glyph {
 width: 26px; height: 26px; border-radius: 8px; background: var(--accent); color: #fff;
 display: grid; place-items: center; font-size: 14px; font-weight: 800;
 }
-nav.tabs { display: flex; gap: 2px; margin-left: auto; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+nav.tabs { display: flex; gap: 2px; margin-left: auto; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px; flex: 0 0 auto; }
 nav.tabs button {
 border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13.5px; font-weight: 600;
 padding: 6px 12px; border-radius: 999px; cursor: pointer;
@@ -87,7 +86,7 @@ nav.tabs button:disabled { opacity: .4; cursor: default; }
 .pill.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
 .pill.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
 
-select.lvlpick { font: inherit; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); border: 1px solid transparent; color: var(--accent); white-space: nowrap; max-width: 15ch; cursor: pointer; }
+select.lvlpick { font: inherit; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); border: 1px solid transparent; color: var(--accent); white-space: nowrap; max-width: 15ch; min-width: 0; cursor: pointer; }
 select.lvlpick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 18px; margin: 14px 0; }
@@ -395,18 +394,50 @@ repeating-linear-gradient(0deg, transparent 0 5px, color-mix(in srgb, var(--ink-
 .dlbl { font-size: 10.5px; font-weight: 600; fill: #fff; }
 .dctr { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
 
+.modal {
+position: fixed; inset: 0; z-index: 45; display: grid; place-items: center;
+padding: 20px; background: color-mix(in srgb, var(--ink) 26%, transparent);
+backdrop-filter: blur(3px);
+}
+.modal[hidden] { display: none; }
+.modal-card {
+width: 100%; max-width: 560px; max-height: calc(100vh - 40px); overflow: auto;
+background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
+box-shadow: var(--shadow); padding: 22px 22px 18px;
+}
+.modal-card h2 { font-size: 18px; margin: 0 0 12px; letter-spacing: -.01em; }
+.modal-card h3 { font-size: 12.5px; margin: 16px 0 5px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.modal-card p { margin: 0 0 8px; font-size: 14px; line-height: 1.62; color: var(--ink-2); }
+.agree {
+display: flex; gap: 10px; align-items: flex-start; margin: 18px 0 2px;
+font-size: 14.5px; line-height: 1.5; color: var(--ink); cursor: pointer;
+}
+.agree input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); flex: 0 0 auto; cursor: pointer; }
+.modal-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.modal-foot .btn:disabled { opacity: .45; cursor: default; }
+
 .foot { border-top: 1px solid var(--line); padding: 18px 16px 40px; }
 .foot-in { max-width: 780px; margin: 0 auto; }
 .foot p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.55; color: var(--ink-3); }
 .foot p:last-child { margin-bottom: 0; }
 .foot .k { font-weight: 700; color: var(--ink-2); }
+.foot .lk { background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 560px) {
 .prompt { font-size: 18px; }
 .prompt.big { font-size: 20px; }
 .barrow { grid-template-columns: 84px 1fr 40px; }
+.bar-in { gap: 8px; padding: 8px 12px; }
+.brand { gap: 0; }
+.brand .bname { display: none; }
 nav.tabs button { padding: 6px 9px; font-size: 12.5px; }
 .keypad { grid-template-columns: repeat(5, 1fr); }
 .foot { padding: 16px 14px 34px; }
+}
+@media (max-width: 400px) {
+.bar-in { gap: 6px; }
+select.lvlpick { font-size: 11.5px; padding: 3px 7px; max-width: 12ch; }
+nav.tabs { gap: 0; padding: 2px; }
+nav.tabs button { padding: 5px 7px; font-size: 12px; }
 }
 
 .katex { font-size: 1em; font-family: var(--math-font); }
@@ -454,12 +485,36 @@ transition: width 450ms ease-out; }
 </div>
 <footer class="foot">
   <div class="foot-in">
-    <p><span class="k">Privacy Policy:</span> Sylphold Math is a non-commercial educational tool. We do not
-    collect, store, or share any personal information from children or users.</p>
-    <p><span class="k">Disclaimer:</span> This website is provided 'as is' for supplemental practice only,
-    without warranties of any kind. Not affiliated with any school district.</p>
+    <p><button class="lk" type="button" data-legal>Privacy &amp; Disclaimer — read the full notice</button></p>
   </div>
 </footer>
+<div class="modal" id="legal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="legal-title">
+    <h2 id="legal-title">Privacy &amp; Disclaimer</h2>
+    <h3>Privacy</h3>
+    <p>Sylphold Math is a non-commercial educational tool. We do not collect, store, sell, or share any personal
+    information about children or users: there are no accounts, no cookies, no analytics, and no advertising. A
+    learner&rsquo;s progress, settings, and answer history are kept in this browser&rsquo;s own storage on this
+    device, and they leave the device only if the learner exports them.</p>
+    <h3>Third-party content</h3>
+    <p>Nothing a learner types or answers is sent anywhere. When the spoken voice is switched on, the browser
+    downloads the open-source speech model it runs from a public content-delivery network; that download is the only
+    network request this app makes, and it carries nothing the learner has entered.</p>
+    <h3>Disclaimer</h3>
+    <p>This app is provided &ldquo;as is&rdquo;, for supplemental practice only, without warranties of any kind,
+    express or implied, including any warranty of merchantability, fitness for a particular purpose, or
+    non-infringement. It is not affiliated with, endorsed by, or a substitute for any school, school district,
+    curriculum authority, or the professional judgement of a teacher. Curriculum alignments and generated questions
+    are offered for practice and may contain errors; a learner&rsquo;s school records remain the authority.</p>
+    <label class="agree" for="legal-ck">
+      <input type="checkbox" id="legal-ck">
+      <span>I have read and accept the Privacy and Disclaimer terms above.</span>
+    </label>
+    <div class="modal-foot">
+      <button class="btn primary" type="button" id="legal-ok" disabled>I Agree &mdash; Continue</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
 
@@ -128917,7 +128972,7 @@ renderActions();
 if (S.answered) revealAnswer();
 var inp = $('#itemhost #ans') || $('#view #ans');
 
-if (inp && !S.answered && !TOUCH) setTimeout(function () { try { inp.focus(); } catch (e) { } }, 30);
+if (inp && !S.answered && !TOUCH && !LEGAL_UP) setTimeout(function () { try { inp.focus(); } catch (e) { } }, 30);
 if (!S.answered) {
 var stxt = speechText(item);
 
@@ -130204,6 +130259,7 @@ var words = humanWords(txt);
 if (!words) return;
 STATS.asked++;                                  
 STATS.mood = emotion || 'read'; STATS.words = words;
+if (LEGAL_UP) { LEGAL_HELD = [words, emotion || 'read']; return; }
 if (isIOSVoice() && win.speechSynthesis && win.SpeechSynthesisUtterance) {
 hush(); speakSystem(words, ++SAY_TOKEN); return;               
 }
@@ -130333,7 +130389,7 @@ var bar = $('#bar'); if (!bar) return;
 var st = E.st, lv = E.level();
 var acc = st.sess.asked ? Math.round(st.sess.correct / st.sess.asked * 100) : 0;
 clear(bar).appendChild(h('div', { class: 'bar-in' }, [
-h('div', { class: 'brand' }, [h('div', { class: 'glyph', text: 'π' }), 'MathPath']),
+h('div', { class: 'brand' }, [h('div', { class: 'glyph', text: 'π' }), h('span', { class: 'bname', text: 'MathPath' })]),
 h('div', { class: 'meter' }, [
 levelPicker(lv),
 
@@ -130392,6 +130448,7 @@ toastT = setTimeout(function () { t.classList.remove('on'); }, 2200);
 
 function keys(ev) {
 if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+if (LEGAL_UP) { if (ev.key === 'Escape') legalHide(); return; }
 var tag = (ev.target && ev.target.tagName || '').toLowerCase();
 if (S.view !== 'practice' && S.view !== 'diag') return;
 if (ev.key === 'Enter') {
@@ -130408,6 +130465,32 @@ if ((ev.key === 'h' || ev.key === 'H') && !S.answered && tag !== 'input') {
 var hb = $('#view .hintbox');
 if (!hb) add($('#view #feedback') || $('#view'), h('div', { class: 'hintbox', html: TEX.html((S.item && (S.item.hint || S.item.teach)) || '') }));
 }
+}
+
+var LEGAL_KEY = 'mathpath.legal.v1';
+var LEGAL_UP = false, LEGAL_HELD = null;
+function legalSeen() { try { return !!win.localStorage.getItem(LEGAL_KEY); } catch (e) { return false; } }
+function legalRemember() { try { win.localStorage.setItem(LEGAL_KEY, '1'); return true; } catch (e) { return false; } }
+function legalShow() {
+var m = $('#legal'); if (!m) return;
+m.hidden = false; LEGAL_UP = true;
+var ck = $('#legal-ck'), ok = $('#legal-ok');
+if (ck) { ck.checked = legalSeen(); if (ok) ok.disabled = !ck.checked; }
+setTimeout(function () { try { if (ck) ck.focus(); } catch (e) { } }, 0);
+}
+function legalHide() { var m = $('#legal'); if (m) m.hidden = true; LEGAL_UP = false; }
+function legalInit() {
+var m = $('#legal'); if (!m) return;
+var ck = $('#legal-ck'), ok = $('#legal-ok');
+if (ck && ok) ck.addEventListener('change', function () { ok.disabled = !ck.checked; });
+if (ok) ok.addEventListener('click', function () {
+if (!ck || !ck.checked) return;
+legalRemember(); legalHide();
+if (LEGAL_HELD) { var held = LEGAL_HELD; LEGAL_HELD = null; speak(held[0], held[1]); }
+});
+var links = doc.querySelectorAll('[data-legal]');
+for (var i = 0; i < links.length; i++) links[i].addEventListener('click', legalShow);
+if (!legalSeen()) legalShow();
 }
 
 function boot() {
@@ -130443,6 +130526,7 @@ if (!E.st.settings.mode) E.st.settings.mode = 'climb';
 win.addEventListener('hashchange', route);
 doc.addEventListener('keydown', keys);
 route();
+legalInit();
 }
 root.MathPathUI = {
 boot: boot, render: render, renderVisual: renderVisual, buildAnswer: buildAnswer,
