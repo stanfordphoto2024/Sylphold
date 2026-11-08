@@ -991,6 +991,17 @@ if (!ansWords.length || !o.explain || !o.explain.length) return;
 var lx = o.explain.length - 1;
 o.explain[lx] = String(o.explain[lx]).replace(/\s*$/, '') + ' — here that is “' + ans + '”.';
 })();
+if (o.answerText != null && Array.isArray(o.explain)) {
+var wantSync = String(o.answerText).trim().toLowerCase();
+var syncShape = /^(the )?([a-z]+ )?one$|^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)( one)?$|^[a-z]{2,20}$/;
+if (syncShape.test(wantSync)) { for (var ezi = 0; ezi < o.explain.length; ezi++) {
+o.explain[ezi] = String(o.explain[ezi]).replace(/(answer is\s+)(<b>)?([a-z][a-z ]{0,58})(<\/b>)?/gi, function (m0, g1, g2, mid, g4) {
+var mt = String(mid).trim().toLowerCase();
+if (mt === wantSync || !syncShape.test(mt)) return m0;
+return g1 + (g2 || '') + o.answerText + (g4 || '');
+});
+} }
+}
 hideLeakedModel(o);
 return o;
 }
@@ -77851,7 +77862,7 @@ if (!add && b > a) { swp = a; a = b; b = swp; }
 var right = (add ? a + ' + ' + b + ' = ' + (a + b) : a + ' - ' + b + ' = ' + (a - b));
 return mc(rng, sk, say(rng, sk, w + ' has ' + a + ' ' + t + '. ' + (add ? 'Gets ' + b + ' more.' : 'Gives ' + b + ' away.') + ' Which sentence?',
 'Which sentence for ' + a + ' and ' + b + '?'), right,
-[a + ' + ' + b + ' = ' + (a + b + 1), a + ' - ' + b + ' = ' + (a - b + 2), a + ' + ' + b + ' = ' + (a + b + 2)].filter(function (v) { return v !== right; }), {
+[a + ' + ' + b + ' = ' + (a + b + 1), a - b >= 0 ? a + ' - ' + b + ' = ' + (a - b + 2) : b + ' + ' + a + ' = ' + (a + b + 3), a + ' + ' + b + ' = ' + (a + b + 2)].filter(function (v) { return v !== right; }), {
 visual: twoRows(a, b, t, ['had', add ? 'got more' : 'gave away'], 'the story'),
 explain: ['Count the first row: ' + a + '.', 'Count the second row: ' + b + '.',
 (add ? 'Putting them together is ' : 'Taking away gives ') + (add ? a + b : a - b) + '.',
@@ -78360,13 +78371,16 @@ teach: 'Above means higher up; below means underneath.', b: 0
 
 function sBesideMiddle(rng, lvl, p, sk, wantMiddle) {
 var g = pick(rng, GROUPS), w = pick(rng, g.any), a = pick(rng, g.any), b = pick(rng, g.any), c = pick(rng, g.any);
+b = (b !== a && g.any.length > 1) ? b : (g.any.filter(function (v) { return v !== a; })[0] || b);
+c = (c !== a && c !== b && g.any.length > 2) ? c : (g.any.filter(function (v) { return v !== a && v !== b; })[0] || c);
 var cells = [a, b, c], mid = b;
-var ans = wantMiddle ? mid : (chance(rng, 0.5) ? a : c);
-return mc(rng, sk, say(rng, sk, 'Which one is ' + (wantMiddle ? 'in the middle' : 'next to the ' + mid) + '?',
+var ref = wantMiddle ? mid : (chance(rng, 0.5) ? a : c);
+var ans = mid;
+return mc(rng, sk, say(rng, sk, 'Which one is ' + (wantMiddle ? 'in the middle' : 'next to the ' + ref) + '?',
 'Which one is ' + (wantMiddle ? 'in the middle' : 'next to it') + '?'), ans,
 cells.filter(function (v) { return v !== ans; }), {
 visual: V.grid({ rows: 1, cols: 3, cells: [cells], label: 'three in a row' }),
-explain: ['Look at the row of three.', wantMiddle ? 'The middle one is between the other two.' : 'Find the one touching the middle.',
+explain: ['Look at the row of three.', wantMiddle ? 'The middle one is between the other two.' : 'Pick one at either end and look at the one touching it.',
 'So the answer is <b>' + ans + '</b>.'],
 teach: 'Beside means next to; the middle one is between the others.', b: 0.1
 });
@@ -94027,6 +94041,18 @@ for (i = steps.length - 3; i >= 0; i--) if (worth(steps[i]) < worth(steps[dropAt
 steps.splice(dropAt, 1);
 }
 it.explain = steps;
+}
+if (it.answerText != null && Array.isArray(it.explain)) {
+var wantSync = String(it.answerText).trim().toLowerCase();
+var syncOk = /^(the )?([a-z]+ )?one$|^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)( one)?$|^[a-z]{2,20}$/.test(wantSync);
+if (syncOk) { for (var ezi = 0; ezi < it.explain.length; ezi++) {
+it.explain[ezi] = String(it.explain[ezi]).replace(/(answer is\s+)(<b>)?([a-z][a-z ]{0,58})(<\/b>)?/gi, function (m0, g1, g2, mid, g4) {
+var mt = String(mid).trim().toLowerCase();
+if (mt === wantSync) return m0;
+if (!/^(the )?([a-z]+ )?one$|^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)( one)?$|^[a-z]{2,20}$/.test(mt)) return m0;
+return g1 + (g2 || '') + wantSync + (g4 || '');
+});
+} }
 }
 return it;
 };
