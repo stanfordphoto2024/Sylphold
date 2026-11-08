@@ -310,7 +310,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 
 .band-pk .obj-shp { width: 36px; height: 36px; }
 .band-k .obj-shp { width: 24px; height: 24px; }
-.band-pk .markwrap, .band-k .markwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.markwrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
 .band-pk .swatch, .band-k .swatch { display: inline-block; width: 36px; height: 36px; border-radius: 9px; }
 .band-k .swatch { width: 24px; height: 24px; border-radius: 6px; }
 .band-pk img.obj.em { width: 36px; height: 36px; }
@@ -78349,8 +78349,7 @@ cells[at] = cells[at] === a ? b : a;
 return mc(rng, sk, say(rng, sk, 'Which one is wrong in the pattern?', 'Which one is wrong?'), POSW[at],
 POSW.filter(function (v, i) { return i !== at; }), {
 visual: V.grid({ rows: 1, cols: 4, cells: [cells], label: 'the pattern should repeat' }),
-explain: ['Say the pattern as it is drawn.', 'One of them breaks it.',
-'So the answer is <b>' + POSW[at] + '</b>.'],
+explain: ['Say the pattern as it is drawn.', 'One of them breaks it: the pattern should repeat the same two pieces.'],
 teach: 'Find the piece that does not fit the repeating pattern.', b: 0.1
 });
 }
@@ -78358,7 +78357,7 @@ teach: 'Find the piece that does not fit the repeating pattern.', b: 0.1
 function sAboveBelow(rng, lvl, p, sk, wantTop) {
 var g = pick(rng, GROUPS), o = otherGroup(rng, g);
 var top = pick(rng, g.any), bottom = pick(rng, o.any);
-var mid = pick(rng, g.any);
+var mid = pick(rng, g.any.filter(function (v) { return v !== top; })) || pick(rng, g.any);
 return mc(rng, sk, say(rng, sk, 'Which one is ' + (wantTop ? 'above' : 'below') + ' the ' + mid + '?',
 'Which one is ' + (wantTop ? 'above' : 'below') + ' it?'), wantTop ? top : bottom,
 [wantTop ? bottom : top, mid].filter(function (v) { return v !== (wantTop ? top : bottom); }), {
@@ -94872,6 +94871,20 @@ item.spec.i = rightNew;
 item.spec.text = texts[rightNew];
 if (item.answer) item.answer = kept[rightNew];
 item.answerText = texts[rightNew];
+})();
+
+(function syncExplainToAnswer() {
+var wantSync = String(item.answerText == null ? '' : item.answerText).trim().toLowerCase();
+if (!item.explain || !item.explain.length) return;
+var syncShape = /^(the )?([a-z]+ )?one$|^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)( one)?$|^[a-z]{2,20}$/;
+if (!syncShape.test(wantSync)) return;
+for (var zi = 0; zi < item.explain.length; zi++) {
+item.explain[zi] = String(item.explain[zi]).replace(/(answer is\s+)(<b>)?([a-z][a-z ]{0,58})(<\/b>)?/gi, function (m0, g1, g2, mid, g4) {
+var mt = String(mid).trim().toLowerCase();
+if (mt === wantSync || !syncShape.test(mt)) return m0;
+return g1 + (g2 || '') + item.answerText + (g4 || '');
+});
+}
 })();
 
 var brokenText = function (t) {
