@@ -13328,7 +13328,7 @@ return out;
 }
 function rel(a, b) { return a + (a > b ? ' is more than ' : (a < b ? ' is less than ' : ' is the same as ')) + b; }
 function matchModel(g) {
-var cols = cap(Math.max(g.n1, g.n2), 1, 12), r1 = [], r2 = [], i;
+var cols = Math.max(1, g.n1, g.n2), r1 = [], r2 = [], i;
 for (i = 0; i < cols; i++) { r1.push(i < g.n1 ? '●' : ''); r2.push(i < g.n2 ? '○' : ''); }
 return V.grid({ rows: 2, cols: cols, cells: [r1, r2], rowLabels: [g.a, g.b], label: 'match one to one' });
 }
@@ -13336,7 +13336,7 @@ return V.grid({ rows: 2, cols: cols, cells: [r1, r2], rowLabels: [g.a, g.b], lab
 function attributeBranch(rng, lvl, p) {
 var s = attrSit(rng, p, lvl), A = s.A, ct = pick(rng, CTX), w = pick(rng, WHO);
 var more = s.m1 > s.m2, lo = lvl <= 2 ? -0.4 : lvl === 3 ? 0 : 0.5;
-var measure = V.grid({ rows: 2, cols: cap(Math.max(s.m1, s.m2), 1, 12), cells: [strip(s.m1, '▣'), strip(s.m2, '▣')], rowLabels: [s.o1, s.o2], label: 'measured with ' + A.unit });
+var measure = V.grid({ rows: 2, cols: Math.max(1, s.m1, s.m2), cells: [strip(s.m1, '▣'), strip(s.m2, '▣')], rowLabels: [s.o1, s.o2], label: 'measured with ' + A.unit });
 var teach = 'Comparing an attribute means measuring both things the same way, then saying which one has more of it.';
 var why = function (yes) {
 return ['Measure both with ' + A.unit + ': the ' + s.o1 + ' is ' + s.m1 + ' and the ' + s.o2 + ' is ' + s.m2 + '.',
@@ -45855,7 +45855,7 @@ var a = tenthVals(), b = tenthVals();
 var ans = D(a * b, 2);
 var wrongs = dslips(ans, [D(a * b, 1), D(a * b * 10, 2)]);
 if (wrongs.length < 2) return null;
-return choose(rng, lead(rng, ['Work out 0.' + a + ' × 0.' + b + '.', 'How many hundredths are in 0.' + a + ' × 0.' + b + '?']),
+return choose(rng, lead(rng, ['Work out 0.' + a + ' × 0.' + b + '.', 'Write 0.' + a + ' × 0.' + b + ' as a decimal.']),
 dstr(ans), wrongs, {
 visual: gridModel(a, b),
 steps: ['0.' + a + ' × 0.' + b + ' = ' + a + ' × ' + b + ' hundredths = ' + (a * b) + '/100.',
@@ -78229,6 +78229,9 @@ var GROUPS = [
 { name: 'desk things', any: ['pencil', 'crayon', 'paintbrush', 'scissors', 'book', 'button', 'paperclip'] },
 { name: 'play things', any: ['ball', 'block', 'brick', 'marble', 'shell', 'dice', 'kite', 'teddy'] }
 ];
+var IRREG = { dice: 'dice', fish: 'fish', sheep: 'sheep' };
+function plWord(w) { var k = String(w).toLowerCase(); if (IRREG[k]) return IRREG[k];
+if (/(s|x|z|ch|sh)$/.test(k)) return k; if (/[^aeiou]y$/.test(k)) return k.slice(0, -1) + 'ies'; return k + 's'; }
 var POSW = ['the first one', 'the second one', 'the third one', 'the fourth one'];
 function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
 function int(rng, a, b) { return a + Math.floor(rng() * (b - a + 1)); }
@@ -78283,10 +78286,10 @@ function sCountGroup(rng, lvl, p, sk) {
 var g = pick(rng, GROUPS), w = pick(rng, g.any), n = int(rng, lvl <= 2 ? 1 : 3, Math.max(3, lvl <= 2 ? 5 : 10));
 var cells = [], i;
 for (i = 0; i < n; i++) cells.push(w);
-return mc(rng, sk, say(rng, sk, 'How many ' + w + ' are there?', 'How many ' + w + ' are there?'), n,
+return mc(rng, sk, say(rng, sk, 'How many ' + plWord(w) + ' are there?', 'How many ' + plWord(w) + ' are there?'), n,
 [n + 1, n - 1, n + 2].filter(function (v) { return v >= 0 && v !== n; }), {
 visual: V.grid({ rows: 1, cols: n, cells: [cells], label: 'count them' }),
-explain: ['Count the ' + w + ' one by one.', 'The last number you said is the total.',
+explain: ['Count the ' + plWord(w) + ' one by one.', 'The last number you said is the total.',
 'So the answer is <b>' + n + '</b>.'],
 teach: 'Count each group and write the number for it.', b: -0.1
 });
@@ -78481,6 +78484,14 @@ teach: 'A nickel is 5 cents and a dime is 10 — count by their value.', b: 0.2
 function sGraph(rng, lvl, p, sk, wantTop) {
 var data = pick(rng, GRAPH), labels = [], total = 0, lim = Math.max(3, limOf(p, sk)), i;
 for (i = 0; i < data.length; i++) { var v = int(rng, 1, Math.max(1, Math.min(lim, 6))); labels.push({ label: data[i], v: v }); total += v; }
+/* the row the question asks about has to be the only row at its value, or the card has two right answers */
+var mvi = 0, j, k = 0;
+for (j = 1; j < labels.length; j++) if (wantTop ? labels[j].v > labels[mvi].v : labels[j].v < labels[mvi].v) mvi = j;
+for (j = 0; j < labels.length; j++) if (j !== mvi && labels[j].v === labels[mvi].v) {
+var nv = labels[mvi].v + (wantTop ? -(++k) : ++k);
+if (nv < 1 || nv > 6) break;
+labels[j].v = nv;
+}
 var best = labels[0];
 for (i = 1; i < labels.length; i++) if (wantTop ? labels[i].v > best.v : labels[i].v < best.v) best = labels[i];
 return mc(rng, sk, say(rng, sk, 'Which row has the ' + (wantTop ? 'most' : 'fewest') + '?', 'Which row has the ' + (wantTop ? 'most' : 'fewest') + '?'),
@@ -84040,8 +84051,8 @@ var wn2 = Math.min(4, wn + 1);
 var an2 = ln * wn2, ad2 = ld * wd, ga2 = gcd5(an2, ad2);
 return I_cmp(ln + '/' + ld + ' × ' + wn + '/' + wd + ' ○ ' + ln + '/' + ld + ' × ' + wn2 + '/' + wd, an / ad, an2 / ad2, {
 b: t + 0.6,
-explain: ['Both share the ' + ln + '/' + ld + ' side.', wn2 + ' > ' + wn + ', so the second rectangle covers more.',
-'So the answer is <b><</b>.'],
+explain: ['Both share the ' + ln + '/' + ld + ' side.', wn2 + (wn2 > wn ? ' &gt; ' : ' = ') + wn + ', so the second rectangle covers ' + (wn2 > wn ? 'more' : 'the same') + '.',
+'So the answer is <b>' + (wn2 > wn ? '<' : '=') + '</b>.'],
 teach: 'Same fraction side, bigger other side, bigger area.' });
 });
 
@@ -109718,6 +109729,7 @@ items2.push([nm, v, String(pm[2]).trim()]);
 }
 if (items2.length < 2) return null;
 items2.sort(function (p, q) { return p[1] - q[1]; });
+if (items2[0][1] === items2[items2.length - 1][1]) return null;
 var i;
 for (i = 0; i < items2.length; i++) if (items2[i][0] === mark) break;
 if (i === items2.length) return null;
@@ -109730,7 +109742,7 @@ var two = lo[2] + ' &lt; ' + hi[2] + ', so ' + (up ? hi[0] : lo[0]) + ' is the '
 if (two.length <= 88) return two;
 }
 var a = items2[0], b = items2[items2.length - 1];
-var chain = up ? a[2] + ' &lt; ' + b[2] : b[2] + ' &lt; ' + a[2];
+var chain = a[2] + ' &lt; ' + b[2];
 var line = chain + ', so ' + mark + ' is the ' + word + ', at ' + (up ? b[2] : a[2]) + '.';
 return line.length <= 88 ? line : null;
 }
@@ -109945,7 +109957,8 @@ var rival = down ? sorted[1] : sorted[sorted.length - 2];
 var lab = String(win[0]).trim().toLowerCase();
 if (mark !== lab) return null;                       
 if (sorted[0][1] === sorted[sorted.length - 1][1]) return null;   
-var line = win[0] + ' ' + fmt(win[1]) + ' &gt; ' + rival[1] + ', so ' + win[0] + ' is the ' + (up ? 'most' : 'least') + '.';
+if (win[1] === rival[1]) return null;
+var line = win[0] + ' ' + fmt(win[1]) + ' ' + (down ? '&lt;' : '&gt;') + ' ' + fmt(rival[1]) + ', so ' + win[0] + ' is the ' + (up ? 'most' : 'least') + '.';
 return line.length <= 88 ? line : null;
 }
 
