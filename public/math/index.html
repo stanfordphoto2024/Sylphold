@@ -468,8 +468,127 @@ transition: width 450ms ease-out; }
 @keyframes growbar { from { width: 0; } }
 .progress .pct { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); }
 
-.band-pk .opt:has(.picon), .band-k .opt:has(.picon) { position: relative; justify-content: center; }
-.band-pk .opt:has(.picon) .key, .band-k .opt:has(.picon) .key { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); }
+.opt:has(.picon) { position: relative; justify-content: center; }
+.opt:has(.picon) .key { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); }
+
+/* =============================================================================
+ * The phone layer — measured on a 390 x 844 viewport with a coarse pointer, the
+ * phone most people open this on, and re-measured at 320 x 700 and 430 x 932.
+ * The desk keeps the sheet above exactly as it was; everything here is what
+ * changes once the pointer is a finger: the sizes Apple asks for, the insets the
+ * notch and the home indicator take, the press feedback a phone has instead of a
+ * hover, and the type floor under which a child has to squint.
+ * ========================================================================== */
+:root {
+  --on-accent: #ffffff;          /* text sitting ON an accent fill: 6.3:1 */
+  --accent-ink: #4f46e5;         /* accent used AS text: 6.3:1 on paper, 5.3:1 on its own wash */
+  --tap: rgba(79, 70, 229, .13); /* iOS greys out a pressed control; this tints it instead */
+  --ink-3: #706d7e;              /* was #8d8a99 — measured 3.4:1 on paper, under AA */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --on-accent: #161522;        /* white on the dark accent measured 3.3:1; dark ink on it measures 5.2:1 */
+    --accent-ink: #a99df9;       /* was #8b7cf7 — 4.2:1 on the dark wash */
+    --tap: rgba(139, 124, 247, .26);
+    --ink-3: #9d99b4;            /* was #7b7891 — 3.8:1 on the dark card */
+  }
+}
+.brand .glyph, nav.tabs button.on, button.btn.primary { color: var(--on-accent); }
+.pill.accent, select.lvlpick, .steps li::before { color: var(--accent-ink); }
+
+@media (hover: none) and (pointer: coarse) {
+  /* A phone has no hover, so the press itself has to answer back, and iOS must
+     not sit on a tap for 300 ms wondering whether it was a double tap. */
+  a, button, input, select, textarea, .btn, .opt, .lk, .chip, .lrow, .picon, .dseg, label {
+    touch-action: manipulation; -webkit-tap-highlight-color: var(--tap);
+  }
+  button, .btn, .opt, .lk, .chip, .lrow, .picon, label, nav.tabs button {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  .opt:not(:disabled):active, nav.tabs button:active, .legend .lrow:active, .chip:active,
+  .keypad button:active, .btn:not(:disabled):active, select.lvlpick:active { background: var(--accent-soft); }
+  .btn:not(:disabled):active { transform: translateY(1px) scale(.99); }
+  .foot .lk:active { opacity: .6; }
+  :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+
+  /* Apple's floor for anything a finger hits is 44 x 44 pt. */
+  nav.tabs button { min-height: 46px; padding: 12px 14px; font-size: 14px; }
+  select.lvlpick { min-height: 40px; font-size: 13px; padding: 8px 12px; }
+  button.btn { min-height: 46px; }
+  button.btn.small { min-height: 44px; padding: 11px 16px; font-size: 14px; }
+  .modal-foot { justify-content: stretch; }
+  .modal-foot .btn { flex: 1 1 0; min-height: 48px; font-size: 14.5px; }
+  .keypad button { min-height: 48px; }
+  .opt { min-height: 56px; }
+  .legend .lrow { min-height: 44px; }
+  .foot .lk { padding: 12px 0; }
+  .agree { min-height: 44px; gap: 10px; }
+  .agree input { width: 22px; height: 22px; margin-top: 0; }
+
+  /* Nothing a child reads on a phone sits under 13 px. */
+  .tiny, .foot p, .viz .cap, .picon .word, .skill .cd, .modal-card p, .foot .lk { font-size: 13.5px; }
+  .pill, .legend .lnum, .modal-card h3 { font-size: 13px; }
+  .dlbl { font-size: 12px; } .dctr { font-size: 12.5px; }
+  .opt .key { font-size: 12px; }
+
+  /* The page asked for the whole screen, so the chrome pays for the notch and the
+     home indicator itself. */
+  .bar-in {
+    padding-top: calc(10px + env(safe-area-inset-top));
+    padding-left: calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+  }
+  .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .foot { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(26px + env(safe-area-inset-bottom)); }
+
+  /* Navigation a thumb reaches without a second hand: on a phone the tabs come
+     down to the bottom edge and stay there while the page moves over them, and
+     the header keeps the mark and the level picker to itself. */
+  .bar-in { justify-content: space-between; }
+  nav.tabs {
+    position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
+    margin-left: 0; z-index: 40; gap: 4px; padding: 4px;
+    background: color-mix(in srgb, var(--card) 86%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+    box-shadow: var(--shadow);
+  }
+  nav.tabs button { flex: 1 1 0; text-align: center; }
+  /* …and the toast has to land above it, not under a thumb. */
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+
+  /* The consent window is a sheet off the bottom edge, and it stops at the bottom
+     of the *visible* window: 100vh counts the toolbar that scrolls away, which is
+     what pushed the Agree button out of reach. */
+  .modal { place-items: end center; padding: 0 0 env(safe-area-inset-bottom); }
+  .modal-card {
+    max-width: none; border-radius: 22px 22px 0 0; border-left: 0; border-right: 0; border-bottom: 0;
+    padding: 20px 20px 16px; overscroll-behavior-y: contain;
+  }
+
+  /* The young bands draw a whole picture at one icon size per band, and at the
+     paper's size a Pre-K model measured 468 px across a 390 px screen — the
+     entire page slid sideways. One notch smaller, and the picture sits inside. */
+  .band-pk .obj, .band-pk .obj .obj-dot, .band-pk .obj svg, .band-pk .dots .d,
+  .band-pk .areagrid .sq, .band-pk .coins .coin, .band-pk .picon svg,
+  .band-pk .tf.dense .obj, .band-pk .tf.dense .obj .obj-dot { width: 28px; height: 28px; }
+  .band-pk .tf .frame, .band-pk .tf.dense .frame { grid-template-columns: repeat(5, 28px); grid-auto-rows: 28px; }
+  .band-k .obj, .band-k .obj .obj-dot, .band-k .obj svg, .band-k .dots .d,
+  .band-k .areagrid .sq, .band-k .coins .coin, .band-k .picon svg,
+  .band-k .tf.dense .obj, .band-k .tf.dense .obj .obj-dot { width: 22px; height: 22px; }
+  .band-k .tf .frame, .band-k .tf.dense .frame { grid-template-columns: repeat(5, 22px); grid-auto-rows: 22px; }
+  .vtable.objgrid td { padding: 3px 4px; }
+  .visual.band-pk, .visual.band-k { overflow-x: auto; }
+}
+@supports (height: 100dvh) {
+  @media (hover: none) and (pointer: coarse) { .modal-card { max-height: 86dvh; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -130489,8 +130608,10 @@ if (v.indexOf('practice/') === 0) { S.manual = v.slice(9); S.item = null; S.queu
 
 if (v === 'plan' || v === 'ladder') v = 'practice';
 if (['practice', 'report', 'diag'].indexOf(v) < 0) v = 'practice';
-if (v !== S.view) { S.view = v; }
+var switched = v !== S.view;
+if (switched) { S.view = v; }
 render();
+if (switched) showTop();
 }
 var toastT = null;
 function toast(msg) {
