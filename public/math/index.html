@@ -627,6 +627,27 @@ button.btn.danger { color: var(--bad-ink); }
 @media (hover: none) and (pointer: coarse) {
   .dlbl { paint-order: stroke; stroke: rgba(0, 0, 0, .38); stroke-width: 2.4px; stroke-linejoin: round; }
 }
+
+/* the consent window smaller, as asked — the desk card first ... */
+.modal-card { max-width: 404px; padding: 14px 14px 12px; }
+.modal-card h2 { font-size: 14px; margin: 0 0 8px; }
+.modal-card h3 { font-size: 10.5px; margin-top: 10px; }
+.modal-card p { font-size: 11.5px; margin-bottom: 5px; }
+.agree { font-size: 12px; margin: 11px 0 2px; }
+.modal-foot { margin-top: 10px; }
+.modal-foot .btn { font-size: 12.5px; padding: 8px 13px; }
+/* ... and the phone's version of it after, so the phone layer still wins there */
+@media (hover: none) and (pointer: coarse) {
+  .modal-card { max-height: 78vh; max-height: 78dvh; padding: 18px 18px 14px; }
+  .modal-card h2 { font-size: 14px; }
+  .modal-card h3 { font-size: 11.5px; }
+  .modal-card p { font-size: 12.5px; }
+  .agree { font-size: 12.5px; }
+  .agree input { width: 20px; height: 20px; }
+  /* pinned so the thing you have to tick and press is always on screen */
+  .modal-foot { position: sticky; bottom: 0; background: var(--card); padding-top: 8px; }
+  .modal-foot .btn { font-size: 13.5px; min-height: 46px; }
+}
 </style>
 </head>
 <body>
