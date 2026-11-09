@@ -7033,7 +7033,7 @@ if (!item) return null;
 
 if (isRecent(st, cardFp(item))) {
 var alt = null, at = 0;
-while (at++ < 4) { alt = null; try { alt = root.genFor(pick.id, rng, lvl); } catch (e) { alt = null; } if (alt && !isRecent(st, cardFp(alt))) break; }
+while (at++ < recentTries(st)) { alt = null; try { alt = root.genFor(pick.id, rng, lvl); } catch (e) { alt = null; } if (alt && !isRecent(st, cardFp(alt))) break; }
 if (alt) item = alt;
 }
 item.lvl = lvl; item.why = pick.why;
@@ -7223,6 +7223,14 @@ return null;
 
 
 var RECENT_CARDS = 30;
+/* PK/K were the bands that felt repetitive: one question shape is written into a
+   hundred skills there, so the deck reached the same wording again inside a
+   sitting. The phrasing pool spreads the wordings; this keeps the window longer
+   than a sitting so the spread is actually honoured. Older bands keep 30. */
+var RECENT_YOUNG = { PK: 1, K: 1 };
+var RECENT_CARDS_YOUNG = 60;
+function recentCap(st) { var b = activeBand(st); return RECENT_YOUNG[b] ? RECENT_CARDS_YOUNG : RECENT_CARDS; }
+function recentTries(st) { return RECENT_YOUNG[activeBand(st)] ? 8 : 4; }
 function cardFp(item) {
 var t = (String((item && item.prompt) || '') + ' \u00a7 ' + String((item && item.sub) || ''))
 .replace(/\s+/g, ' ').trim().toLowerCase();
@@ -7233,7 +7241,8 @@ function noteCard(st, fp) {
 if (!fp) return;
 if (!st.recent) st.recent = [];
 st.recent.push(fp);
-if (st.recent.length > RECENT_CARDS) st.recent = st.recent.slice(-RECENT_CARDS);
+var cap = recentCap(st);
+if (st.recent.length > cap) st.recent = st.recent.slice(-cap);
 }
 function levelInfo(LV, b, cov) {
 return {
@@ -130816,6 +130825,111 @@ v.innerHTML = '<div class="card"><h2>The interface did not load</h2><p class="mu
 return;
 }
 if (window.MathPathUI.state) window.MathPathUI.boot();
+})();
+</script>
+<script>
+(function () {
+var GLOB = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
+if (!GLOB) return;
+function hash(str) {
+var h = 2166136261, i; str = String(str);
+for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 16777619) >>> 0; }
+return h >>> 0;
+}
+var BAND_RANK = { PK: 0, K: 1, G1: 2, G2: 3, G3: 4, G4: 5, G5: 6, G6: 7, G7: 8, G8: 9, A1: 10, GM: 11, A2: 12, PC: 13, MA: 14 };
+function rank(sk) { var r = BAND_RANK[sk && sk.band]; return r == null ? 5 : r; }
+function voice(sk, purpose, frames, salt) {
+if (!frames || !frames.length) return '';
+return frames[hash((sk && sk.id ? sk.id : '') + '|' + purpose + (salt ? '|' + String(salt).slice(0, 60) : '')) % frames.length];
+}
+var RW = [
+[/^which sentence matches the ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['which sentence matches the $1?', 'choose the sentence that matches the $1.', 'which sentence tells what the $1 shows?', 'which sentence matches the $1? count to check.']],
+[/^how many more make (\d+)\s*[?.]?$/i, ['how many more make $1?', 'how many more do you need to make $1?', 'how many more are needed to make $1?', 'how many more to make $1?', 'count them. how many more make $1?']],
+[/^which one does not belong\s*[?.]?$/i, ['which one does not belong?', 'which one does not belong with the others?', 'which one is different from the others?', 'choose the one that does not belong.']],
+[/^(\d+) and (\d+) make how many\s*[?.]?$/i, ['$1 and $2 make how many?', 'how many are $1 and $2 altogether?', 'how many are $1 and $2 in all?', 'what do $1 and $2 make?']],
+[/^how many is one (less|more) than (\d+)\s*[?.]?$/i, ['how many is one $1 than $2?', 'what number is one $1 than $2?', 'which number is one $1 than $2?']],
+[/^are there exactly (\d+)\s*[?.]?$/i, ['are there exactly $1?', 'count them. are there exactly $1?', 'are there exactly $1? yes or no.']],
+[/^take (\d+) away from (\d+)\s*[?.]?$/i, ['take $1 away from $2.', 'what is $2 take away $1?', '$2 take away $1 is how many?', 'start with $2 and take away $1.']],
+[/^what number is missing\s*[?.]?$/i, ['what number is missing?', 'which number is missing?', 'fill in the missing number.']],
+[/^what makes (\d+) with (\d+)\s*[?.]?$/i, ['what makes $1 with $2?', 'what number goes with $2 to make $1?', 'what number and $2 make $1?']],
+[/^what part makes (\d+) with (\d+)\s*[?.]?$/i, ['what part makes $1 with $2?', 'which part goes with $2 to make $1?']],
+[/^which row has the most\s*[?.]?$/i, ['which row has the most?', 'choose the row with the most.', 'which row has the most? count them.']],
+[/^which row has the fewest\s*[?.]?$/i, ['which row has the fewest?', 'choose the row with the fewest.', 'which row has the fewest? count them.']],
+[/^which number matches the ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['which number matches the $1?', 'count the $1. which number matches it?', 'count them. which number matches the $1?']],
+[/^you have (\d+)\. how many more make (\d+)\s*[?.]?$/i, ['you have $1. how many more make $2?', 'you have $1. how many more do you need to make $2?', 'you have $1. how many more to make $2?']],
+[/^what is this shape\s*[?.]?$/i, ['what is this shape?', 'what shape is this?', 'name this shape.', 'which name fits this shape?']],
+[/^what number comes after (\d+)\s*[?.]?$/i, ['what number comes after $1?', 'which number comes after $1?', 'what number comes right after $1?']],
+[/^what number comes before (\d+)\s*[?.]?$/i, ['what number comes before $1?', 'which number comes before $1?', 'what number comes right before $1?']],
+[/^what number is between (\d+) and (\d+)\s*[?.]?$/i, ['what number is between $1 and $2?', 'which number is between $1 and $2?', 'what number comes between $1 and $2?']],
+[/^what comes after (\d+)\s*[?.]?$/i, ['what comes after $1?', 'what comes right after $1?', 'which one comes after $1?']],
+[/^what comes before (\d+)\s*[?.]?$/i, ['what comes before $1?', 'what comes right before $1?', 'which one comes before $1?']],
+[/^what comes next\s*[?.]?$/i, ['what comes next?', 'what comes next in the pattern?', 'which one comes next?']],
+[/^how many on the ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['how many on the $1?', 'count the $1. how many are there?', 'how many are on the $1?']],
+[/^how many jumps from (\d+)\s*[?.]?$/i, ['how many jumps from $1?', 'how many jumps does it take from $1?', 'count the jumps from $1. how many jumps?']],
+[/^which (frame|box|group|side|picture) has more\s*[?.]?$/i, ['which $1 has more?', '~x choose the $1 with more.', 'which $1 has more? count them.']],
+[/^which box holds more\s*[?.]?$/i, ['which box holds more?', '~x choose the box with more.', 'count them. which box holds more?']],
+[/^which row is (longer|shorter|taller)\s*[?.]?$/i, ['which row is $1?', 'compare the rows. which row is $1?', '~x choose the $1 row.']],
+[/^which is (greatest|smallest|largest|least)\s*[?.]?$/i, ['which is $1?', 'which number is the $1?', 'choose the $1 number.']],
+[/^where does the arrow point\s*[?.]?$/i, ['where does the arrow point?', 'which number does the arrow point to?', 'what number is the arrow pointing at?']],
+[/^which group has (\d+)\s*[?.]?$/i, ['which group has $1?', 'find the group with $1.', 'which group shows $1?']],
+[/^which group has the most\s*[?.]?$/i, ['which group has the most?', 'choose the group with the most.', 'which group has the most? count them.']],
+[/^which group has the fewest\s*[?.]?$/i, ['which group has the fewest?', 'choose the group with the fewest.', 'which group has the fewest? count them.']],
+[/^count on (\d+) from (\d+)\s*[?.]?$/i, ['count on $1 from $2.', 'start at $2 and count on $1.', 'start at $2 and count on $1. how many?']],
+[/^count back (\d+) from (\d+)\s*[?.]?$/i, ['count back $1 from $2.', 'start at $2 and count back $1.', 'start at $2 and count back $1. how many are left?']],
+[/^what goes at the top\s*[?.]?$/i, ['what goes at the top?', 'which number goes at the top?', 'what number goes at the top?']],
+[/^which number tells how many are shown in the ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['which number tells how many are shown in the $1?', 'count the $1. which number tells how many are shown?']],
+[/^which one is wrong in the pattern\s*[?.]?$/i, ['which one is wrong in the pattern?', 'find the one that is wrong in the pattern.', 'which one does not fit the pattern?']],
+[/^point to the group of (\d+)\s*[?.]?$/i, ['point to the group of $1.', 'find the group of $1.']],
+[/^which sentence for (\d+) and (\d+)\s*[?.]?$/i, ['which sentence for $1 and $2?', 'choose the sentence for $1 and $2.', 'which sentence matches $1 and $2?']],
+[/^(\d+) and how many make (\d+)\s*[?.]?$/i, ['$1 and how many make $2?', 'how many and $1 make $2?', '$1 plus what makes $2?']],
+[/^do they have the same number of ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['do they have the same number of $1?', 'do the groups have the same number of $1?']],
+[/^which group has (more|fewer) ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['which group has $1 $2?', '~x choose the group with $1 $2.', 'which group has $1 $2? count them.']],
+[/^which group does the ([a-z][a-z' -]{1,20}) go in\s*[?.]?$/i, ['which group does the $1 go in?', 'choose the group for the $1.', 'which group does the $1 belong in?']],
+[/^which picture shows (\d+) ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['which picture shows $1 $2?', 'choose the picture with $1 $2.', 'which picture has $1 $2?']],
+[/^are they equal (shares|parts)\s*[?.]?$/i, ['are they equal $1?', 'are the $1 equal?']],
+[/^which one is (below|above|beside|next to|left of|right of) the ([a-z][a-z' -]{1,20})\s*[?.]?$/i, ['which one is $1 the $2?', 'find the one that is $1 the $2.']],
+[/^(\d+) [+] (\d+) [=] (\d+)\. which else is true\s*[?.]?$/i, ['$1 + $2 = $3. which else is true?', '$1 + $2 = $3. which other sentence is true?']]
+];
+function reword(t, item, sk) {
+var rk = rank(sk);
+if (rk !== 0 && rk !== 1) return '';
+var key = String(t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+if (!key) return '';
+var opts = (item && (item.choices || item.options || (item.spec && item.spec.opts))) || [];
+var ol = [], oi;
+for (oi = 0; oi < opts.length; oi++) ol.push(String(opts[oi] == null ? '' : opts[oi]).toLowerCase());
+var tie = false;
+for (oi = 0; oi < ol.length; oi++) if (/(are|hold|have|be) the same|^same\b/.test(ol[oi])) tie = true;
+var MAXW = rk === 0 ? 8 : 10; /* POLICY mirror: PK keeps 8 words, K keeps 10 — a pool form may not break the band's own sentence budget */
+var ans = String(item && item.answerText != null ? item.answerText : (item && item.correct != null && ol.length ? ol[item.correct] : '')).toLowerCase();
+var salt = key + '|' + ol.join(',') + '|' + ans + '|' + (item && item.visual ? JSON.stringify(item.visual) : '');
+for (var ri = 0; ri < RW.length; ri++) {
+var m = RW[ri][0].exec(key);
+if (!m) continue;
+var forms = RW[ri][1], usable = [], j, k;
+for (j = 0; j < forms.length; j++) {
+var f = forms[j];
+if (f.charAt(0) === '~') { if (tie) continue; f = f.slice(3).trim(); }
+if (ans && key.indexOf(ans) < 0 && f.indexOf(ans) >= 0) continue;
+if (f.replace(/\$\d/g, 'x y').split(' ').length > MAXW) continue;
+usable.push(f);
+}
+if (usable.length < 2) continue;
+var pick = voice(sk, 'rw' + ri, usable, salt);
+if (!pick || pick === forms[0]) continue;
+var out = pick;
+for (k = m.length - 1; k >= 1; k--) out = out.split('$' + k).join(m[k]);
+return out.replace(/(^|[\.!?]\s)([a-z])/g, function (m0, g1, g2) { return g1 + g2.toUpperCase(); });
+}
+return '';
+}
+var inner = GLOB.DP && typeof GLOB.DP.polish === 'function' ? GLOB.DP.polish : null;
+GLOB.DP = GLOB.DP || {};
+GLOB.DP.polish = function (item, sk, lvl) {
+var out = inner ? inner.apply(this, arguments) : item;
+if (out && out.prompt) { var rw = reword(out.prompt, out, sk); if (rw) out.prompt = rw; }
+return out;
+};
 })();
 </script>
 </body>
