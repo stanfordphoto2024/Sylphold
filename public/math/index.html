@@ -649,6 +649,32 @@ button.btn.danger { color: var(--bad-ink); }
      always where your thumb already is */
   .agree { position: sticky; bottom: 62px; background: var(--card); padding-top: 6px; }
 }
+
+/* the consent window at 41% of the screen, type as small as it will read; the
+   pinned rows are what keep the tick and the button on screen once it scrolls */
+.modal-card { max-height: 41vh; max-height: 41dvh; }
+.modal-card h2 { font-size: 13px; margin: 0 0 7px; }
+.modal-card h3 { font-size: 10px; margin-top: 9px; }
+.modal-card p { font-size: 11px; margin-bottom: 4px; line-height: 1.5; }
+.agree { font-size: 11px; margin: 10px 0 2px; position: sticky; bottom: 52px; background: var(--card); padding-top: 5px; }
+.agree input { width: 14px; height: 14px; }
+.modal-foot { position: sticky; bottom: 0; background: var(--card); margin-top: 6px; padding-top: 4px; }
+.modal-foot .btn { font-size: 11.5px; padding: 7px 12px; }
+
+@media (hover: none) and (pointer: coarse) {
+  /* the phone keeps its tap floor — the pinned rows are 44 and 46 tall there,
+     so the one pinned above the other has to clear both */
+  .agree { font-size: 11.5px; bottom: 62px; padding-top: 6px; }
+  .agree input { width: 18px; height: 18px; }
+  .modal-foot { padding-top: 8px; }
+  .modal-foot .btn { font-size: 12px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .modal-card { width: 82%; }
+}
+
+.coins .coin, .tape .seg { text-shadow: 0 1px 1.5px rgba(0, 0, 0, .55); }
 </style>
 </head>
 <body>
