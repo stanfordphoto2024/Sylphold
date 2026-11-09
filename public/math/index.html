@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16161c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MathPath">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
 <meta name="description" content="MathPath — an offline adaptive math tutor aligned to the California Common Core (CCSSM) standards, kindergarten through calculus. One file, no network, nothing to install.">
 <title>MathPath · adaptive CCSSM tutor</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%234f46e5%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2244%22%20font-family%3D%22system-ui%22%20font-size%3D%2234%22%20font-weight%3D%22700%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%3E%CF%80%3C%2Ftext%3E%3C%2Fsvg%3E">
@@ -588,6 +593,39 @@ transition: width 450ms ease-out; }
     animation-duration: .01ms !important; animation-iteration-count: 1 !important;
     transition-duration: .01ms !important; scroll-behavior: auto !important;
   }
+}
+
+/* the status colours as *text*: the fills are fine as they are, but a pill of
+   green-on-mint measured 3.1:1 and a danger label 4.4:1 — under AA for type
+   this small. The inks below are the same hues taken one step darker. */
+:root { --good-ink: #157a41; --bad-ink: #b3392c; --warn-ink: #8f5f16; }
+@media (prefers-color-scheme: dark) {
+  :root { --good-ink: #4fd193; --bad-ink: #f2897c; --warn-ink: #e8bb6f; }
+}
+.pill.good { color: var(--good-ink); }
+.pill.bad { color: var(--bad-ink); }
+.pill.warn { color: var(--warn-ink); }
+button.btn.danger { color: var(--bad-ink); }
+
+@media (hover: none) and (pointer: coarse) {
+  .skillhead .code { font-size: 13px; }
+  .fracbar .lab { font-size: 13px; }
+  .agree { font-size: 13.5px; }
+  .agree input { width: 24px; height: 24px; }
+  select.lvlpick { min-height: 44px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  /* the legend gives its name room and lets a long count wrap instead of
+     pushing the page wider than the phone */
+  .legend .lrow, .legend .lname, .legend .lnum { min-width: 0; }
+  .legend .lnum { white-space: normal; }
+  .opt .key { font-size: 13px; }
+}
+
+.bond .whole { color: var(--on-accent); }
+@media (hover: none) and (pointer: coarse) {
+  .dlbl { paint-order: stroke; stroke: rgba(0, 0, 0, .38); stroke-width: 2.4px; stroke-linejoin: round; }
 }
 </style>
 </head>
