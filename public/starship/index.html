@@ -9259,9 +9259,97 @@ G.main = (() => {
       vprobe('endscreen');
     };
 
+    /* ---- round-3: framing probe — is the vehicle actually on screen? ----
+       dyn = what the player sees after real follow frames; snap = intended framing.
+       delta = central-third luma with the vehicle vs hidden (mesh only, plume excluded). */
+    const FRAMING = location.search.includes('framing');
+    const glpx = () => {
+      const gl = G.world.renderer.getContext();
+      const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+      const b = new Uint8Array(w * h * 4);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, b);
+      return { w, h, b };
+    };
+    const centLuma = () => {
+      try { G.world.composer.render(); } catch (e) { MAIN.err = (MAIN.err || '') + '|render:' + e.message; }
+      const { w, h, b } = glpx();
+      let s = 0, n = 0;
+      for (let y = (h / 3) | 0; y < ((2 * h) / 3 | 0); y += 2)
+        for (let x = (w / 3) | 0; x < ((2 * w) / 3 | 0); x += 2) {
+          const i = (y * w + x) * 4; s += (b[i] + b[i + 1] + b[i + 2]) / 3; n++;
+        }
+      return n ? s / n : 0;
+    };
+    const vehNode = () => {
+      const w = G.rocket.wrappers[G.world.active];
+      if (!w) return null;
+      return (G.rocket.staged && w.shipObj) ? w.shipObj : w.model;
+    };
+    const fprobe = async (tag, view) => {
+      if (view) G.cams.setMode(view);
+      await sleep(350);                                   // real follow frames at current warp
+      const cam = G.world.cam, nd = vehNode();
+      const rd = (label, snapped) => {
+        cam.updateMatrixWorld(true);
+        let ndc = '?', d = -1;
+        if (nd) {
+          const p = nd.getWorldPosition(new THREE.Vector3());
+          const q = p.clone().project(cam);
+          ndc = `${+q.x.toFixed(2)},${+q.y.toFixed(2)}`; d = cam.position.distanceTo(p);
+        }
+        const on = centLuma();
+        let off = on;
+        if (nd) { const v = nd.visible; nd.visible = false; off = centLuma(); nd.visible = v; }
+        vlog(`${label}|${snapped ? 'snap' : 'dyn'}|ndc=${ndc}|d=${Math.round(d)}|lum=${Math.round(on)}|hid=${Math.round(off)}|delta=${Math.round(on - off)}|ph=${m().phase}|fr=${m().viewFrame}|act=${G.world.active}|w=${m().warp}|md=${G.cams.mode}${MAIN.err ? ',ERR' + MAIN.err : ''}`);
+      };
+      rd(`F${tag}`, 0);
+      G.cams.snap(); G.cams.update(6, m().view);
+      rd(`F${tag}`, 1);
+    };
+    const framingRun = async () => {
+      vlog('BOOT' + (MAIN.err ? '|ERR' + MAIN.err : ''));
+      $(`card-${isMars ? 'mars' : 'moon'}`).click();
+      $('btn-launch').click();
+      await fprobe('countdown', 'cockpit');
+      m().setWarpIdx(4);
+      step(900, 1 / 60, 'ascent');
+      await fprobe('maxq', 'chase');
+      step(1500, 1 / 60, 'seco');                               // through MECO/hotstage/SECO
+      await fprobe('orbit', 'chase');
+      await fprobe('orbitcoc', 'cockpit');
+      m()._capMul = 100; m().setWarpIdx(9);
+      step(3000, 1 / 60, 'deep');
+      await fprobe('warp', 'chase');
+      if (!isMars) {
+        step(3000, 1 / 60, 'tli');
+        await fprobe('coast', 'chase');
+        step(1500, 1 / 60, 'loi');
+        await fprobe('lunar', 'chase');
+        step(1200, 1 / 60, 'desc');
+        await fprobe('descent', 'chase');
+      } else {
+        step(3600, 1 / 60, 'tmi');
+        await fprobe('cruise', 'chase');
+        step(2400, 1 / 60, 'approach');
+        await fprobe('approach', 'chase');
+        step(1200, 1 / 60, 'edl');
+        await fprobe('entry', 'chase');
+      }
+    };
+    /* ---- round-3: countdown voice drift (needs G.audio.probeCountdown) ---- */
+    const voxRun = async () => {
+      vlog('BOOT' + (MAIN.err ? '|ERR' + MAIN.err : ''));
+      $('card-moon').click(); $('btn-launch').click();
+      await sleep(13000);                                       // whole T-10 → liftoff, real time
+      const p = G.audio.probeCountdown ? G.audio.probeCountdown() : 'NOHOOK';
+      vlog('VOX|' + p);
+    };
+
     const waitBoot = setInterval(() => {
       if (!MAIN.ready) return;
       clearInterval(waitBoot);
+      if (FRAMING) { framingRun(); return; }
+      if (location.search.includes('vox')) { voxRun(); return; }
       if (VISUAL) { visualRun(); return; }
       probe('boot');
       $(`card-${isMars ? 'mars' : 'moon'}`).click();
