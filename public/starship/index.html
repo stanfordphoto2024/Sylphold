@@ -241,7 +241,7 @@
       <select id="light-select">
         <option value="auto">AUTO — REAL SUN AT STARBASE</option>
         <option value="day">DAY</option>
-        <option value="golden">GOLDEN HOUR</option>
+        <option value="golden" selected>GOLDEN HOUR</option>
         <option value="dusk">DUSK</option>
         <option value="night">NIGHT LAUNCH</option>
       </select>
@@ -6803,7 +6803,6 @@ G.world = (() => {
           vec3 day = texture2D(dayMap, vUv).rgb;
           float ocean = texture2D(specMap, vUv).r;
           vec3 col = day * (0.05 + 1.15*max(0.0,d*1.05));
-          if(nightMap != sampler2D(0)){ /* noop */ }
           vec3 nit = texture2D(nightMap, vUv).rgb * vec3(1.3,1.15,0.85);
           col += nit * (1.0-dayMix) * 1.35 * step(0.001, dot(nit,vec3(1.0)));
           float spec = pow(max(0.0, dot(reflect(-sunDir,N),V)),42.0) * ocean * dayMix;
@@ -7041,7 +7040,7 @@ G.world = (() => {
       if (moon) moon.position.set(Math.cos(dE) * 149600 + Math.cos(lm) * 384400 / 1000, 0, -Math.sin(dE) * 149600 - Math.sin(lm) * 384400 / 1000);
       if (mars) { mars.position.set(Math.cos(dM) * 227900, 0, -Math.sin(dM) * 227900); mars.scale.setScalar(1); }
     } else if (frame === 'mars') {
-      if (mars) { mars.position.set(0, 0, 0); mars.scale.setScalar(1); mars.rotation.y = -metSec * 2.98e-5 * 1000; }
+      if (mars) { mars.position.set(0, 0, 0); mars.scale.setScalar(1); mars.rotation.y = -metSec * 2.98e-5; }
       const dx = Math.cos(dE) * 149.6e6 - Math.cos(dM) * 227.9e6, dy = Math.sin(dE) * 149.6e6 - Math.sin(dM) * 227.9e6;
       const dd = Math.hypot(dx, dy), cap = Math.min(dd, 1.4e6);
       earthGroup.position.set(dx / dd * cap, 0, dy / dd * cap);
@@ -7061,6 +7060,7 @@ G.world = (() => {
 G.pad = (() => {
   const U = G.util;
   let water, glbRoot, strongback, armL, armR, boom;
+  const delugeMeshes = [];
   let deckY = 12.1, ready = false;
   let blinkSprites = [], blinkT = 0, tipT = -1, catchP = -1;
   let trenchGlow;
@@ -7144,6 +7144,13 @@ G.pad = (() => {
       trenchGlow = new THREE.PointLight(0xff5a1e, 0, 400, 2);
       trenchGlow.position.set(0, deckY - 6, 0);
       glbRoot.add(trenchGlow);
+      // deluge water curtains: hidden until the T-4 deluge system fires
+      glbRoot.traverse(o => {
+        if (/Deluge/i.test(o.name) && o.isMesh) {
+          o.material = o.material.clone(); o.material.transparent = true;
+          o.visible = false; delugeMeshes.push(o);
+        }
+      });
       scene.add(glbRoot);
     } catch (e) { console.warn('pad glb failed', e); }
 
@@ -7169,8 +7176,14 @@ G.pad = (() => {
   }
 
   P.build = build;
+  P.delugeOn = false;
   P.update = function (dt, metSec, night) {
     if (!ready) return;
+    if (P.delugeOn) {                          // water curtains pulse while deluge active
+      const t = performance.now() * 0.001;
+      for (let i = 0; i < delugeMeshes.length; i++)
+        delugeMeshes[i].material.opacity = 0.68 + 0.26 * Math.sin(t * 6.3 + i * 2.1);
+    }
     if (water) {
       water.material.uniforms.time.value += dt * 0.6;
       water.material.uniforms.sunDirection.value.copy(G.world.sunDir).normalize();
@@ -7739,20 +7752,24 @@ G.cams = (() => {
       if (mode === 'pad' && G.world.active === 'pad') {
         const alt = Math.max(0, M.altM);
         const rise = U.sstep(0, 2600, alt);
-        wantLook = new THREE.Vector3(0, G.rocket.deckY + 45 + rise * alt * 0.9, 0);
+        const padLook = new THREE.Vector3(0, G.rocket.deckY + 45 + rise * alt * 0.9, 0);
+        if (G.world.active !== 'pad') padLook.set(0, (G.rocket.deckY + 45 + rise * alt * 0.9) / 1000, 0);   // space scene is km-scaled
+        wantLook = padLook;
         wantPos = new THREE.Vector3(118 + rise * 26, 26 + rise * 40, 148);
-        wantPos.x += Math.sin(t * 0.05) * 3;
+        if (G.world.active !== 'pad') wantPos.divideScalar(1000);
+        wantPos.x += Math.sin(t * 0.05) * 3 * (G.world.active !== 'pad' ? 0.001 : 1);
       } else if (mode === 'cockpit') {
         const fwd = new THREE.Vector3(0, 1, 0).applyQuaternion(M.quat);
         const rgt = new THREE.Vector3(1, 0, 0).applyQuaternion(M.quat);
-        const camOff = fwd.clone().multiplyScalar(L * 0.93).add(rgt.clone().multiplyScalar(L * 0.045)).add(new THREE.Vector3(0, L * 0.02, 0));
+        /* over-the-nose cockpit frame: eye outside the nose cone, nose riding the lower frame */
+        const camOff = fwd.clone().multiplyScalar(L * 1.35).add(rgt.clone().multiplyScalar(L * 0.16)).add(new THREE.Vector3(0, L * 0.05, 0));
         wantPos = posV.clone().add(camOff);
-        wantLook = wantPos.clone().add(fwd.clone().multiplyScalar(L * 40 + 800 * scale / scale));
-        wantLook.y -= L * 0.012;
+        wantLook = posV.clone().add(fwd.clone().multiplyScalar(L * 0.55));
       } else {  // chase / track / surface
         const hint = G.mission.viewHint || {};
         const vFac = U.clamp((M.vel || 0) / 7500, 0, 1);
         dist = U.clamp(L * 2.15 + (M.vel || 0) * 0.006 * L * 0.012 + L * 0.8, L * 1.15, L * 14);
+        if (G.world.active === 'space' && G.mission.viewFrame === 'geo' && G.mission.warp >= 3600) dist = 8000;   // fast coast: frame planet + arc + marker
         if (hint.dist) dist *= hint.dist;
         dist *= zoom;
         let azBase = M.downAz || 0;
@@ -7779,8 +7796,11 @@ G.cams = (() => {
         upv = new THREE.Vector3(0, 0, 1).applyQuaternion(M.quat).negate().add(new THREE.Vector3(0, 1, 0)).normalize();
       }
 
-      const k = snapNext ? 1 : 1 - Math.exp(-dt * (mode === 'pad' ? 3.5 : (G.mission.burningNow ? 1.6 : 2.6)));
+      let k = snapNext ? 1 : 1 - Math.exp(-dt * (mode === 'pad' ? 3.5 : (G.mission.burningNow ? 1.6 : 2.6)));
       snapNext = false;
+      /* high-warp guard: fell many framing-distances behind → glide in hard (near-rigid follow) */
+      const lag = camPos.distanceTo(wantPos);
+      if (lag > dist * 5) k = Math.max(k, Math.min(1, dt * 26 * Math.min(4, lag / (dist * 5))));
       camPos.lerp(wantPos, k);
       camLook.lerp(wantLook, k * 0.9);
 
@@ -7907,21 +7927,28 @@ G.mission = (() => {
     M.phase = 'countdown'; M.met = -10; M.running = true;
     G.audio.resume();
     schedAt(-10, () => { G.audio.say('Ten'); G.audio.sfx('beep'); });
-    schedAt(-6, () => G.audio.say('Nine. Eight. Seven.'));
+    schedAt(-9, () => G.audio.say('Nine.'));
+    schedAt(-8, () => G.audio.say('Eight.'));
+    schedAt(-7, () => G.audio.say('Seven.'));
+    schedAt(-6, () => G.audio.say('Six.'));
+    schedAt(-5, () => G.audio.say('Five.'));
+    schedAt(-4, () => G.audio.say('Four.'));
     schedAt(-3, () => {
-      logEvent(-3, 'IGNITION SEQUENCE START', true); G.audio.sfx('igniter');
-      G.pad.setTrenchGlow(260); S.shLevel = 0.05; S.shMask.fill(0);
+      logEvent(-3, 'IGNITION SEQUENCE START', true); G.audio.sfx('igniter'); G.audio.say('Three.');
+      G.pad.setTrenchGlow(6); S.shLevel = 0.05; S.shMask.fill(0);
       for (let i = 0; i < 66; i++) G.fx.steam((Math.random() - .5) * 46, 4 + Math.random() * 10, (Math.random() - .5) * 46, { vy: 14 + Math.random() * 10, size: 14, life: 7, alpha: 0.5 });
       G.audio.sfx('deluge');
+      G.pad.delugeOn = true;                                 // water curtains come alive
       for (const w in G.rocket.wrappers) G.rocket.setActive('pad');
     });
-    schedAt(-2.2, () => { G.audio.say('Ignition for liftoff.'); G.pad.setTrenchGlow(700); });
+    schedAt(-2.2, () => { G.audio.say('Two.'); G.pad.setTrenchGlow(16); G.fx.steam(0, 6, 0, { vy: 20, size: 20, life: 8, alpha: 0.5 }); });
+    schedAt(-1, () => G.audio.say('One.'));
     schedAt(0, () => {
       M.phase = 'ascent'; M.met = 0;
       S.shMask.fill(1); S.shLevel = 1;
       logEvent(2, 'LIFTOFF — 33 RAPTOR ENGINES, 74.4 MEGANEWTONS', true);
       G.audio.sfx('liftoff'); G.cams.trauma(0.9); G.cams.setMode('track');
-      G.pad.setTrenchGlow(1600);
+      G.pad.setTrenchGlow(30);
       M.sayIf('Liftoff. Tower clear. All engines nominal.');
       schedAt(4, () => { logEvent(4, 'TOWER CLEAR'); G.cams.trauma(0.4); });
     });
@@ -8342,7 +8369,7 @@ G.mission = (() => {
       } else G.rocket.setStack(0, y, 0, V.quat);
       V.scaleUnits = 1; V.len = 122;
     }
-    V.len = 122 * (V.scaleUnits / (G.world.active === 'space' ? 1000 : 1));
+    V.len = M.viewFrame === 'helio' ? 400 : (G.world.active === 'space' ? 0.122 : 122);
     V.altM = M.T.alt; V.vel = M.T.vel; V.downAz = azRad;
   }
   function noseEntry() {
@@ -8544,7 +8571,7 @@ G.mission = (() => {
     if (G.rocket.staged) G.rocket.wrappers.space.root.visible = false;
     V.scaleUnits = 1000;
     V.len = M.viewFrame === 'helio' ? 400 : 0.122;
-    if (M.marker) { M.marker.position.copy(V.pos); M.marker.visible = M.viewFrame === 'helio'; }
+    if (M.marker) { M.marker.position.copy(V.pos); M.marker.visible = M.viewFrame === 'helio' || M.warp >= 3600; }
     if (M.plannedLine) M.plannedLine.visible = (M._plannedFrame === M.viewFrame);
     M._lastLam = lam;
   }
@@ -8707,6 +8734,7 @@ G.mission = (() => {
 
   /* expose */
   M.moonLon = moonLonAt;
+  M.schedPending = () => sched.filter(e => !e.done).map(e => Math.round(e.t)).join(',') || '-';
   return M;
 })();
 
@@ -8795,7 +8823,7 @@ G.hud = (() => {
       $('btn-launch').disabled = true;
       const mode = $('light-select').value;
       G.world.setLaunchLighting(mode, new Date());
-      G.main.nightish = G.sunPos(new Date(), cfg.SITE_LAT, cfg.SITE_LON).alt < -0.05;
+      G.main.nightish = mode === 'night';
       G.audio.resume();
       G.mission.start(route);
       G.mission.beginCountdown();
@@ -9020,8 +9048,9 @@ G.main = (() => {
     try {
       setLoad(0.05, 'INITIALISING WEBGL · ACES TONEMAP · BLOOM');
       G.world.init($('glhost'));
-      G.world.setLaunchLighting('auto', new Date());
-      G.main.nightish = G.sunPos(new Date(), G.cfg.SITE_LAT, G.cfg.SITE_LON).alt < -0.05;
+      const lm = (typeof document !== 'undefined' && document.getElementById('light-select')) ? document.getElementById('light-select').value : 'golden';
+      G.world.setLaunchLighting(lm, new Date());
+      G.main.nightish = lm === 'night';
       setLoad(0.18, 'BUILDING STARBASE OLP-1 · TERRAIN · GULF OF MEXICO');
       G.fx.init();
       await G.pad.build();
@@ -9110,14 +9139,15 @@ G.main = (() => {
     MAIN.err = (MAIN.err || '') + '|' + e.message;
   });
 
-  /* ---------- headless autotest hook: starship.html?autotest[&mars] ---------- */
+  /* ---------- headless autotest hook: starship.html?autotest[&mars][&visual] ---------- */
   if (location.search.includes('autotest')) {
     const isMars = location.search.includes('mars');
+    const VISUAL = location.search.includes('visual');
     MAIN.noRender = true;
     const m = () => G.mission;
     const probe = tag => {
       const mm = m();
-      const row = `${tag}:met=${Math.round(mm.met)}d${Math.round(mm.met % 86400)}s,ph=${mm.phase},w=${mm.warp},alt=${Math.round(mm.T.alt)},v=${Math.round(mm.T.vel)},r=${mm.T.targetRange ? Math.round(mm.T.targetRange / 1000) : 0}km,ph2=${mm.viewFrame}${MAIN.err ? ',ERR' + MAIN.err : ''}`;
+      const row = `${tag}:met=${Math.floor(mm.met / 86400)}d${Math.round(mm.met % 86400)}s,ph=${mm.phase},w=${mm.warp},alt=${Math.round(mm.T.alt)},v=${Math.round(mm.T.vel)},r=${mm.T.targetRange ? Math.round(mm.T.targetRange / 1000) : 0}km,ph2=${mm.viewFrame}${MAIN.err ? ',ERR' + MAIN.err : ''}`;
       const el = document.documentElement;
       el.dataset.test = (el.dataset.test ? el.dataset.test + ' ;; ' : '') + row;
     };
@@ -9128,9 +9158,111 @@ G.main = (() => {
       }
       probe(tag);
     };
+
+    /* ---- pixel probes (visual eye): condition-driven; render + readPixels grid ---- */
+    /* ---- pixel probes: deterministic frame-stepping + manual render + readPixels ---- */
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const hex = v => Math.round(G.util.clamp(v / 255, 0, 1) * 15).toString(16);
+    const vlog = row => {
+      const el = document.documentElement;
+      el.dataset.test = (el.dataset.test ? el.dataset.test + ' ;; ' : '') + row;
+    };
+    const vprobe = async (tag) => {
+      await sleep(700);
+      G.cams.update(0.0167, m().view);                      // real per-frame follow, then snap
+      G.cams.snap(); G.cams.update(6, m().view);             // camera to current view (probe truth)
+      try { G.world.composer.render(); } catch (e) { MAIN.err = (MAIN.err || '') + '|render:' + e.message; }
+      G.cams.snap(); G.cams.update(6, m().view);             // re-snap AFTER render so next render sees it
+      try { G.world.composer.render(); } catch (e) { MAIN.err = (MAIN.err || '') + '|render:' + e.message; }
+      const gl = G.world.renderer.getContext();
+      const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+      const buf = new Uint8Array(w * h * 4);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      let grid = '';
+      for (let gy = 2; gy >= 0; gy--) for (let gx = 0; gx < 4; gx++) {
+        let s = 0, n = 0, r = 0, g2 = 0, b = 0;
+        for (let y = (gy * h / 3) | 0; y < ((gy + 1) * h / 3); y += 2)
+          for (let x = (gx * w / 4) | 0; x < ((gx + 1) * w / 4); x += 2) {
+            const i = (y * w + x) * 4;
+            r += buf[i]; g2 += buf[i + 1]; b += buf[i + 2]; s += (buf[i] + buf[i + 1] + buf[i + 2]) / 3; n++;
+          }
+        n = n || 1;
+        grid += hex(s / n) + (gx === 1 && gy === 1 ? `(${hex(r / n)}${hex(g2 / n)}${hex(b / n)})` : '');
+      }
+      const S = G.fxState, cam = G.world.cam;
+      const sc = G.world.scenes[G.world.active];
+      let nM = 0, nL = 0, nP = 0; sc.traverse(o => { if (o.isMesh) nM++; if (o.isLight) nL++; if (o.isPoints) nP++; });
+      const wr = G.rocket.wrappers[G.world.active];
+      const rp = wr ? wr.model.getWorldPosition(new THREE.Vector3()) : null;
+      const pInt = wr && wr.shPlumes && wr.shPlumes[0] ? wr.shPlumes[0].material.uniforms.uInt.value : -1;
+      const camD = rp ? +cam.position.distanceTo(rp).toFixed(1) : -1;
+      const disp = id => { const el = document.getElementById(id); return el && getComputedStyle(el).display !== 'none' ? 1 : 0; };
+      let einfo = 'no-earth';
+      try {
+        const sc2 = G.world.scenes[G.world.active];
+        sc2.traverse(o => {
+          if (einfo === 'no-earth' && o.isMesh && o.geometry && o.geometry.type.includes('Sphere') && o.geometry.parameters && o.geometry.parameters.radius > 3000)
+            einfo = `vis=${o.visible?1:0}mat=${o.material.type}map=${o.material.uniforms ? (o.material.uniforms.dayMap && o.material.uniforms.dayMap.value && o.material.uniforms.dayMap.value.image ? 'ok' : 'NULL') : (o.material.map && o.material.map.image ? 'ok' : 'NULL')}`;
+        });
+        einfo += ` cp=${Math.round(cam.position.x)},${Math.round(cam.position.y)},${Math.round(cam.position.z)} vp=${Math.round(m().view.pos.x)},${Math.round(m().view.pos.y)},${Math.round(m().view.pos.z)}`;
+      } catch (e) { einfo = 'ERR'; }
+      let rb = 'rb=-';
+      try {
+        const wr2 = G.rocket.wrappers[G.world.active];
+        if (wr2) { const bb2 = new THREE.Box3().setFromObject(wr2.model);
+          rb = `rb=${wr2.model.visible ? 1 : 0}:${bb2.isEmpty() ? 'EMPTY' : `${(bb2.max.x - bb2.min.x).toFixed(1)},${(bb2.max.y - bb2.min.y).toFixed(1)},${(bb2.max.z - bb2.min.z).toFixed(1)}`}:${wr2.scale}`; }
+      } catch (e) { rb = 'rb=ERR'; }
+      const row = `V${tag}|${grid}|${einfo}|${rb}|ph=${m().phase}|fr=${m().viewFrame}|act=${G.world.active}|shL=${S.shLevel.toFixed(2)}|spL=${S.shipLevel.toFixed(2)}|pl=${S.plasma.toFixed(1)}|pInt=${pInt.toFixed(2)}|camD=${camD}|msh=${nM}/${nL}/${nP}|alt=${Math.round(m().T.alt)}|sp=${m().schedPending ? m().schedPending() : '?'}|ui:cs${disp('cockpit')}ls${disp('launch-screen')}cd${disp('countdown')}es${disp('end-screen')}${MAIN.err ? ',ERR' + MAIN.err : ''}`;
+      vlog(row);
+    };
+
+    const visualRun = async () => {
+      vlog('BOOT' + (MAIN.err ? '|ERR' + MAIN.err : ''));
+      await vprobe('padlight');                              // rocket on pad, golden-hour lighting
+      $(`card-${isMars ? 'mars' : 'moon'}`).click();
+      $('btn-launch').click();
+      step(600, 1 / 60, 'prelaunch');                        // T-10 → T-8 (real 1x)
+      await vprobe('prelaunch');                             // deluge/steam settled, strongback moving
+      step(720, 1 / 60, 'liftoff');                          // to T+~4 (real 1x)
+      await vprobe('liftoff');                               // plume + pad smoke chaos
+      m().setWarpIdx(4);                                     // 60x
+      step(1200, 1 / 60, 'ascent');                          // maxq region
+      await vprobe('maxq');
+      G.cams.setMode('cockpit'); step(300, 1 / 60, 'cockpit');
+      await vprobe('cockpit');
+      G.cams.setMode('chase');
+      m()._capMul = 100; m().setWarpIdx(9);
+      if (!isMars) {
+        step(2400, 1 / 60, 'orbit');                         // SECO → parking
+        m().setWarpIdx(9);                                   // toOrbit clamped it to 21600
+        await vprobe('orbit');                               // Earth + marker + planned line
+        step(3200, 1 / 60, 'tli');                           // window → TLI burn → coast
+        await vprobe('tli');
+        step(1600, 1 / 60, 'lunar');                         // arrival → LOI
+        await vprobe('lunarOrbit');
+        step(1400, 1 / 60, 'descent');                       // descent → touchdown (local scene)
+        await vprobe('moonlocal');
+      } else {
+        step(2400, 1 / 60, 'orbit');
+        m().setWarpIdx(9);                                   // toOrbit clamped it to 21600
+        await vprobe('orbit');
+        step(3600, 1 / 60, 'tmi');                           // window solve → TMI burn
+        await vprobe('tmiBurn');
+        step(2400, 1 / 60, 'cruise');                        // helio transfer
+        await vprobe('helio');
+        step(2400, 1 / 60, 'approach');                       // approach arc
+        await vprobe('marsApproach');
+        step(1400, 1 / 60, 'entry');                          // EDL keyframes + plasma
+        await vprobe('marsEDL');
+      }
+      await sleep(9000);                                     // end-screen shows 6s after touchdown
+      vprobe('endscreen');
+    };
+
     const waitBoot = setInterval(() => {
       if (!MAIN.ready) return;
       clearInterval(waitBoot);
+      if (VISUAL) { visualRun(); return; }
       probe('boot');
       $(`card-${isMars ? 'mars' : 'moon'}`).click();
       $('btn-launch').click();
