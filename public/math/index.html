@@ -547,20 +547,8 @@ transition: width 450ms ease-out; }
   .foot { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
   .toast { bottom: calc(26px + env(safe-area-inset-bottom)); }
 
-  /* Navigation a thumb reaches without a second hand: on a phone the tabs come
-     down to the bottom edge and stay there while the page moves over them, and
-     the header keeps the mark and the level picker to itself. */
-  .bar-in { justify-content: space-between; }
-  nav.tabs {
-    position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
-    margin-left: 0; z-index: 40; gap: 4px; padding: 4px;
-    background: color-mix(in srgb, var(--card) 86%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
-    box-shadow: var(--shadow);
-  }
-  nav.tabs button { flex: 1 1 0; text-align: center; }
-  /* …and the toast has to land above it, not under a thumb. */
-  .toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  /* The tabs sit back at the top with the rest of the header — the phone layer
+     gives them nothing but the tap floor the rule above already hands out. */
 
   /* The consent window is a sheet off the bottom edge, and it stops at the bottom
      of the *visible* window: 100vh counts the toolbar that scrolls away, which is
@@ -647,6 +635,12 @@ button.btn.danger { color: var(--bad-ink); }
   /* pinned so the thing you have to tick and press is always on screen */
   .modal-foot { position: sticky; bottom: 0; background: var(--card); padding-top: 8px; }
   .modal-foot .btn { font-size: 13.5px; min-height: 46px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .bar-in { flex-wrap: wrap; }
+  nav.tabs button { min-height: 44px; padding: 10px 9px; font-size: 13px; }
+  select.lvlpick { min-width: 96px; }
 }
 </style>
 </head>
