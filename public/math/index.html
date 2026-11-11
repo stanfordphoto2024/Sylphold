@@ -128236,7 +128236,7 @@ return n;
 var SHAPE_CYCLE = ['circle', 'square', 'triangle', 'hexagon'];
 function objectNode(o, idx, band) {
 o = o || {};
-var art = o.shape ? { shape: o.shape } : (o.noun ? artFor(o.noun, band) : {});
+var art = o.shape ? (SHAPE_ATTR[o.shape] ? { shape: o.shape } : artFor(o.shape, band)) : (o.noun ? artFor(o.noun, band) : {});
 if (o.kind === 'dots' || o.kind === 'counters') art = { dot: 1 };
 if (o.kind === 'shapes') art = { shape: o.shape || SHAPE_CYCLE[(idx || 0) % SHAPE_CYCLE.length] };
 if (o.kind === 'cubes') art = { cube: 1 };
@@ -128838,6 +128838,7 @@ return h('div', { class: 'viz', style: { display: 'flex', gap: '14px', alignItem
 grid: function (v, band) {
 var rows = v.rows || (v.opts && v.opts.rows) || 0, cols = v.cols || (v.opts && v.opts.cols) || 0, o = v.opts || {};
 var cells = o.cells || null;
+var shapeAt = v.shapes || o.shapes || null;
 
 if (cells && cells.length) {
 var isArray = function (x) { return Object.prototype.toString.call(x) === '[object Array]'; };
@@ -128853,7 +128854,7 @@ for (var fa = 0; fa < flatc.length; fa += cols) outc.push(flatc.slice(fa, fa + c
 cells = outc; rows = outc.length;
 }
 }
-var art = (o.noun || o.shape || o.kind) ? o : null;
+var art = (o.noun || o.shape || o.kind || (shapeAt && shapeAt.length)) ? o : null;
 var gidx = 0;
 
 var t = h('table', { class: 'vtable' + (art ? ' objgrid' : '') + (cols >= 9 ? ' wide' : '') });
@@ -128863,12 +128864,13 @@ if (o.rowLabels && o.rowLabels[r] != null) tr.appendChild(h('th', { text: String
 for (var c = 0; c < cols; c++) {
 var val = cells ? (cells[r] ? cells[r][c] : '') : (o.rowLabels && o.rowLabels[r] != null && o.colLabels && o.colLabels[c] != null ? (+o.rowLabels[r] * +o.colLabels[c]) : '');
 var mark = String(val == null ? '' : val).trim();
+var shp = (shapeAt && shapeAt[r * cols + c]) || o.shape || null;
 
 if (o.box) {
 var btd = h('td');
 if (mark === '📦') btd.appendChild(h('div', { class: 'boxdraw' }));
 else if (mark === '●' || mark === '○') {
-var toy = objectNode({ noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed, hollow: mark === '○' }, gidx++, band);
+var toy = objectNode({ noun: o.noun, shape: shp, kind: o.kind, seed: o.seed, hollow: mark === '○' }, gidx++, band);
 if (rows === 1 && cols === 1) btd.appendChild(h('div', { class: 'boxdraw' }, [toy]));
 else btd.appendChild(toy);
 } else if (mark) btd.appendChild(h('span', { class: 'obj em', text: mark }));
@@ -128877,7 +128879,7 @@ continue;
 }
 if (art && (mark === '●' || mark === '○')) {
 var td = h('td');
-td.appendChild(objectNode({ noun: o.noun, shape: o.shape, kind: o.kind, seed: o.seed, hollow: mark === '○' }, gidx++, band));
+td.appendChild(objectNode({ noun: o.noun, shape: shp, kind: o.kind, seed: o.seed, hollow: mark === '○' }, gidx++, band));
 tr.appendChild(td);
 continue;
 }
