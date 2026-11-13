@@ -43908,10 +43908,13 @@ b: 0.5
 });
 },
 function () {                       
-var d = tensPair(), extra = BC.pick(rng, [100, 250, 400, 600, 1000]);
-var later = R.chance(rng, 0.5);
+var d = tensPair(), POOL = [100, 250, 400, 600, 1000];
+/* a story cannot take away more than it has: pick the change first, and let the
+   take-away branch see only the amounts this product can actually pay for. */
+var fits = POOL.filter(function (n) { return n < d.p; });
+var later = R.chance(rng, 0.5) || !fits.length;
+var extra = BC.pick(rng, later ? POOL : fits);
 var ans = later ? d.p + extra : d.p - extra;
-if (ans < 0) ans = d.p + extra;
 var s = BC.pick(rng, SCENES)(d.a, d.b);
 var w = UP.slips(ans, [d.p, ans + extra, ans - extra]).map(function (n) { return UP.comma(n); });
 if (w.length < 2) return null;
