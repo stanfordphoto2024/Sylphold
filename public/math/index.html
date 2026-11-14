@@ -94030,11 +94030,14 @@ if (p && p.noHint) delete o.hint;
 var right = String([].concat(pats)[0]);
 
 var wordAnswer = pats.length === 1 && right.length <= 22 && /^[a-z][a-z '’-]*$/i.test(right);
-if (!p || (!p.pickFirst && !wordAnswer) || !wrongs || wrongs.length < minWrong(p)) return I_str(prompt, pats, o);
-var opts = buildOptions(right, wrongs, p.options);
+var padTap = pats.length === 1 && typeof pats[0] === 'string' && GLOB.MathPathUI && GLOB.MathPathUI.padCanSpell && !GLOB.MathPathUI.padCanSpell(right, (sk && sk.band) || '', (o && o.unit) || '');
+if (!p && !padTap) return I_str(prompt, pats, o);
+if (!wrongs || !wrongs.length) return I_str(prompt, pats, o);
+if (!padTap && !p.pickFirst && !wordAnswer && wrongs.length < minWrong(p)) return I_str(prompt, pats, o);
+var opts = buildOptions(right, wrongs, p ? p.options : 4);
 if (opts.length < 2) return I_str(prompt, pats, o);
 
-var sh = p.pickFirst ? R.shuffle(rng, opts) : riffle(String((sk && sk.id) || '') + '|' + prompt + '|opts', opts);
+var sh = (p && p.pickFirst) ? R.shuffle(rng, opts) : riffle(String((sk && sk.id) || '') + '|' + prompt + '|opts', opts);
 return I_choice(prompt, sh, sh.indexOf(right), o);
 };
 
@@ -128968,17 +128971,43 @@ function keysFor(item) {
 var out = YOUNG[bandOf(item)] ? KEYS_NUM.slice() : KEYS_NUM.concat(KEYS_ALG);
 var seen = {}; out.forEach(function (k) { seen[k] = 1; });
 var at = String((item && item.answerText) || (item && item.spec ? answerTextFor(item.spec) : '') || '');
+/* what the card only shows as a unit beside the box is not something the learner types */
+var ut = String((item && item.unit) || '');
+if (ut && at.length > ut.length && at.slice(-ut.length).toLowerCase() === ut.toLowerCase()) at = at.slice(0, at.length - ut.length).trim();
 
 if (/[≤≥<>]/.test(at)) ['<', '≤', '>', '≥'].forEach(function (k) { if (!seen[k]) { seen[k] = 1; out.push(k); } });
 for (var i = 0; i < at.length; i++) {
 var c = at[i];
-if (/[0-9a-zA-Z\s]/.test(c) || seen[c] || !/[!-~]/.test(c)) continue;
+if (/\s/.test(c) || seen[c] || !/[!-~]/.test(c)) continue;
+ if (/[A-Z]/.test(c)) { c = c.toLowerCase(); if (seen[c]) continue; }
 seen[c] = 1; out.push(c);                     
 }
 out.push(' ');
 return out;
 }
 function needsKeypad(item) { return widgetKind(item) !== 'choice' && widgetKind(item) !== 'compare'; }
+function padCanSpell(at, band, unitShown) {
+var have = {}, i, j, k2;
+KEYS_NUM.concat(YOUNG[band] ? [] : KEYS_ALG).forEach(function (k) { have[k] = 1; });
+['<', '≤', '>', '≥'].forEach(function (k) { have[k] = 1; });
+var s = String(at == null ? '' : at), i, j, k2;
+/* the box wants the number; the unit printed beside it is not something to type */
+var u = String(unitShown || '');
+if (u && s.length > u.length && s.slice(-u.length).toLowerCase() === u.toLowerCase()) s = s.slice(0, s.length - u.length).trim();
+for (i = 0; i < s.length; i++) {
+  var c = s[i];
+  if (/\s/.test(c) || /[0-9]/.test(c)) continue;
+  if (/[!-~]/.test(c) && !/[a-zA-Z]/.test(c)) continue;
+  var forms = [c, normalizeAns(c)];
+  for (j = 0; j < forms.length; j++) {
+    var f = String(forms[j]), ok = f.length > 0;
+    for (k2 = 0; k2 < f.length; k2++) { if (/\s/.test(f[k2])) continue; if (!have[f[k2]]) { ok = false; break; } }
+    if (ok) break;
+  }
+  if (j >= forms.length) return false;
+}
+return true;
+}
 
 var MATH_ITALIC = { x: 1, y: 1, i: 1 };
 var MATH_UPRIGHT = { 'π': '\\pi ', '√': '\\surd ', 'θ': '\\theta ' };
@@ -130804,7 +130833,7 @@ route();
 legalInit();
 }
 root.MathPathUI = {
-boot: boot, render: render, renderVisual: renderVisual, buildAnswer: buildAnswer,
+boot: boot, render: render, renderVisual: renderVisual, buildAnswer: buildAnswer, padCanSpell: padCanSpell,
 DRAW: DRAW, state: S, engine: function () { return E; }, toast: toast,
 
 speechText: speechText, speechGroups: breathGroups, spokenWords: humanWords,
