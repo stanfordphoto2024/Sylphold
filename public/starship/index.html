@@ -6498,6 +6498,8 @@ G.audio = (() => {
   let ctx = null, master, ready = false, muted = false, voiceOn = true;
   let engGain, engLP, engSrc, engOsc, engOscG, windGain, windSrc;
   let noiseBuf;
+  let cdVoice = null, cdT0 = 0, cdBusyUntil = 0;
+  const cdRows = [];
 
   function makeNoise(sec = 2.2) {
     const b = ctx.createBuffer(1, ctx.sampleRate * sec, ctx.sampleRate);
@@ -6519,6 +6521,7 @@ G.audio = (() => {
     comp.threshold.value = -18; comp.ratio.value = 6;
     master.connect(comp); comp.connect(ctx.destination);
     noiseBuf = makeNoise();
+    A.primeVoices();     // Chrome fills getVoices() async — start now, not at the first beat
 
     // continuous engine bed: noise -> lowpass -> gain ; + sub osc
     engSrc = ctx.createBufferSource(); engSrc.buffer = noiseBuf; engSrc.loop = true;
@@ -6614,6 +6617,58 @@ G.audio = (() => {
       const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
       if (vs.length) u.voice = vs.find(v => /male|Google US English|David|Alex/i.test(v.name)) || vs[0];
       speechSynthesis.speak(u);
+    },
+    /* ---- countdown VO: one word per second, landing on the HUD's beat ----
+       Chrome QUEUES utterances, so one word that overruns its second drags every
+       later number behind the display. The display is the reference: at each beat we
+       drop whatever is still queued and speak the current number, and the word is
+       spoken fast enough to fit inside its own second. */
+    _fakeVoiceMs: 0,                          // test hook: simulate a slow voice
+    primeVoices() {                           // getVoices() fills async in Chrome
+      if (!('speechSynthesis' in window)) return 0;
+      const pick = () => {
+        const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+        if (vs.length) cdVoice = vs.find(v => /male|Google US English|David|Alex/i.test(v.name)) || vs[0];
+        return vs.length;
+      };
+      try { speechSynthesis.onvoiceschanged = pick; } catch (e) {}
+      return pick();
+    },
+    warmVoice() {                             // pay the engine spin-up before the count
+      if (!('speechSynthesis' in window) || muted || !voiceOn) return;
+      try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+    },
+    resetCountdown() { cdT0 = 0; cdRows.length = 0; cdBusyUntil = 0; },
+    sayBeat(word, beat) {                     // beat = seconds to go (10..1)
+      A.sfx('radio');
+      if (!voiceOn || muted || !('speechSynthesis' in window)) return;
+      if (!cdVoice) A.primeVoices();
+      const now = performance.now();
+      if (!cdT0) cdT0 = now;
+      const q = (now < cdBusyUntil) || speechSynthesis.speaking || speechSynthesis.pending;
+      try { speechSynthesis.cancel(); } catch (e) {}
+      const u = new SpeechSynthesisUtterance(word);
+      u.lang = 'en-US'; u.rate = 1.5; u.pitch = 0.85; u.volume = 1;
+      if (cdVoice) u.voice = cdVoice;
+      const row = { beat, word, call: now, onset: 0, q };
+      cdRows.push(row);
+      const mark = () => { if (!row.onset) row.onset = performance.now(); };
+      u.onstart = mark;
+      const fake = A._fakeVoiceMs || window.__fakeVoiceMs || 0;
+      if (fake) { cdBusyUntil = now + fake; setTimeout(mark, Math.min(fake, 200)); }
+      else cdBusyUntil = now + 900;
+      speechSynthesis.speak(u);
+    },
+    probeCountdown() {
+      if (!cdRows.length) return 'none';
+      let maxd = 0;
+      const parts = cdRows.map(r => {
+        const start = r.onset || r.call;
+        const d = Math.round(start - (cdT0 + (10 - r.beat) * 1000));
+        if (Math.abs(d) > Math.abs(maxd)) maxd = d;
+        return `${r.beat}:${d >= 0 ? '+' : ''}${d}${r.onset ? '' : 'c'}${r.q ? 'Q' : ''}`;
+      });
+      return `n=${cdRows.length} maxdrift=${maxd}ms|` + parts.join(' ');
     },
   };
   return A;
@@ -7743,11 +7798,22 @@ G.cams = (() => {
       const cam = G.world.cam;
       const hint = G.mission.viewHint || {};
       const scale = M.scaleUnits;                       // meters per scene unit
-      const L = M.len;                                  // vehicle length in scene units
+      let L = M.len;                                  // vehicle length in scene units
       const t = performance.now() * 0.001;
       let wantPos = _t, wantLook = _d.clone();
       let dist = L * 3;                                 // chase distance (chase branch refines it)
-      const posV = M.pos;
+      /* Frame the vehicle that is ACTUALLY RENDERED in the active scene. The mission
+         writes pose and meshes together, but after staging the two can land on different
+         wrappers — the pose point then drifts tens of km from the mesh on screen and the
+         rocket slides out of frame. The camera follows the renderer's truth. */
+      const wr = G.rocket.wrappers[G.world.active];
+      const live = wr ? ((G.rocket.staged && wr.shipObj && wr.shipObj.visible) ? wr.shipObj : wr.model) : null;
+      const posV = live ? live.getWorldPosition(new THREE.Vector3()) : M.pos;
+      const quatV = live ? live.getWorldQuaternion(new THREE.Quaternion()) : M.quat;
+      if (live) {                                   // size the frame on the node actually rendered
+        const h = new THREE.Box3().setFromObject(live).getSize(new THREE.Vector3()).y;
+        if (Number.isFinite(h) && h > 1e-4) L = h;   // scene scale varies 1000x; trust the bbox
+      }
 
       if (mode === 'pad' && G.world.active === 'pad') {
         const alt = Math.max(0, M.altM);
@@ -7759,8 +7825,8 @@ G.cams = (() => {
         if (G.world.active !== 'pad') wantPos.divideScalar(1000);
         wantPos.x += Math.sin(t * 0.05) * 3 * (G.world.active !== 'pad' ? 0.001 : 1);
       } else if (mode === 'cockpit') {
-        const fwd = new THREE.Vector3(0, 1, 0).applyQuaternion(M.quat);
-        const rgt = new THREE.Vector3(1, 0, 0).applyQuaternion(M.quat);
+        const fwd = new THREE.Vector3(0, 1, 0).applyQuaternion(quatV);
+        const rgt = new THREE.Vector3(1, 0, 0).applyQuaternion(quatV);
         /* over-the-nose cockpit frame: eye outside the nose cone, nose riding the lower frame */
         const camOff = fwd.clone().multiplyScalar(L * 1.35).add(rgt.clone().multiplyScalar(L * 0.16)).add(new THREE.Vector3(0, L * 0.05, 0));
         wantPos = posV.clone().add(camOff);
@@ -7778,7 +7844,7 @@ G.cams = (() => {
         const elBase = (hint.burn ? 0.10 : 0.16) + 0.10 * vFac;
         const az = azBase + yawOff + (hint.burn ? 0 : Math.sin(t * 0.07) * 0.05);
         const el = U.clamp(elBase + pitchOff, -0.45, 1.3);
-        const tgt = posV.clone().add(new THREE.Vector3(0, L * 0.55, 0).applyQuaternion(M.quat));
+        const tgt = posV.clone().add(new THREE.Vector3(0, L * 0.55, 0).applyQuaternion(quatV));
         wantPos = tgt.clone().add(new THREE.Vector3(
           Math.cos(el) * Math.sin(az) * dist,
           Math.sin(el) * dist + L * 0.18,
@@ -7793,16 +7859,20 @@ G.cams = (() => {
       /* cockpit look keeps vehicle roll */
       let upv = up;
       if (mode === 'cockpit') {
-        upv = new THREE.Vector3(0, 0, 1).applyQuaternion(M.quat).negate().add(new THREE.Vector3(0, 1, 0)).normalize();
+        upv = new THREE.Vector3(0, 0, 1).applyQuaternion(quatV).negate().add(new THREE.Vector3(0, 1, 0)).normalize();
       }
 
-      let k = snapNext ? 1 : 1 - Math.exp(-dt * (mode === 'pad' ? 3.5 : (G.mission.burningNow ? 1.6 : 2.6)));
+      /* follow filter runs on SIMULATED time — at warp the vehicle advances warp× per
+         frame, so a wall-clock time constant leaves a steady-state lag of whole framing
+         distances and the vehicle slides out of frame. dt*warp is the honest motion. */
+      const dtf = dt * Math.max(1, G.mission.warp || 1);
+      let k = snapNext ? 1 : 1 - Math.exp(-dtf * (mode === 'pad' ? 3.5 : (G.mission.burningNow ? 1.6 : 2.6)));
       snapNext = false;
-      /* high-warp guard: fell many framing-distances behind → glide in hard (near-rigid follow) */
+      /* hard-catch guard: several framing distances behind → glide in fast */
       const lag = camPos.distanceTo(wantPos);
-      if (lag > dist * 5) k = Math.max(k, Math.min(1, dt * 26 * Math.min(4, lag / (dist * 5))));
+      if (lag > dist * 5) k = Math.max(k, Math.min(1, dtf * 26 * Math.min(4, lag / (dist * 5))));
       camPos.lerp(wantPos, k);
-      camLook.lerp(wantLook, k * 0.9);
+      camLook.lerp(wantLook, k);           // aim must never trail the rig
 
       /* shake */
       trauma = Math.max(0, trauma - dt * 0.75);
@@ -7926,23 +7996,24 @@ G.mission = (() => {
     if (M.phase !== 'prelaunch') return;
     M.phase = 'countdown'; M.met = -10; M.running = true;
     G.audio.resume();
-    schedAt(-10, () => { G.audio.say('Ten'); G.audio.sfx('beep'); });
-    schedAt(-9, () => G.audio.say('Nine.'));
-    schedAt(-8, () => G.audio.say('Eight.'));
-    schedAt(-7, () => G.audio.say('Seven.'));
-    schedAt(-6, () => G.audio.say('Six.'));
-    schedAt(-5, () => G.audio.say('Five.'));
-    schedAt(-4, () => G.audio.say('Four.'));
+    G.audio.primeVoices(); G.audio.resetCountdown(); G.audio.warmVoice();
+    schedAt(-10, () => { G.audio.sayBeat('Ten', 10); G.audio.sfx('beep'); });
+    schedAt(-9, () => G.audio.sayBeat('Nine.', 9));
+    schedAt(-8, () => G.audio.sayBeat('Eight.', 8));
+    schedAt(-7, () => G.audio.sayBeat('Seven.', 7));
+    schedAt(-6, () => G.audio.sayBeat('Six.', 6));
+    schedAt(-5, () => G.audio.sayBeat('Five.', 5));
+    schedAt(-4, () => G.audio.sayBeat('Four.', 4));
     schedAt(-3, () => {
-      logEvent(-3, 'IGNITION SEQUENCE START', true); G.audio.sfx('igniter'); G.audio.say('Three.');
+      logEvent(-3, 'IGNITION SEQUENCE START', true); G.audio.sayBeat('Three.', 3); G.audio.sfx('igniter');
       G.pad.setTrenchGlow(6); S.shLevel = 0.05; S.shMask.fill(0);
       for (let i = 0; i < 66; i++) G.fx.steam((Math.random() - .5) * 46, 4 + Math.random() * 10, (Math.random() - .5) * 46, { vy: 14 + Math.random() * 10, size: 14, life: 7, alpha: 0.5 });
       G.audio.sfx('deluge');
       G.pad.delugeOn = true;                                 // water curtains come alive
       for (const w in G.rocket.wrappers) G.rocket.setActive('pad');
     });
-    schedAt(-2.2, () => { G.audio.say('Two.'); G.pad.setTrenchGlow(16); G.fx.steam(0, 6, 0, { vy: 20, size: 20, life: 8, alpha: 0.5 }); });
-    schedAt(-1, () => G.audio.say('One.'));
+    schedAt(-2, () => { G.audio.sayBeat('Two.', 2); G.pad.setTrenchGlow(16); G.fx.steam(0, 6, 0, { vy: 20, size: 20, life: 8, alpha: 0.5 }); });
+    schedAt(-1, () => G.audio.sayBeat('One.', 1));
     schedAt(0, () => {
       M.phase = 'ascent'; M.met = 0;
       S.shMask.fill(1); S.shLevel = 1;
@@ -9270,12 +9341,14 @@ G.main = (() => {
       gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, b);
       return { w, h, b };
     };
-    const centLuma = () => {
+    const centLuma = (full) => {
       try { G.world.composer.render(); } catch (e) { MAIN.err = (MAIN.err || '') + '|render:' + e.message; }
       const { w, h, b } = glpx();
+      const x0 = full ? 0 : (w / 3) | 0, x1 = full ? w : ((2 * w) / 3 | 0);
+      const y0 = full ? 0 : (h / 3) | 0, y1 = full ? h : ((2 * h) / 3 | 0);
       let s = 0, n = 0;
-      for (let y = (h / 3) | 0; y < ((2 * h) / 3 | 0); y += 2)
-        for (let x = (w / 3) | 0; x < ((2 * w) / 3 | 0); x += 2) {
+      for (let y = y0; y < y1; y += 2)
+        for (let x = x0; x < x1; x += 2) {
           const i = (y * w + x) * 4; s += (b[i] + b[i + 1] + b[i + 2]) / 3; n++;
         }
       return n ? s / n : 0;
@@ -9286,63 +9359,102 @@ G.main = (() => {
       return (G.rocket.staged && w.shipObj) ? w.shipObj : w.model;
     };
     const fprobe = async (tag, view) => {
-      if (view) G.cams.setMode(view);
+      if (view) { m().userViewLocked = true; G.cams.setMode(view); }   // a real user pick is locked
       await sleep(350);                                   // real follow frames at current warp
       const cam = G.world.cam, nd = vehNode();
       const rd = (label, snapped) => {
         cam.updateMatrixWorld(true);
-        let ndc = '?', d = -1;
+        const wr = G.rocket.wrappers[G.world.active];
+        let ndc = '?', d = -1, pxh = -1, node = 'none', dz = '?', vs = '?';
         if (nd) {
-          const p = nd.getWorldPosition(new THREE.Vector3());
-          const q = p.clone().project(cam);
-          ndc = `${+q.x.toFixed(2)},${+q.y.toFixed(2)}`; d = cam.position.distanceTo(p);
+          node = (nd === (wr && wr.shipObj)) ? 'ship' : 'model';
+          vs = (nd.visible && (!wr || wr.root.visible)) ? 1 : 0;
+          const bb = new THREE.Box3().setFromObject(nd);
+          const ctr = bb.getCenter(new THREE.Vector3());
+          const vc = ctr.clone().applyMatrix4(cam.matrixWorldInverse);   // camera space: -Z is forward
+          dz = Math.round(-vc.z);
+          const q = ctr.clone().project(cam);
+          const top = bb.max.clone().project(cam), bot = bb.min.clone().project(cam);
+          pxh = Math.round(Math.hypot((top.x - bot.x) * cam.aspect, top.y - bot.y) * (G.world.renderer.getSize(new THREE.Vector2()).y / 2));
+          ndc = `${+q.x.toFixed(2)},${+q.y.toFixed(2)}`; d = cam.position.distanceTo(ctr);
         }
-        const on = centLuma();
-        let off = on;
-        if (nd) { const v = nd.visible; nd.visible = false; off = centLuma(); nd.visible = v; }
-        vlog(`${label}|${snapped ? 'snap' : 'dyn'}|ndc=${ndc}|d=${Math.round(d)}|lum=${Math.round(on)}|hid=${Math.round(off)}|delta=${Math.round(on - off)}|ph=${m().phase}|fr=${m().viewFrame}|act=${G.world.active}|w=${m().warp}|md=${G.cams.mode}${MAIN.err ? ',ERR' + MAIN.err : ''}`);
+        const onC = centLuma(0), onF = centLuma(1);
+        let offC = onC, offF = onF;
+        if (nd) { const v = nd.visible; nd.visible = false; offC = centLuma(0); offF = centLuma(1); nd.visible = v; }
+        vlog(`${label}|${snapped ? 'snap' : 'dyn'}|${node}|ndc=${ndc}|d=${Math.round(d)}|pxh=${pxh}|dz=${dz}|vis=${vs}|dc=${Math.round(onC - offC)}|df=${Math.round(onF - offF)}|lum=${Math.round(onF)}|ph=${m().phase}|fr=${m().viewFrame}|act=${G.world.active}|w=${m().warp}|md=${G.cams.mode}${MAIN.err ? ',ERR' + MAIN.err : ''}`);
       };
       rd(`F${tag}`, 0);
       G.cams.snap(); G.cams.update(6, m().view);
       rd(`F${tag}`, 1);
     };
     const framingRun = async () => {
+      /* walk phase-by-phase so every checkpoint measures its OWN phase state at that
+         phase's natural warp — fixed step counts used to overshoot whole phases and the
+         later probes all ended up measuring the finished mission. */
+      const dg = (label) => {
+        const cam = G.world.cam, wr = G.rocket.wrappers[G.world.active];
+        cam.updateMatrixWorld(true);
+        if (!wr) { vlog(`D${label}|nowrapper`); return; }
+        const rp = wr.root.getWorldPosition(new THREE.Vector3());
+        const sp = wr.shipObj ? wr.shipObj.getWorldPosition(new THREE.Vector3()) : null;
+        const V = m().view;
+        vlog(`D${label}|act=${G.world.active}|ph=${m().phase}|w=${m().warp}|Vpos=${V.pos.x.toFixed(1)},${V.pos.y.toFixed(1)},${V.pos.z.toFixed(1)}|len=${V.len}|rootW=${rp.x.toFixed(1)},${rp.y.toFixed(1)},${rp.z.toFixed(1)}|shipW=${sp ? sp.x.toFixed(1) + ',' + sp.y.toFixed(1) + ',' + sp.z.toFixed(1) : 'null'}|camPos=${cam.position.x.toFixed(1)},${cam.position.y.toFixed(1)},${cam.position.z.toFixed(1)}|rootVis=${wr.root.visible}|shVis=${wr.shipObj ? wr.shipObj.visible : '-'}|md=${G.cams.mode}`);
+      };
+      const stepUntil = async (phase, maxFrames = 4000) => {
+        let n = 0;
+        while (m().phase !== phase && n < maxFrames) { MAIN.frame(1 / 60); n++; }
+        for (let i = 0; i < 20; i++) MAIN.frame(1 / 60);          // settle inside the phase
+        vlog(`F>${phase}|at=${m().phase}|fr=${n}`);
+      };
       vlog('BOOT' + (MAIN.err ? '|ERR' + MAIN.err : ''));
       $(`card-${isMars ? 'mars' : 'moon'}`).click();
       $('btn-launch').click();
-      await fprobe('countdown', 'cockpit');
+      await fprobe('countdown', 'chase');
+      await fprobe('cdcoc', 'cockpit');
       m().setWarpIdx(4);
-      step(900, 1 / 60, 'ascent');
-      await fprobe('maxq', 'chase');
-      step(1500, 1 / 60, 'seco');                               // through MECO/hotstage/SECO
-      await fprobe('orbit', 'chase');
-      await fprobe('orbitcoc', 'cockpit');
-      m()._capMul = 100; m().setWarpIdx(9);
-      step(3000, 1 / 60, 'deep');
-      await fprobe('warp', 'chase');
+      await stepUntil('hotstage');
+      await fprobe('hotstage', 'chase'); dg('hotstage');
+      await fprobe('hotcoc', 'cockpit'); dg('hotcoc');
+      await stepUntil('parking');
+      await fprobe('orbit', 'chase'); dg('orbit');
+      await fprobe('orbitcoc', 'cockpit'); dg('orbitcoc');
       if (!isMars) {
-        step(3000, 1 / 60, 'tli');
-        await fprobe('coast', 'chase');
-        step(1500, 1 / 60, 'loi');
-        await fprobe('lunar', 'chase');
-        step(1200, 1 / 60, 'desc');
-        await fprobe('descent', 'chase');
+        await stepUntil('tliCoast'); await fprobe('coast', 'chase'); dg('coast');
+        await stepUntil('lunarOrbit'); await fprobe('lunar', 'chase');
+        await stepUntil('moonDescent'); await fprobe('descent', 'chase');
+        await stepUntil('moonLanded'); await fprobe('landed', 'chase');
       } else {
-        step(3600, 1 / 60, 'tmi');
-        await fprobe('cruise', 'chase');
-        step(2400, 1 / 60, 'approach');
-        await fprobe('approach', 'chase');
-        step(1200, 1 / 60, 'edl');
-        await fprobe('entry', 'chase');
+        await stepUntil('heliCruise'); await fprobe('cruise', 'chase');
+        await stepUntil('marsApproach'); await fprobe('approach', 'chase');
+        await stepUntil('marsEntry'); await fprobe('entry', 'chase');
+        await stepUntil('marsLanding'); await fprobe('landing', 'chase');
+        await stepUntil('marsLanded'); await fprobe('landed', 'chase');
       }
     };
     /* ---- round-3: countdown voice drift (needs G.audio.probeCountdown) ---- */
     const voxRun = async () => {
       vlog('BOOT' + (MAIN.err ? '|ERR' + MAIN.err : ''));
+      const marks = [];
+      const t0 = performance.now();
+      const ms = () => Math.round(performance.now() - t0);
+      const ss = window.speechSynthesis;
+      if (ss) {
+        const oSpeak = ss.speak.bind(ss);
+        ss.speak = function (u) {
+          const at = ms(), pend = ss.pending, busy = ss.speaking;
+          const oOn = u.onstart;
+          u.onstart = e => { marks.push(`onset+${ms()}`); if (oOn) oOn.call(u, e); };
+          const txt = (u.text || '').toLowerCase();
+          marks.push(`speak@${at} "${txt}" q${busy ? 'BUSY' : 'idle'}${pend ? ' PEND' : ''}`);
+          return oSpeak(u);
+        };
+        const oCancel = ss.cancel.bind(ss);
+        ss.cancel = () => { marks.push(`cancel@${ms()}`); return oCancel(); };
+      }
       $('card-moon').click(); $('btn-launch').click();
       await sleep(13000);                                       // whole T-10 → liftoff, real time
-      const p = G.audio.probeCountdown ? G.audio.probeCountdown() : 'NOHOOK';
-      vlog('VOX|' + p);
+      vlog('VOXTimeline|' + marks.join(' ; '));
+      vlog('VOX|' + (G.audio.probeCountdown ? G.audio.probeCountdown() : 'NOHOOK'));
     };
 
     const waitBoot = setInterval(() => {
