@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>STARSHIP ODYSSEY — Earth→Moon · Earth→Mars</title>
 <style>
   :root{
@@ -116,8 +116,61 @@
   #end-stats b{color:#fff}
   #btn-replay{font-family:var(--mono);letter-spacing:.2em;background:#0b1a2e;border:1px solid var(--cy);
     color:var(--cy);border-radius:10px;padding:12px 34px;font-size:14px;cursor:pointer}
+  /* ---------- mobile / touch layout ---------- */
+  .wbtn,.vbtn,.sbtn{touch-action:manipulation}
+  #glhost canvas{touch-action:none}
+  #warpbar{touch-action:pan-x}
+  #log{touch-action:pan-y}
+  @media (hover:none),(max-width:900px){
+    *{-webkit-tap-highlight-color:transparent}
+    .wbtn,.vbtn,.sbtn{min-height:40px;min-width:40px;padding:9px 11px;font-size:12px}
+    #sysbar .lbl{display:none}
+  }
   @media (max-width:900px){
-    #p-right{display:none} #p-bl{bottom:70px} #minimap{width:200px}
+    .panel{padding:8px 10px}
+    #p-tl{top:calc(12px + env(safe-area-inset-top));left:12px;right:auto;max-width:44vw;min-width:0}
+    #met{font-size:24px}
+    #sysbar{top:calc(12px + env(safe-area-inset-top));left:auto;right:12px;transform:none}
+    #p-bl{left:12px;right:auto;bottom:auto;top:calc(124px + env(safe-area-inset-top));min-width:0;width:44vw;max-width:220px}
+    #p-bl .tgrid{grid-template-columns:1fr 1fr;gap:1px 8px}
+    #p-bl .tf{font-size:10px}
+    #p-bl .tf b{font-size:8px;letter-spacing:.08em;padding-top:2px}
+    #p-right{top:calc(64px + env(safe-area-inset-top));right:12px;left:auto;width:44vw;max-width:220px}
+    #p-right h4{display:none}
+    #log{max-height:110px;font-size:10px}
+    #minimap{display:none}
+    #prog-label{font-size:9px}
+    #captions{top:42%;width:92%}
+    #countdown{top:58%;font-size:84px}
+    #warpbar{left:14px;right:14px;transform:none;justify-content:center;flex-wrap:nowrap;
+      overflow-x:auto;scrollbar-width:none;max-width:calc(100vw - 20px);
+      bottom:calc(14px + env(safe-area-inset-bottom))}
+    #warpbar::-webkit-scrollbar{display:none}
+    #viewbar{left:50%;right:auto;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom))}
+    #hint{display:none}
+    #launch-screen{gap:14px;padding:20px 16px;overflow-y:auto}
+    #cards{gap:12px}
+    .mcard{width:min(330px,88vw);padding:14px}
+    .mcard h3{font-size:17px}
+    #subtitle{font-size:11px}
+    #credit{font-size:9px}
+    #btn-launch{padding:16px 48px;font-size:20px}
+    select{padding:10px 12px}
+    #end-screen{gap:14px;padding:20px}
+  }
+  /* short screens (landscape phones): hide side panels, keep bars */
+  @media (max-height:560px){
+    #p-bl{display:none}
+    #p-right{top:auto;bottom:70px;width:240px}
+    #log{max-height:60px}
+    #minimap{display:none}
+    #countdown{top:45%;font-size:64px}
+    #captions{top:22%}
+    #launch-screen{gap:10px}
+    .mcard{padding:12px}
+    .mcard h3{font-size:15px}
+    .mcard p{font-size:10px;line-height:1.6}
+    #btn-launch{padding:12px 36px;font-size:18px}
   }
 </style>
 </head>
@@ -208,10 +261,10 @@
     <button class="viewbtn vbtn" data-view="pad">PAD</button>
   </div>
   <div id="sysbar" style="display:none">
-    <button class="sbtn" id="btn-pause">⏸ PAUSE</button>
-    <button class="sbtn" id="btn-mute">🔊 SFX</button>
-    <button class="sbtn" id="btn-voice">🎙 VOX</button>
-    <button class="sbtn" id="btn-restart">⟲ RESTART</button>
+    <button class="sbtn" id="btn-pause"><span class="ico">⏸</span><span class="lbl"> PAUSE</span></button>
+    <button class="sbtn" id="btn-mute"><span class="ico">🔊</span><span class="lbl"> SFX</span></button>
+    <button class="sbtn" id="btn-voice"><span class="ico">🎙</span><span class="lbl"> VOX</span></button>
+    <button class="sbtn" id="btn-restart"><span class="ico">⟲</span><span class="lbl"> RESTART</span></button>
   </div>
   <div id="hint">DRAG orbit cam · WHEEL zoom · C cockpit · V cycle view · SPACE pause · 1-0 time warp · ESC pause</div>
 
@@ -7776,17 +7829,45 @@ G.cams = (() => {
     snap() { snapNext = true; },
 
     bindInput(el) {
+      el.style.touchAction = 'none';            /* touch drag orbits, pinch zooms */
+      const ptrs = new Map();                  /* active pointers for pinch */
+      let pinchDist = 0;
+      const pinchZoom = factor => { zoom = U.clamp(zoom * factor, 0.42, 5.5); };
       el.addEventListener('pointerdown', e => {
-        if (e.button !== 0) return;
-        dragging = true; px = e.clientX; py = e.clientY;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        dragging = ptrs.size === 1;
+        if (ptrs.size === 2) {
+          dragging = false;
+          const [a, b] = [...ptrs.values()];
+          pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        }
+        px = e.clientX; py = e.clientY;
       });
       window.addEventListener('pointermove', e => {
+        if (!ptrs.has(e.pointerId)) return;
+        ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (ptrs.size >= 2) {
+          const [a, b] = [...ptrs.values()];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (pinchDist > 0 && d > 0) pinchZoom(d / pinchDist);
+          pinchDist = d; lastDrag = performance.now();
+          return;
+        }
         if (!dragging) return;
         yawOff -= (e.clientX - px) * 0.005;
         pitchOff = U.clamp(pitchOff + (e.clientY - py) * 0.004, -0.7, 1.25);
         px = e.clientX; py = e.clientY; lastDrag = performance.now();
       });
-      window.addEventListener('pointerup', () => { dragging = false; });
+      const dropPtr = e => {
+        ptrs.delete(e.pointerId);
+        if (ptrs.size < 2) pinchDist = 0;
+        if (ptrs.size === 1) {                    /* one finger left: resume drag */
+          const p = [...ptrs.values()][0]; px = p.x; py = p.y; dragging = true;
+        } else if (ptrs.size === 0) dragging = false;
+      };
+      window.addEventListener('pointerup', dropPtr);
+      window.addEventListener('pointercancel', dropPtr);
       el.addEventListener('wheel', e => {
         zoom = U.clamp(zoom * (1 + U.clamp(e.deltaY, -120, 120) * 0.0016), 0.42, 5.5);
         e.preventDefault();
@@ -8873,11 +8954,11 @@ G.hud = (() => {
     $('btn-pause').onclick = () => G.main.togglePause();
     $('btn-mute').onclick = () => {
       G.main.muted = !G.main.muted; G.audio.toggleMute(G.main.muted);
-      $('btn-mute').textContent = G.main.muted ? '🔇 SFX' : '🔊 SFX';
+      $('btn-mute').querySelector('.ico').textContent = G.main.muted ? '🔇' : '🔊';
     };
     $('btn-voice').onclick = () => {
       G.main.voice = !G.main.voice; G.audio.toggleVoice(G.main.voice);
-      $('btn-voice').textContent = G.main.voice ? '🎙 VOX' : '🔕 VOX';
+      $('btn-voice').querySelector('.ico').textContent = G.main.voice ? '🎙' : '🔕';
     };
     $('btn-restart').onclick = () => location.reload();
     $('btn-replay').onclick = () => location.reload();
@@ -8989,7 +9070,7 @@ G.hud = (() => {
   /* ---------------- minimap ---------------- */
   const C = $('minimap');
   function drawMinimap() {
-    if (!C) return;
+    if (!C || C.clientWidth === 0) return;   /* hidden (mobile) — skip redraw */
     const x = C.getContext('2d'), W = C.width, Hh = C.height;
     const m = M(), t = m.met;
     x.fillStyle = '#040a14'; x.fillRect(0, 0, W, Hh);
@@ -9186,7 +9267,8 @@ G.main = (() => {
   MAIN.togglePause = function () {
     MAIN.paused = !MAIN.paused;
     M().paused = MAIN.paused;
-    $('btn-pause').textContent = MAIN.paused ? '▶ RESUME' : '⏸ PAUSE';
+    $('btn-pause').querySelector('.ico').textContent = MAIN.paused ? '▶' : '⏸';
+    const pl = $('btn-pause').querySelector('.lbl'); if (pl) pl.textContent = MAIN.paused ? ' RESUME' : ' PAUSE';
     G.audio.sfx('beep');
   };
 
