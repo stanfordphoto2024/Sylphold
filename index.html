@@ -2143,11 +2143,12 @@ function renderChat(){
   updateStepNote();
 }
 async function sendChat(){
-  const inp=$('chatInput'); if(!inp) return;
-  const finish=$('singleFinishBtn'); if(finish) finish.disabled=true;
+  const inp=$('chatInput'); if(!inp||!sess) return;
+  const finish=$('singleFinishBtn');
   const txt=inp.value.trim(); if(!txt||chatBusy) return;
   sess.chat.push({role:'user',text:txt,at:Date.now()}); inp.value='';
   const ph={role:'ai',text:'',at:Date.now(),pending:true}; sess.chat.push(ph);
+  if(finish) finish.disabled=true;
   renderChat(); chatBusy=true; renderChat(); saveDraft();
   try{
     const msgs=[{role:'system',content:chatSys()}].concat(sess.chat.filter(m=>!m.pending&&m.role!=='sys').map(m=>({role:m.role==='ai'?'assistant':'user',content:m.text})));
@@ -3339,6 +3340,8 @@ function wire(){
     finishSession().finally(()=>{ if(finishBtn){finishBtn.classList.remove('loading');finishBtn.disabled=false;} });
   });
   const askBtn=$('singleAskBtn'); if(askBtn) askBtn.addEventListener('click',()=>{ $('singleAi').hidden=!$('singleAi').hidden; if(!$('singleAi').hidden) $('chatInput').focus(); });
+  const chatSendBtn=$('chatSendBtn'); if(chatSendBtn) chatSendBtn.addEventListener('click',()=>sendChat());
+  const chatBox=$('chatInput'); if(chatBox) chatBox.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } });
   /* session exits */
   $('exitFlow').addEventListener('click',exitSession);
   $('exitFlowPlain').addEventListener('click',exitSession);
