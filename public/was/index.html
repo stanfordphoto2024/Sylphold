@@ -108,7 +108,7 @@
   #palette{display:grid;grid-template-columns:repeat(16,var(--cell));gap:0;padding:0 2px}
   #palette button{
     display:flex;align-items:center;justify-content:center;gap:2px;width:100%;
-    aspect-ratio:1/1;min-height:22px;padding:0;border-radius:6px;
+    aspect-ratio:1/1;padding:0;border-radius:6px;
     font-size:calc(var(--cell)*.52);font-weight:600;letter-spacing:0;
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
   }
@@ -149,23 +149,30 @@
     header{margin-bottom:9px}
     h1{font-size:15px;letter-spacing:.06em}
     .wrap{gap:10px}
-    .field>select,.field>input[type=text],.field>.box,.field>button{height:42px;font-size:14px}
-    #diff{font-size:12px}
-    .iconbar{gap:5px}
-    .iconbar button{width:44px;height:40px;font-size:16px}
-    .switches{gap:14px}
+    .bar{gap:4px;grid-template-columns:3.5fr 1.6fr 2fr 2.2fr}
+    .field>select,.field>input[type=text],.field>.box,.field>button{height:40px;font-size:11px;padding:0 7px}
+    #diff{font-size:10px}
+    #pauseBtn{width:26px;height:24px;font-size:11px}
+    .iconbar{gap:4px;flex-wrap:nowrap}
+    .iconbar button{width:34px;height:38px;font-size:14px}
+    .iconbar .sep{margin:0 1px}
+    .switches{gap:10px;flex-wrap:nowrap}
+    .switches label{font-size:11px;gap:5px}
+    .switches input{width:13px;height:13px}
     #toast{bottom:calc(14px + env(safe-area-inset-bottom));max-width:92vw}
     .win{padding:22px 20px;min-width:min(92vw,320px)}
   }
   /* short viewports (landscape phones): tighten everything so nothing scrolls */
   @media (max-height:620px){
-    :root{--cell:clamp(11px, min(calc((100vw - 24px)/16), calc((100vh - 212px)/17)), 26px)}
+    :root{--cell:clamp(10px, min(calc((100vw - 24px)/16), calc((100vh - 170px)/17)), 26px)}
     body{padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+    .bar{gap:4px;width:calc(100vw - 20px);grid-template-columns:2.6fr 1.3fr 1.7fr 1.7fr}
+    label.mini{display:none}
     header{display:none}
     h1{font-size:13.5px;letter-spacing:.05em}
     .wrap{gap:7px}
-    .field>select,.field>input[type=text],.field>.box,.field>button{height:36px;font-size:13px}
-    .iconbar button{width:40px;height:36px}
+    .field>select,.field>input[type=text],.field>.box,.field>button{height:32px;font-size:11px;padding:0 6px}
+    .iconbar button{width:32px;height:34px;font-size:13px}
   }
   @media print{body{background:#fff;color:#000}.bar,.iconbar,.switches,header{display:none}#board{border-color:#000}}
 </style>
