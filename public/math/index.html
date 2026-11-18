@@ -108659,7 +108659,8 @@ return s;
 }
 
 function statLine(item, text, want) {
-var nums = (text.match(/\d+(?:\.\d+)?/g) || []).map(Number), i;
+var run = /\d+(?:\.\d+)?(?:\s*,\s*\d+(?:\.\d+)?){2,}/i.exec(String(text == null ? '' : text));
+var nums = ((run ? run[0] : String(text == null ? '' : text)).match(/\d+(?:\.\d+)?/g) || []).map(Number), i;
 if (nums.length < 3) return null;
 var tol = (item.spec && typeof item.spec.tol === 'number' && item.spec.tol > 0) ? Math.max(item.spec.tol, 1e-4) : 0.02;
 var near = function (v) { return v != null && isFinite(v) && Math.abs(v - want) <= Math.max(tol, Math.abs(want) * 1e-6); };
@@ -109402,6 +109403,24 @@ return 'Compare from the left: ' + sa.charAt(i) + ' against ' + sb.charAt(i) + '
 return null;
 }
 
+function statSideText(sideText, grabbed) {
+var t = String(sideText == null ? '' : sideText);
+var sm = /\b(median|mode|mean|range)\s+of\s+(-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)+)\s*$/i.exec(t);
+if (!sm) return grabbed;
+var w = String(sm[1]).toLowerCase(), a = (String(sm[2]).match(/\d+(?:\.\d+)?/g) || []).map(Number), i, c, mx, mo, v = null;
+if (a.length < 2) return grabbed;
+a.sort(function (x, y) { return x - y; });
+if (w === 'median') v = a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+else if (w === 'mean') { for (i = 0; i < a.length; i++) v += a[i]; v = v / a.length; }
+else if (w === 'range') v = a[a.length - 1] - a[0];
+else { c = {}; for (i = 0; i < a.length; i++) c[a[i]] = (c[a[i]] || 0) + 1; mx = 0;
+for (i = 0; i < a.length; i++) if (c[a[i]] > mx) mx = c[a[i]]; mo = [];
+for (i = 0; i < a.length; i++) if (c[a[i]] === mx && mo.indexOf(a[i]) < 0) mo.push(a[i]);
+if (mo.length !== 1) return grabbed; v = mo[0]; }
+if (v == null || !isFinite(v)) return grabbed;
+return String(Math.round(v * 100) / 100);
+}
+
 function cmpMarkLine(item, text, shown) {
 var raw = String(shown == null ? '' : shown).trim();
 var sym = symOf(raw) || (/^[<>=]$/.test(raw) ? raw : null);
@@ -109420,14 +109439,14 @@ var rm = rre.exec(text.slice(i));
 
 var byPhrase = /\bby\s*[-+−]?\d+(?:,\d{3})*(?:\.\d+)?\s*(?:[a-z]{1,14}\s*)?$/i.test(text.slice(0, at)) ||
 /^\s*[-+−]?\d+(?:,\d{3})*(?:\.\d+)?\s*\bby\b/i.test(text.slice(i));
-if (lm && rm && !byPhrase) cand.push([String(lm[1]).trim(), String(rm[1]).trim()]);
+if (lm && rm && !byPhrase) cand.push([statSideText(text.slice(0, at), String(lm[1]).trim()), statSideText(text.slice(i), String(rm[1]).trim())]);
 }
 if (cand.length) break;                       
 }
 if (!cand.length) {
 var toks = text.match(new RegExp(NUMTOK, 'g')) || [], kept = [];
 for (i = 0; i < toks.length; i++) if (numOf(toks[i]) != null) kept.push(String(toks[i]).trim());
-if (kept.length === 2) cand.push([kept[0], kept[1]]);
+if (kept.length === 2 && !/\b(median|mode|mean|range)\s+of\b/i.test(text)) cand.push([kept[0], kept[1]]);
 }
 for (i = 0; i < cand.length; i++) {
 var aTxt = cand[i][0], bTxt = cand[i][1];
