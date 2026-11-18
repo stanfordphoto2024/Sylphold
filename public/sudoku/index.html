@@ -620,7 +620,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
   const S = {
     tier: 'expert', grid: null, sol: null, user: new Int32Array(81), notes: new Int32Array(81),
     hintCells: new Uint8Array(81), sel: -1, notesMode: false, hints: 0, history: [],
-    startMs: 0, elapsed: 0, running: false, finished: false, rating: null, busy: false, palette: true
+    startMs: 0, elapsed: 0, running: false, finished: false, rating: null, busy: false, palette: true, gen: 0
   };
 
   /* ---------------- chrome ---------------- */
@@ -718,7 +718,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     S.user = new Int32Array(81); S.notes = new Int32Array(81); S.hintCells = new Uint8Array(81);
     S.history = []; S.hints = 0; S.sel = -1; S.finished = false; S.checkMsg = '';
     S.startMs = performance.now(); S.elapsed = 0; S.running = true;
-    win.classList.remove('on'); document.body.classList.remove('loading'); S.busy = false;
+    win.classList.remove('on'); document.body.classList.remove('loading'); S.busy = false; S.gen++;
     render(); save();
   }
   const frame = () => new Promise(r => requestAnimationFrame(r));
@@ -923,7 +923,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
 
-  window.__sudoku = { S, C, exportPdf, newPuzzle, TIERS, FAMOUS, input, select, doHint, doCheck, doUndo, doErase, render, fmt };
+  window.__sudoku = { S, C, exportPdf, newPuzzle, TIERS, FAMOUS, input, select, doHint, doCheck, doUndo, doErase, render, done, setPalette, fmt };
 
   if (!restore()) newPuzzle(); else render();
 })();
