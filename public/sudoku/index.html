@@ -89,6 +89,18 @@
   @keyframes pop { from { transform: scale(.72); opacity: .3; } to { transform: scale(1); opacity: 1; } }
   .notes { display: grid; grid-template-columns: repeat(3, 1fr); width: 92%; height: 92%; font-size: clamp(7px, 1.7vw, 10px); color: var(--muted); line-height: 1; }
   .notes span { display: grid; place-items: center; }
+  .reason {
+    background: var(--panel); border-radius: 10px; box-shadow: var(--shadow); padding: 10px 12px 12px;
+    font-size: 12.5px; line-height: 1.6; color: var(--text); animation: rise .2s ease-out;
+    max-height: 36vh; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .reason[hidden] { display: none; }
+  .reason ol { margin: 0; padding-left: 20px; }
+  .reason li { margin: 2px 0; }
+  .reason li:last-child { font-weight: 600; }
+  .reason li + li { margin-top: 6px; }
+  .reason li code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
   .pad button {
     position: relative; border: 0; border-radius: 9px; background: var(--panel); color: var(--accent);
@@ -109,6 +121,8 @@
     flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; cursor: pointer;
     background: var(--panel); color: var(--text); box-shadow: var(--shadow); border-radius: 10px; padding: 9px 4px 7px;
     font: inherit; font-size: 11px; transition: transform .1s, background .12s;
+  }
+  .tools button i { font-style: normal;
   }
   .tools button:hover { transform: translateY(-1px); }
   .tools button:active { transform: scale(.98); }
@@ -148,6 +162,7 @@
   <div class="board" id="board"></div>
   <div class="pad" id="pad"></div>
   <div class="tools" id="tools"></div>
+  <div class="reason" id="reason" hidden><ol id="reasonlist"></ol></div>
 </div>
 <div class="win" id="win"><div class="card"><h2>Solved</h2><p id="wintxt"></p><button id="winnew">New puzzle</button></div></div>
 <script>
@@ -181,6 +196,58 @@ const BITS = [0]; for (let d = 1; d <= 9; d++) BITS[d] = 1 << d;
 const BITDIGIT = {}; for (let d = 1; d <= 9; d++) BITDIGIT[BITS[d]] = d;
 const boxOf = i => Math.floor(i / 27) * 3 + Math.floor((i % 9) / 3);
 
+const R = i => 'r' + (Math.floor(i / 9) + 1);
+const CO = i => 'c' + (i % 9 + 1);
+const coord = i => R(i) + CO(i);
+const coordList = a => a.map(coord).join(', ');
+function unitName(u) {
+  const k = typeof u === 'number' ? u : UNITS.indexOf(u);
+  if (k < 9) return 'row ' + (k + 1);
+  if (k < 18) return 'column ' + (k - 8);
+  return 'box ' + (k - 17);
+}
+const unitIndexOf = u => UNITS.indexOf(u);
+const digitsOf = m => { const a = []; for (let d = 1; d <= 9; d++) if (m & BITS[d]) a.push(d); return a; };
+const digitsStr = m => digitsOf(m).join(',');
+function log(st, tech, why) { if (st && st.explain && st.log) { st.log.push({ tech, why }); st.n = st.log.length; } }
+const candStr = (c, i) => '{' + digitsOf(c[i]).join(',') + '}';   // candidates of a cell right now
+/* why can digit d not sit in cell i?  answered from the position actually used for the step */
+function whyNot(st, c, i, d) {
+  const eff = st && st.eff;
+  if (eff && eff[i]) return `${coord(i)} is already ${eff[i]}`;
+  if (c[i] && (c[i] & BITS[d])) return null;                       // it actually could take it
+  for (const p of PEERS[i]) if (eff && eff[p] === d) return `${coord(i)} is covered by the ${d} at ${coord(p)}`;
+  if (c[i] && !c[i]) return null;
+  const seen = st.src ? st.src[i * 9 + d - 1] : 0;
+  if (seen > 0) return `${coord(i)} lost ${d} in step ${seen}`;
+  return `${coord(i)} cannot take ${d}`;
+}
+/* record which numbered step removed a candidate, so a later step can cite it */
+function eraseMask(c, st, i, mask) {
+  if (st && st.explain && st.src && st.log) for (const d of digitsOf(mask & c[i])) st.src[i * 9 + d - 1] = st.log.length;
+  c[i] &= ~mask;
+}
+/* propagate singles only, to name the contradiction point of a failed assumption */
+function deadEnd(g) {
+  const c = candsFrom(g); if (!c) return 'a cell has no candidates left';
+  let moved = true;
+  while (moved) {
+    moved = false;
+    for (let i = 0; i < 81; i++) {
+      if (!c[i] || pop(c[i]) !== 1) continue;
+      const bit = c[i]; c[i] = 0;
+      for (const p of PEERS[i]) if (c[p] & bit) { c[p] &= ~bit; if (!c[p]) return `${coord(p)} has no candidate left`; }
+      moved = true;
+    }
+  }
+  return null;
+}
+
+function mark(st, hits, tech) { /* record which step removed a candidate so later steps can cite it */
+  if (!st || !st.src || !st.explain) return;
+  st.pending = { tech, cells: hits };
+}
+
 function mulberry32(a) {
   return function () {
     a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -211,7 +278,7 @@ function candsFrom(g) {
 }
 
 /* ---- counting solver (MRV backtracking) ---- */
-function countSolutions(g, limit = 2, nodeBudget = 30000) {
+function countSolutions(g, limit = 2, nodeBudget = 30000, trace) {
   const c0 = candsFrom(g); if (!c0) return 0;
   const empties = []; for (let i = 0; i < 81; i++) if (!g[i]) empties.push(i);
   let nodes = 0, sols = 0;
@@ -224,7 +291,7 @@ function countSolutions(g, limit = 2, nodeBudget = 30000) {
     while (m) {
       const bit = m & -m; m -= bit;
       const nc = Int32Array.from(c); nc[bi] = 0; let ok = true;
-      for (const p of PEERS[bi]) if (nc[p] & bit) { nc[p] &= ~bit; if (!nc[p]) { ok = false; break; } }
+      for (const p of PEERS[bi]) if (nc[p] & bit) { nc[p] &= ~bit; if (!nc[p]) { if (trace && !trace.cell) trace.cell = p, trace.by = [bi, BITDIGIT[bit]]; ok = false; break; } }
       if (ok && rec(nc)) return true;
       if (sols >= limit) return true;
     }
@@ -306,54 +373,78 @@ function combos(arr, k) { const res = [], cur = []; (function go(s) { if (cur.le
 const emptyCells = c => { const a = []; for (let i = 0; i < 81; i++) if (c[i]) a.push(i); return a; };
 function place(c, st, i, d) {
   st.assign[i] = d; c[i] = 0;
+  if (st.eff) st.eff[i] = d;
   for (const p of PEERS[i]) c[p] &= ~BITS[d];
 }
 
 function ns(c, st) {
-  for (const i of emptyCells(c)) if (pop(c[i]) === 1) { place(c, st, i, BITDIGIT[c[i]]); return true; }
+  for (const i of emptyCells(c)) if (pop(c[i]) === 1) {
+    const d = BITDIGIT[c[i]];
+    if (st && st.explain) {
+      const why = digitsOf(FULL & ~BITS[d]).map(x => whyNot(st, c, i, x)).filter(Boolean);
+      log(st, 'naked single', `${coord(i)} = ${d}: every other digit is already ruled out here — ${why.join('; ')}.`);
+    }
+    place(c, st, i, d); return true;
+  }
   return false;
 }
 function hs(c, st) {
   for (const u of UNITS) for (let d = 1; d <= 9; d++) {
     const bit = BITS[d]; let hit = -1, n = 0;
     for (const i of u) if (c[i] & bit) { n++; hit = i; if (n > 1) break; }
-    if (n === 1) { place(c, st, hit, d); return true; }
-  }
-  return false;
-}
-function np(c) {
-  for (const u of UNITS) {
-    const cells = u.filter(i => c[i] && pop(c[i]) === 2);
-    for (const [a, b] of combos(cells, 2)) if (c[a] === c[b]) {
-      let did = false; for (const i of u) if (i !== a && i !== b && c[i] & c[a]) { c[i] &= ~c[a]; did = true; }
-      if (did) return true;
+    if (n === 1) {
+      if (st && st.explain) {
+        const others = u.filter(i => i !== hit).map(i => whyNot(st, c, i, d)).filter(Boolean);
+        log(st, 'hidden single', `In ${unitName(u)}, ${d} still has a home in only one cell: ${coord(hit)}. The other cells of that ${unitName(u).split(' ')[0]} are out — ${others.slice(0, 8).join('; ')}.`);
+      }
+      place(c, st, hit, d); return true;
     }
   }
   return false;
 }
-function nt(c) {
+function np(c, st) {
+  for (const u of UNITS) {
+    const cells = u.filter(i => c[i] && pop(c[i]) === 2);
+    for (const [a, b] of combos(cells, 2)) if (c[a] === c[b]) {
+      const hit = []; for (const i of u) if (i !== a && i !== b && c[i] & c[a]) hit.push([i, digitsStr(c[a] & c[i])]);
+      if (hit.length) {
+        log(st, 'naked pair', `${coord(a)} ${candStr(c, a)} and ${coord(b)} ${candStr(c, b)} hold exactly the same two candidates, so those two digits leave the rest of ${unitName(u)} (${hit.map(h => coord(h[0]) + ' -' + h[1]).join('; ')}).`);
+        for (const [i] of hit) eraseMask(c, st, i, c[a]);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function nt(c, st) {
   for (const u of UNITS) {
     const cells = u.filter(i => c[i] && pop(c[i]) >= 2 && pop(c[i]) <= 3);
     if (cells.length < 3) continue;
     for (const t of combos(cells, 3)) {
       const m = c[t[0]] | c[t[1]] | c[t[2]];
-      if (pop(m) === 3) { let did = false; for (const i of u) if (t.indexOf(i) < 0 && c[i] & m) { c[i] &= ~m; did = true; } if (did) return true; }
+      if (pop(m) === 3) {
+        const hit = []; for (const i of u) if (t.indexOf(i) < 0 && c[i] & m) hit.push(coord(i) + ' -' + digitsStr(c[i] & m));
+        if (hit.length) { log(st, 'naked triple', `${t.map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')} between them hold only ${digitsStr(m)} within ${unitName(u)}, so those digits leave the other cells (${hit.join('; ')}).`); for (const x of u) if (t.indexOf(x) < 0) eraseMask(c, st, x, m); return true; }
+      }
     }
   }
   return false;
 }
-function nq(c) {
+function nq(c, st) {
   for (const u of UNITS) {
     const cells = u.filter(i => c[i] && pop(c[i]) >= 2 && pop(c[i]) <= 4);
     if (cells.length < 4) continue;
     for (const t of combos(cells, 4)) {
       const m = c[t[0]] | c[t[1]] | c[t[2]] | c[t[3]];
-      if (pop(m) === 4) { let did = false; for (const i of u) if (t.indexOf(i) < 0 && c[i] & m) { c[i] &= ~m; did = true; } if (did) return true; }
+      if (pop(m) === 4) {
+        const hit = []; for (const i of u) if (t.indexOf(i) < 0 && c[i] & m) hit.push(coord(i) + ' -' + digitsStr(c[i] & m));
+        if (hit.length) { log(st, 'naked quad', `${t.map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')} between them hold only ${digitsStr(m)} within ${unitName(u)}, so those digits leave the other cells (${hit.join('; ')}).`); for (const x of u) if (t.indexOf(x) < 0) eraseMask(c, st, x, m); return true; }
+      }
     }
   }
   return false;
 }
-function hp(c) {
+function hp(c, st) {
   for (const u of UNITS) {
     const live = []; for (let d = 1; d <= 9; d++) if (u.some(i => c[i] && (c[i] & BITS[d]))) live.push(d);
     for (const pair of combos(live, 2)) {
@@ -361,28 +452,36 @@ function hp(c) {
       const cells = u.filter(i => c[i] && (c[i] & m));
       if (cells.length !== 2) continue;
       if (!pair.every(d => cells.some(i => c[i] & BITS[d]))) continue;
-      let did = false; for (const i of cells) { const n = c[i] & m; if (n !== c[i]) { c[i] = n; did = true; } }
-      if (did) return true;
+      const hit = cells.filter(i => (c[i] & m) !== c[i]);
+      if (hit.length) {
+        log(st, 'hidden pair', `In ${unitName(u)}, the digits ${digitsStr(m)} fit nowhere but ${cells.map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')} — every other candidate in those two cells goes (${hit.map(i => coord(i) + ' -' + digitsStr(c[i] & ~m)).join('; ')}).`);
+        for (const i of hit) eraseMask(c, st, i, FULL & ~m);
+        return true;
+      }
     }
   }
   return false;
 }
-function ht(c) {
+function ht(c, st) {
   for (const u of UNITS) {
     const live = []; for (let d = 1; d <= 9; d++) if (u.some(i => c[i] && (c[i] & BITS[d]))) live.push(d);
     for (const t of combos(live, 3)) {
       const m = BITS[t[0]] | BITS[t[1]] | BITS[t[2]];
       const cells = u.filter(i => c[i] && (c[i] & m));
       if (cells.length !== 3) continue;
-      // 三個數字都必須能落在這三格（每个數字至少有一格候選），否则不是真正的隱性三連
+      // the three digits must each still have a home among the three cells, else it is not a real hidden triple
       if (!t.every(d => cells.some(i => c[i] & BITS[d]))) continue;
-      let did = false; for (const i of cells) { const n = c[i] & m; if (n !== c[i]) { c[i] = n; did = true; } }
-      if (did) return true;
+      const hit = cells.filter(i => (c[i] & m) !== c[i]);
+      if (hit.length) {
+        log(st, 'hidden triple', `In ${unitName(u)}, the digits ${digitsStr(m)} fit only in ${cells.map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')} — the remaining candidates there go (${hit.map(i => coord(i) + ' -' + digitsStr(c[i] & ~m)).join('; ')}).`);
+        for (const i of hit) eraseMask(c, st, i, FULL & ~m);
+        return true;
+      }
     }
   }
   return false;
 }
-function point(c) { // 宮內数字集中在同一直線 → 剔除該直線其餘格
+function point(c, st) { // 宮內数字集中在同一直線 → 剔除該直線其餘格
   for (const b of BOX_UNITS) for (let d = 1; d <= 9; d++) {
     const bit = BITS[d]; const cells = b.filter(i => c[i] & bit);
     if (cells.length < 2 || cells.length > 3) continue;
@@ -391,24 +490,33 @@ function point(c) { // 宮內数字集中在同一直線 → 剔除該直線其�
     if (rows.size === 1) line = ROW_UNITS[[...rows][0]];
     else if (cols.size === 1) line = COL_UNITS[[...cols][0]];
     if (!line) continue;
-    let did = false;
-    for (const i of line) if (b.indexOf(i) < 0 && c[i] & bit) { c[i] &= ~bit; did = true; }
-    if (did) return true;
+    const hit = [];
+    for (const i of line) if (b.indexOf(i) < 0 && c[i] & bit) hit.push(coord(i));
+    if (hit.length) {
+      log(st, 'pointing', `In ${unitName(b)}, every ${d} sits in ${cells.map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')} — all on one line, so ${d} leaves the rest of that line (${hit.join(', ')}).`);
+      for (const i of hit) eraseMask(c, st, i, bit);
+      return true;
+    }
   }
   return false;
 }
-function boxline(c) { // 直線上数字只落在同一宮 → 剔除該宮其餘格
+function boxline(c, st) { // 直線上数字只落在同一宮 → 剔除該宮其餘格
   for (const u of UNITS) for (let d = 1; d <= 9; d++) {
     const bit = BITS[d]; const cells = u.filter(i => c[i] & bit);
     if (cells.length < 2 || cells.length > 3) continue;
     const b0 = boxOf(cells[0]); if (!cells.every(i => boxOf(i) === b0)) continue;
-    const b = BOX_UNITS[b0]; let did = false;
-    for (const i of b) if (u.indexOf(i) < 0 && c[i] & bit) { c[i] &= ~bit; did = true; }
-    if (did) return true;
+    const b = BOX_UNITS[b0];
+    const hit = [];
+    for (const i of b) if (u.indexOf(i) < 0 && c[i] & bit) hit.push(coord(i));
+    if (hit.length) {
+      log(st, 'claiming', `In ${unitName(u)}, ${d} fits only inside ${unitName(b)} (${cells.map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')}), so ${d} leaves the rest of that box (${hit.join(', ')}).`);
+      for (const i of hit) eraseMask(c, st, i, bit);
+      return true;
+    }
   }
   return false;
 }
-function fishX(c, lineUnits, size) {
+function fishX(c, lineUnits, size, st) {
   for (let d = 1; d <= 9; d++) {
     const bit = BITS[d];
     const lines = lineUnits.map(u => {
@@ -419,20 +527,26 @@ function fishX(c, lineUnits, size) {
     for (const combo of combos(lines, size)) {
       const tset = new Set(); combo.forEach(o => o.tg.forEach(t => tset.add(t)));
       if (tset.size !== size) continue;
-      let did = false;
+      const hit = [];
       for (const tu of tset) for (const i of tu) {
         if (combo.some(o => o.idx.indexOf(i) >= 0)) continue;
-        if (c[i] & bit) { c[i] &= ~bit; did = true; }
+        if (c[i] & bit) hit.push(coord(i));
       }
-      if (did) return true;
+      if (hit.length) {
+        const cross = lineUnits === ROW_UNITS ? 'columns' : 'rows';
+        log(st, size === 2 ? 'x-wing' : size === 3 ? 'swordfish' : 'jellyfish',
+          `${size === 2 ? 'X-Wing' : size === 3 ? 'Swordfish' : 'Jellyfish'} on ${d}: ${combo.map(o => unitName(o.u) + ' (' + o.idx.map(i => coord(i) + candStr(c, i)).join(' ') + ')').join(' + ')} confine every ${d} to ${[...tset].map(t => unitName(t)).join(', ')} — so ${d} leaves ${hit.join(', ')}.`);
+        for (const i of hit) eraseMask(c, st, i, bit);
+        return true;
+      }
     }
   }
   return false;
 }
-const xwing = c => fishX(c, ROW_UNITS, 2) || fishX(c, COL_UNITS, 2);
-const sword = c => fishX(c, ROW_UNITS, 3) || fishX(c, COL_UNITS, 3);
-const jelly = c => fishX(c, ROW_UNITS, 4) || fishX(c, COL_UNITS, 4);
-function xywing(c) {
+const xwing = (c, st) => fishX(c, ROW_UNITS, 2, st) || fishX(c, COL_UNITS, 2, st);
+const sword = (c, st) => fishX(c, ROW_UNITS, 3, st) || fishX(c, COL_UNITS, 3, st);
+const jelly = (c, st) => fishX(c, ROW_UNITS, 4, st) || fishX(c, COL_UNITS, 4, st);
+function xywing(c, st) {
   const bi = []; for (let i = 0; i < 81; i++) if (c[i] && pop(c[i]) === 2) bi.push(i);
   for (const p of bi) {
     const wings = PEERS[p].filter(q => c[q] && pop(c[q]) === 2 && pop(c[q] & c[p]) === 1);
@@ -441,31 +555,38 @@ function xywing(c) {
       const sq = c[q] & c[p], sr = c[r] & c[p];
       if (!sq || !sr || sq === sr) continue;
       const common = c[q] & c[r]; if (!common || pop(common) !== 1 || (common & c[p])) continue;
-      let did = false;
-      for (const x of PEERS[q]) if (x !== p && x !== q && x !== r && PEERS[r].indexOf(x) >= 0 && (c[x] & common)) {
-        if (globalThis.__XYHOOK) globalThis.__XYHOOK(p, q, r, x, common);
-        c[x] &= ~common; did = true;
+      const hit = [];
+      for (const x of PEERS[q]) if (x !== p && x !== q && x !== r && PEERS[r].indexOf(x) >= 0 && (c[x] & common)) hit.push(x);
+      if (hit.length) {
+        const a = digitsStr(sq), b2 = digitsStr(sr), cc = digitsStr(common);
+        log(st, 'xy-wing', `XY-Wing: pivot ${coord(p)} ${candStr(c, p)} with wings ${coord(q)} ${candStr(c, q)} and ${coord(r)} ${candStr(c, r)} — at least one wing must hold ${cc}, so ${cc} leaves ${hit.map(coord).join(', ')}.`);
+        for (const x of hit) eraseMask(c, st, x, common);
+        return true;
       }
-      if (did) return true;
     }
   }
   return false;
 }
-function xyzwing(c) {
+function xyzwing(c, st) {
   const tri = []; for (let i = 0; i < 81; i++) if (c[i] && pop(c[i]) === 3) tri.push(i);
   for (const p of tri) {
     const wings = PEERS[p].filter(q => c[q] && pop(c[q]) === 2 && pop(c[q] & c[p]) === 2);
     for (const [q, r] of combos(wings, 2)) {
       const common = c[p] & c[q] & c[r]; if (!common || pop(common) !== 1) continue;
-      // 被剔除格必須同時看見樞紐與兩個翼
-      let did = false;
-      for (const x of PEERS[q]) if (x !== p && x !== q && x !== r && PEERS[p].indexOf(x) >= 0 && PEERS[r].indexOf(x) >= 0 && (c[x] & common)) { c[x] &= ~common; did = true; }
-      if (did) return true;
+      // the target must see the pivot as well as both wings
+      const hit = [];
+      for (const x of PEERS[q]) if (x !== p && x !== q && x !== r && PEERS[p].indexOf(x) >= 0 && PEERS[r].indexOf(x) >= 0 && (c[x] & common)) hit.push(x);
+      if (hit.length) {
+        const shared = digitsStr(c[p] & c[q]) + '/' + digitsStr(c[p] & c[r]);
+        log(st, 'xyz-wing', `XYZ-Wing: pivot ${coord(p)} ${candStr(c, p)} with wings ${coord(q)} ${candStr(c, q)} and ${coord(r)} ${candStr(c, r)} — the three cells together can only hold ${shared.split('/')[0]} once... in fact one of them must be ${digitsStr(common)}, so ${digitsStr(common)} leaves ${hit.map(coord).join(', ')}.`);
+        for (const x of hit) eraseMask(c, st, x, common);
+        return true;
+      }
     }
   }
   return false;
 }
-function wwing(c) {
+function wwing(c, st) {
   const bi = []; for (let i = 0; i < 81; i++) if (c[i] && pop(c[i]) === 2) bi.push(i);
   for (const [p, q] of combos(bi, 2)) {
     if (c[p] !== c[q]) continue;
@@ -473,13 +594,17 @@ function wwing(c) {
     let linked = false;
     for (const u of PEER_UNITS[p]) if (u.indexOf(q) >= 0 && u.filter(i => c[i] & lo).length === 2) linked = true;
     if (!linked) continue;
-    let did = false;
-    for (const x of PEERS[p]) if (x !== q && PEERS[q].indexOf(x) >= 0 && (c[x] & hi)) { c[x] &= ~hi; did = true; }
-    if (did) return true;
+    const hit = [];
+    for (const x of PEERS[p]) if (x !== q && PEERS[q].indexOf(x) >= 0 && (c[x] & hi)) hit.push(x);
+    if (hit.length) {
+      log(st, 'w-wing', `W-Wing ${digitsStr(lo)}/${digitsStr(hi)}: ${coord(p)} ${candStr(c, p)} and ${coord(q)} ${candStr(c, q)} are a strong link on ${digitsStr(lo)} in ${unitName(PEER_UNITS[p].find(u => u.indexOf(q) >= 0))}, so ${digitsStr(hi)} leaves every cell seeing both pairs (${hit.map(coord).join(', ')}).`);
+      for (const x of hit) eraseMask(c, st, x, hi);
+      return true;
+    }
   }
   return false;
 }
-function ur(c) { // 唯一矩形 type 1：三格為同數對 → 第四格不得再含該數對
+function ur(c, st) { // 唯一矩形 type 1：三格為同數對 → 第四格不得再含該數對
   for (let ra = 0; ra < 9; ra++) for (let rb = ra + 1; rb < 9; rb++) for (let ca = 0; ca < 9; ca++) for (let cb = ca + 1; cb < 9; cb++) {
     const quad = [ra * 9 + ca, ra * 9 + cb, rb * 9 + ca, rb * 9 + cb];
     if (boxOf(quad[0]) === boxOf(quad[2]) || boxOf(quad[1]) === boxOf(quad[3])) continue;
@@ -489,11 +614,14 @@ function ur(c) { // 唯一矩形 type 1：三格為同數對 → 第四格不得
     if (pure.length !== 3) continue;
     const m = c[pure[0]]; if (c[pure[1]] !== m || c[pure[2]] !== m) continue;
     const fourth = quad.find(i => pop(c[i]) > 2);
-    if (c[fourth] & m) { c[fourth] &= ~m; return true; }
+    if (c[fourth] & m) {
+      log(st, 'unique rectangle', `Unique Rectangle (type 1) on ${digitsStr(m)} in ${quad.filter(i => i !== fourth).map(i => coord(i) + ' ' + candStr(c, i)).join(' + ')}: those three could swap, so the fourth cell ${coord(fourth)} cannot hold ${digitsStr(m)} (removing ${digitsStr(c[fourth] & m)}).`);
+      eraseMask(c, st, fourth, m); return true;
+    }
   }
   return false;
 }
-function color(c) { // 簡易著色：同一數字的強鏈圖二着色；同色互見 → 該色全滅；見兩色 → 剔除
+function color(c, st) { // 簡易著色：同一數字的強鏈圖二着色；同色互見 → 該色全滅；見兩色 → 剔除
   for (let d = 1; d <= 9; d++) {
     const bit = BITS[d];
     const nodes = []; for (let i = 0; i < 81; i++) if (c[i] & bit) nodes.push(i);
@@ -520,14 +648,15 @@ function color(c) { // 簡易著色：同一數字的強鏈圖二着色；同色
     for (let a = 0; a < nodes.length; a++) for (let b = a + 1; b < nodes.length; b++) {
       if (comp[a] !== comp[b] || col[a] !== col[b] || col[a] < 0) continue;
       if (PEERS[nodes[a]].indexOf(nodes[b]) < 0) continue;
-      for (let k = 0; k < nodes.length; k++) if (comp[k] === comp[a] && col[k] === col[a]) c[nodes[k]] &= ~bit;
+      log(st, 'colouring', `Colour chain on ${d}: ${coord(nodes[a])} and ${coord(nodes[b])} are the same colour yet see each other, so that colour is false — ${d} leaves every cell of that colour (${nodes.filter((_, k) => comp[k] === comp[a] && col[k] === col[a]).map(coord).join(', ')}).`);
+      for (let k = 0; k < nodes.length; k++) if (comp[k] === comp[a] && col[k] === col[a]) eraseMask(c, st, nodes[k], bit);
       return true;
     }
     // 外部分支格同時看見兩色 → 剔除
     for (const i of nodes) {
       const seen = {};
       for (const p of PEERS[i]) if (c[p] & bit && idx.has(p) && comp[idx.get(p)] === comp[idx.get(i)]) seen[col[idx.get(p)]] = 1;
-      if (seen[0] && seen[1]) { c[i] &= ~bit; return true; }
+      if (seen[0] && seen[1]) { log(st, 'colouring', `Colour chain on ${d}: ${coord(i)} sees both colours of the chain, so it cannot be ${d}.`); eraseMask(c, st, i, bit); return true; }
     }
   }
   return false;
@@ -554,6 +683,53 @@ function rate(g) {
 }
 function sameArr(a, b) { for (let i = 0; i < 81; i++) if (a[i] !== b[i]) return false; return true; }
 
+/* ============================================================
+   nextStep(g) — the next deduction a solver can actually make from
+   the position g (givens + everything the player has placed).
+   Runs the ladder until a cell is resolved, collecting the chain of
+   reasoning; if no pattern applies it falls back to a trial and says so.
+   ============================================================ */
+function nextStep(g, opts = {}) {
+  const c0 = candsFrom(g); if (!c0) return null;
+  const c = Int32Array.from(c0);
+  const st = { assign: {}, explain: true, log: [], eff: Int32Array.from(g), src: new Int16Array(810) };
+  for (let guard = 0; guard < 300; guard++) {
+    let acted = false;
+    for (const [fn] of LADDER) {
+      const before = Int32Array.from(c);
+      if (TMAP[fn](c, st) && !sameArr(c, before)) { acted = true; break; }
+    }
+    if (!acted) break;
+    const keys = Object.keys(st.assign);
+    if (keys.length) { const i = +keys[0]; return { cell: i, digit: st.assign[i], steps: st.log, trial: false }; }
+  }
+  if (opts.noTrial) return st.log.length ? { cell: -1, digit: 0, steps: st.log, trial: false, stalled: true } : null;
+  // nothing follows by pattern: test candidates — only digits that keep the puzzle solvable survive
+  const empties = []; for (let i = 0; i < 81; i++) if (!g[i] && c0[i]) empties.push(i);
+  empties.sort((a, b) => pop(c0[a]) - pop(c0[b]));
+  let trials = 0;
+  for (const i of empties) {
+    if (++trials > 60) break;
+    if (pop(c0[i]) < 2) continue;
+    const viable = [], dead = [];
+    for (const d of digitsOf(c0[i])) {
+      const t = Int32Array.from(g); t[i] = d;
+      const tr = {};
+      const n = countSolutions(t, 2, 20000, tr);
+      if (n === 1) { viable.push(d); dead.push(`testing ${d} finishes the grid`); }
+      else dead.push(`testing ${d} breaks down at ${tr.cell !== undefined ? coord(tr.cell) : 'a later cell'}`);
+    }
+    if (viable.length === 1) {
+      st.log.push({
+        tech: 'trial',
+        why: `No pattern applies here, so each candidate of ${coord(i)} ${candStr(c, i)} is tested: ${dead.join('; ')} — only ${viable[0]} survives, so ${coord(i)} = ${viable[0]}.`
+      });
+      return { cell: i, digit: viable[0], steps: st.log, trial: true };
+    }
+  }
+  return st.log.length ? { cell: -1, digit: 0, steps: st.log, trial: true, stalled: true } : null;
+}
+
 /* ---- generator: tier = {minLevel,maxLevel,trial,minClues,maxClues} ---- */
 function makePuzzle(tier, rnd, budgetMs = 4000) {
   const t0 = Date.now(); let tries = 0;
@@ -573,7 +749,7 @@ function makePuzzle(tier, rnd, budgetMs = 4000) {
 
 const SudokuCore = {
   UNITS, PEERS, PEER_UNITS, ROW_UNITS, COL_UNITS, BOX_UNITS, FULL, BITS, pop, boxOf,
-  candsFrom, countSolutions, solveOne, fullGrid, digSym, rate, makePuzzle,
+  candsFrom, countSolutions, solveOne, fullGrid, digSym, rate, makePuzzle, nextStep,
   valid, clues, toStr, fromStr, TECH, TECH_NAME, mulberry32,
   __LADDER: LADDER.map(([n, l]) => [n, l, TMAP[n]])
 };
@@ -591,6 +767,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
   const $ = s => document.querySelector(s);
   const board = $('#board'), pad = $('#pad'), tools = $('#tools'), chips = $('#chips');
   const elTime = $('#time'), elLeft = $('#left'), elTech = $('#tech'), win = $('#win'), wintxt = $('#wintxt');
+  const reasonEl = $('#reason'), reasonList = $('#reasonlist');
   const STORE = 'sudoku-html-v1';
 
   const TIERS = [
@@ -620,7 +797,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
   const S = {
     tier: 'expert', grid: null, sol: null, user: new Int32Array(81), notes: new Int32Array(81),
     hintCells: new Uint8Array(81), sel: -1, notesMode: false, hints: 0, history: [],
-    startMs: 0, elapsed: 0, running: false, finished: false, rating: null, busy: false, palette: true, gen: 0
+    startMs: 0, elapsed: 0, running: false, finished: false, rating: null, busy: false, palette: true, gen: 0, reason: []
   };
 
   /* ---------------- chrome ---------------- */
@@ -642,7 +819,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     ['doCheck', 'Check', ICON.check], ['doUndo', 'Undo', ICON.undo], ['sep'], ['btnPalette', 'Colours', ICON.palette], ['doPdf', 'PDF', ICON.pdf], ['newPuzzle', 'New', ICON.plus]
   ];
   tools.innerHTML = TOOLS.map(x => x[0] === 'sep' ? '<span class="sep"></span>'
-    : `<button data-act="${x[0]}"${x[0] === 'btnNotes' ? ' id="btnNotes"' : ''} title="${x[1]}">${x[2]}<i>${x[1]}</i></button>`).join('');
+    : `<button id="${x[0]}" data-act="${x[0]}" title="${x[1]}">${x[2]}<i>${x[1]}</i></button>`).join('');
   tools.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
     ({
@@ -708,7 +885,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     if (tier.famous) {
       const f = FAMOUS[(Math.random() * FAMOUS.length) | 0];
       S.grid = C.fromStr(f.g);
-      S.rating = { name: f.name, level: 18, sub: `${f.name} · ${f.by} · ${f.se}` };
+      S.rating = { name: f.name, by: f.by, se: f.se, level: 18, sub: `${f.name} · ${f.by} · ${f.se}` };
     } else {
       const res = C.makePuzzle(tier, C.mulberry32((Math.random() * 2147483647) | 0), 8000);
       if (!res.grid) { elTech.textContent = 'Generation failed'; S.busy = false; return; }
@@ -716,7 +893,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     }
     S.sol = C.solveOne(S.grid);
     S.user = new Int32Array(81); S.notes = new Int32Array(81); S.hintCells = new Uint8Array(81);
-    S.history = []; S.hints = 0; S.sel = -1; S.finished = false; S.checkMsg = '';
+    S.history = []; S.hints = 0; S.sel = -1; S.finished = false; S.checkMsg = ''; S.reason = [];
     S.startMs = performance.now(); S.elapsed = 0; S.running = true;
     win.classList.remove('on'); document.body.classList.remove('loading'); S.busy = false; S.gen++;
     render(); save();
@@ -754,13 +931,25 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     const h = S.history.pop(); S.user = h.u; S.notes = h.n; S.hints = h.h; S.hintCells = h.hc;
     S.checkMsg = ''; render(); save();
   }
+  function boardNow() {
+    const b = Int32Array.from(S.grid);
+    for (let i = 0; i < 81; i++) if (!b[i] && S.user[i]) b[i] = S.user[i];
+    return b;
+  }
   function doHint() {
-    if (S.finished) return;
-    let i = (S.sel >= 0 && !isGiven(S.sel) && S.user[S.sel] !== S.sol[S.sel]) ? S.sel : -1;
-    if (i < 0) for (let k = 0; k < 81; k++) if (!isGiven(k) && S.user[k] !== S.sol[k]) { i = k; break; }
-    if (i < 0) return;
-    snapshot(); S.sel = i; S.user[i] = S.sol[i]; S.notes[i] = 0; S.hintCells[i] = 1; S.hints++;
-    for (const p of C.PEERS[i]) if (S.notes[p] & C.BITS[S.sol[i]]) S.notes[p] &= ~C.BITS[S.sol[i]];
+    if (S.finished || !S.grid) return;
+    const step = C.nextStep(boardNow());
+    if (!step || step.cell < 0) {
+      S.reason = step && step.steps && step.steps.length ? step.steps :
+        [{ tech: 'stuck', why: 'Nothing follows from the current entries — check for a mistake before going on.' }];
+      S.checkMsg = 'Hint: no cell can be deduced yet';
+      render(); save(); return;
+    }
+    snapshot();
+    S.sel = step.cell; S.user[step.cell] = step.digit; S.notes[step.cell] = 0; S.hintCells[step.cell] = 1; S.hints++;
+    for (const p of C.PEERS[step.cell]) if (S.notes[p] & C.BITS[step.digit]) S.notes[p] &= ~C.BITS[step.digit];
+    S.reason = step.steps || [];
+    S.checkMsg = '';
     done(); render(); save();
   }
   function doCheck() {
@@ -821,6 +1010,17 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
       }
     }
     const ub = tools.querySelector('[data-act="doUndo"]'); if (ub) ub.disabled = !S.history.length || S.finished;
+    renderReason();
+  }
+  const escHtml = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const mdCoord = t => escHtml(t)
+    .replace(/\br(\d)c(\d)/g, '<code>r$1c$2</code>')
+    .replace(/\{([\d,]+)\}/g, '<code>{$1}</code>');
+  function renderReason() {
+    if (!S.reason || !S.reason.length) { reasonEl.hidden = true; reasonList.innerHTML = ''; return; }
+    reasonEl.hidden = false;
+    reasonList.innerHTML = S.reason.map(st =>
+      `<li><b>${escHtml(st.tech).replace(/^\w/, m => m.toUpperCase())}</b> — ${mdCoord(st.why)}</li>`).join('');
   }
   let flashQ = [];
   function flash(el) { el.classList.add('pop'); flashQ.push(el); if (flashQ.length > 3) { const old = flashQ.shift(); setTimeout(() => old.classList.remove('pop'), 180); } }
@@ -833,7 +1033,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
         tier: S.tier, grid: C.toStr(S.grid), user: Array.from(S.user), notes: Array.from(S.notes),
         hintCells: Array.from(S.hintCells), hints: S.hints, elapsed: Math.round(S.elapsed),
         finished: S.finished, rating: S.rating ? { name: S.rating.name || null, sub: S.rating.sub || null } : null,
-        palette: S.palette
+        palette: S.palette, reason: S.reason
       }));
     } catch (e) { }
   }
@@ -847,7 +1047,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
       S.notes = Int32Array.from(d.notes || new Array(81).fill(0));
       S.hintCells = Uint8Array.from(d.hintCells || new Array(81).fill(0));
       S.hints = d.hints || 0; S.elapsed = d.elapsed || 0; S.finished = !!d.finished; S.rating = d.rating || null;
-      S.palette = d.palette !== false;
+      S.palette = d.palette !== false; S.reason = Array.isArray(d.reason) ? d.reason : [];
       document.body.classList.toggle('palette', S.palette);
       const pb = document.getElementById('btnPalette'); if (pb) pb.setAttribute('aria-pressed', String(S.palette));
       for (const b of chips.children) if (b.dataset) b.setAttribute('aria-pressed', String(b.dataset.t === S.tier));
@@ -862,7 +1062,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
   const PDFPAL = { 1: '#cf4436', 2: '#cf7d1e', 3: '#b8940f', 4: '#3f9d4e', 5: '#12a08f', 6: '#2f80d6', 7: '#6163cf', 8: '#9a52c4', 9: '#cf4f93' };
   const hexrgb = h => [1, 3, 5].map(i => (parseInt(h.slice(i, i + 2), 16) / 255).toFixed(2)).join(' ');
   function buildPdf(header, grid, user, notes, palette) {
-    const PAGE = [595.276, 841.89], M = 56, CELL = 40, N = CELL * 9;
+    const PAGE = [595.276, 841.89], M = 52, CELL = 42, N = CELL * 9;
     const ox = (PAGE[0] - N) / 2, oy = PAGE[1] - M - 54 - N;
     const INK = '0.10 0.12 0.15', MID = '0.42 0.46 0.52', LIGHT = '0.72 0.75 0.79';
     let s = `BT /F1 15 Tf ${INK} rg 1 0 0 1 ${M} ${PAGE[1] - M + 4} Tm (${pdfEsc(header[0])}) Tj ET\n`;
@@ -878,13 +1078,13 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     for (let i = 0; i < 81; i++) {
       const r = (i / 9) | 0, c = i % 9, x = ox + c * CELL, y = oy + (8 - r) * CELL;
       if (grid[i]) {
-        const size = 15, d = String(grid[i]), col = palette ? hexrgb(PDFPAL[grid[i]]) : INK;
+        const size = 19, d = String(grid[i]), col = palette ? hexrgb(PDFPAL[grid[i]]) : INK;
         s += `BT /F1 ${size} Tf ${col} rg 1 0 0 1 ${(x + CELL / 2 - DIGW * size / 2).toFixed(2)} ${(y + CELL / 2 - size * 0.36).toFixed(2)} Tm (${d}) Tj ET\n`;
       } else if (user[i]) {
-        const size = 15, d = String(user[i]), col = palette ? hexrgb(PDFPAL[user[i]]) : MID;
+        const size = 19, d = String(user[i]), col = palette ? hexrgb(PDFPAL[user[i]]) : MID;
         s += `BT /F2 ${size} Tf ${col} rg 1 0 0 1 ${(x + CELL / 2 - DIGW * size / 2).toFixed(2)} ${(y + CELL / 2 - size * 0.36).toFixed(2)} Tm (${d}) Tj ET\n`;
       } else if (notes[i]) {
-        const size = 7.5, cw = CELL / 3;
+        const size = 8, cw = CELL / 3;
         for (let d = 1; d <= 9; d++) if (notes[i] & C.BITS[d]) {
           const col = (d - 1) % 3, row = ((d - 1) / 3) | 0;
           const tx = x + col * cw + cw / 2 - DIGW * size / 2, ty = y + CELL - (row + 1) * cw - size * 0.18;
@@ -913,7 +1113,7 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
     if (!S.grid) return;
     const tier = TIERS.find(t => t.id === S.tier);
     const name = S.rating && S.rating.name ? S.rating.name : tier.en.toUpperCase();
-    const sub = `${tier.en.toUpperCase()} · ${C.clues(S.grid)} clues · ${fmt(S.elapsed)}${S.hints ? ' · ' + S.hints + ' hints' : ''}${S.rating && S.rating.sub && S.rating.name ? ' · ' + S.rating.sub : ''}`;
+    const sub = [tier.en.toUpperCase(), `${C.clues(S.grid)} clues`, `${fmt(S.elapsed)} elapsed`, S.hints ? `${S.hints} hints` : 'no hints', S.rating && S.rating.name && S.rating.sub ? S.rating.by : null].filter(Boolean).join('  /  ');
     const pdf = buildPdf([name, sub], S.grid, S.user, S.notes, S.palette);
     const blob = new Blob([pdf], { type: 'application/pdf' });
     const a = document.createElement('a');
@@ -925,6 +1125,8 @@ if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
 
   window.__sudoku = { S, C, exportPdf, newPuzzle, TIERS, FAMOUS, input, select, doHint, doCheck, doUndo, doErase, render, done, setPalette, fmt };
 
+  document.body.classList.toggle('palette', S.palette);
+  const pb0 = document.getElementById('btnPalette'); if (pb0) pb0.setAttribute('aria-pressed', String(S.palette));
   if (!restore()) newPuzzle(); else render();
 })();
 
