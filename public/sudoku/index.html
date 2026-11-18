@@ -867,10 +867,9 @@ const ICONSETS = {"pokemon":{"png":{"1":"iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAAD
   const SETS = (typeof ICONSETS === 'undefined' ? {} : ICONSETS);
   const MODE_LABEL = { pokemon: 'Pok\u00e9mon', digimon: 'Digimon', disney: 'Disney', princess: 'Disney Princess', starwars: 'Star Wars' };
   const MODES = [['none', 'None'], ['colour', 'Colours'], ...Object.keys(SETS).map(k => [k, MODE_LABEL[k] || k])];
-  const CYCLE_MS = 20000; let cycleTimer = null;
   const TOOLS = [
     ['btnNotes', 'Notes', ICON.notes], ['doErase', 'Erase', ICON.erase], ['doHint', 'Hint', ICON.hint],
-    ['doCheck', 'Check', ICON.check], ['doUndo', 'Undo', ICON.undo], ['sep'], ['btnIcons', 'Icons', ICON.palette, 1, 'left-click cycles themes every 20s; right-click picks one'], ['doPdf', 'PDF', ICON.pdf], ['newPuzzle', 'New', ICON.plus]
+    ['doCheck', 'Check', ICON.check], ['doUndo', 'Undo', ICON.undo], ['sep'], ['btnIcons', 'Icons', ICON.palette, 1, 'left-click switches to the next theme; right-click picks one'], ['doPdf', 'PDF', ICON.pdf], ['newPuzzle', 'New', ICON.plus]
   ];
   tools.innerHTML = TOOLS.map(x => x[0] === 'sep' ? '<span class="sep"></span>'
     : x[3] ? `<span class="toolwrap"><button id="${x[0]}" data-act="${x[0]}" title="${x[4] || x[1]}" aria-haspopup="true" aria-expanded="false">${x[2]}<i></i></button><div class="menu" id="iconMenu" role="menu"></div></span>`
@@ -883,11 +882,6 @@ const ICONSETS = {"pokemon":{"png":{"1":"iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAAD
   function cycleIcons() {
     const i = MODES.findIndex(m => m[0] === S.icons);
     setIcons(MODES[(i + 1) % MODES.length][0]);
-    if (cycleTimer) clearInterval(cycleTimer);
-    cycleTimer = setInterval(() => {
-      const j = MODES.findIndex(m => m[0] === S.icons);
-      setIcons(MODES[(j + 1) % MODES.length][0]);
-    }, CYCLE_MS);
   }
   btnIcons.addEventListener('contextmenu', e => { e.preventDefault(); openMenu(!iconMenu.classList.contains('open')); });
   function openMenu(on) { iconMenu.classList.toggle('open', on); btnIcons.setAttribute('aria-expanded', String(on)); }
