@@ -1,1 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sudoku</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --line: #d9dee6; --thick: #33404f;
+    --text: #1c2733; --muted: #7a8798; --given: #16202b; --user: #2b6cb0; --hintc: #0a8f6d;
+    --sel: #cfe1f7; --peer: #eaf1fa; --same: #d8e7f8; --err: #d1453b; --accent: #2b6cb0;
+    --chip: #eceff4; --chip-on: #2b6cb0; --chip-on-tx: #fff; --shadow: 0 1px 2px rgba(20,30,45,.06), 0 8px 24px rgba(20,30,45,.06);
+    --errbg: rgba(214,69,59,.13);
+    /* digit palette — light mode (evenly spaced hues, tuned for white panel contrast) */
+    --d1: #cf4436; --d2: #cf7d1e; --d3: #b8940f; --d4: #3f9d4e; --d5: #12a08f;
+    --d6: #2f80d6; --d7: #6163cf; --d8: #9a52c4; --d9: #cf4f93;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10161d; --panel: #172029; --line: #2b3745; --thick: #93a2b5;
+      --text: #e7edf4; --muted: #8593a5; --given: #f1f5f9; --user: #6fb1f5; --hintc: #4fd1a5;
+      --sel: #2b4d70; --peer: #1d2836; --same: #24405d; --err: #f2777a; --accent: #4f9be6;
+      --chip: #222e3c; --chip-on: #4f9be6; --chip-on-tx: #0b1118; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+      --errbg: rgba(242,119,122,.16);
+      /* digit palette — dark mode (same hues, lifted for the dark panel) */
+      --d1: #f2705f; --d2: #eda25f; --d3: #e8c95a; --d4: #6fce7f; --d5: #4ecdb8;
+      --d6: #6cb0f5; --d7: #9aa0f5; --d8: #c888ea; --d9: #f283bf;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+    display: flex; justify-content: center; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+  .app { width: 100%; max-width: 540px; display: flex; flex-direction: column; gap: 10px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2px 4px; }
+  h1 { font-size: 19px; margin: 0; letter-spacing: .5px; font-weight: 700; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    border: 0; background: var(--chip); color: var(--text); font: inherit; font-size: 13px;
+    padding: 6px 11px; border-radius: 999px; cursor: pointer; transition: background .16s, color .16s, transform .12s;
+  }
+  .chip:hover { transform: translateY(-1px); }
+  .chip[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-tx); }
+  .stats { display: flex; align-items: center; gap: 14px; padding: 0 4px; font-size: 13px; color: var(--muted); }
+  .stats b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .stats .tech { margin-left: auto; }
+  .board {
+    background: var(--panel); border-radius: 10px; box-shadow: var(--shadow); padding: 6px; touch-action: manipulation;
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 0; aspect-ratio: 1; user-select: none;
+  }
+  .cell {
+    position: relative; display: grid; place-items: center; aspect-ratio: 1; cursor: pointer;
+    border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    font-size: clamp(17px, 4.6vw, 26px); font-weight: 500; color: var(--user);
+    font-variant-numeric: tabular-nums; transition: background .12s;
+  }
+  .cell:nth-child(9n) { border-right: 0; }
+  .cell:nth-child(n+73) { border-bottom: 0; }
+  .cell.bR::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 2px; background: var(--thick); }
+  .cell.bB::before { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--thick); }
+  .cell.given { color: var(--given); font-weight: 700; }
+  .cell.hintc { color: var(--hintc) !important; }
+  .cell.peer { background: var(--peer); }
+  .cell.same { background: var(--same); }
+  .cell.sel { background: var(--sel); }
+  .cell.err { color: var(--err); }
+  /* per-digit colours, enabled by the palette toggle */
+  .palette .cell[data-d="1"] { color: var(--d1); } .palette .cell[data-d="2"] { color: var(--d2); }
+  .palette .cell[data-d="3"] { color: var(--d3); } .palette .cell[data-d="4"] { color: var(--d4); }
+  .palette .cell[data-d="5"] { color: var(--d5); } .palette .cell[data-d="6"] { color: var(--d6); }
+  .palette .cell[data-d="7"] { color: var(--d7); } .palette .cell[data-d="8"] { color: var(--d8); }
+  .palette .cell[data-d="9"] { color: var(--d9); }
+  .palette .cell.given { font-weight: 800; }
+  .palette .pad button[data-d="1"] { color: var(--d1); } .palette .pad button[data-d="2"] { color: var(--d2); }
+  .palette .pad button[data-d="3"] { color: var(--d3); } .palette .pad button[data-d="4"] { color: var(--d4); }
+  .palette .pad button[data-d="5"] { color: var(--d5); } .palette .pad button[data-d="6"] { color: var(--d6); }
+  .palette .pad button[data-d="7"] { color: var(--d7); } .palette .pad button[data-d="8"] { color: var(--d8); }
+  .palette .pad button[data-d="9"] { color: var(--d9); }
+  .palette .cell.err { color: var(--err) !important; }
+  .palette .notes span[data-d="1"] { color: var(--d1); opacity: .85; } .palette .notes span[data-d="2"] { color: var(--d2); opacity: .85; }
+  .palette .notes span[data-d="3"] { color: var(--d3); opacity: .85; } .palette .notes span[data-d="4"] { color: var(--d4); opacity: .85; }
+  .palette .notes span[data-d="5"] { color: var(--d5); opacity: .85; } .palette .notes span[data-d="6"] { color: var(--d6); opacity: .85; }
+  .palette .notes span[data-d="7"] { color: var(--d7); opacity: .85; } .palette .notes span[data-d="8"] { color: var(--d8); opacity: .85; }
+  .palette .notes span[data-d="9"] { color: var(--d9); opacity: .85; }
+  .cell.pop span { animation: pop .16s ease-out; display: block; }
+  @keyframes pop { from { transform: scale(.72); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+  .notes { display: grid; grid-template-columns: repeat(3, 1fr); width: 92%; height: 92%; font-size: clamp(7px, 1.7vw, 10px); color: var(--muted); line-height: 1; }
+  .notes span { display: grid; place-items: center; }
+  .pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+  .pad button {
+    position: relative; border: 0; border-radius: 9px; background: var(--panel); color: var(--accent);
+    box-shadow: var(--shadow); font: inherit; font-size: 19px; font-weight: 600; padding: 10px 0 8px; cursor: pointer;
+    transition: transform .1s, background .12s, opacity .12s; font-variant-numeric: tabular-nums;
+  }
+  .pad button:hover { transform: translateY(-1px); }
+  .pad button:active { transform: translateY(0) scale(.97); }
+  .pad button[data-count="0"] { opacity: .38; }
+  .pad button small {
+    position: absolute; top: 2px; right: 4px; font-size: 9px; color: var(--muted); font-weight: 600;
+    opacity: 0; transition: opacity .12s ease-out; pointer-events: none; font-variant-numeric: tabular-nums;
+  }
+  .pad button:hover small, .pad button:active small, .pad button.show small { opacity: 1; }
+  .pad button span { display: block; padding-top: 2px; }
+  .tools { display: flex; gap: 6px; justify-content: space-between; }
+  .tools button {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; cursor: pointer;
+    background: var(--panel); color: var(--text); box-shadow: var(--shadow); border-radius: 10px; padding: 9px 4px 7px;
+    font: inherit; font-size: 11px; transition: transform .1s, background .12s;
+  }
+  .tools button:hover { transform: translateY(-1px); }
+  .tools button:active { transform: scale(.98); }
+  .tools button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-tx); }
+  .tools button[aria-pressed="true"] svg { stroke: var(--chip-on-tx); }
+  .tools svg { width: 19px; height: 19px; stroke: var(--text); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .tools .sep { width: 1px; background: var(--line); flex: 0 0 1px; margin: 4px 2px; border-radius: 1px; }
+  .tools button:disabled { opacity: .4; cursor: default; transform: none; }
+  .win {
+    position: fixed; inset: 0; display: grid; place-items: center; background: rgba(10,16,24,.45);
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .win.on { opacity: 1; pointer-events: auto; }
+  .win .card {
+    background: var(--panel); color: var(--text); border-radius: 16px; padding: 26px 34px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35); transform: translateY(8px) scale(.98); transition: transform .24s cubic-bezier(.2,.9,.3,1.2);
+  }
+  .win.on .card { transform: none; }
+  .win h2 { margin: 0 0 6px; font-size: 22px; }
+  .win p { margin: 0; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .win button { margin-top: 16px; border: 0; background: var(--accent); color: #fff; border-radius: 10px; padding: 10px 22px; font: inherit; font-size: 14px; cursor: pointer; }
+  .loading { opacity: .55; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Sudoku</h1>
+    <nav class="chips" id="chips"></nav>
+  </header>
+  <div class="stats">
+    <span>Time <b id="time">00:00</b></span>
+    <span>Left <b id="left">0</b></span>
+    <span class="tech" id="tech"></span>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="pad" id="pad"></div>
+  <div class="tools" id="tools"></div>
+</div>
+<div class="win" id="win"><div class="card"><h2>Solved</h2><p id="wintxt"></p><button id="winnew">New puzzle</button></div></div>
+<script>
+'use strict';
+/* ============================================================
+   Sudoku core: generator (random full grid + symmetric dig with
+   uniqueness check) and a logic-technique difficulty rater.
+   Grid = Int32Array(81), 0 = empty. Candidate masks: bit d = 1<<d.
+   ============================================================ */
 
+const FULL = 0b1111111110;
+const UNITS = [];
+for (let r = 0; r < 9; r++) { const u = []; for (let c = 0; c < 9; c++) u.push(r * 9 + c); UNITS.push(u); }
+for (let c = 0; c < 9; c++) { const u = []; for (let r = 0; r < 9; r++) u.push(r * 9 + c); UNITS.push(u); }
+for (let br = 0; br < 3; br++) for (let bc = 0; bc < 3; bc++) {
+  const u = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) u.push((br * 3 + r) * 9 + bc * 3 + c); UNITS.push(u);
+}
+const ROW_UNITS = UNITS.slice(0, 9), COL_UNITS = UNITS.slice(9, 18), BOX_UNITS = UNITS.slice(18);
+const PEER_UNITS = [];
+for (let i = 0; i < 81; i++) PEER_UNITS.push(UNITS.filter(u => u.indexOf(i) >= 0));
+const PEERS = [];
+for (let i = 0; i < 81; i++) {
+  const s = new Set();
+  for (const u of PEER_UNITS[i]) for (const j of u) if (j !== i && s.add(j)) { }
+  PEERS.push(Int32Array.from(s));
+}
+const POP = new Uint8Array(1 << 10);
+for (let m = 0; m < (1 << 10); m++) POP[m] = POP[m >> 1] + (m & 1);
+const pop = m => POP[m];
+const BITS = [0]; for (let d = 1; d <= 9; d++) BITS[d] = 1 << d;
+const BITDIGIT = {}; for (let d = 1; d <= 9; d++) BITDIGIT[BITS[d]] = d;
+const boxOf = i => Math.floor(i / 27) * 3 + Math.floor((i % 9) / 3);
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function valid(g) {
+  for (const u of UNITS) { const seen = new Set(); for (const i of u) { const v = g[i]; if (v) { if (seen.has(v)) return false; seen.add(v); } } }
+  return true;
+}
+function clues(g) { let n = 0; for (let i = 0; i < 81; i++) if (g[i]) n++; return n; }
+function toStr(g) { let s = ''; for (let i = 0; i < 81; i++) s += g[i] || '.'; return s; }
+function fromStr(s) { const g = new Int32Array(81); for (let i = 0; i < 81; i++) { const ch = s[i]; g[i] = (ch === '.' || ch === '0') ? 0 : +ch; } return g; }
+
+function candsFrom(g) {
+  const c = new Int32Array(81);
+  for (let i = 0; i < 81; i++) {
+    if (g[i]) { c[i] = 0; continue; }
+    let m = FULL;
+    for (const p of PEERS[i]) { const v = g[p]; if (v) m &= ~BITS[v]; }
+    if (!m) return null;
+    c[i] = m;
+  }
+  return c;
+}
+
+/* ---- counting solver (MRV backtracking) ---- */
+function countSolutions(g, limit = 2, nodeBudget = 30000) {
+  const c0 = candsFrom(g); if (!c0) return 0;
+  const empties = []; for (let i = 0; i < 81; i++) if (!g[i]) empties.push(i);
+  let nodes = 0, sols = 0;
+  function rec(c) {
+    if (++nodes > nodeBudget) return false;
+    let bi = -1, bc = 10;
+    for (const i of empties) { const n = pop(c[i]); if (n && n < bc) { bc = n; bi = i; if (n === 1) break; } }
+    if (bi < 0) { sols++; return sols >= limit; }
+    let m = c[bi];
+    while (m) {
+      const bit = m & -m; m -= bit;
+      const nc = Int32Array.from(c); nc[bi] = 0; let ok = true;
+      for (const p of PEERS[bi]) if (nc[p] & bit) { nc[p] &= ~bit; if (!nc[p]) { ok = false; break; } }
+      if (ok && rec(nc)) return true;
+      if (sols >= limit) return true;
+    }
+    return false;
+  }
+  rec(c0);
+  return sols;
+}
+
+function solveOne(g) {
+  const c0 = candsFrom(g); if (!c0) return null;
+  const empties = []; for (let i = 0; i < 81; i++) if (!g[i]) empties.push(i);
+  const vals = Int32Array.from(g);
+  function rec(c) {
+    let bi = -1, bc = 10;
+    for (const i of empties) { const n = pop(c[i]); if (n && n < bc) { bc = n; bi = i; if (n === 1) break; } }
+    if (bi < 0) return true;
+    let m = c[bi];
+    while (m) {
+      const bit = m & -m; m -= bit;
+      const nc = Int32Array.from(c); nc[bi] = 0; vals[bi] = BITDIGIT[bit]; let ok = true;
+      for (const p of PEERS[bi]) {
+        if (vals[p]) { if (vals[p] === vals[bi]) { ok = false; break; } }
+        else if (nc[p] & bit) { nc[p] &= ~bit; if (!nc[p]) { ok = false; break; } }
+      }
+      if (ok && rec(nc)) return true;
+      vals[bi] = 0;
+      if (!ok) break;
+    }
+    return false;
+  }
+  return rec(c0) ? vals : null;
+}
+
+function fillRandom(g, rnd) {
+  const i = g.indexOf(0); if (i < 0) return true;
+  const c = candsFrom(g); if (!c) return false;
+  const ds = []; for (let d = 1; d <= 9; d++) if (c[i] & BITS[d]) ds.push(d);
+  for (let k = ds.length - 1; k > 0; k--) { const j = (rnd() * (k + 1)) | 0; const t = ds[k]; ds[k] = ds[j]; ds[j] = t; }
+  for (const d of ds) { g[i] = d; if (fillRandom(g, rnd)) return true; g[i] = 0; }
+  return false;
+}
+function fullGrid(rnd) { const g = new Int32Array(81); fillRandom(g, rnd); return g; }
+
+/* ---- symmetric dig to minimality ---- */
+function digSym(g, rnd, mirror = true) {
+  const order = []; for (let i = 0; i < 81; i++) if (g[i]) order.push(i);
+  for (let k = order.length - 1; k > 0; k--) { const j = (rnd() * (k + 1)) | 0; const t = order[k]; order[k] = order[j]; order[j] = t; }
+  for (const i of order) {
+    if (!g[i]) continue;
+    const m = 80 - i;
+    const trial = Int32Array.from(g); trial[i] = 0; if (mirror && i !== m) trial[m] = 0;
+    if (countSolutions(trial, 2, 30000) === 1) { g[i] = 0; if (mirror && i !== m) g[m] = 0; }
+  }
+  return g;
+}
+
+/* ============================================================
+   Logic rater. Each technique performs ONE step on the candidate
+   grid c; st.assign records forced placements; st.maxLevel = hardest
+   technique actually needed.
+   ============================================================ */
+const TECH = {
+  NS: 1, HS: 2, NP: 3, NT: 4, NQ: 5, HP: 6, HT: 7, POINT: 8, BOXLINE: 9,
+  XWING: 10, SWORD: 11, JELLY: 12, XYWING: 13, XYZWING: 14, WWING: 15, UR: 16, COLOR: 17, GUESS: 18
+};
+const TECH_NAME = {
+  1: '唯一數', 2: '隱性唯一數', 3: '顯性數對', 4: '顯性三連', 5: '顯性四連', 6: '隱性數對', 7: '隱性三連',
+  8: '宮行列排除', 9: '行列宮排除', 10: 'X翼', 11: '劍魚', 12: '水母', 13: 'XY翼', 14: 'XYZ翼',
+  15: 'W翼', 16: '唯一矩形', 17: '著色連鎖', 18: '試誤推定'
+};
+const LADDER = [
+  ['ns', TECH.NS], ['hs', TECH.HS], ['np', TECH.NP], ['nt', TECH.NT], ['nq', TECH.NQ],
+  ['hp', TECH.HP], ['ht', TECH.HT], ['point', TECH.POINT], ['boxline', TECH.BOXLINE],
+  ['xwing', TECH.XWING], ['sword', TECH.SWORD], ['jelly', TECH.JELLY],
+  ['xywing', TECH.XYWING], ['xyzwing', TECH.XYZWING], ['wwing', TECH.WWING], ['ur', TECH.UR], ['color', TECH.COLOR]
+];
+function combos(arr, k) { const res = [], cur = []; (function go(s) { if (cur.length === k) { res.push(cur.slice()); return; } for (let i = s; i <= arr.length - (k - cur.length); i++) { cur.push(arr[i]); go(i + 1); cur.pop(); } })(0); return res; }
+const emptyCells = c => { const a = []; for (let i = 0; i < 81; i++) if (c[i]) a.push(i); return a; };
+function place(c, st, i, d) {
+  st.assign[i] = d; c[i] = 0;
+  for (const p of PEERS[i]) c[p] &= ~BITS[d];
+}
+
+function ns(c, st) {
+  for (const i of emptyCells(c)) if (pop(c[i]) === 1) { place(c, st, i, BITDIGIT[c[i]]); return true; }
+  return false;
+}
+function hs(c, st) {
+  for (const u of UNITS) for (let d = 1; d <= 9; d++) {
+    const bit = BITS[d]; let hit = -1, n = 0;
+    for (const i of u) if (c[i] & bit) { n++; hit = i; if (n > 1) break; }
+    if (n === 1) { place(c, st, hit, d); return true; }
+  }
+  return false;
+}
+function np(c) {
+  for (const u of UNITS) {
+    const cells = u.filter(i => c[i] && pop(c[i]) === 2);
+    for (const [a, b] of combos(cells, 2)) if (c[a] === c[b]) {
+      let did = false; for (const i of u) if (i !== a && i !== b && c[i] & c[a]) { c[i] &= ~c[a]; did = true; }
+      if (did) return true;
+    }
+  }
+  return false;
+}
+function nt(c) {
+  for (const u of UNITS) {
+    const cells = u.filter(i => c[i] && pop(c[i]) >= 2 && pop(c[i]) <= 3);
+    if (cells.length < 3) continue;
+    for (const t of combos(cells, 3)) {
+      const m = c[t[0]] | c[t[1]] | c[t[2]];
+      if (pop(m) === 3) { let did = false; for (const i of u) if (t.indexOf(i) < 0 && c[i] & m) { c[i] &= ~m; did = true; } if (did) return true; }
+    }
+  }
+  return false;
+}
+function nq(c) {
+  for (const u of UNITS) {
+    const cells = u.filter(i => c[i] && pop(c[i]) >= 2 && pop(c[i]) <= 4);
+    if (cells.length < 4) continue;
+    for (const t of combos(cells, 4)) {
+      const m = c[t[0]] | c[t[1]] | c[t[2]] | c[t[3]];
+      if (pop(m) === 4) { let did = false; for (const i of u) if (t.indexOf(i) < 0 && c[i] & m) { c[i] &= ~m; did = true; } if (did) return true; }
+    }
+  }
+  return false;
+}
+function hp(c) {
+  for (const u of UNITS) {
+    const live = []; for (let d = 1; d <= 9; d++) if (u.some(i => c[i] && (c[i] & BITS[d]))) live.push(d);
+    for (const pair of combos(live, 2)) {
+      const m = BITS[pair[0]] | BITS[pair[1]];
+      const cells = u.filter(i => c[i] && (c[i] & m));
+      if (cells.length !== 2) continue;
+      if (!pair.every(d => cells.some(i => c[i] & BITS[d]))) continue;
+      let did = false; for (const i of cells) { const n = c[i] & m; if (n !== c[i]) { c[i] = n; did = true; } }
+      if (did) return true;
+    }
+  }
+  return false;
+}
+function ht(c) {
+  for (const u of UNITS) {
+    const live = []; for (let d = 1; d <= 9; d++) if (u.some(i => c[i] && (c[i] & BITS[d]))) live.push(d);
+    for (const t of combos(live, 3)) {
+      const m = BITS[t[0]] | BITS[t[1]] | BITS[t[2]];
+      const cells = u.filter(i => c[i] && (c[i] & m));
+      if (cells.length !== 3) continue;
+      // 三個數字都必須能落在這三格（每个數字至少有一格候選），否则不是真正的隱性三連
+      if (!t.every(d => cells.some(i => c[i] & BITS[d]))) continue;
+      let did = false; for (const i of cells) { const n = c[i] & m; if (n !== c[i]) { c[i] = n; did = true; } }
+      if (did) return true;
+    }
+  }
+  return false;
+}
+function point(c) { // 宮內数字集中在同一直線 → 剔除該直線其餘格
+  for (const b of BOX_UNITS) for (let d = 1; d <= 9; d++) {
+    const bit = BITS[d]; const cells = b.filter(i => c[i] & bit);
+    if (cells.length < 2 || cells.length > 3) continue;
+    const rows = new Set(cells.map(i => Math.floor(i / 9))), cols = new Set(cells.map(i => i % 9));
+    let line = null;
+    if (rows.size === 1) line = ROW_UNITS[[...rows][0]];
+    else if (cols.size === 1) line = COL_UNITS[[...cols][0]];
+    if (!line) continue;
+    let did = false;
+    for (const i of line) if (b.indexOf(i) < 0 && c[i] & bit) { c[i] &= ~bit; did = true; }
+    if (did) return true;
+  }
+  return false;
+}
+function boxline(c) { // 直線上数字只落在同一宮 → 剔除該宮其餘格
+  for (const u of UNITS) for (let d = 1; d <= 9; d++) {
+    const bit = BITS[d]; const cells = u.filter(i => c[i] & bit);
+    if (cells.length < 2 || cells.length > 3) continue;
+    const b0 = boxOf(cells[0]); if (!cells.every(i => boxOf(i) === b0)) continue;
+    const b = BOX_UNITS[b0]; let did = false;
+    for (const i of b) if (u.indexOf(i) < 0 && c[i] & bit) { c[i] &= ~bit; did = true; }
+    if (did) return true;
+  }
+  return false;
+}
+function fishX(c, lineUnits, size) {
+  for (let d = 1; d <= 9; d++) {
+    const bit = BITS[d];
+    const lines = lineUnits.map(u => {
+      const idx = u.filter(i => c[i] & bit);
+      return { u, idx, tg: idx.map(i => PEER_UNITS[i].find(x => x !== u)) };
+    }).filter(o => o.idx.length === size && size >= 2);
+    if (lines.length < size) continue;
+    for (const combo of combos(lines, size)) {
+      const tset = new Set(); combo.forEach(o => o.tg.forEach(t => tset.add(t)));
+      if (tset.size !== size) continue;
+      let did = false;
+      for (const tu of tset) for (const i of tu) {
+        if (combo.some(o => o.idx.indexOf(i) >= 0)) continue;
+        if (c[i] & bit) { c[i] &= ~bit; did = true; }
+      }
+      if (did) return true;
+    }
+  }
+  return false;
+}
+const xwing = c => fishX(c, ROW_UNITS, 2) || fishX(c, COL_UNITS, 2);
+const sword = c => fishX(c, ROW_UNITS, 3) || fishX(c, COL_UNITS, 3);
+const jelly = c => fishX(c, ROW_UNITS, 4) || fishX(c, COL_UNITS, 4);
+function xywing(c) {
+  const bi = []; for (let i = 0; i < 81; i++) if (c[i] && pop(c[i]) === 2) bi.push(i);
+  for (const p of bi) {
+    const wings = PEERS[p].filter(q => c[q] && pop(c[q]) === 2 && pop(c[q] & c[p]) === 1);
+    for (const [q, r] of combos(wings, 2)) {
+      // 兩翼必須分別對應樞紐的兩個不同數字，被剔除者為第三數
+      const sq = c[q] & c[p], sr = c[r] & c[p];
+      if (!sq || !sr || sq === sr) continue;
+      const common = c[q] & c[r]; if (!common || pop(common) !== 1 || (common & c[p])) continue;
+      let did = false;
+      for (const x of PEERS[q]) if (x !== p && x !== q && x !== r && PEERS[r].indexOf(x) >= 0 && (c[x] & common)) {
+        if (globalThis.__XYHOOK) globalThis.__XYHOOK(p, q, r, x, common);
+        c[x] &= ~common; did = true;
+      }
+      if (did) return true;
+    }
+  }
+  return false;
+}
+function xyzwing(c) {
+  const tri = []; for (let i = 0; i < 81; i++) if (c[i] && pop(c[i]) === 3) tri.push(i);
+  for (const p of tri) {
+    const wings = PEERS[p].filter(q => c[q] && pop(c[q]) === 2 && pop(c[q] & c[p]) === 2);
+    for (const [q, r] of combos(wings, 2)) {
+      const common = c[p] & c[q] & c[r]; if (!common || pop(common) !== 1) continue;
+      // 被剔除格必須同時看見樞紐與兩個翼
+      let did = false;
+      for (const x of PEERS[q]) if (x !== p && x !== q && x !== r && PEERS[p].indexOf(x) >= 0 && PEERS[r].indexOf(x) >= 0 && (c[x] & common)) { c[x] &= ~common; did = true; }
+      if (did) return true;
+    }
+  }
+  return false;
+}
+function wwing(c) {
+  const bi = []; for (let i = 0; i < 81; i++) if (c[i] && pop(c[i]) === 2) bi.push(i);
+  for (const [p, q] of combos(bi, 2)) {
+    if (c[p] !== c[q]) continue;
+    const m = c[p], lo = m & -m, hi = m & ~lo;
+    let linked = false;
+    for (const u of PEER_UNITS[p]) if (u.indexOf(q) >= 0 && u.filter(i => c[i] & lo).length === 2) linked = true;
+    if (!linked) continue;
+    let did = false;
+    for (const x of PEERS[p]) if (x !== q && PEERS[q].indexOf(x) >= 0 && (c[x] & hi)) { c[x] &= ~hi; did = true; }
+    if (did) return true;
+  }
+  return false;
+}
+function ur(c) { // 唯一矩形 type 1：三格為同數對 → 第四格不得再含該數對
+  for (let ra = 0; ra < 9; ra++) for (let rb = ra + 1; rb < 9; rb++) for (let ca = 0; ca < 9; ca++) for (let cb = ca + 1; cb < 9; cb++) {
+    const quad = [ra * 9 + ca, ra * 9 + cb, rb * 9 + ca, rb * 9 + cb];
+    if (boxOf(quad[0]) === boxOf(quad[2]) || boxOf(quad[1]) === boxOf(quad[3])) continue;
+    if (boxOf(quad[0]) !== boxOf(quad[1]) || boxOf(quad[2]) !== boxOf(quad[3])) continue;
+    if (!quad.every(i => c[i] && pop(c[i]) >= 2)) continue;
+    const pure = quad.filter(i => pop(c[i]) === 2);
+    if (pure.length !== 3) continue;
+    const m = c[pure[0]]; if (c[pure[1]] !== m || c[pure[2]] !== m) continue;
+    const fourth = quad.find(i => pop(c[i]) > 2);
+    if (c[fourth] & m) { c[fourth] &= ~m; return true; }
+  }
+  return false;
+}
+function color(c) { // 簡易著色：同一數字的強鏈圖二着色；同色互見 → 該色全滅；見兩色 → 剔除
+  for (let d = 1; d <= 9; d++) {
+    const bit = BITS[d];
+    const nodes = []; for (let i = 0; i < 81; i++) if (c[i] & bit) nodes.push(i);
+    if (nodes.length < 4) continue;
+    const idx = new Map(nodes.map((i, k) => [i, k]));
+    const adj = nodes.map(() => []);
+    for (const u of UNITS) {
+      const cs = u.filter(i => c[i] & bit); if (cs.length !== 2) continue;
+      const a = idx.get(cs[0]), b = idx.get(cs[1]);
+      adj[a].push(b); adj[b].push(a);
+    }
+    const col = new Int8Array(nodes.length).fill(-1), comp = new Int32Array(nodes.length).fill(-1);
+    let ncomp = 0;
+    for (let s = 0; s < nodes.length; s++) {
+      if (col[s] !== -1) continue;
+      col[s] = 0; comp[s] = ncomp; const q = [s];
+      while (q.length) {
+        const x = q.shift();
+        for (const y of adj[x]) { if (col[y] === -1) { col[y] = 1 - col[x]; comp[y] = ncomp; q.push(y); } }
+      }
+      ncomp++;
+    }
+    // 同色互見 → 該色在该連通分量內全滅
+    for (let a = 0; a < nodes.length; a++) for (let b = a + 1; b < nodes.length; b++) {
+      if (comp[a] !== comp[b] || col[a] !== col[b] || col[a] < 0) continue;
+      if (PEERS[nodes[a]].indexOf(nodes[b]) < 0) continue;
+      for (let k = 0; k < nodes.length; k++) if (comp[k] === comp[a] && col[k] === col[a]) c[nodes[k]] &= ~bit;
+      return true;
+    }
+    // 外部分支格同時看見兩色 → 剔除
+    for (const i of nodes) {
+      const seen = {};
+      for (const p of PEERS[i]) if (c[p] & bit && idx.has(p) && comp[idx.get(p)] === comp[idx.get(i)]) seen[col[idx.get(p)]] = 1;
+      if (seen[0] && seen[1]) { c[i] &= ~bit; return true; }
+    }
+  }
+  return false;
+}
+const TMAP = { ns, hs, np, nt, nq, hp, ht, point, boxline, xwing, sword, jelly, xywing, xyzwing, wwing, ur, color };
+
+/* rate(g) → {level, trial, logicalComplete, assign, tech:Set, clues, name} */
+function rate(g) {
+  const c0 = candsFrom(g); if (!c0) return null;
+  const c = Int32Array.from(c0);
+  const st = { assign: {} }; const used = new Set(); let trial = false;
+  for (let guard = 0; guard < 1000; guard++) {
+    if (!emptyCells(c).length) break;
+    let acted = false;
+    for (const [fn, lvl] of LADDER) {
+      const before = Int32Array.from(c);
+      if (TMAP[fn](c, st) && !sameArr(c, before)) { used.add(lvl); acted = true; break; }
+    }
+    if (!acted) { trial = true; break; }
+  }
+  let level = 0; for (const l of used) level = Math.max(level, l);
+  if (trial) level = TECH.GUESS;
+  return { level, trial, logicalComplete: !trial, assign: st.assign, tech: used, clues: clues(g), name: TECH_NAME[level] };
+}
+function sameArr(a, b) { for (let i = 0; i < 81; i++) if (a[i] !== b[i]) return false; return true; }
+
+/* ---- generator: tier = {minLevel,maxLevel,trial,minClues,maxClues} ---- */
+function makePuzzle(tier, rnd, budgetMs = 4000) {
+  const t0 = Date.now(); let tries = 0;
+  for (;;) {
+    tries++;
+    const g = digSym(fullGrid(rnd), rnd, true);
+    const cl = clues(g);
+    if (cl >= (tier.minClues || 0) && cl <= (tier.maxClues || 99)) {
+      const r = rate(g);
+      if (r && (tier.trial ? r.trial : (!r.trial && r.level >= tier.minLevel && r.level <= tier.maxLevel))) {
+        return { grid: g, rating: r, tries, ms: Date.now() - t0 };
+      }
+    }
+    if (Date.now() - t0 > budgetMs) return { grid: null, tries, ms: Date.now() - t0 };
+  }
+}
+
+const SudokuCore = {
+  UNITS, PEERS, PEER_UNITS, ROW_UNITS, COL_UNITS, BOX_UNITS, FULL, BITS, pop, boxOf,
+  candsFrom, countSolutions, solveOne, fullGrid, digSym, rate, makePuzzle,
+  valid, clues, toStr, fromStr, TECH, TECH_NAME, mulberry32,
+  __LADDER: LADDER.map(([n, l]) => [n, l, TMAP[n]])
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = SudokuCore;
+if (typeof globalThis !== 'undefined') globalThis.SudokuCore = SudokuCore;
+
+</script>
+<script>
+/* ============================================================
+   Sudoku — app layer (built into sudoku.html)
+   ============================================================ */
+(function () {
+  'use strict';
+  const C = globalThis.SudokuCore;
+  const $ = s => document.querySelector(s);
+  const board = $('#board'), pad = $('#pad'), tools = $('#tools'), chips = $('#chips');
+  const elTime = $('#time'), elLeft = $('#left'), elTech = $('#tech'), win = $('#win'), wintxt = $('#wintxt');
+  const STORE = 'sudoku-html-v1';
+
+  const TIERS = [
+    { id: 'expert', label: 'Expert', en: 'expert', minLevel: 3, maxLevel: 9 },
+    { id: 'master', label: 'Master', en: 'master', minLevel: 10, maxLevel: 17 },
+    { id: 'hell', label: 'Hell', en: 'trial', trial: true },
+    { id: 'famous', label: 'Hall of Fame', en: 'hall', famous: true }
+  ];
+  // Hall of Fame: published record-breaking puzzles (each re-verified unique by this app's own solver)
+  const FAMOUS = [
+    { name: 'AI Escargot', by: 'Arto Inkala 2006', se: 'SE 10.5', g: '100007090030020008009600500005300900010080002600004000300000010040000007007000300' },
+    { name: 'Kolk', by: 'eleven', se: 'SE 11.9', g: '120300000400000300003050000004200500000080009060005070001500200000090060000007008' },
+    { name: 'Patience', by: 'eleven', se: 'SE 11.9', g: '120300000405000600070000020600100300004530000000008009000450100000000080000002007' },
+    { name: 'Imam bayildi', by: 'eleven', se: 'SE 11.9', g: '003006080000100200000070004009008060030040001070200000300005000005000600980000050' },
+    { name: 'Cheese', by: 'eleven', se: 'SE 11.3', g: '020050700400100006800003000200008003040020500000600010002090000090000005704000900' },
+    { name: 'Red Dwarf', by: 'eleven', se: 'SE 10.9', g: '120300004350000100004000000005400200600070000000008090003100500000009070000060008' }
+  ];
+
+  const TECH_EN = {
+    1: 'Naked Single', 2: 'Hidden Single', 3: 'Naked Pair', 4: 'Naked Triple', 5: 'Naked Quad',
+    6: 'Hidden Pair', 7: 'Hidden Triple', 8: 'Pointing Pairs', 9: 'Claiming', 10: 'X-Wing',
+    11: 'Swordfish', 12: 'Jellyfish', 13: 'XY-Wing', 14: 'XYZ-Wing', 15: 'W-Wing',
+    16: 'Unique Rectangle', 17: 'Colouring', 18: 'Trial and error'
+  };
+  const techEn = r => (r && r.level ? TECH_EN[r.level] : null);
+
+  const S = {
+    tier: 'expert', grid: null, sol: null, user: new Int32Array(81), notes: new Int32Array(81),
+    hintCells: new Uint8Array(81), sel: -1, notesMode: false, hints: 0, history: [],
+    startMs: 0, elapsed: 0, running: false, finished: false, rating: null, busy: false, palette: true
+  };
+
+  /* ---------------- chrome ---------------- */
+  const ICON = {
+    notes: '<svg viewBox="0 0 24 24"><path d="M4 20l1.2-3.8 8.6-8.6 2.6 2.6-8.6 8.6L4 20z"/><path d="M13.2 8.8l2.6 2.6"/></svg>',
+    erase: '<svg viewBox="0 0 24 24"><path d="M7 14.5l6.5-6.5 4.5 4.5-4 4H10.5z"/><path d="M4.5 20.5h15"/></svg>',
+    hint: '<svg viewBox="0 0 24 24"><path d="M9.5 17.5h5"/><path d="M10.5 20.5h3"/><path d="M12 3.5a5.5 5.5 0 0 1 3.2 9.9c-.5.4-.8 1-.9 1.6H9.7c-.1-.6-.4-1.2-.9-1.6A5.5 5.5 0 0 1 12 3.5z"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M4.5 12.5l4.5 4.5L19.5 7"/></svg>',
+    undo: '<svg viewBox="0 0 24 24"><path d="M9 13.5L4.5 9 9 4.5"/><path d="M4.5 9h9.5a5 5 0 0 1 0 10h-3"/></svg>',
+    pdf: '<svg viewBox="0 0 24 24"><path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5"/><path d="M12 11.5v5.5M9.8 15l2.2 2.2L14.2 15"/></svg>',
+    plus: '<svg viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></svg>',
+    palette: '<svg viewBox="0 0 24 24"><path d="M12 4.2c4.4 0 8 3.2 8 7.1 0 2.4-2 4.1-4.2 4.1h-1.6c-1 0-1.8.8-1.8 1.8 0 .5.2.9.5 1.2.3.4.5.8.5 1.2 0 1-.8 1.7-1.9 1.7-4.4 0-8-3.6-8-8 0-4.9 3.6-9.1 8.5-9.1z"/><circle cx="9" cy="10" r="1.05" fill="currentColor" stroke="none"/><circle cx="12.6" cy="7.8" r="1.05" fill="currentColor" stroke="none"/><circle cx="16" cy="10.2" r="1.05" fill="currentColor" stroke="none"/></svg>'
+  };
+  chips.innerHTML = TIERS.map(t => `<button class="chip" data-t="${t.id}" aria-pressed="false">${t.label}</button>`).join('');
+  chips.addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTier(b.dataset.t); });
+
+  const TOOLS = [
+    ['btnNotes', 'Notes', ICON.notes], ['doErase', 'Erase', ICON.erase], ['doHint', 'Hint', ICON.hint],
+    ['doCheck', 'Check', ICON.check], ['doUndo', 'Undo', ICON.undo], ['sep'], ['btnPalette', 'Colours', ICON.palette], ['doPdf', 'PDF', ICON.pdf], ['newPuzzle', 'New', ICON.plus]
+  ];
+  tools.innerHTML = TOOLS.map(x => x[0] === 'sep' ? '<span class="sep"></span>'
+    : `<button data-act="${x[0]}"${x[0] === 'btnNotes' ? ' id="btnNotes"' : ''} title="${x[1]}">${x[2]}<i>${x[1]}</i></button>`).join('');
+  tools.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    ({
+      btnNotes() { S.notesMode = !S.notesMode; b.setAttribute('aria-pressed', String(S.notesMode)); },
+      btnPalette() { setPalette(!S.palette); },
+      doErase, doHint, doCheck, doUndo, doPdf: exportPdf, newPuzzle
+    })[b.dataset.act]();
+  });
+
+  function setPalette(on) {
+    S.palette = !!on;
+    document.body.classList.toggle('palette', S.palette);
+    const b = document.getElementById('btnPalette'); if (b) b.setAttribute('aria-pressed', String(S.palette));
+    render(); save();
+  }
+
+  pad.innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(d =>
+    `<button data-d="${d}" aria-label="${d} — 9 left"><span>${d}</span><small>9</small></button>`).join('');
+  pad.addEventListener('click', e => { const b = e.target.closest('button'); if (b) input(+b.dataset.d); });
+  $('#winnew').onclick = () => { win.classList.remove('on'); newPuzzle(); };
+
+  board.innerHTML = Array.from({ length: 81 }, (_, i) => {
+    const r = (i / 9) | 0, c = i % 9;
+    return `<div class="cell${c % 3 === 2 && c < 8 ? ' bR' : ''}${r % 3 === 2 && r < 8 ? ' bB' : ''}" data-i="${i}"></div>`;
+  }).join('');
+  const cells = [...board.children];
+  let dragging = false;
+  board.addEventListener('pointerdown', e => { const c = e.target.closest('.cell'); if (!c) return; select(+c.dataset.i); dragging = true; });
+  board.addEventListener('pointerover', e => { if (dragging) { const c = e.target.closest('.cell'); if (c) select(+c.dataset.i); } });
+  addEventListener('pointerup', () => { dragging = false; });
+
+  addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); return; }
+    if (e.metaKey || e.ctrlKey) return;
+    const k = e.key;
+    if (k >= '1' && k <= '9') { input(+k); return; }
+    if (k === '0' || k === 'Backspace' || k === 'Delete') { e.preventDefault(); doErase(); return; }
+    const kl = k.toLowerCase();
+    if (kl === 'n') { $('#btnNotes').click(); return; }
+    if (kl === 'u') { doUndo(); return; }
+    if (kl === 'h') { doHint(); return; }
+    if (kl === 'c') { doCheck(); return; }
+    if (k === 'Escape') { S.sel = -1; render(); return; }
+    const d = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[k];
+    if (d !== undefined) {
+      e.preventDefault();
+      S.sel = S.sel < 0 ? 0 : Math.min(80, Math.max(0, S.sel + d));
+      render();
+    }
+  });
+
+  /* ---------------- game ---------------- */
+  function setTier(id) {
+    S.tier = id;
+    for (const b of chips.children) if (b.dataset) b.setAttribute('aria-pressed', String(b.dataset.t === id));
+    newPuzzle();
+  }
+  async function newPuzzle() {
+    if (S.busy) return; S.busy = true;
+    const tier = TIERS.find(t => t.id === S.tier);
+    document.body.classList.add('loading'); elTech.textContent = 'Generating…';
+    await frame();
+    if (tier.famous) {
+      const f = FAMOUS[(Math.random() * FAMOUS.length) | 0];
+      S.grid = C.fromStr(f.g);
+      S.rating = { name: f.name, level: 18, sub: `${f.name} · ${f.by} · ${f.se}` };
+    } else {
+      const res = C.makePuzzle(tier, C.mulberry32((Math.random() * 2147483647) | 0), 8000);
+      if (!res.grid) { elTech.textContent = 'Generation failed'; S.busy = false; return; }
+      S.grid = res.grid; S.rating = res.rating;
+    }
+    S.sol = C.solveOne(S.grid);
+    S.user = new Int32Array(81); S.notes = new Int32Array(81); S.hintCells = new Uint8Array(81);
+    S.history = []; S.hints = 0; S.sel = -1; S.finished = false; S.checkMsg = '';
+    S.startMs = performance.now(); S.elapsed = 0; S.running = true;
+    win.classList.remove('on'); document.body.classList.remove('loading'); S.busy = false;
+    render(); save();
+  }
+  const frame = () => new Promise(r => requestAnimationFrame(r));
+
+  function select(i) { if (S.sel === i) return; S.sel = i; render(); }
+  function snapshot() { S.history.push({ u: Int32Array.from(S.user), n: Int32Array.from(S.notes), h: S.hints, hc: Uint8Array.from(S.hintCells) }); if (S.history.length > 300) S.history.shift(); }
+  const isGiven = i => S.grid[i] !== 0;
+  const conflict = i => {
+    const v = S.user[i]; if (!v || isGiven(i)) return false;
+    for (const p of C.PEERS[i]) if (S.grid[p] === v || S.user[p] === v) return true;
+    return false;
+  };
+  function input(d) {
+    if (S.finished || S.sel < 0) return;
+    const i = S.sel; if (isGiven(i)) return;
+    snapshot();
+    if (S.notesMode && !S.user[i]) {
+      S.notes[i] ^= C.BITS[d];
+    } else {
+      S.notes[i] = 0; S.user[i] = d; S.hintCells[i] = 0;
+      for (const p of C.PEERS[i]) if (S.notes[p] & C.BITS[d]) S.notes[p] &= ~C.BITS[d]; // auto-erase notes in peers
+    }
+    S.checkMsg = '';
+    done(); render(); save();
+  }
+  function doErase() {
+    if (S.finished || S.sel < 0) return; const i = S.sel; if (isGiven(i)) return;
+    if (!S.user[i] && !S.notes[i]) return;
+    snapshot(); S.user[i] = 0; S.notes[i] = 0; S.hintCells[i] = 0; render(); save();
+  }
+  function doUndo() {
+    if (!S.history.length || S.finished) return;
+    const h = S.history.pop(); S.user = h.u; S.notes = h.n; S.hints = h.h; S.hintCells = h.hc;
+    S.checkMsg = ''; render(); save();
+  }
+  function doHint() {
+    if (S.finished) return;
+    let i = (S.sel >= 0 && !isGiven(S.sel) && S.user[S.sel] !== S.sol[S.sel]) ? S.sel : -1;
+    if (i < 0) for (let k = 0; k < 81; k++) if (!isGiven(k) && S.user[k] !== S.sol[k]) { i = k; break; }
+    if (i < 0) return;
+    snapshot(); S.sel = i; S.user[i] = S.sol[i]; S.notes[i] = 0; S.hintCells[i] = 1; S.hints++;
+    for (const p of C.PEERS[i]) if (S.notes[p] & C.BITS[S.sol[i]]) S.notes[p] &= ~C.BITS[S.sol[i]];
+    done(); render(); save();
+  }
+  function doCheck() {
+    if (!S.grid) return;
+    let bad = 0;
+    for (let i = 0; i < 81; i++) if (!isGiven(i) && S.user[i] && S.user[i] !== S.sol[i]) bad++;
+    S.checkMsg = bad ? `Check: ${bad} wrong` : 'Check: nothing wrong so far';
+    render();
+  }
+  function done() {
+    for (let i = 0; i < 81; i++) if (!isGiven(i) && S.user[i] !== S.sol[i]) return;
+    S.finished = true; S.running = false;
+    wintxt.textContent = `${fmt(S.elapsed)} · ${S.hints ? `${S.hints} hint${S.hints > 1 ? 's' : ''}` : 'no hints'}`;
+    win.classList.add('on'); save();
+  }
+
+  /* ---------------- render ---------------- */
+  const fmt = ms => { const s = Math.floor(ms / 1000); return `${String((s / 60) | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+  const cache = new Array(81).fill(null);
+  let lastTime = '', lastLeft = -1, lastTech = null;
+  function render() {
+    const t = fmt(S.elapsed); if (t !== lastTime) { lastTime = t; elTime.textContent = t; }
+    const cnt = new Array(10).fill(0); let left = 0;
+    for (let i = 0; i < 81; i++) { const v = S.grid[i] || S.user[i]; if (v) cnt[v]++; else left++; }
+    if (left !== lastLeft) { lastLeft = left; elLeft.textContent = left; }
+    const tech = S.checkMsg || (S.rating ? (S.rating.sub || `Hardest step: ${techEn(S.rating) || S.rating.name}`) : '');
+    if (tech !== lastTech) { lastTech = tech; elTech.textContent = tech; }
+
+    const selVal = S.sel >= 0 ? (S.grid[S.sel] || S.user[S.sel]) : 0;
+    const peers = S.sel >= 0 ? C.PEERS[S.sel] : null;
+    for (let i = 0; i < 81; i++) {
+      const el = cells[i], r = (i / 9) | 0, c = i % 9;
+      let cls = 'cell' + (c % 3 === 2 && c < 8 ? ' bR' : '') + (r % 3 === 2 && r < 8 ? ' bB' : '');
+      const v = S.grid[i] || S.user[i];
+      if (isGiven(i)) cls += ' given';
+      else if (v && conflict(i)) cls += ' err';
+      if (S.sel === i) cls += ' sel';
+      else if (selVal && v === selVal) cls += ' same';
+      else if (peers && peers.indexOf(i) >= 0) cls += ' peer';
+      if (v && !isGiven(i) && S.hintCells[i]) cls += ' hintc';
+      let html = v ? `<span>${v}</span>` : '';
+      if (!v && S.notes[i]) {
+        html = '<div class="notes">';
+        for (let d = 1; d <= 9; d++) html += `<span${S.notes[i] & C.BITS[d] ? ` data-d="${d}"` : ''}>${S.notes[i] & C.BITS[d] ? d : ''}</span>`;
+        html += '</div>';
+      }
+      el.dataset.d = v || '';
+      const sig = cls + '|' + html;
+      if (cache[i] !== sig) { cache[i] = sig; el.className = cls; el.innerHTML = html; if (html && v) flash(el); }
+    }
+    for (const b of pad.children) {
+      if (!b.dataset || !b.dataset.d) continue;
+      const rem = 9 - cnt[+b.dataset.d];
+      const sig = String(rem);
+      if (b.dataset.count !== sig) {
+        b.dataset.count = sig; b.querySelector('small').textContent = sig;
+        b.setAttribute('aria-label', `${b.dataset.d} — ${sig} left`);
+      }
+    }
+    const ub = tools.querySelector('[data-act="doUndo"]'); if (ub) ub.disabled = !S.history.length || S.finished;
+  }
+  let flashQ = [];
+  function flash(el) { el.classList.add('pop'); flashQ.push(el); if (flashQ.length > 3) { const old = flashQ.shift(); setTimeout(() => old.classList.remove('pop'), 180); } }
+  setInterval(() => { if (S.running) { S.elapsed = performance.now() - S.startMs; render(); } }, 500);
+
+  /* ---------------- persistence ---------------- */
+  function save() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        tier: S.tier, grid: C.toStr(S.grid), user: Array.from(S.user), notes: Array.from(S.notes),
+        hintCells: Array.from(S.hintCells), hints: S.hints, elapsed: Math.round(S.elapsed),
+        finished: S.finished, rating: S.rating ? { name: S.rating.name || null, sub: S.rating.sub || null } : null,
+        palette: S.palette
+      }));
+    } catch (e) { }
+  }
+  function restore() {
+    try {
+      const raw = localStorage.getItem(STORE); if (!raw) return false;
+      const d = JSON.parse(raw); if (!d.grid || d.grid.length !== 81) return false;
+      const g = C.fromStr(d.grid); const sol = C.solveOne(g); if (!sol) return false;
+      S.tier = d.tier || 'expert'; S.grid = g; S.sol = sol;
+      S.user = Int32Array.from(d.user || new Array(81).fill(0));
+      S.notes = Int32Array.from(d.notes || new Array(81).fill(0));
+      S.hintCells = Uint8Array.from(d.hintCells || new Array(81).fill(0));
+      S.hints = d.hints || 0; S.elapsed = d.elapsed || 0; S.finished = !!d.finished; S.rating = d.rating || null;
+      S.palette = d.palette !== false;
+      document.body.classList.toggle('palette', S.palette);
+      const pb = document.getElementById('btnPalette'); if (pb) pb.setAttribute('aria-pressed', String(S.palette));
+      for (const b of chips.children) if (b.dataset) b.setAttribute('aria-pressed', String(b.dataset.t === S.tier));
+      S.startMs = performance.now() - S.elapsed; S.running = !S.finished;
+      if (S.finished) { wintxt.textContent = `${fmt(S.elapsed)} · ${S.hints ? `${S.hints} hint${S.hints > 1 ? 's' : ''}` : 'no hints'}`; }
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* ---------------- PDF (pure JS writer) ---------------- */
+  const pdfEsc = s => String(s).replace(/[^\x20-\x7e]/g, '').replace(/([\\()])/g, '\\$1');
+  const PDFPAL = { 1: '#cf4436', 2: '#cf7d1e', 3: '#b8940f', 4: '#3f9d4e', 5: '#12a08f', 6: '#2f80d6', 7: '#6163cf', 8: '#9a52c4', 9: '#cf4f93' };
+  const hexrgb = h => [1, 3, 5].map(i => (parseInt(h.slice(i, i + 2), 16) / 255).toFixed(2)).join(' ');
+  function buildPdf(header, grid, user, notes, palette) {
+    const PAGE = [595.276, 841.89], M = 56, CELL = 40, N = CELL * 9;
+    const ox = (PAGE[0] - N) / 2, oy = PAGE[1] - M - 54 - N;
+    const INK = '0.10 0.12 0.15', MID = '0.42 0.46 0.52', LIGHT = '0.72 0.75 0.79';
+    let s = `BT /F1 15 Tf ${INK} rg 1 0 0 1 ${M} ${PAGE[1] - M + 4} Tm (${pdfEsc(header[0])}) Tj ET\n`;
+    if (header[1]) s += `BT /F2 9.5 Tf ${MID} rg 1 0 0 1 ${M} ${PAGE[1] - M - 12} Tm (${pdfEsc(header[1])}) Tj ET\n`;
+    // grid lines
+    for (let i = 0; i <= 9; i++) {
+      const w = i % 3 === 0 ? 1.6 : 0.6, col = i % 3 === 0 ? INK : LIGHT;
+      const xp = (ox + i * CELL).toFixed(2), yp = (oy + i * CELL).toFixed(2);
+      s += `q ${col} RG ${w} w ${xp} ${oy.toFixed(2)} m ${xp} ${(oy + N).toFixed(2)} l S Q\n`;
+      s += `q ${col} RG ${w} w ${ox.toFixed(2)} ${yp} m ${(ox + N).toFixed(2)} ${yp} l S Q\n`;
+    }
+    const DIGW = 0.556; // Helvetica digit advance (per 1000 units)
+    for (let i = 0; i < 81; i++) {
+      const r = (i / 9) | 0, c = i % 9, x = ox + c * CELL, y = oy + (8 - r) * CELL;
+      if (grid[i]) {
+        const size = 15, d = String(grid[i]), col = palette ? hexrgb(PDFPAL[grid[i]]) : INK;
+        s += `BT /F1 ${size} Tf ${col} rg 1 0 0 1 ${(x + CELL / 2 - DIGW * size / 2).toFixed(2)} ${(y + CELL / 2 - size * 0.36).toFixed(2)} Tm (${d}) Tj ET\n`;
+      } else if (user[i]) {
+        const size = 15, d = String(user[i]), col = palette ? hexrgb(PDFPAL[user[i]]) : MID;
+        s += `BT /F2 ${size} Tf ${col} rg 1 0 0 1 ${(x + CELL / 2 - DIGW * size / 2).toFixed(2)} ${(y + CELL / 2 - size * 0.36).toFixed(2)} Tm (${d}) Tj ET\n`;
+      } else if (notes[i]) {
+        const size = 7.5, cw = CELL / 3;
+        for (let d = 1; d <= 9; d++) if (notes[i] & C.BITS[d]) {
+          const col = (d - 1) % 3, row = ((d - 1) / 3) | 0;
+          const tx = x + col * cw + cw / 2 - DIGW * size / 2, ty = y + CELL - (row + 1) * cw - size * 0.18;
+          s += `BT /F2 ${size} Tf ${palette ? hexrgb(PDFPAL[d]) : MID} rg 1 0 0 1 ${tx.toFixed(2)} ${ty.toFixed(2)} Tm (${d}) Tj ET\n`;
+        }
+      }
+    }
+
+    const objs = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE[0]} ${PAGE[1]}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>`,
+      `<< /Length ${s.length} >>\nstream\n${s}endstream`,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'
+    ];
+    let out = '%PDF-1.4\n', offsets = [];
+    objs.forEach((o, i) => { offsets.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+    const xref = out.length;
+    out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
+    for (const o of offsets) out += String(o).padStart(10, '0') + ' 00000 n \n';
+    out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    return out;
+  }
+  function exportPdf() {
+    if (!S.grid) return;
+    const tier = TIERS.find(t => t.id === S.tier);
+    const name = S.rating && S.rating.name ? S.rating.name : tier.en.toUpperCase();
+    const sub = `${tier.en.toUpperCase()} · ${C.clues(S.grid)} clues · ${fmt(S.elapsed)}${S.hints ? ' · ' + S.hints + ' hints' : ''}${S.rating && S.rating.sub && S.rating.name ? ' · ' + S.rating.sub : ''}`;
+    const pdf = buildPdf([name, sub], S.grid, S.user, S.notes, S.palette);
+    const blob = new Blob([pdf], { type: 'application/pdf' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sudoku-${tier.en}-${fmt(S.elapsed).replace(':', '')}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  window.__sudoku = { S, C, exportPdf, newPuzzle, TIERS, FAMOUS, input, select, doHint, doCheck, doUndo, doErase, render, fmt };
+
+  if (!restore()) newPuzzle(); else render();
+})();
+
+</script>
+</body>
+</html>
