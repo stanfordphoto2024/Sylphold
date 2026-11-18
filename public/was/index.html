@@ -600,10 +600,11 @@ function redo(){
 
 /* ---------- Input ---------- */
 function select(i){
-  if (S.sel >= 0) renderCell(S.sel), renderPeers();
-  S.sel = i;
+  const prev = S.sel;                       // clear the OLD selection (and its peers) AFTER S.sel moves,
+  S.sel = i;                                // otherwise a cell that isn't a peer of the new one keeps its highlight
+  if (prev >= 0 && prev !== i) renderCell(prev), PEERS[prev].forEach(j => renderCell(j));
   renderCell(i);
-  PEERS[i].forEach(j => renderCell(j));
+  renderPeers();
   renderStats();
 }
 function onCellDown(e){
