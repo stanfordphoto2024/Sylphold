@@ -5755,6 +5755,8 @@ var RW = [["pk-count_pictures_up_to_3","PK","B","B.2","Count pictures - up to 3"
 ["gm-biconditionals","GM","A","A.6","Biconditionals",88.61,"GM"],
 ["gm-truth_tables","GM","A","A.7","Truth tables",88.63,"GM"],
 ["gm-truth_values","GM","A","A.8","Truth values",88.65,"GM"],
+["gm-proofs_by_induction","GM","A","A.9","Proofs by induction",88.67,"GM"],
+["gm-proofs_by_contradiction","GM","A","A.10","Proofs by contradiction",88.69,"GM"],
 ["gm-lines_line_segments_and_rays","GM","B","B.1","Lines, line segments, and rays",88.67,"GM"],
 ["gm-properties_of_planes_lines_and_points","GM","B","B.2","Properties of planes, lines, and points",88.7,"GM"],
 ["gm-describe_intersections_in_a_plane","GM","B","B.3","Describe intersections in a plane",88.72,"GM"],
@@ -130965,6 +130967,58 @@ if (out && out.prompt) { var rw = reword(out.prompt, out, sk); if (rw) out.promp
 return out;
 };
 })();
+</script>
+<script>
+G('gm-proofs_by_induction', function (rng, lvl) {
+var t = R.int(rng, 0, 3);
+if (t === 0) {
+var o = R.shuffle(rng, ['P(n) is true for every whole number n \u2265 1', 'only P(1) and P(2) are true', 'nothing yet \u2014 infinitely many cases would still need checking', 'P(n) is true only for n = k']);
+return I_choice('A claim P(n) is true when n = 1, and whenever P(k) is true it follows that P(k+1) is true. What follows?', o, o.indexOf('P(n) is true for every whole number n \u2265 1'), {
+explain: ['The first part starts the chain; the second part passes it from each number to the next one.', 'Any whole number n \u2265 1 is reached from 1 by finitely many of those steps, so the claim holds for all of them.'],
+teach: 'A base case plus a step from k to k+1 settles every n \u2265 1 at once.' });
+}
+if (t === 1) {
+var o = R.shuffle(rng, ['n = 1: the left side is 1 and the right side is 1 \u00d7 2 \u00f7 2 = 1', 'n = 100: the left side is 5050 and the right side is 100 \u00d7 101 \u00f7 2', 'n = k: the left side is k(k+1) \u00f7 2', 'n = 0: the left side is 0 and the right side is 0']);
+return I_choice('To prove by induction that 1 + 2 + \u2026 + n = n(n+1) \u00f7 2 for every whole number n \u2265 1, which case do you check first?', o, o.indexOf('n = 1: the left side is 1 and the right side is 1 \u00d7 2 \u00f7 2 = 1'), {
+explain: ['Induction starts at the first number the claim covers, and this claim covers n \u2265 1.', 'For n = 1 the sum is just 1, and n(n+1) \u00f7 2 = 1 \u00d7 2 \u00f7 2 = 1, so the claim is true there.'],
+teach: 'The base case is the first number the claim is supposed to cover.' });
+}
+if (t === 2) {
+var o = R.shuffle(rng, ['(k+1)(k+2) \u00f7 2', 'k(k+2) \u00f7 2', '(k+1)\u00b2 \u00f7 2', 'k(k+1) \u00f7 2 + k']);
+return I_choice('Assume 1 + 2 + \u2026 + k = k(k+1) \u00f7 2. Adding the next number k+1 to both sides gives 1 + 2 + \u2026 + k + (k+1) = ?', o, o.indexOf('(k+1)(k+2) \u00f7 2'), {
+explain: ['k(k+1) \u00f7 2 + (k+1) = [k(k+1) + 2(k+1)] \u00f7 2 = (k+1)(k+2) \u00f7 2.', 'That is exactly the claim for n = k+1, which is what the step had to show.'],
+teach: 'The inductive step is algebra: use the assumption and simplify until the k+1 form appears.' });
+}
+var o = R.shuffle(rng, ['the inductive hypothesis', 'the base case', 'the contrapositive', 'a counterexample']);
+return I_choice('In a proof by induction you assume the claim for one unspecified k and use that to prove it for k+1. What is that assumption called?', o, o.indexOf('the inductive hypothesis'), {
+explain: ['It is the hypothesis you are allowed to use inside the step, so it is called the inductive hypothesis.', 'The base case is separate: it is the number you verify outright, without any assumption.'],
+teach: 'Assume P(k) \u2014 that assumption is the inductive hypothesis \u2014 then deduce P(k+1).' });
+});
+G('gm-proofs_by_contradiction', function (rng, lvl) {
+var t = R.int(rng, 0, 3);
+if (t === 0) {
+var o = R.shuffle(rng, ['n\u00b2 is even and n is odd', 'n is even and n\u00b2 is odd', 'n is odd', 'n\u00b2 is odd and n is even']);
+return I_choice('You want a proof by contradiction of: if n\u00b2 is even, then n is even. What do you assume at the start?', o, o.indexOf('n\u00b2 is even and n is odd'), {
+explain: ['A contradiction proof keeps the hypothesis and denies the conclusion: n\u00b2 is even but n is not even, i.e. n is odd.', 'Then n = 2c + 1 gives n\u00b2 = 4c\u00b2 + 4c + 1, which is odd \u2014 impossible, so n must be even.'],
+teach: 'Assume the hypothesis is true and the conclusion false, then show that cannot happen.' });
+}
+if (t === 1) {
+var o = R.shuffle(rng, ['a and b are both even, so a/b was not in lowest terms', 'a is even and b is odd, so the fraction is improper', 'a and b are both odd, so the fraction cannot be simplified', 'a = 0, which is not allowed in a fraction']);
+return I_choice('Assume \u221a2 = a/b with a and b sharing no common factor. Then a\u00b2 = 2b\u00b2, so a is even; write a = 2c, and you get b\u00b2 = 2c\u00b2, so b is even too. Why is that the contradiction?', o, o.indexOf('a and b are both even, so a/b was not in lowest terms'), {
+explain: ['Both a and b turn out to be divisible by 2.', 'That contradicts the starting assumption that a/b was written in lowest terms, so no such fraction exists.'],
+teach: 'The impossible thing must be named: state exactly which assumption the result contradicts.' });
+}
+if (t === 2) {
+var o = R.shuffle(rng, ['N has a prime factor that was not on the list', 'N is smaller than every prime on the list', 'N is itself the largest prime on the list', 'N has no prime factors at all']);
+return I_choice('Assume a list contains every prime. Multiply them all together and add 1 to get N. N leaves a remainder of 1 when divided by any prime on the list. What follows?', o, o.indexOf('N has a prime factor that was not on the list'), {
+explain: ['N is bigger than 1, so it has at least one prime factor \u2014 but none on the list divides it.', 'So the list missed a prime, contradicting the assumption that it held them all: there are infinitely many primes.'],
+teach: 'Euclid\u2019s argument is a contradiction proof: the list cannot be complete.' });
+}
+var o = R.shuffle(rng, ['a triangle would have an exterior angle equal to a remote interior angle', 'a triangle would have two right angles', 'the two lines would have to be perpendicular', 'the vertical angles would not be congruent']);
+return I_choice('A transversal cuts lines \u2113 and m so that a pair of alternate interior angles is congruent. To prove \u2113 \u2225 m by contradiction you suppose they meet. Which fact is then violated?', o, o.indexOf('a triangle would have an exterior angle equal to a remote interior angle'), {
+explain: ['If \u2113 and m met, they and the transversal would form a triangle.', 'The given angle would be an exterior angle of that triangle equal to a remote interior angle, which the Exterior Angle Inequality forbids \u2014 so the lines never meet.'],
+teach: 'In geometry, assume the lines meet and let the resulting triangle contradict a theorem.' });
+});
 </script>
 </body>
 </html>
