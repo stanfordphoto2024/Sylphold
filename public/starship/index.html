@@ -6426,7 +6426,8 @@ G.tex = (() => {
   /* land mask in WORLD METERS relative to pad at (0,0): 1 land, 0 water.
      gulf = east+south diagonal shore line; lagoon channel to the north. */
   T.landF = (xm, zm) => {
-    const shore = (xm + zm) < 930 + 50 * Math.sin((xm - zm) * 0.0009) - 30 * Math.cos(xm * 0.0021);
+    /* Starbase sits on the coastal plain: the shore must run SOUTHWEST of the pad, not past it */
+    const shore = (xm + zm) < -1500 + 50 * Math.sin((xm - zm) * 0.0009) - 30 * Math.cos(xm * 0.0021);
     const lagC = -1000 - 0.10 * xm + 20 * Math.sin(xm * 0.0016);
     const lag = Math.abs(zm - lagC) < 95 && Math.abs(xm) < 2600;
     const inland = zm < lagC - 95 && Math.abs(xm) < 3000 && zm > -14000;
@@ -6765,7 +6766,7 @@ G.world = (() => {
     canvasHost.appendChild(renderer.domElement);
     renderer.domElement.id = 'gl';
 
-    cam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.3, 6000);
+    cam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.3, 30000);
 
     renderPass = new THREE.RenderPass(scenes.pad = padScene(), new THREE.PerspectiveCamera());
     // share the SAME camera
@@ -6781,6 +6782,25 @@ G.world = (() => {
     scenes.space = spaceScene();
     scenes.moon = localScene('moon');
     scenes.mars = localScene('mars');
+
+    /* ---- procedural IBL per scene family (metal needs an environment) ---- */
+    if (G.env && G.env.init) {
+      G.env.init(renderer);
+      G.env.apply('space', scenes.space);
+      G.env.apply('moon', scenes.moon);
+      G.env.apply('mars', scenes.mars);
+    }
+    W.padLightingMode = W.setLaunchLighting;
+    W.setLaunchLighting = function (mode, date) {
+      const r = W.padLightingMode(mode, date);
+      if (G.env && G.env.padEnvFromSky) {
+        const pe = G.env.padEnvFromSky(sky);
+        if (pe) scenes.pad.environment = pe;
+      }
+      return r;
+    };
+    W.setLaunchLighting(W.lightMode || 'golden');
+    renderer.toneMappingExposure = 0.71;   /* pad scene exposure: the sky is the brightest thing on screen */
 
     window.addEventListener('resize', () => {
       cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
@@ -6818,6 +6838,7 @@ G.world = (() => {
   W.makeStars = makeStars;
 
   /* ---------- PAD SCENE (meters) ---------- */
+  let padStars = null;
   function padScene() {
     const s = new THREE.Scene();
     s.background = new THREE.Color(0x0a1420);
@@ -6839,7 +6860,11 @@ G.world = (() => {
     padLights.floodA = new THREE.PointLight(0xcfe6ff, 0, 900, 1.6); padLights.floodA.position.set(60, 90, -60);
     padLights.floodB = new THREE.PointLight(0xcfe6ff, 0, 900, 1.6); padLights.floodB.position.set(-60, 90, 60);
     s.add(padLights.floodA, padLights.floodB);
-    s.add(makeStars(4200, 26000, 1));
+    padLights.rim = new THREE.DirectionalLight(0x7fb4ff, 0.9);    /* cool separation behind the stack */
+    padLights.fill = new THREE.DirectionalLight(0xffd2a0, 0.35);  /* weak warm fill, opposite the key */
+    s.add(padLights.rim, padLights.fill);
+    padStars = makeStars(4200, 26000, 1);
+    s.add(padStars);
     return s;
   }
 
@@ -6858,14 +6883,20 @@ G.world = (() => {
     sun.position.copy(sunDirV).multiplyScalar(2400);
     const up = U.clamp(Math.sin(alt) * 2 + 0.05, 0, 1);
     const warm = U.sstep(14 * Math.PI / 180, 1 * Math.PI / 180, Math.max(alt, 0));
-    sun.color.setHSL(0.09 - 0.045 * warm, 0.45 + 0.3 * warm, 0.72);
-    sun.intensity = 3.4 * up;
-    padLights.hemi.intensity = 0.12 + 0.55 * up;
+    sun.color.setHSL(0.075 - 0.05 * warm, 0.60 + 0.25 * warm, 0.58);
+    sun.intensity = 2.9 * up;
+    padLights.hemi.intensity = 0.12 + 0.45 * up;
+    if (padLights.rim) padLights.rim.intensity = 1.1 * up;
+    if (padLights.fill) padLights.fill.intensity = 0.4 * up;
+    if (padLights.rim) padLights.rim.position.set(-sunDirV.x * 2400, 700, -sunDirV.z * 2400);
+    if (padLights.fill) padLights.fill.position.set(sunDirV.z * 2000, 500, -sunDirV.x * 2000);
     const nightish = alt < -0.05;
+    /* a bright daytime/golden sky physically washes the stars out — only show them at night */
+    if (padStars) padStars.visible = nightish;
     padLights.floodA.intensity = nightish ? 2.4 : 0;
     padLights.floodB.intensity = nightish ? 2.4 : 0;
     // Sky shader
-    const sd = { phi: U.clamp(alt, -0.25, 1.4), theta: az, rayleigh: 1.2 + 1.6 * (1 - up), turbidity: 7.5, mieCoefficient: 0.006, mieDirectionalG: 0.84 };
+    const sd = { phi: U.clamp(alt, -0.25, 1.4), theta: az, rayleigh: 0.62 + 0.85 * (1 - up), turbidity: 2.6, mieCoefficient: 0.0016, mieDirectionalG: 0.58 };
     sky.material.uniforms.sunPosition.value.set(
       Math.cos(sd.phi) * Math.sin(sd.theta), Math.sin(sd.phi), Math.cos(sd.phi) * Math.cos(sd.theta));
     Object.assign(sky.material.uniforms.rayleigh.value !== undefined ? {} : {}, {});
@@ -6873,7 +6904,8 @@ G.world = (() => {
     sky.material.uniforms.turbidity.value = sd.turbidity;
     sky.material.uniforms.mieCoefficient.value = sd.mieCoefficient;
     sky.material.uniforms.mieDirectionalG.value = sd.mieDirectionalG;
-    scenes.pad.fog = new THREE.FogExp2(new THREE.Color().setHSL(0.58, 0.35, 0.06 + 0.3 * up).getHex(), 2.2e-5 + 1e-5 * (1 - up));
+    const fogHue = up > 0.15 ? 0.085 : 0.58;   /* sun up: warm dust haze · night: cold blue */
+    scenes.pad.fog = new THREE.FogExp2(new THREE.Color().setHSL(fogHue, 0.42, 0.10 + 0.30 * up).getHex(), 1.8e-5 + 1.2e-5 * (1 - up));
     return { alt, az };
   };
   W.padLights = () => padLights;
@@ -6949,7 +6981,11 @@ G.world = (() => {
     s.add(makeStars(7000, 5.5e5, 1));
     const sun = new THREE.DirectionalLight(0xffffff, 3.1);
     spaceLights = { sun, amb: new THREE.AmbientLight(0x223344, 0.35) };
-    s.add(sun, spaceLights.amb);
+    /* earthshine fill: the planet is the second light source in this frame */
+    const eshine = new THREE.DirectionalLight(0x4a76c8, 0.5);
+    eshine.position.set(-60000, -40000, 60000);
+    spaceLights.eshine = eshine;
+    s.add(sun, spaceLights.amb, eshine);
     spaceSunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: G.tex.glow, color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true }));
     spaceSunSprite.scale.setScalar(26000);
     s.add(spaceSunSprite);
@@ -7017,18 +7053,24 @@ G.world = (() => {
     const s = new THREE.Scene();
     const body = kind === 'moon' ? cfg.RM : cfg.RMARS;
     if (kind === 'moon') {
-      s.background = new THREE.Color(0x000002);
-      s.add(makeStars(5200, 40000, 1));
-      const sun = new THREE.DirectionalLight(0xfff4e0, 3.4); sun.position.set(1400, 900, -600);
-      s.add(sun);
-      s.add(new THREE.AmbientLight(0x101418, 0.6));
-      // Earth in sky
+      s.background = new THREE.Color(0x000000);
+      s.add(makeStars(6000, 40000, 1.25));
+      const sun = new THREE.DirectionalLight(0xffa458, 4.4); sun.position.set(1400, 900, -600);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.left = -900; sun.shadow.camera.right = 900;
+      sun.shadow.camera.top = 900; sun.shadow.camera.bottom = -900;
+      sun.shadow.camera.far = 4200; sun.shadow.bias = -0.0008;
+      s.add(sun, sun.target);
+      s.add(new THREE.AmbientLight(0x0b0f14, 0.4));        /* earthshine only: airless means hard contrast */
+      const mrim = new THREE.DirectionalLight(0x8fbaff, 1.5); mrim.position.set(-1300, 260, 1500); s.add(mrim);
+      // Earth in the sky: ~4 deg across (a real lunar viewpoint is ~1.9 deg — doubled for the hero beat)
       const et = G.assets?.earthDay ? new THREE.TextureLoader().load(G.assets.earthDay) : fallbackEarth();
-      const earth = new THREE.Mesh(new THREE.SphereGeometry(340, 48, 32), new THREE.MeshBasicMaterial({ map: et }));
-      earth.position.set(-1200, 800, -1900); earth.name = 'earthSky';
+      const earth = new THREE.Mesh(new THREE.SphereGeometry(130, 48, 32), new THREE.MeshBasicMaterial({ map: et }));
+      earth.position.set(1000, 720, -2040); earth.name = 'earthSky';
       s.add(earth);
-      const rimE = new THREE.Sprite(new THREE.SpriteMaterial({ map: G.tex.glow, color: 0x5588ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending }));
-      rimE.scale.setScalar(900); rimE.position.copy(earth.position); s.add(rimE);
+      const rimE = new THREE.Sprite(new THREE.SpriteMaterial({ map: G.tex.glow, color: 0x4d86ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending }));
+      rimE.scale.setScalar(300); rimE.position.copy(earth.position); s.add(rimE);
     } else {
       s.background = new THREE.Color(0x000000);
       // martian gradient sky dome
@@ -7037,24 +7079,36 @@ G.world = (() => {
         vertexShader: `varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
         fragmentShader: `varying vec3 vP; uniform vec3 sunDir;
           void main(){ vec3 d=normalize(vP); float h=clamp(d.y,0.0,1.0);
-            vec3 low=vec3(0.82,0.45,0.28), high=mix(vec3(0.45,0.25,0.18),vec3(0.28,0.30,0.34),pow(h,0.6));
-            vec3 col=mix(low,high,pow(h,0.42));
+            vec3 low=vec3(0.86,0.42,0.18), high=mix(vec3(0.56,0.30,0.16),vec3(0.42,0.32,0.30),pow(h,0.55));
+            vec3 col=mix(low,high,pow(h,0.40));
+            col += vec3(0.10,0.06,0.03)*(1.0-pow(h,0.5))*smoothstep(0.02,0.30,h);   /* dust haze banding */
             float sd=max(0.0,dot(d,normalize(sunDir)));
-            col += vec3(1.0,0.8,0.6)*pow(sd,220.0)*3.0 + vec3(1.0,0.6,0.35)*pow(sd,8.0)*0.12;
+            /* real Mars skies go BLUE toward the sun: fine dust forward-scatters the red out of the beam */
+            col += vec3(0.80,0.88,1.00)*pow(sd,900.0)*1.7;
+            col += vec3(0.48,0.62,0.92)*pow(sd,10.0)*0.55;
+            col += vec3(1.00,0.72,0.46)*pow(sd,3.0)*0.10;
             float below=smoothstep(0.0,-0.06,d.y);
-            col = mix(col, vec3(0.62,0.33,0.2), below);
+            col = mix(col, vec3(0.58,0.32,0.19), below);
             gl_FragColor=vec4(col,1.0); }`,
         side: THREE.BackSide, depthWrite: false,
       }));
       s.add(dome);
-      const sun = new THREE.DirectionalLight(0xffd9b0, 2.4); sun.position.set(2400, 1600, -2800);
-      s.add(sun);
-      s.add(new THREE.AmbientLight(0x63402c, 0.85));
-      s.fog = new THREE.FogExp2(0xa05a32, 3.4e-5);
+      const sun = new THREE.DirectionalLight(0xffe0bc, 3.4); sun.position.set(2400, 1600, -2800);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.left = -900; sun.shadow.camera.right = 900;
+      sun.shadow.camera.top = 900; sun.shadow.camera.bottom = -900;
+      sun.shadow.camera.far = 6000; sun.shadow.bias = -0.0008;
+      s.add(sun, sun.target);
+      s.add(new THREE.AmbientLight(0x5a3a26, 0.55));
+      const mrim = new THREE.DirectionalLight(0x7fa4e8, 1.1); mrim.position.set(-2200, 500, 2600); s.add(mrim);
+      s.fog = new THREE.FogExp2(0x9a5c36, 3.0e-5);
     }
     // terrain
     const tex = kind === 'moon' ? G.tex.moonGround : G.tex.marsGround;
-    tex.repeat.set(2, 2);
+    tex.repeat.set(10, 10);
+    const bump = G.tex.steelRough.clone(); bump.needsUpdate = true;
+    bump.wrapS = bump.wrapT = THREE.RepeatWrapping; bump.repeat.set(260, 260);
     const SIZE = 12000, SEG = 128;
     const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
     geo.rotateX(-Math.PI / 2);
@@ -7062,45 +7116,52 @@ G.world = (() => {
     const cv = tex.image, ctx2 = cv.getContext('2d'), img = ctx2.getImageData(0, 0, cv.width, cv.height).data;
     const pos = geo.attributes.position;
     const amp = kind === 'moon' ? 190 : 120;
-    for (let i = 0; i < pos.count; i++) {
-      const px = (pos.getX(i) / SIZE + 0.5) * cv.width | 0, pz = (pos.getZ(i) / SIZE + 0.5) * cv.height | 0;
+    const dispAt = (gx, gz) => {
+      const px = (gx / SIZE + 0.5) * cv.width | 0, pz = (gz / SIZE + 0.5) * cv.height | 0;
       const idx = ((pz % cv.height) * cv.width + (px % cv.width)) * 4;
       const lum = (img[idx] + img[idx + 1] + img[idx + 2]) / 3 / 255;
-      const d = Math.hypot(pos.getX(i), pos.getZ(i)) / (SIZE * 0.5);
+      const d = Math.hypot(gx, gz) / (SIZE * 0.5);
       const edge = U.sstep(1.0, 0.55, d);
-      pos.setY(i, (lum - 0.5) * amp * edge + (kind === 'moon' ? -Math.pow(lum, 3) * 60 * edge : 0));
-    }
+      return (lum - 0.5) * amp * edge + (kind === 'moon' ? -Math.pow(lum, 3) * 60 * edge : 0);
+    };
+    W.dispAt = W.dispAt || {}; W.dispAt[kind] = dispAt;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, dispAt(pos.getX(i), pos.getZ(i)));
     geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: kind === 'moon' ? 0.96 : 0.92, metalness: 0.0, color: 0xffffff });
+    const mat = new THREE.MeshStandardMaterial({ map: tex, bumpMap: bump, bumpScale: kind === 'moon' ? 1.2 : 2.2, roughness: kind === 'moon' ? 0.96 : 0.92, metalness: 0.0, color: kind === 'moon' ? 0xe0d4bc : 0xa95a26 });
     const ground = new THREE.Mesh(geo, mat);
     ground.receiveShadow = true; ground.name = 'ground';
     s.add(ground);
     // rocks
     const rockGeo = new THREE.IcosahedronGeometry(1, 0);
     const rockMat = new THREE.MeshStandardMaterial({ color: kind === 'moon' ? 0x8a8a88 : 0x7a4326, roughness: 1, flatShading: true });
-    const NROCK = kind === 'moon' ? 320 : 260;
+    const NROCK = kind === 'moon' ? 420 : 340;
     const rocks = new THREE.InstancedMesh(rockGeo, rockMat, NROCK);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pv = new THREE.Vector3();
     const rnd = G.util.mulberry(kind === 'moon' ? 51 : 52);
     for (let i = 0; i < NROCK; i++) {
       pv.set((rnd() - 0.5) * SIZE * 0.8, 0, (rnd() - 0.5) * SIZE * 0.8);
-      const gsz = 1.2 + Math.pow(rnd(), 3) * 22;
+      pv.y = dispAt(pv.x, pv.z) - 0.25;              /* sit ON the displaced terrain, not at y=0 */
+      const near = Math.hypot(pv.x, pv.z) < 1300;
+      const gsz = (near ? 4 + Math.pow(rnd(), 1.6) * 34 : 1.2 + Math.pow(rnd(), 3) * 22);
       sc.set(gsz * (0.6 + rnd() * 0.8), gsz * (0.5 + rnd() * 0.5), gsz * (0.6 + rnd() * 0.8));
       q.setFromAxisAngle(new THREE.Vector3(rnd(), rnd() + 0.3, rnd()), rnd() * 7);
       m4.compose(pv, q, sc); rocks.setMatrixAt(i, m4);
     }
-    rocks.castShadow = kind === 'mars';
+    rocks.castShadow = true; rocks.receiveShadow = true;
     s.add(rocks);
     s.userData.body = { radius: body, kind, ground };
     return s;
   }
 
   /* ---------- switch scenes with fade ---------- */
+  /* per-scene exposure: a black-sky scene needs more, a blown-sky scene less */
+  const EXPO = { pad: 0.71, space: 1.18, moon: 0.94, mars: 1.02 };
   let fadeCb = null;
   W.switchTo = function (name, near, far, fade = true) {
     const doSwitch = () => {
       active = name;
       renderPass.scene = scenes[name];
+      if (EXPO[name] !== undefined) renderer.toneMappingExposure = EXPO[name];
       cam.near = near; cam.far = far; cam.updateProjectionMatrix();
       bloomPass.strength = name === 'pad' ? 0.62 : 0.5;
     };
@@ -7120,8 +7181,12 @@ G.world = (() => {
       earthGroup.getObjectByName('earth').rotation.y = -rot;
       earthGroup.getObjectByName('clouds').rotation.y = -rot + metSec * 1e-5;
       const sd = spaceLights.sun.position.clone().normalize();
-      earthGroup.getObjectByName('earth').material.uniforms.sunDir.value.copy(sd);
-      earthGroup.getObjectByName('rim').material.uniforms.sunDir.value.copy(sd);
+      /* getObjectByName can hit a Phong-shelled twin with no uniforms — guard both (this threw
+         an uncaught TypeError on every frame of the geocentric beats) */
+      for (const nm of ['earth', 'rim']) {
+        const o = earthGroup.getObjectByName(nm);
+        if (o && o.material && o.material.uniforms && o.material.uniforms.sunDir) o.material.uniforms.sunDir.value.copy(sd);
+      }
     }
     // sun light & sprite toward real sun direction
     const dE = G.planetLon(date, 'earth');
@@ -7159,6 +7224,101 @@ G.world = (() => {
   };
   W.setEarthSpinFromSite = function (lonRad) { /* orientation handled via planetLon */ };
   return W;
+})();
+
+/* ==== 25_env.js ==== */
+/* ============================================================
+   STARSHIP ODYSSEY — environments: procedural IBL per scene family
+   Every scene gets an environment map (metal reads as metal) plus a
+   key / rim / fill relationship. No flat single-light scenes.
+   ============================================================ */
+G.env = (() => {
+  const U = G.util;
+  const E = { maps: {} };
+  let renderer = null, pmrem = null;
+
+  /* ---- bake an equirect canvas into a PMREM cube ---- */
+  function bake(name, paintFn) {
+    if (!pmrem) return null;
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    paintFn(c, c.getContext('2d'));
+    const t = new THREE.CanvasTexture(c);
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    t.encoding = THREE.sRGBEncoding;
+    const rt = pmrem.fromEquirectangular(t);
+    E.maps[name] = rt.texture;
+    if (E.rtHandles) E.rtHandles.push(rt); else E.rtHandles = [rt];
+    return rt.texture;
+  }
+
+  /* gradient sky + sun disc helper (equirect: u = azimuth 0..1, v = 0 top .. 1 bottom) */
+  function skyCanvas(c, x, cfg) {
+    const g = x.createLinearGradient(0, 0, 0, 128);
+    for (const [stop, col] of cfg.stops) { g.addColorStop(stop, col); }
+    x.fillStyle = g; x.fillRect(0, 0, 256, 128);
+    if (cfg.sun) {
+      const [su, sv, sr, si] = cfg.sun;
+      const rg = x.createRadialGradient(su, sv, 0, su, sv, sr);
+      rg.addColorStop(0, `rgba(255,252,245,${si})`);
+      rg.addColorStop(0.25, `rgba(255,236,200,${si * 0.5})`);
+      rg.addColorStop(1, 'rgba(255,220,170,0)');
+      x.fillStyle = rg; x.beginPath(); x.arc(su, sv, sr, 0, 7); x.fill();
+    }
+    if (cfg.band) {                          /* faint galactic band across the sphere */
+      x.save(); x.globalAlpha = cfg.band; x.translate(128, 64); x.rotate(0.5);
+      const bg = x.createLinearGradient(0, -26, 0, 26);
+      bg.addColorStop(0, 'rgba(120,140,190,0)');
+      bg.addColorStop(0.5, 'rgba(190,200,235,0.9)');
+      bg.addColorStop(1, 'rgba(120,140,190,0)');
+      x.fillStyle = bg; x.fillRect(-160, -26, 320, 52); x.restore();
+    }
+    return c;
+  }
+
+  E.init = function (rex) {
+    renderer = rex;
+    pmrem = new THREE.PMREMGenerator(renderer);
+    /* deep space: near-black, faint band, one hard sun */
+    bake('space', (c, x) => skyCanvas(c, x, {
+      stops: [[0, '#020204'], [0.5, '#030306'], [1, '#010103']],
+      sun: [40, 52, 26, 1.0], band: 0.16,
+    }));
+    /* lunar surface: airless black sky, sunlit grey bounce from the ground */
+    bake('moon', (c, x) => skyCanvas(c, x, {
+      stops: [[0, '#000000'], [0.55, '#030303'], [0.75, '#2a2a29'], [1, '#6c6c68']],
+      sun: [200, 40, 14, 1.0],
+    }));
+    /* Mars: dusty butterscotch dome, brighter toward the sun, dust haze at the horizon */
+    bake('mars', (c, x) => skyCanvas(c, x, {
+      stops: [[0, '#8a6647'], [0.45, '#a87a52'], [0.7, '#c2884f'], [1, '#9c5f38']],
+      sun: [150, 46, 30, 0.95],
+    }));
+    return E;
+  };
+
+  /* pad env is rebuilt from the live Sky shader whenever the lighting mode changes */
+  E.padEnvFromSky = function (skyMesh) {
+    if (!pmrem) return null;
+    const s = new THREE.Scene();
+    const clone = new THREE.Sky();
+    clone.scale.setScalar(4000);
+    Object.assign(clone.material.uniforms, {});
+    for (const k in skyMesh.material.uniforms) {
+      if (clone.material.uniforms[k]) clone.material.uniforms[k].value = skyMesh.material.uniforms[k].value;
+    }
+    s.add(clone);
+    if (E.padRT) E.padRT.dispose();
+    E.padRT = pmrem.fromScene(s, 0.04);
+    return E.padRT.texture;
+  };
+
+  E.apply = function (sceneName, scene) {
+    const m = E.maps[sceneName];
+    if (m) scene.environment = m;
+  };
+  E.padRT = null; E.rtHandles = [];
+  return E;
 })();
 
 /* ==== 30_pad.js ==== */
@@ -7205,8 +7365,10 @@ G.pad = (() => {
       pos.setY(i, h);
     }
     g.computeVertexNormals();
+    /* opaque land: the old alphaTest punched holes in the canvas alpha and the whole
+       coastal plain rendered as see-through, leaving the pad standing in the gulf */
     const near = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
-      map: G.tex.starbaseGround, transparent: true, alphaTest: 0.4, roughness: 0.95, metalness: 0,
+      map: G.tex.starbaseGround, roughness: 0.95, metalness: 0,
     }));
     near.receiveShadow = true; near.renderOrder = 2;
     scene.add(near);
@@ -7497,6 +7659,9 @@ G.rocket = (() => {
         const sc = G.world.scenes[w.sceneName];
         sc.attach(ship);
         w.shipObj = ship;
+        /* the GLB root carries a baked 0.001 (model authored in millimetres); attach() bakes that
+           into the node's own scale — remember it, setShip must restore THIS, not the wrapper scale */
+        w.shipScale = ship.scale.clone();
         ship.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
       }
     }
@@ -7506,6 +7671,7 @@ G.rocket = (() => {
     const w = wrappers[R.activeName];
     if (!w || !w.shipObj) return;
     w.shipObj.position.set(x, y, z);
+    if (w.shipScale) w.shipObj.scale.copy(w.shipScale);   /* keep the scale attach() baked in */
     if (q) w.shipObj.quaternion.copy(q);
   };
   /* booster flares/legs etc keep riding root (root now = booster frame after attach) */
@@ -7799,6 +7965,19 @@ G.fx = (() => {
 })();
 
 /* ==== 60_cams.js ==== */
+  function nearestBody(p) {   /* nearest named body in the live scene, in scene units */
+    const sc = G.world.scenes[G.world.active];
+    if (!sc) return null;
+    let best = null, bd = 1e18;
+    sc.traverse(o => {
+      if (o.isMesh && /earth|moon|mars/i.test(o.name || '')) {
+        const d = o.getWorldPosition ? o.getWorldPosition(new THREE.Vector3()).distanceTo(p) : 1e18;
+        if (d > 1 && d < bd) { bd = d; best = o.getWorldPosition(new THREE.Vector3()); }
+      }
+    });
+    return best;
+  }
+
 /* ============================================================
    STARSHIP ODYSSEY — cameras: chase / cockpit / pad / track + shake
    ============================================================ */
@@ -7916,12 +8095,11 @@ G.cams = (() => {
         const hint = G.mission.viewHint || {};
         const vFac = U.clamp((M.vel || 0) / 7500, 0, 1);
         dist = U.clamp(L * 2.15 + (M.vel || 0) * 0.006 * L * 0.012 + L * 0.8, L * 1.15, L * 14);
-        if (G.world.active === 'space' && G.mission.viewFrame === 'geo' && G.mission.warp >= 3600) dist = 8000;   // fast coast: frame planet + arc + marker
-        if (hint.dist) dist *= hint.dist;
+        if (G.world.active === 'space' && G.mission.viewFrame === 'geo' && G.mission.warp >= 3600) dist = 8000;   // fast coast: frame planet + arc + marker        if (hint.dist) dist *= hint.dist;
         dist *= zoom;
         let azBase = M.downAz || 0;
         if (hint.burn) azBase += 0.9;                   // see the engines
-        if (hint.viewBias === 'planet') azBase += Math.PI * 0.8;
+        const planetAnchor = hint.viewBias === 'planet' ? nearestBody(posV) : null;
         const elBase = (hint.burn ? 0.10 : 0.16) + 0.10 * vFac;
         const az = azBase + yawOff + (hint.burn ? 0 : Math.sin(t * 0.07) * 0.05);
         const el = U.clamp(elBase + pitchOff, -0.45, 1.3);
@@ -7931,6 +8109,17 @@ G.cams = (() => {
           Math.sin(el) * dist + L * 0.18,
           Math.cos(el) * Math.cos(az) * dist));
         wantLook = tgt;
+        if (planetAnchor) {
+          /* hero framing for orbit/coast beats: primary behind the ship from the camera */
+          const out = posV.clone().sub(planetAnchor).normalize();
+          const d = U.clamp(Math.min(dist * 0.9, posV.distanceTo(planetAnchor) * 0.45), L * 1.2, 4000);
+          wantPos = posV.clone().add(out.multiplyScalar(d));
+          wantLook = posV.clone();
+        }
+        if (M.pin) {                                   /* pinned hero pose (touchdown epilogues) */
+          wantPos = M.pin.clone();
+          wantLook = (M.pinLook || posV).clone();
+        }
         if (mode === 'surface' && M.groundCam) {
           wantPos = posV.clone().add(M.groundCam);
           wantLook = posV.clone();
@@ -8413,6 +8602,7 @@ G.mission = (() => {
           });
           schedAt(M.met + 265, () => {
             M.phase = 'marsLanded'; S.shipMask.fill(0); S.shipLevel = 0; S.plasma = 0;
+            M.surfaceAlt = 0; M.view.surfaceAlt = 0;
             M.finish('MARS');
             logEvent(M.met, 'TOUCHDOWN — ARCADIA PLANITIA', true);
             G.audio.sfx('touchdown'); G.cams.trauma(0.8);
@@ -8692,6 +8882,9 @@ G.mission = (() => {
     else stackPosePadIdle();
     G.cams.update(dtRaw, M.view);
     M.viewHint.burn = M.burningNow;
+    /* coast & orbit beats: put the planet behind the vehicle so the ship reads as a silhouette */
+    M.viewHint.viewBias = (M.phase === 'parking' || M.phase === 'tliCoast' || M.phase === 'lunarOrbit' ||
+      M.phase === 'heliCruise' || M.phase === 'marsApproach') ? 'planet' : '';
     M.viewHint.dist = M.phase === 'moonDescent'
       ? (G.world.active === 'space' ? 6 : 0.45)
       : M.phase === 'marsApproach' ? (G.world.active === 'space' ? 6 : 0.6)
@@ -8844,6 +9037,7 @@ G.mission = (() => {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: M.route === 'moon' ? 0x38bdf8 : 0xf97316, transparent: true, opacity: 0.6 }));
     line.frustumCulled = false; line.renderOrder = 3;
+    line.visible = (s === G.world.scenes.space);   /* the flight path belongs in flight, not at the pad */
     s.add(line); M.plannedLine = line;
     if (!M.trail) {
       M.trailPts = [];
@@ -8873,6 +9067,31 @@ G.mission = (() => {
     M.finished = true; M.viewFrame = 'surface';
     S.plasma = 0;
     if (M.marker) M.marker.visible = false;
+    /* touchdown epilogue: park the view in the LOCAL body scene, not the last orbit pose */
+    const epiKind = (body || '').toLowerCase();
+    if (epiKind === 'moon' || epiKind === 'mars') {
+      const kind = epiKind;
+      const y = groundY(kind);
+      M.view.pos.set(0, y + 74, 0);
+      M.view.quat.copy(G.rocket.attitude(UP, G.rocket.bellyAxis));
+      M.view.len = 122; M.view.scaleUnits = 1;
+      if (G.rocket.staged) { G.rocket.wrappers[kind].root.visible = false; G.rocket.setShip(0, y, 0, M.view.quat); }
+      else G.rocket.setStack(0, y, 0, M.view.quat);
+      /* hero 3/4 pose: lander low-left third, sky and (Moon) Earth in the upper frame */
+      /* camera on the anti-sun side so the lander reads as a silhouette under the glow */
+      const PINS = { moon: [[-200, 20, 260], [0, 60, 0]], mars: [[-200, 20, 240], [0, 66, 0]] };
+      const pin = PINS[kind];
+      M.view.pin = new THREE.Vector3(pin[0][0], y + pin[0][1], pin[0][2]);
+      M.view.pinLook = new THREE.Vector3(pin[1][0], y + pin[1][1], pin[1][2]);
+      /* the chase solver stops once the mission is done — park the camera itself */
+      const ecam = G.world.cam;
+      if (ecam) {
+        ecam.position.copy(M.view.pin);
+        ecam.lookAt(M.view.pinLook);
+        ecam.near = 0.4; ecam.far = 40000; ecam.updateProjectionMatrix();
+      }
+      G.cams.snap();
+    }
     M.summary = {
       body, days: (M.met / 86400), hours: M.met / 3600,
       dv: M.T.dv, warpMax: cfg.WARP[M.warpIdx],
@@ -9539,9 +9758,46 @@ G.main = (() => {
       vlog('VOX|' + (G.audio.probeCountdown ? G.audio.probeCountdown() : 'NOHOOK'));
     };
 
-    const waitBoot = setInterval(() => {
-      if (!MAIN.ready) return;
+    /* ---- screenshot rig: starship.html?autotest[&mars]&shot ----
+       deterministic frame-stepping; renders on demand; readPixels -> PNG */
+    const SHOT = location.search.includes('shot');
+    const nap = () => new Promise(r => setTimeout(r, 0));
+    window.__shot = SHOT ? {
+      async step(n, dt = 0.0167) {
+        for (let i = 0; i < n; i++) { MAIN.frame(dt); if (i % 30 === 29) await nap(); }
+        return 'ok';
+      },
+      async until(phase, maxF = 600000, dt = 0.05) {
+        let n = 0;
+        while (G.mission.phase !== phase && n < maxF) {
+          MAIN.frame(dt); n++;
+          if (n % 20 === 19) await nap();        /* let scene-switch fades fire */
+        }
+        for (let i = 0; i < 30; i++) MAIN.frame(dt);
+        await new Promise(r => setTimeout(r, 900));   /* let any pending switchTo fade fire */
+        return `${phase}@${G.mission.phase}+${n}`;
+      },
+      snapcam() { const V = G.mission.view; if (V.pin) { G.world.cam.position.copy(V.pin); G.world.cam.lookAt(V.pinLook || new THREE.Vector3(0, 0, 0)); G.world.cam.updateProjectionMatrix(); return 'pinned'; } G.cams.snap(); G.cams.update(6, V); return 'ok'; },
+      render() { try { if (!MAIN.ready) throw new Error('not ready'); G.world.composer.render(); return 'ok'; } catch (e) { MAIN.err = (MAIN.err || '') + '|render:' + e.message; return 'ERR'; } },
+      png() {
+        const gl = G.world.renderer ? G.world.renderer.getContext() : null;
+        if (!gl) return 'NOGL';
+        const w2 = gl.drawingBufferWidth, hh = gl.drawingBufferHeight;
+        const buf = new Uint8Array(w2 * hh * 4);
+        gl.readPixels(0, 0, w2, hh, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        const c = document.createElement('canvas'); c.width = w2; c.height = hh;
+        const ctx = c.getContext('2d'); const img = ctx.createImageData(w2, hh);
+        for (let y = 0; y < hh; y++) img.data.set(buf.slice((hh - 1 - y) * w2 * 4, (hh - 1 - y + 1) * w2 * 4), y * w2 * 4);
+        ctx.putImageData(img, 0, 0);
+        return c.toDataURL('image/png');
+      },
+      err() { return MAIN.err || ''; },
+    } : null;
+
+    const waitBoot = setInterval(async () => {
+      if (!MAIN.ready) { return; }
       clearInterval(waitBoot);
+      if (SHOT) { window.__shotReady = true + ''; return; }
       if (FRAMING) { framingRun(); return; }
       if (location.search.includes('vox')) { voxRun(); return; }
       if (VISUAL) { visualRun(); return; }
