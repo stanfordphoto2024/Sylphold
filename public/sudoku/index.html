@@ -108,7 +108,7 @@
   .reason li code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
   @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .cell img.pk, .pad button img.pk { width: 78%; height: 78%; object-fit: contain; pointer-events: none; }
-  .pad button img.pk { width: 26px; height: 26px; }
+  .pad button img.pk { width: 26px; height: 26px; display: block; }
   .cell > span { position: relative; display: grid; place-items: center; }
   body.iconimg .cell.hintc > span::after { content: ""; position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); width: 46%; height: 2px; border-radius: 1px; background: var(--hintc); }
   .toolwrap { position: relative; display: inline-flex; }
@@ -119,7 +119,8 @@
   .menu button[aria-checked="true"]::after { content: '\2713'; margin-left: auto; color: var(--accent); }
   .pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
   .pad button {
-    position: relative; border: 0; border-radius: 9px; background: var(--panel); color: var(--accent);
+    position: relative; display: grid; place-items: center; min-height: 46px;
+    border: 0; border-radius: 9px; background: var(--panel); color: var(--accent);
     box-shadow: var(--shadow); font: inherit; font-size: 19px; font-weight: 600; padding: 10px 0 8px; cursor: pointer;
     transition: transform .1s, background .12s, opacity .12s; font-variant-numeric: tabular-nums;
   }
@@ -754,10 +755,16 @@ function nextStep(g, opts = {}) {
 
 /* run one assumption out as far as the ladder can push it, so a trial says *where* it breaks */
 function contradiction(c, st, base) {
-  for (let i = 0; i < 81; i++) if (base[i] && !c[i] && !st.eff[i]) return `${coord(i)} is left with no candidate at all`;
+  for (let i = 0; i < 81; i++) if (base[i] && !c[i] && !st.eff[i]) {
+    const why = digitsOf(base[i]).map(d => whyNot(st, c, i, d)).filter(Boolean);
+    return `${coord(i)} is left with no candidate at all` + (why.length ? ` (${why.join('; ')})` : '');
+  }
   for (const u of UNITS) for (let d = 1; d <= 9; d++) {
     if (u.some(i => st.eff[i] === d)) continue;
-    if (!u.some(i => !st.eff[i] && (c[i] & BITS[d]))) return `no cell of ${unitName(u)} can take ${d} any more`;
+    if (!u.some(i => !st.eff[i] && (c[i] & BITS[d]))) {
+      const why = u.filter(i => !st.eff[i] && (base[i] & BITS[d])).map(i => whyNot(st, c, i, d)).filter(Boolean);
+      return `no cell of ${unitName(u)} can take ${vname(d)} any more` + (why.length ? ` (${why.join('; ')})` : '');
+    }
   }
   return null;
 }
