@@ -135,11 +135,12 @@ canvas#board:disabled, canvas#board.thinking { cursor: progress; }
 
 /* ---------- suggestions ---------- */
 .sug { border: 1px solid var(--stroke-2); border-radius: 12px; padding: 11px 13px; margin-bottom: 9px; background: var(--panel-2);
-  cursor: pointer; transition: transform .24s var(--ease), border-color .22s var(--ease), background .22s var(--ease), opacity .22s var(--ease); }
-.sug.enter { animation: rise .26s var(--ease) both; }
-.sug.leaving { opacity: 0; transform: scale(.97) translateY(4px); pointer-events: none; }
+  cursor: pointer; will-change: transform;
+  transition: transform .2s cubic-bezier(.645,.045,.355,1), border-color .22s ease, background .22s ease, opacity .2s ease; }
+/* on-screen reordering is movement → ease-in-out; entering/exiting → ease-out */
+.sug.enter { animation: rise .22s var(--ease) both; }
+.sug.leaving { opacity: 0; transform: scale(.98); pointer-events: none; }
 .sug.gone { display: none; }
-.sug:hover { transform: translateY(-2px); border-color: rgba(224,145,63,.35); }
 .sug.pinned { border-color: rgba(224,145,63,.6); background: rgba(224,145,63,.07); }
 .sug-top { display: flex; align-items: center; gap: 9px; }
 .rank { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; font-weight: 700;
@@ -150,7 +151,10 @@ canvas#board:disabled, canvas#board.thinking { cursor: progress; }
 .tag { font-size: 10.5px; padding: 3px 7px; border-radius: 20px; background: rgba(226,205,168,.08); color: var(--ink-dim); }
 .wr { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 650; }
 .wrbar { height: 4px; border-radius: 4px; margin-top: 8px; background: rgba(226,205,168,.09); overflow: hidden; }
-.wrbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius: 4px; transition: width .5s var(--ease); }
+/* bar fills use transform, not width — width triggers layout on every live tick */
+.wrbar i { display: block; height: 100%; width: 100%; transform-origin: left center; transform: scaleX(0);
+  background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius: 4px; will-change: transform;
+  transition: transform .2s cubic-bezier(.645,.045,.355,1); }
 .expl { margin-top: 8px; font-size: 12.5px; line-height: 1.65; color: var(--ink-dim); }
 .expl b { color: var(--ink); font-weight: 600; }
 .expl ul { margin: 4px 0 0; padding-left: 16px; }
@@ -219,6 +223,19 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
   .panel-col { margin-top: 16px; overflow: visible; }
   header { flex-wrap: wrap; gap: 10px; }
   header .spacer { flex: 1 1 auto; }
+}
+
+/* ---------- hover / motion preferences ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .sug:hover { transform: translateY(-2px); border-color: rgba(224,145,63,.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* keep opacity / colour changes, drop movement */
+  .sug { transition: opacity .2s ease, border-color .2s ease, background .2s ease; }
+  .sug.enter { animation: none; }
+  .sug:hover { transform: none; }
+  .wrbar i { transition: opacity .2s ease; }
+  .sug.enter, .sug.leaving { transform: none; }
 }
 
 </style>
@@ -1702,7 +1719,8 @@ const I18N = {
       if (!el.isConnected) continue;
       el.classList.add('leaving'); setTimeout(() => { el.classList.add('gone'); setTimeout(() => el.remove(), 240); }, 10);
     }
-    /* FLIP step 2 — invert and play */
+    /* FLIP step 2 — invert and play (skipped when the user prefers reduced motion) */
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     for (const item of items) {
       const el = sugRows.get(item.p); const f = first.get(item.p); if (!el || !f) continue;
       const l = el.getBoundingClientRect(), dy = f.top - l.top;
@@ -1727,8 +1745,8 @@ const I18N = {
     set(el._rank, 'v', String(i + 1));
     set(el._coord, 'v', coordName(item.p));
     set(el._wr, 'v', (item.wr * 100).toFixed(0) + '%');
-    const w = Math.max(4, Math.round(item.wr * 100)) + '%';
-    if (el._bar.style.width !== w) el._bar.style.width = w;
+    const sx = (Math.max(2, Math.round(item.wr * 100)) / 100).toFixed(3);
+    if (el._bar.style.transform !== 'scaleX(' + sx + ')') el._bar.style.transform = 'scaleX(' + sx + ')';
     const tagKey = tags.join('|'), lineKey = lines.join('|');
     if (el._tags.dataset.v !== tagKey) { el._tags.dataset.v = tagKey;
       el._tags.innerHTML = tags.map(g => `<span class="tag">${g}</span>`).join(''); }
