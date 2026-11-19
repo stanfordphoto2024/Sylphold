@@ -99,9 +99,8 @@ main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(330px, .65
   display: flex; align-items: center; gap: 10px; padding: 8px 14px; min-height: 46px;
   background: var(--panel-2); border: 1px solid var(--stroke-2); border-radius: var(--radius);
 }
-.tray .label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
-.tray .cnt { font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 650; }
-.tray .stones { display: flex; flex-wrap: wrap; gap: 3px; max-width: 60%; }
+.tray { min-height: 34px; padding: 7px 12px; }
+.tray .stones { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
 .mini { width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.25); }
 .mini.b { background: radial-gradient(circle at 35% 30%, #4a4852, #111014 70%); }
 .mini.w { background: radial-gradient(circle at 35% 30%, #ffffff, #cfcabb 75%); }
@@ -234,9 +233,9 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
   </header>
   <main>
     <section class="board-col">
-      <div class="tray" id="tray-ai"><span class="label">AI prisoners</span><span class="cnt">0</span><span class="stones"></span></div>
+      <div class="tray" id="tray-ai"><span class="stones"></span></div>
       <div class="board-wrap"><canvas id="board"></canvas></div>
-      <div class="tray" id="tray-you"><span class="label">You</span><span class="cnt">0</span><span class="stones"></span></div>
+      <div class="tray" id="tray-you"><span class="stones"></span></div>
       <div class="statusbar" id="status"></div>
     </section>
     <aside class="panel-col">
@@ -453,6 +452,74 @@ class Game {
     this.moveNum++; this.lastMove = -1; this.koPoint = -1;
     if (this.passes >= 1) { this.passes = 2; this.over = { type: 'pass', winner: null }; } else this.passes = 1;
     return this.stack[this.stack.length - 1];
+  }
+  groupAt(p) {   /* stones + liberties of the group containing p */
+    if (this.board[p] === EMPTY) return null;
+    const col = this.board[p], seen = new Set([p]), stk = [p], stones = [];
+    let libs = new Set();
+    while (stk.length) { const q = stk.pop(); stones.push(q);
+      for (let k = 0; k < 4; k++) { const a = this.adj[q * 4 + k]; if (a < 0) continue;
+        if (this.board[a] === EMPTY) libs.add(a);
+        else if (this.board[a] === col && !seen.has(a)) { seen.add(a); stk.push(a); } } }
+    return { col, stones, libs: [...libs] };
+  }
+  /* Classic ladder test: can `attacker` capture the group at `root` by pure atari pursuit?
+     Returns true (ladder works), false (it fails / defender escapes into open space). */
+  ladderWorks(root, attacker, budget) {
+    budget = budget || 30;
+    const defender = attacker === BLACK ? WHITE : BLACK;
+    let depth = 0;
+    for (;;) {
+      const g = this.groupAt(root); if (!g) return false;
+      if (g.libs.length === 0) return true;                 /* already captured */
+      if (g.libs.length >= 3 || depth >= budget) return false;
+      if (g.libs.length > 1) return false;                  /* not a ladder shape */
+      /* defender must answer the atari by extending */
+      const esc = g.libs[0];
+      const mv1 = this.tryPlay(esc, defender); if (!mv1) return true;
+      this.play(esc, mv1);
+      const g2 = this.groupAt(esc) || (() => { for (let k = 0; k < 4; k++) { const a = this.adj[esc * 4 + k]; if (a >= 0 && this.board[a] === defender) return this.groupAt(a); } return null; })();
+      depth++;
+      if (!g2 || g2.libs.length >= 3) { this.undo(); return false; }
+      if (g2.libs.length === 0) { this.undo(); return true; }
+      /* attacker re-attributes atari; needs a legal move reducing liberties to 1 without self-atari */
+      let found = false;
+      for (const lib of g2.libs) {
+        const mv = this.tryPlay(lib, attacker); if (!mv) continue;
+        const ok = g2.libs.length - 1 <= 1 || mv.captured.length > 0;
+        this.undo();
+        if (ok) { const mv2 = this.tryPlay(lib, attacker); this.play(lib, mv2); found = true; break; }
+      }
+      if (!found) { this.undo(); return false; }
+      depth++;
+      if (depth > budget) return false;
+    }
+  }
+  ladderWorksFrom(board, firstMove, defenderStone, attacker) {
+    const defender = attacker === BLACK ? WHITE : BLACK, adj = this.adj, log = [];
+    const put = (p, c) => { log.push([p, board[p]]); board[p] = c; };
+    const rollback = () => { while (log.length) { const [p, c] = log.pop(); board[p] = c; } };
+    const grpAt = (p) => { const seen = new Set([p]), stk = [p], stones = []; const libs = [];
+      while (stk.length) { const q = stk.pop(); stones.push(q);
+        for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+          if (board[a] === EMPTY) libs.push(a);
+          else if (board[a] === defender && !seen.has(a)) { seen.add(a); stk.push(a); } } }
+      return { stones, libs }; };
+    put(firstMove, attacker);
+    let g = grpAt(defenderStone);
+    for (let depth = 0; depth < 24; depth++) {
+      if (!g.libs.length) { rollback(); return true; }
+      if (g.libs.length >= 3) { rollback(); return false; }
+      put(g.libs[0], defender);                       /* defender extends */
+      g = grpAt(defenderStone);
+      if (!g.libs.length) { rollback(); return true; }
+      if (g.libs.length >= 3) { rollback(); return false; }
+      put(g.libs[0], attacker);                       /* attacker re-atarises */
+      g = grpAt(defenderStone);
+      if (!g.libs.length) { rollback(); return true; }
+      if (g.libs.length >= 2) { rollback(); return false; }
+    }
+    rollback(); return false;
   }
   _snap() { return { toMove: this.toMove, moveNum: this.moveNum, passes: this.passes, lastMove: this.lastMove, koPoint: this.koPoint, over: this.over }; }
   resign(color) { this.over = { type: 'resign', winner: color === BLACK ? WHITE : BLACK }; return this.over; }
@@ -693,23 +760,32 @@ function tacticalFeatures(game, p, color, scratch) {
    MCTS-PUCT — heuristic priors + tactical rollouts (the "reasoning" core)
    ===================================================================== */
 class MCTS {
+  /* MCTS v2 — PUCT + RAVE/AMAF (Gelly & Silver, MoGo) + progressive widening (pMCTS/bounded UCT)
+     + fill-in rollout counting with eye-filling. All options default to the strongest config;
+     {pw:0, rave:0, fillIn:false} reproduces the legacy plain-UCT behaviour for A/B testing. */
   constructor(game, opts) {
-    this.opts = Object.assign({ c: 1.3, maxNodes: 400000, rootChildren: 36, children: 18, rolloutCap: 120, noise: 0.2 }, opts || {});
+    this.opts = Object.assign({
+      c: 1.2, pwBase: 8, pwAlpha: 0.5, raveN: 400, raveBlendPrior: 60,
+      ladder: true, avoidSelfAtari: true,
+      maxNodes: 400000, rootChildren: 36, children: 20, rolloutCap: 220, noise: 0.25,
+      fillIn: true,
+    }, opts || {});
     this.g = game; this.N = game.N; this.n = game.n;
     this.board = new Uint8Array(this.N); this.owner = new Uint8Array(this.N);
     this.seen = new Int32Array(this.N); this.stk = new Int32Array(this.N);
+    this._seen2 = new Int32Array(this.N);
     this.rand = mulberry32(0xC0FFEE);
     this.capturedBy = [0, 0, 0];
   }
   reset(rootColor, seed) {
     this.rootColor = rootColor; this.toMove = rootColor;
     if (seed != null) this.rand = mulberry32(seed);
-    this.board.set(this.g.board); this.capturedBy = [0, 0, 0];
+    this.board.set(this.g.board); this.capturedBy = [this.g.capturedBy[0], this.g.capturedBy[1], 0];
     this.hist = new Set(this.g.histSeq); this.lastMove = this.g.lastMove;
     this.nodes = []; this.root = this._mk(-1, 0, -1); this.root.untried = this._candidates(rootColor, this.lastMove, this.opts.rootChildren);
-    this.noised = false;
+    this.noised = false; this.raveOn = this.opts.raveN > 0;
   }
-  _mk(move, color, parent) { return { move, color, parent, children: [], n: 0, w: 0, prior: 1, untried: null }; }
+  _mk(move, color, parent) { return { move, color, parent, children: [], n: 0, w: 0, prior: 1, untried: null, amaf: null }; }
   _grp(p) {   /* fast group finder on this.board */
     const board = this.board, adj = this.g.adj, seen = this.seen, stk = this.stk, col = board[p];
     if (col === EMPTY) return null;
@@ -722,7 +798,7 @@ class MCTS {
         else if (board[a] === col && seen[a] !== this._stamp) { seen[a] = this._stamp; stk[sp++] = a; } } }
     return { col, size, libs };
   }
-  _apply(p, color) {   /* returns undo record or null (illegal) */
+  _apply(p, color) {   /* returns undo record or null (illegal); tracks prisoners for rollouts */
     const board = this.board, adj = this.g.adj, enemy = color === BLACK ? WHITE : BLACK;
     if (board[p] !== EMPTY) return null;
     board[p] = color;
@@ -737,12 +813,16 @@ class MCTS {
         selfCap = true; for (const s of this._groupList(p)) { ownRemoved.push(s); board[s] = EMPTY; }
       }
     }
-    return { p, color, captured, ownRemoved, selfCap };
+    this.capturedBy[color] += captured.length;
+    if (selfCap) this.capturedBy[enemy] += ownRemoved.length;
+    let ownLibsAfter = 9;
+    if (!selfCap) { const grp = this._grp(p); if (grp) ownLibsAfter = captured.length ? grp.libs + captured.length : grp.libs; }
+    return { p, color, captured, ownRemoved, selfCap, ownLibsAfter };
   }
   _groupList(p) {   /* stones of group at p on current board (after p placed) */
     const board = this.board, adj = this.g.adj, col = board[p], out = [];
     this._stamp2 = (this._stamp2 || 0) + 1;
-    const seen = this._seen2 || (this._seen2 = new Uint32Array(this.N)), stk = this.stk;
+    const seen = this._seen2, stk = this.stk;
     let sp = 0; stk[sp++] = p; seen[p] = this._stamp2;
     while (sp > 0) { const q = stk[--sp]; out.push(q);
       for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a >= 0 && board[a] === col && seen[a] !== this._stamp2) { seen[a] = this._stamp2; stk[sp++] = a; } } }
@@ -750,10 +830,12 @@ class MCTS {
   }
   _undo(rec) {
     if (!rec) return;
-    const board = this.board;
+    const board = this.board, enemy = rec.color === BLACK ? WHITE : BLACK;
+    this.capturedBy[rec.color] -= rec.captured.length;
+    if (rec.selfCap) this.capturedBy[enemy] -= rec.ownRemoved.length;
     if (!rec.selfCap) board[rec.p] = EMPTY;
-    for (const s of rec.captured) board[s] = rec.color === BLACK ? WHITE : BLACK;
-    if (rec.selfCap) board[rec.p] = EMPTY;
+    for (const s of rec.captured) board[s] = enemy;
+    if (rec.selfCap) { for (const s of rec.ownRemoved) board[s] = rec.color; board[rec.p] = EMPTY; }
   }
   _isTrueEye(p, color) {
     const adj = this.g.adj, diag = this.g.diag, b = this.board;
@@ -769,7 +851,16 @@ class MCTS {
       const mv = this._apply(p, color); if (!mv) continue;
       const caps = mv.captured.length, sc = mv.selfCap; this._undo(mv);
       if (sc) continue;
+      let p_ladder = false;
       if (caps) { out.push({ p, pr: 2.6 + 0.5 * Math.min(caps, 5) }); continue; }
+      if (this.opts.ladder) {
+        const enemy = color === BLACK ? WHITE : BLACK;
+        const mv0 = this._apply(p, color); if (!mv0) continue;
+        for (let k = 0; k < 4; k++) { const a = this.g.adj[p * 4 + k]; if (a < 0 || board[a] !== enemy) continue;
+          if (this.g.ladderWorksFrom(board, -1, a, color)) { this._undo(mv0); out.push({ p, pr: 2.2 }); p_ladder = true; break; } }
+        this._undo(mv0);
+        if (p_ladder) continue;
+      }
       if (this._isTrueEye(p, color)) continue;
       let pr = 1.0;
       const r = (p / n) | 0, c = p % n, ed = Math.min(r, c, n - 1 - r, n - 1 - c);
@@ -790,17 +881,29 @@ class MCTS {
     out.sort((a, b) => b.pr - a.pr);
     return out.slice(0, limit);
   }
+  /* rollout policy: capture > save own atari > avoid self-atari > respond near the last move > random */
   _rolloutMove(color, lastMove) {
     const n = this.n, board = this.board, adj = this.g.adj;
-    const cands = []; let capMove = -1, capMax = 0;
+    const cands = []; const ladderCands = []; let capMove = -1, capMax = 0;
     for (let p = 0; p < this.N; p++) {
       if (board[p] !== EMPTY) continue;
       const mv = this._apply(p, color); if (!mv) continue;
       if (mv.selfCap) { this._undo(mv); continue; }
       if (mv.captured.length) { if (mv.captured.length > capMax) { capMax = mv.captured.length; capMove = p; } this._undo(mv); continue; }
+      if (this.opts.avoidSelfAtari && mv.ownLibsAfter <= 1) { this._undo(mv); continue; }
       if (this._isTrueEye(p, color)) { this._undo(mv); continue; }
+      if (this.opts.ladder) {
+        const enemy = color === BLACK ? WHITE : BLACK;
+        let hit = false;
+        for (let k = 0; k < 4; k++) { const a = this.g.adj[p * 4 + k]; if (a < 0 || board[a] !== enemy) continue;
+          if (this.g.ladderWorksFrom(board, p, a, color)) { hit = true; break; } }
+        this._undo(mv);
+        if (hit) { ladderCands.push(p); continue; }
+        cands.push(p); continue;
+      }
       this._undo(mv); cands.push(p);
     }
+    if (ladderCands.length && this.rand() < 0.85) return ladderCands[(this.rand() * ladderCands.length) | 0];
     if (capMove >= 0 && this.rand() < 0.92) return capMove;
     let esc = -1, escS = 0;
     for (const p of cands) for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== color) continue;
@@ -815,67 +918,126 @@ class MCTS {
     }
     return cands[(this.rand() * cands.length) | 0];
   }
-  _evalRoot() {
-    this.g.quickOwner(this.board, this.owner);
+  /* fill-in + eye-filling endgame so the rollout score reflects life & death, not just the last position */
+  _finalFill(startColor) {
+    const undo = [], board = this.board;
+    let color = startColor, guard = 0;
+    while (guard++ < this.N * 2) {
+      const cands = [];
+      for (let p = 0; p < this.N; p++) {
+        if (board[p] !== EMPTY) continue;
+        if (this._isTrueEye(p, color) || this._isTrueEye(p, color === BLACK ? WHITE : BLACK)) continue;
+        cands.push(p);
+      }
+      if (!cands.length) break;
+      const p = cands[(this.rand() * cands.length) | 0];
+      const mv = this._apply(p, color); if (!mv) { /* illegal (suicide off) */ }
+      else undo.push(mv);
+      color = color === BLACK ? WHITE : BLACK;
+    }
+    return undo;
+  }
+  _countFor(color) {   /* area scoring on the current (filled) board, from `color`'s perspective */
+    const board = this.board, adj = this.g.adj, n = this.n;
     let b = 0, w = 0;
-    for (let p = 0; p < this.N; p++) { const o = this.owner[p]; if (o === BLACK) b++; else if (o === WHITE) w++; }
-    const komi = this.g.rules.komi;
-    const diff = this.rootColor === BLACK ? (b - w - komi) : (w + komi - b);
-    return diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
+    for (let p = 0; p < this.N; p++) { if (board[p] === BLACK) b++; else if (board[p] === WHITE) w++; }
+    b += this.capturedBy[BLACK] * 0;   /* area scoring: prisoners already on board as territory */
+    const seen = new Uint8Array(this.N);
+    for (let p = 0; p < this.N; p++) {
+      if (board[p] !== EMPTY || seen[p]) continue;
+      let sp = 0, size = 0, border = 0; const stk = [p]; seen[p] = 1;
+      while (sp < stk.length) { const q = stk[sp++]; size++;
+        for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+          if (board[a] === EMPTY) { if (!seen[a]) { seen[a] = 1; stk.push(a); } }
+          else border = border === 0 ? board[a] : (border === board[a] ? border : -1); } }
+      if (border === BLACK) b += size; else if (border === WHITE) w += size;
+    }
+    const komi = this.g.rules.komi || 0;
+    return (color === BLACK ? (b > w + komi ? 1 : b < w + komi ? 0 : .5) : (w + komi > b ? 1 : w + komi < b ? 0 : .5));
+  }
+  _ucb(node, child, ln) {
+    const base = (child.n ? child.w / child.n : 0) + this.opts.c * (child.prior || 1) * Math.sqrt(ln / Math.max(child.n, 1));
+    if (!this.raveOn || !node.amaf) return base;
+    const a = node.amaf[child.move]; if (!a || !a[1]) return base;
+    /* BAHA-style blend: prior-driven until enough AMAF samples have accumulated */
+    const bn = node.n, pThreshold = this.opts.raveBlendPrior + this.opts.raveN;
+    const beta = Math.min(1, a[1] / Math.max(1, pThreshold)) * Math.max(0, 1 - bn / (bn + pThreshold * 4));
+    return base * (1 - beta) + (a[0] / a[1]) * beta;
   }
   iteration() {
     const g = this.g;
     this.board.set(g.board);
+    this.capturedBy[0] = g.capturedBy[0]; this.capturedBy[1] = g.capturedBy[1];
     const undo = [];
     let node = this.root, color = this.toMove, lastMove = this.lastMove;
     const path = [this.root], colors = [];
-    /* descend while nodes are fully expanded */
-    while (!(node.untried && node.untried.length) && node.children.length) {
-      let best = null, bv = -1e9; const ln = Math.log(Math.max(node.n, 2));
+    const pwB = this.opts.pwBase, pwA = this.opts.pwAlpha;
+    const canWiden = nd => nd.untried && nd.untried.length &&
+      (!pwB || nd.n >= pwB * Math.pow(nd.children.length + 1, pwA));
+    /* selection: descend while this node must not widen yet and has children */
+    while (!canWiden(node) && node.children.length) {
+      const ln = Math.log(Math.max(node.n, 2));
+      let best = null, bv = -1e9;
       for (const ci of node.children) { const ch = this.nodes[ci];
-        const v = (ch.n ? ch.w / ch.n : 0) + this.opts.c * (ch.prior || 1) * Math.sqrt(ln / Math.max(ch.n, 1));
-        if (v > bv) { bv = v; best = ch; } }
+        const v = this._ucb(node, ch, ln); if (v > bv) { bv = v; best = ch; } }
       const mv = this._apply(best.move, color); if (!mv) break;
       undo.push(mv); path.push(best); colors.push(color); node = best;
       lastMove = best.move; color = color === BLACK ? WHITE : BLACK;
     }
-    const mover = color;
-    if (node.untried == null) node.untried = this._candidates(color, lastMove, node === this.root ? this.opts.rootChildren : this.opts.children);
-    if (node === this.root && !this.noised && this.opts.noise && node.untried.length > 1) {
-      for (const o of node.untried) o.pr *= (1 - this.opts.noise) + this.opts.noise * 2 * this.rand();
-      this.noised = true;
-    }
-    let expanded = false;
-    if (node.untried.length) {
-      const i = (this.rand() * node.untried.length) | 0;
-      const pick = node.untried.splice(i, 1)[0];
+    /* expansion: pull one candidate into the tree (highest prior first) */
+    if (node.untried && node.untried.length) {
+      if (node === this.root && !this.noised && this.opts.noise && node.untried.length > 1) {
+        for (const o of node.untried) o.pr *= (1 - this.opts.noise) + this.opts.noise * 2 * this.rand();
+        this.noised = true;
+      }
+      let bi = 0; for (let i = 1; i < node.untried.length; i++) if (node.untried[i].pr > node.untried[bi].pr) bi = i;
+      const pick = node.untried.splice(bi, 1)[0];
       const mv = this._apply(pick.p, color);
       if (mv) {
-        undo.push(mv); expanded = true;
-        const nd = this._mk(pick.p, color, -1); nd.prior = pick.pr; this.nodes.push(nd);
-        node.children.push(this.nodes.length - 1);
+        undo.push(mv);
+        const nd = this._mk(pick.p, color, this.nodes.indexOf(node)); nd.prior = pick.pr;
+        nd.untried = this._candidates(color === BLACK ? WHITE : BLACK, pick.p, this.opts.children);
+        this.nodes.push(nd); node.children.push(this.nodes.length - 1);
         path.push(nd); colors.push(color);
-        color = color === BLACK ? WHITE : BLACK;
+        lastMove = pick.p; color = color === BLACK ? WHITE : BLACK;
       }
     }
+    const mover = colors.length ? colors[colors.length - 1] : this.toMove;
     /* rollout */
+    const amaf = [];
     let lm = lastMove, plies = 0, passes = 0;
     while (plies < this.opts.rolloutCap && passes < 2) {
       const m = this._rolloutMove(color, lm);
-      if (m < 0) passes++; else { const mm = this._apply(m, color); if (!mm) passes++; else { undo.push(mm); lm = m; passes = 0; } }
+      if (m < 0) passes++; else { const mm = this._apply(m, color); if (!mm) passes++; else { undo.push(mm); amaf.push([color, m]); lm = m; passes = 0; } }
       plies++; color = color === BLACK ? WHITE : BLACK;
     }
-    this._backup(path, colors, mover, this._evalRoot());
-    for (let k = undo.length - 1; k >= 0; k--) this._undo(undo[k]);
-    return expanded;
-  }
-    _backup(path, colors, mover, scoreForMover) {
-    /* scoreForMover is from the perspective of the player who moved at the deepest expanded node */
+    if (this.opts.fillIn) this._finalFill(color);
+    const score = this._countFor(mover);
+    /* tree backup from the expanded node up to the root */
     for (let i = path.length - 1; i >= 1; i--) {
       const nd = path[i]; const col = colors[i - 1];   /* colour that played the move leading to nd */
-      nd.n++; nd.w += (col === mover ? scoreForMover : 1 - scoreForMover);
+      nd.n++; nd.w += (col === mover ? score : 1 - score);
+    }
+    /* RAVE/AMAF backup: every node on the path records outcomes of the same-colour moves played after it */
+    if (this.raveOn && amaf.length) {
+      for (let i = 0; i < path.length; i++) {
+        const nd = path[i], moverOfNd = i === 0 ? this.rootColor : colors[i - 1];
+        if (i === 0 && !this.root.children.length) { /* nothing to credit yet */ }
+        if (!nd.amaf) nd.amaf = Object.create(null);
+        for (let j = i; j < path.length - 1; j++) {   /* tree moves after nd (own colour only) */
+          const jc = i === 0 && j === 0 ? this.rootColor : colors[j];
+          if (jc !== moverOfNd) continue;
+          const a = nd.amaf[path[j + 1].move] || (nd.amaf[path[j + 1].move] = [0, 0]);
+          a[1]++; a[0] += (moverOfNd === mover ? score : 1 - score);
+        }
+        /* rollout moves */
+        for (const [col, mv] of amaf) { if (col !== moverOfNd) continue;
+          const a = nd.amaf[mv] || (nd.amaf[mv] = [0, 0]); a[1]++; a[0] += (moverOfNd === mover ? score : 1 - score); }
+      }
     }
     this.root.n++;
+    for (let k = undo.length - 1; k >= 0; k--) this._undo(undo[k]);
+    return path.length > 1;
   }
   async run(maxVisits, onProgress, sliceMs) {
     const t0 = Date.now(); sliceMs = sliceMs || 10;
@@ -890,7 +1052,7 @@ class MCTS {
   stats() {
     return { visits: this.root.n, top: this.root.children.map(i => this.nodes[i]).filter(c => c.n > 0)
       .map(c => ({ p: c.move, n: c.n, wr: c.w / c.n, prior: c.prior }))
-      .sort((a, b) => (b.wr - a.wr) || (b.n - a.n)) };
+      .sort((a, b) => (b.n - a.n) || (b.wr - a.wr)) };
   }
 }
 
@@ -910,7 +1072,7 @@ window.__GO_ENGINE__ = { Game, MCTS, BLACK, WHITE, EMPTY, tacticalFeatures, mulb
 const I18N = {
   zh: {
     appTitle: s => `圍棋 · ${s}路`,
-    appSub: '人腦 × 機器推理',
+    appSub: '機器推理',
     score: '即時形勢 · 計分',
     suggestions: 'AI 建議 · 視覺化推演',
     controls: '對局控制',
@@ -974,7 +1136,7 @@ const I18N = {
   },
   en: {
     appTitle: s => `GO · ${s}×${s}`,
-    appSub: 'Human × Reasoning Engine',
+    appSub: 'Reasoning Engine',
     score: 'Live Score · Counting',
     suggestions: 'AI Suggestions · Visual Reasoning',
     controls: 'Game Controls',
@@ -1405,15 +1567,18 @@ const I18N = {
         ` · ${fmt(sa.B)}–${fmt(sa.W)}`;
     }
     $('#verdict').innerHTML = `<span>${v}</span>${estTag || `<small>${t('komiLabel')} ${fmt(sa.komi)}</small>`}`;
-    $('#tray-you .cnt').textContent = S.game.capturedBy[S.youColor];
-    $('#tray-ai .cnt').textContent = S.game.capturedBy[aiColor()];
     renderTrayStones('#tray-you', S.youColor); renderTrayStones('#tray-ai', aiColor());
     requestAnimationFrame(draw);
   }
-  function renderTrayStones(sel, color) {
-    const el = $(sel + ' .stones'); el.innerHTML = '';
-    const n = Math.min(S.game.capturedBy[color], 40);
-    for (let i = 0; i < n; i++) { const d = document.createElement('i'); d.className = 'mini ' + (color === BLACK ? 'b' : 'w'); el.appendChild(d); }
+  function renderTrayStones(sel, capturer) {
+    /* pure icon strip: each mini stone is a stone that `capturer` took, shown in the colour it had */
+    const el = $(sel), box = el.querySelector('.stones');
+    const n = S.game.capturedBy[capturer];
+    el.style.display = n ? '' : 'none';
+    el.title = t(capturer === S.youColor ? 'youCaptured' : 'aiCaptured') + ' · ' + n;
+    box.innerHTML = '';
+    for (let i = 0; i < Math.min(n, 80); i++) { const d = document.createElement('i');
+      d.className = 'mini ' + (capturer === BLACK ? 'w' : 'b'); box.appendChild(d); }
   }
   function scoreRows(s, side) {
     if (s.terrB === undefined) {   /* area */
@@ -1562,7 +1727,6 @@ const I18N = {
     $('#lbl-ctl').textContent = t('controls');
     $('#lbl-log').textContent = t('log');
     $('#lang-toggle').textContent = S.lang === 'zh' ? 'EN' : '中文';
-    $('#tray-you .label').textContent = t('youCaptured'); $('#tray-ai .label').textContent = t('aiCaptured');
     $('#btn-resign').textContent = t('resign');
     $('#btn-undo').textContent = t('undo'); $('#btn-new').textContent = t('newGame'); $('#btn-end').textContent = t('endGame');
     $('#lbl-you').textContent = t('playAs'); $('#lbl-ruleset').textContent = t('scoringLive');
@@ -1606,7 +1770,6 @@ const I18N = {
     $('#you-white').classList.toggle('on', S.youColor === WHITE);
     $('#sc-b-who').textContent = (S.youColor === BLACK ? t('you') + ' · ' : '') + t('black');
     $('#sc-w-who').textContent = (S.youColor === WHITE ? t('you') + ' · ' : '') + t('white');
-    $('#tray-you .label').textContent = t('youCaptured'); $('#tray-ai .label').textContent = t('aiCaptured');
   }
   function setScoring(sys) {
     S.scoring = sys;
