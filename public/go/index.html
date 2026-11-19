@@ -135,8 +135,10 @@ canvas#board:disabled, canvas#board.thinking { cursor: progress; }
 
 /* ---------- suggestions ---------- */
 .sug { border: 1px solid var(--stroke-2); border-radius: 12px; padding: 11px 13px; margin-bottom: 9px; background: var(--panel-2);
-  cursor: pointer; transition: transform .22s var(--ease), border-color .22s var(--ease), background .22s var(--ease);
-  animation: rise .4s var(--ease) both; }
+  cursor: pointer; transition: transform .24s var(--ease), border-color .22s var(--ease), background .22s var(--ease), opacity .22s var(--ease); }
+.sug.enter { animation: rise .26s var(--ease) both; }
+.sug.leaving { opacity: 0; transform: scale(.97) translateY(4px); pointer-events: none; }
+.sug.gone { display: none; }
 .sug:hover { transform: translateY(-2px); border-color: rgba(224,145,63,.35); }
 .sug.pinned { border-color: rgba(224,145,63,.6); background: rgba(224,145,63,.07); }
 .sug-top { display: flex; align-items: center; gap: 9px; }
@@ -1658,30 +1660,81 @@ const I18N = {
     lines.push(t('expl.searchRank', item.wr, item.n));
     return { tags: tags.slice(0, 3), lines };
   }
+  const sugRows = new Map();   /* point -> persistent row element (no rebuild, no flicker) */
   function renderSuggestions() {
-    const box = $('#sug-list'); box.innerHTML = '';
+    const box = $('#sug-list'); if (!box) return;
+    const items = S.suggestions;
     const cnt = $('#sug-count');
     if (cnt) cnt.innerHTML = S.analyzing
-      ? `<span class="thinking-dot"></span> ${t('analyzing')}… <span class="mono">${S.suggestions.reduce((a, x) => a + x.n, 0)}</span>`
-      : (S.suggestions.length ? `<span class="mono">${S.suggestions.reduce((a, x) => a + x.n, 0)}</span> ${t('visits')}` : '');
-    if (!S.suggestions.length) {
-      box.innerHTML = S.analyzing ? `<div class="muted" style="font-size:12.5px;padding:6px 2px"><span class="thinking-dot"></span> ${t('analyzing')}…</div>` : '';
+      ? `<span class="thinking-dot"></span> ${t('analyzing')}… <span class="mono">${items.reduce((a, x) => a + x.n, 0)}</span>`
+      : (items.length ? `<span class="mono">${items.reduce((a, x) => a + x.n, 0)}</span> ${t('visits')}` : '');
+
+    /* FLIP step 1 — where are the rows we already showed? */
+    const first = new Map();
+    for (const [p, el] of sugRows) if (el.isConnected) first.set(p, el.getBoundingClientRect());
+
+    let ph = box.querySelector('.sug-empty');
+    if (!items.length) {
+      for (const [p, el] of sugRows) { if (el.isConnected) el.remove(); }
+      sugRows.clear();
+      if (!ph) { ph = document.createElement('div'); ph.className = 'muted sug-empty'; ph.style.cssText = 'font-size:12.5px;padding:6px 2px'; box.appendChild(ph); }
+      ph.innerHTML = S.analyzing ? `<span class="thinking-dot"></span> ${t('analyzing')}…` : '';
+      if (!S.analyzing) ph.remove();
       return;
     }
-    S.suggestions.forEach((item, i) => {
-      const { tags, lines } = explainFor(item);
-      const div = document.createElement('div');
-      div.className = 'sug' + (S.pinned === item.p ? ' pinned' : '');
-      div.style.animationDelay = (i * 45) + 'ms';
-      div.innerHTML = `<div class="sug-top">
-          <span class="rank">${i + 1}</span><span class="coord">${coordName(item.p)}</span>
-          ${tags.map(g => `<span class="tag">${g}</span>`).join('')}
-          <span class="wr">${(item.wr * 100).toFixed(0)}%</span></div>
-        <div class="wrbar"><i style="width:${Math.max(4, Math.round(item.wr * 100))}%"></i></div>
-        <div class="expl"><ul>${lines.map(l => `<li>${l}</li>`).join('')}</ul></div>`;
-      div.onclick = () => { S.pinned = S.pinned === item.p ? null : item.p; S.previewPoint = S.pinned; S.previewResult = item.previewOwner; renderSuggestions(); requestAnimationFrame(draw); };
-      box.appendChild(div);
+    if (ph) ph.remove();
+
+    /* build / update rows, appended in ranked order */
+    items.forEach((item, i) => {
+      let el = sugRows.get(item.p), fresh = false;
+      if (!el) {
+        el = document.createElement('div'); el.dataset.p = item.p; sugRows.set(item.p, el); fresh = true;
+        el.onclick = () => { S.pinned = S.pinned === item.p ? null : item.p; S.previewPoint = S.pinned;
+          S.previewResult = (S.suggestions.find(x => x.p === item.p) || {}).previewOwner || null; renderSuggestions(); requestAnimationFrame(draw); };
+      }
+      paintRow(el, item, i, fresh);
+      box.appendChild(el);
     });
+    /* rows that dropped out of the top five slide out */
+    for (const [p, el] of sugRows) {
+      if (items.some(x => x.p === p)) continue;
+      sugRows.delete(p);
+      if (!el.isConnected) continue;
+      el.classList.add('leaving'); setTimeout(() => { el.classList.add('gone'); setTimeout(() => el.remove(), 240); }, 10);
+    }
+    /* FLIP step 2 — invert and play */
+    for (const item of items) {
+      const el = sugRows.get(item.p); const f = first.get(item.p); if (!el || !f) continue;
+      const l = el.getBoundingClientRect(), dy = f.top - l.top;
+      if (Math.abs(dy) < 1) continue;
+      el.style.transition = 'none'; el.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(() => { el.style.transition = ''; el.style.transform = ''; });
+    }
+  }
+  function paintRow(el, item, i, fresh) {
+    /* structure is built once per row; refreshes only patch values in place so the
+       win-rate bar can transition smoothly instead of re-rendering (no flicker) */
+    if (!el.firstChild) {
+      el.innerHTML = `<div class="sug-top"><span class="rank"></span><span class="coord"></span>
+          <span class="tags"></span><span class="wr mono"></span></div>
+        <div class="wrbar"><i></i></div><div class="expl"><ul></ul></div>`;
+      el._rank = el.querySelector('.rank'); el._coord = el.querySelector('.coord');
+      el._tags = el.querySelector('.tags'); el._wr = el.querySelector('.wr'); el._bar = el.querySelector('.wrbar i');
+      el._list = el.querySelector('.expl ul');
+    }
+    const { tags, lines } = explainFor(item);
+    const set = (el2, key, val) => { if (el2.dataset[key] !== val) { el2.dataset[key] = val; el2.textContent = val; } };
+    set(el._rank, 'v', String(i + 1));
+    set(el._coord, 'v', coordName(item.p));
+    set(el._wr, 'v', (item.wr * 100).toFixed(0) + '%');
+    const w = Math.max(4, Math.round(item.wr * 100)) + '%';
+    if (el._bar.style.width !== w) el._bar.style.width = w;
+    const tagKey = tags.join('|'), lineKey = lines.join('|');
+    if (el._tags.dataset.v !== tagKey) { el._tags.dataset.v = tagKey;
+      el._tags.innerHTML = tags.map(g => `<span class="tag">${g}</span>`).join(''); }
+    if (el._list.dataset.v !== lineKey) { el._list.dataset.v = lineKey;
+      el._list.innerHTML = lines.map(l => `<li>${l}</li>`).join(''); }
+    el.className = 'sug' + (S.pinned === item.p ? ' pinned' : '') + (fresh ? ' enter' : '');
   }
 
   /* =====================================================================
