@@ -1,1 +1,1624 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圍棋 19路 · 人腦 × 機器推理｜Go 19×19</title>
+<meta name="description" content="Single-file Go board: real-time scoring, Chinese & Japanese-Korean rules, MCTS reasoning assistant.">
+<style>
+/* ============================================================
+   GO 19 — design tokens & layout  (dark "sumi & kaya" theme)
+   ============================================================ */
+:root {
+  --bg: #14110f;
+  --bg-2: #1b1714;
+  --panel: rgba(30, 25, 21, 0.82);
+  --panel-2: rgba(38, 32, 26, 0.7);
+  --stroke: rgba(226, 205, 168, 0.14);
+  --stroke-2: rgba(226, 205, 168, 0.08);
+  --ink: #efe6d6;
+  --ink-dim: #b7a98f;
+  --ink-faint: #7d715d;
+  --wood: #d9a24f;
+  --accent: #e0913f;
+  --accent-2: #6fb3a0;
+  --black-stone: #16151a;
+  --white-stone: #f2eee2;
+  --danger: #cf5f4e;
+  --good: #7fbf7a;
+  --radius: 14px;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+  --bg: #efe7d8;
+  --bg-2: #e7dcca;
+  --panel: rgba(252, 248, 240, 0.9);
+  --panel-2: rgba(246, 239, 227, 0.8);
+  --stroke: rgba(60, 45, 25, 0.16);
+  --stroke-2: rgba(60, 45, 25, 0.09);
+  --ink: #2a2118;
+  --ink-dim: #6b5c47;
+  --ink-faint: #98876e;
+  --shadow: 0 18px 40px rgba(90, 65, 30, 0.18);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font-family: var(--font); color: var(--ink);
+  background:
+    radial-gradient(1200px 800px at 15% -10%, rgba(224, 145, 63, 0.12), transparent 60%),
+    radial-gradient(900px 700px at 110% 20%, rgba(111, 179, 160, 0.10), transparent 60%),
+    linear-gradient(160deg, var(--bg) 0%, var(--bg-2) 100%);
+  min-height: 100vh;
+  letter-spacing: .01em;
+  -webkit-font-smoothing: antialiased;
+}
+.app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
 
+/* ---------- header ---------- */
+header {
+  display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+  border-bottom: 1px solid var(--stroke-2);
+  animation: fadeDown .5s var(--ease) both;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand h1 { font-size: 19px; margin: 0; font-weight: 650; letter-spacing: .06em; }
+.brand .sub { color: var(--ink-faint); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; }
+.spacer { flex: 1; }
+
+/* ---------- layout ---------- */
+main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(330px, .65fr); gap: 18px; padding: 18px 22px 22px; min-height: 0; }
+.board-col { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; }
+.panel-col { overflow: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.panel-col::-webkit-scrollbar { width: 10px; }
+.panel-col::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 20px; }
+
+/* ---------- cards ---------- */
+.card {
+  background: var(--panel); border: 1px solid var(--stroke-2); border-radius: var(--radius);
+  box-shadow: var(--shadow); backdrop-filter: blur(8px);
+  animation: rise .5s var(--ease) both;
+}
+.panel-col .card:nth-child(1) { animation-delay: .05s; }
+.panel-col .card:nth-child(2) { animation-delay: .11s; }
+.panel-col .card:nth-child(3) { animation-delay: .17s; }
+.panel-col .card:nth-child(4) { animation-delay: .23s; }
+.panel-col .card:nth-child(5) { animation-delay: .29s; }
+.card > .head {
+  display: flex; align-items: center; gap: 10px; padding: 13px 16px 10px;
+  font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim);
+}
+.card > .head .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.card > .body { padding: 4px 16px 16px; }
+
+/* ---------- board ---------- */
+.tray {
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px; min-height: 46px;
+  background: var(--panel-2); border: 1px solid var(--stroke-2); border-radius: var(--radius);
+}
+.tray .label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+.tray .cnt { font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 650; }
+.tray .stones { display: flex; flex-wrap: wrap; gap: 3px; max-width: 60%; }
+.mini { width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.25); }
+.mini.b { background: radial-gradient(circle at 35% 30%, #4a4852, #111014 70%); }
+.mini.w { background: radial-gradient(circle at 35% 30%, #ffffff, #cfcabb 75%); }
+.board-wrap { position: relative; display: grid; place-items: center; min-height: 0; }
+canvas#board {
+  border-radius: 10px; box-shadow: 0 30px 70px rgba(0,0,0,.55), 0 4px 14px rgba(0,0,0,.4);
+  cursor: pointer; transition: filter .3s var(--ease);
+  max-width: 100%; max-height: 100%;
+}
+canvas#board:disabled, canvas#board.thinking { cursor: progress; }
+.statusbar {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  background: var(--panel-2); border: 1px solid var(--stroke-2); border-radius: var(--radius);
+  font-size: 13px; color: var(--ink-dim);
+}
+.turn-stone { width: 15px; height: 15px; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.turn-stone.b { background: radial-gradient(circle at 35% 30%, #4a4852, #0d0c10 70%); }
+.turn-stone.w { background: radial-gradient(circle at 35% 30%, #ffffff, #cfcabb 75%); }
+
+/* ---------- score ---------- */
+.score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.score-cell { background: var(--panel-2); border: 1px solid var(--stroke-2); border-radius: 12px; padding: 12px 14px; transition: .3s var(--ease); }
+.score-cell.active { border-color: rgba(224,145,63,.5); box-shadow: 0 0 0 1px rgba(224,145,63,.22), 0 8px 22px rgba(0,0,0,.3); }
+.score-cell .who { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-dim); letter-spacing: .1em; text-transform: uppercase; }
+.score-cell .num { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 6px; transition: .35s var(--ease); }
+.score-cell .num.bump { transform: scale(1.12); }
+.score-cell .rows { margin-top: 8px; display: grid; gap: 3px; font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.score-cell .rows div { display: flex; justify-content: space-between; gap: 10px; }
+.verdict { margin-top: 12px; padding: 11px 14px; border-radius: 12px; background: linear-gradient(90deg, rgba(224,145,63,.16), rgba(224,145,63,.04));
+  border: 1px solid rgba(224,145,63,.25); font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; gap: 10px; }
+.verdict small { font-weight: 500; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+
+/* ---------- suggestions ---------- */
+.sug { border: 1px solid var(--stroke-2); border-radius: 12px; padding: 11px 13px; margin-bottom: 9px; background: var(--panel-2);
+  cursor: pointer; transition: transform .22s var(--ease), border-color .22s var(--ease), background .22s var(--ease);
+  animation: rise .4s var(--ease) both; }
+.sug:hover { transform: translateY(-2px); border-color: rgba(224,145,63,.35); }
+.sug.pinned { border-color: rgba(224,145,63,.6); background: rgba(224,145,63,.07); }
+.sug-top { display: flex; align-items: center; gap: 9px; }
+.rank { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  background: rgba(224,145,63,.15); color: var(--accent); flex: none; }
+.sug.pinned .rank { background: var(--accent); color: #201407; }
+.coord { font-weight: 700; font-size: 15px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.badge { font-size: 10.5px; padding: 3px 7px; border-radius: 20px; background: rgba(111,179,160,.14); color: var(--accent-2); letter-spacing: .06em; }
+.tag { font-size: 10.5px; padding: 3px 7px; border-radius: 20px; background: rgba(226,205,168,.08); color: var(--ink-dim); }
+.wr { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 650; }
+.wrbar { height: 4px; border-radius: 4px; margin-top: 8px; background: rgba(226,205,168,.09); overflow: hidden; }
+.wrbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius: 4px; transition: width .5s var(--ease); }
+.expl { margin-top: 8px; font-size: 12.5px; line-height: 1.65; color: var(--ink-dim); }
+.expl b { color: var(--ink); font-weight: 600; }
+.expl ul { margin: 4px 0 0; padding-left: 16px; }
+.expl li { margin: 2px 0; }
+
+/* ---------- controls ---------- */
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.row:last-child { margin-bottom: 0; }
+.row .lbl { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); min-width: 76px; }
+button, select, .seg button {
+  font-family: inherit; font-size: 13px; color: var(--ink); background: var(--panel-2);
+  border: 1px solid var(--stroke); border-radius: 10px; padding: 8px 13px; cursor: pointer;
+  transition: transform .18s var(--ease), background .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+button:hover, select:hover { border-color: rgba(224,145,63,.45); transform: translateY(-1px); }
+button:active { transform: translateY(0) scale(.98); }
+button.primary { background: linear-gradient(180deg, rgba(224,145,63,.9), rgba(200,124,50,.9)); color: #22160a; border-color: transparent; font-weight: 650; }
+button.primary:hover { box-shadow: 0 6px 20px rgba(224,145,63,.35); }
+button.ghost { background: transparent; }
+button.danger:hover { border-color: rgba(207,95,78,.6); color: var(--danger); }
+button.on { border-color: rgba(224,145,63,.6); background: rgba(224,145,63,.14); }
+button.mini-btn { padding: 6px 10px; font-size: 12px; }
+.seg { display: flex; gap: 6px; background: rgba(0,0,0,.18); padding: 4px; border-radius: 12px; border: 1px solid var(--stroke-2); }
+.seg button { border: none; background: transparent; padding: 7px 12px; font-size: 12.5px; }
+.seg button.on { background: rgba(224,145,63,.9); color: #22160a; font-weight: 650; }
+select { padding: 8px 10px; }
+kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px solid var(--stroke); padding: 1px 6px; border-radius: 6px; }
+
+/* ---------- log ---------- */
+.log { max-height: 200px; overflow: auto; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; font-variant-numeric: tabular-nums; }
+.log div { display: flex; gap: 8px; padding: 3px 6px; border-radius: 6px; }
+.log div:hover { background: rgba(226,205,168,.06); }
+.log .n { color: var(--ink-faint); min-width: 26px; }
+.log .c { font-weight: 650; }
+.rules-body { font-size: 12.5px; line-height: 1.75; color: var(--ink-dim); }
+.rules-body h4 { margin: 12px 0 4px; color: var(--ink); font-size: 13px; letter-spacing: .04em; }
+.rules-body ul { margin: 4px 0; padding-left: 18px; }
+.rules-body li { margin: 2px 0; }
+.rules-body .k { color: var(--accent); font-weight: 600; }
+
+/* ---------- toast & misc ---------- */
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+  background: rgba(20,17,15,.92); border: 1px solid var(--stroke); color: var(--ink); padding: 12px 20px; border-radius: 12px;
+  font-size: 13.5px; box-shadow: var(--shadow); transition: .35s var(--ease); pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.thinking-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite var(--ease); }
+@keyframes pulse { 0%,100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.25); } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fadeDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.hide { display: none !important; }
+.muted { color: var(--ink-faint); }
+.mono { font-variant-numeric: tabular-nums; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-dim); cursor: pointer; }
+.switch input { appearance: none; width: 34px; height: 19px; border-radius: 20px; background: rgba(226,205,168,.14); position: relative; cursor: pointer; transition: .25s var(--ease); }
+.switch input::after { content: ""; position: absolute; width: 15px; height: 15px; border-radius: 50%; top: 2px; left: 2px; background: var(--ink-dim); transition: .25s var(--ease); }
+.switch input:checked { background: rgba(224,145,63,.5); }
+.switch input:checked::after { left: 17px; background: var(--accent); }
+
+@media (max-width: 1080px) {
+  main { grid-template-columns: 1fr; }
+  .panel-col { max-height: none; }
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1 id="app-title">圍棋 · 19路</h1>
+      <span class="sub" id="app-sub">單一網頁</span>
+    </div>
+    <div class="spacer"></div>
+    <button id="lang-toggle" class="ghost" data-i18n-title="Switch language / 切換語言">中文 ∕ EN</button>
+    <button id="theme-toggle" class="ghost" data-i18n-title="Theme">◐</button>
+  </header>
+  <main>
+    <section class="board-col">
+      <div class="tray" id="tray-ai"><span class="label">AI prisoners</span><span class="cnt">0</span><span class="stones"></span></div>
+      <div class="board-wrap"><canvas id="board"></canvas></div>
+      <div class="tray" id="tray-you"><span class="label">You</span><span class="cnt">0</span><span class="stones"></span></div>
+      <div class="statusbar" id="status"></div>
+    </section>
+    <aside class="panel-col">
+      <div class="card" id="card-score">
+        <div class="head"><span class="dot"></span><span>Score</span></div>
+        <div class="body">
+          <div class="row">
+            <span class="lbl" id="lbl-ruleset">Scoring</span>
+            <div class="seg"><button id="seg-cn" class="on">Chinese</button><button id="seg-jp">JP/KR</button></div>
+          </div>
+          <div class="score-grid">
+            <div class="score-cell active" id="sc-b">
+              <div class="who"><span class="turn-stone b"></span><span id="sc-b-who">Black</span></div>
+              <div class="num">0</div><div class="rows"></div>
+            </div>
+            <div class="score-cell" id="sc-w">
+              <div class="who"><span class="turn-stone w"></span><span id="sc-w-who">White</span></div>
+              <div class="num">0</div><div class="rows"></div>
+            </div>
+          </div>
+          <div class="verdict" id="verdict"><span>—</span></div>
+          <p class="muted" style="font-size:12px;margin:10px 2px 0" id="marks-hint"></p>
+          <div class="row" style="margin-top:10px">
+            <button id="btn-autodetect" class="mini-btn">Auto</button>
+            <button id="btn-clearmarks" class="mini-btn ghost">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="card-sug">
+        <div class="head"><span class="dot"></span><span>Suggestions</span></div>
+        <div class="body">
+          <p class="muted" id="sug-hint" style="font-size:12px;margin:2px 2px 10px"></p>
+          <div id="sug-list"></div>
+        </div>
+      </div>
+
+      <div class="card" id="card-ctl">
+        <div class="head"><span class="dot"></span><span>Controls</span></div>
+        <div class="body">
+          <div class="row">
+            <button id="btn-new" class="primary"></button>
+            <button id="btn-pass"></button>
+            <button id="btn-undo"></button>
+            <button id="btn-resign" class="danger ghost"></button>
+            <button id="btn-end" class="ghost"></button>
+          </div>
+          <div class="row"><span class="lbl" id="lbl-you">You play</span>
+            <div class="seg"><button id="you-black" class="on">● </button><button id="you-white">○ </button></div>
+          </div>
+          <div class="row"><span class="lbl" id="lbl-size">Board</span>
+            <select id="sel-size"><option value="19" selected>19×19</option><option value="13">13×13</option><option value="9">9×9</option></select>
+            <span class="lbl" id="lbl-strength" style="min-width:0">AI</span>
+            <select id="sel-strength">
+              <option value="900">900</option><option value="2500" selected>2500</option>
+              <option value="6000">6000</option><option value="12000">12000</option>
+            </select>
+          </div>
+          <div class="row"><label class="switch" id="sw-overlay"><input type="checkbox" checked><span></span></label>
+            <label class="switch" id="sw-sound"><input type="checkbox" checked><span></span></label>
+            <label class="switch" id="sw-auto"><input type="checkbox" checked><span></span></label>
+            <label class="switch" id="sw-suicide"><input type="checkbox"><span></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="card-log">
+        <div class="head"><span class="dot"></span><span>Log</span></div>
+        <div class="body"><div class="log" id="log"></div></div>
+      </div>
+
+    </aside>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+/* =====================================================================
+   GO ENGINE CORE  (pure logic · DOM-free · node-testable)
+   Rules: Tromp–Taylor / Chinese (area scoring, positional superko) and
+   Japanese/Korean (territory scoring, simple ko) — switchable.
+   Life & death: iterative region analysis with false-eye + seki handling.
+   ===================================================================== */
+'use strict';
+
+const EMPTY = 0, BLACK = 1, WHITE = 2;
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* =====================================================================
+   Game
+   ===================================================================== */
+class Game {
+  constructor(opts) {
+    opts = opts || {};
+    this.n = opts.size || 19; this.N = this.n * this.n;
+    this.adj = new Int32Array(this.N * 4); this.adj.fill(-1);
+    this.diag = new Int32Array(this.N * 4); this.diag.fill(-1);
+    for (let r = 0; r < this.n; r++) for (let c = 0; c < this.n; c++) {
+      const p = r * this.n + c; let k = 0;
+      if (r > 0) this.adj[p * 4 + k++] = p - this.n;
+      if (r < this.n - 1) this.adj[p * 4 + k++] = p + this.n;
+      if (c > 0) this.adj[p * 4 + k++] = p - 1;
+      if (c < this.n - 1) this.adj[p * 4 + k++] = p + 1;
+      const d = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+      for (let i = 0; i < 4; i++) { const rr = r + d[i][0], cc = c + d[i][1];
+        this.diag[p * 4 + i] = (rr >= 0 && cc >= 0 && rr < this.n && cc < this.n) ? rr * this.n + cc : -1; }
+    }
+    const rnd = mulberry32(opts.seed || 0x9E3779B9);
+    this.z1 = new Uint32Array(this.N * 3); this.z2 = new Uint32Array(this.N * 3);
+    for (let i = 0; i < this.N * 3; i++) { this.z1[i] = (rnd() * 4294967296) >>> 0; this.z2[i] = (rnd() * 4294967296) >>> 0; }
+    this.rules = {
+      koMode: opts.koMode || 'psk',       // 'psk' = positional superko (Chinese/Tromp-Taylor) | 'simple' = simple ko (JP/KR)
+      suicide: !!opts.suicide,            // false = Japanese/Chinese/Korean, true = NZ/Tromp-Taylor variant
+      scoring: opts.scoring || 'area',    // 'area' (Chinese) | 'territory' (Japanese/Korean)
+      komi: opts.komi == null ? 7.5 : opts.komi,
+    };
+    this._stack = new Int32Array(this.N); this._seen = new Uint8Array(this.N);
+    this.reset();
+  }
+  reset() {
+    this.board = new Uint8Array(this.N);
+    this.h1 = 0; this.h2 = 0; this.hist = new Map(); this.histSeq = [];
+    this._addHash();
+    this.toMove = BLACK; this.moveNum = 0; this.stack = []; this.passes = 0;
+    this.koPoint = -1; this.capturedBy = [0, 0, 0]; this.lastMove = -1; this.over = null;
+    this.deadMarks = new Set();
+  }
+  setup(placement, toMove) {
+    this.reset();
+    for (const [p, c] of placement) this.board[p] = c;
+    this.h1 = 0; this.h2 = 0;
+    for (let p = 0; p < this.N; p++) { const c = this.board[p]; if (c) { this.h1 ^= this.z1[p * 3 + c]; this.h2 ^= this.z2[p * 3 + c]; } }
+    this.h1 >>>= 0; this.h2 >>>= 0;
+    this.hist = new Map(); this.histSeq = []; this._addHash();
+    this.toMove = toMove || BLACK;
+  }
+  key(h1, h2) { return (h1 >>> 0) + ':' + (h2 >>> 0) }
+  _addHash() { const k = this.key(this.h1, this.h2); this.hist.set(k, (this.hist.get(k) || 0) + 1); this.histSeq.push(k); }
+
+  groupOn(board, p) {
+    if (board[p] === EMPTY) return null;
+    const col = board[p], adj = this.adj, seen = this._seen, stack = this._stack;
+    seen.fill(0);
+    let sp = 0, sc = 0; const stones = [], libs = new Set();
+    stack[sp++] = p; seen[p] = 1;
+    while (sp > 0) { const q = stack[--sp]; stones.push(q);
+      for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+        if (board[a] === EMPTY) libs.add(a);
+        else if (board[a] === col && !seen[a]) { seen[a] = 1; stack[sp++] = a; } } }
+    return { color: col, size: stones.length, stones, libs: libs.size, libList: [...libs] };
+  }
+  groupOf(p) { return this.groupOn(this.board, p); }
+
+  tryPlay(p, color, rules) {
+    if (p < 0 || p >= this.N || this.board[p] !== EMPTY) return null;
+    rules = rules || this.rules; color = color || this.toMove;
+    const enemy = color === BLACK ? WHITE : BLACK, board = this.board, adj = this.adj;
+    board[p] = color;
+    const captured = [];      /* enemy stones removed by this move */
+    for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] === EMPTY || board[a] === color) continue;
+      const g = this.groupOn(board, a); if (g && g.libs === 0) for (const s of g.stones) { captured.push(s); board[s] = EMPTY; } }
+    let selfCaptured = false, ownRemoved = [];   /* own stones removed (suicide) */
+    if (!captured.length) {
+      const g = this.groupOn(board, p);
+      if (g && g.libs === 0) {
+        if (!rules.suicide) { board[p] = EMPTY; return null; }
+        selfCaptured = true; ownRemoved = g.stones; for (const s of g.stones) board[s] = EMPTY;
+      }
+    }
+    let a = this.h1, b = this.h2;
+    if (!selfCaptured) { a ^= this.z1[p * 3 + color]; b ^= this.z2[p * 3 + color]; }
+    for (const s of captured) { a ^= this.z1[s * 3 + enemy]; b ^= this.z2[s * 3 + enemy]; }
+    for (const s of ownRemoved) { if (s === p) continue; a ^= this.z1[s * 3 + color]; b ^= this.z2[s * 3 + color]; }
+    const k2 = this.key(a, b);
+    let illegal = false;
+    if (rules.koMode === 'simple') { if (this.histSeq.length >= 2 && k2 === this.histSeq[this.histSeq.length - 2]) illegal = true; }
+    else if (this.hist.has(k2)) illegal = true;
+    board[p] = EMPTY; for (const s of captured) board[s] = enemy; for (const s of ownRemoved) board[s] = color;
+    if (illegal) return null;
+    return { p, color, captured, ownRemoved, selfCaptured, h1: a >>> 0, h2: b >>> 0 };
+  }
+
+  play(p, mv) {
+    mv = mv || this.tryPlay(p); if (!mv) return null;
+    const enemy = mv.color === BLACK ? WHITE : BLACK;
+    const before = [this.h1, this.h2];
+    if (!mv.selfCaptured) this.board[p] = mv.color;
+    for (const s of mv.captured) this.board[s] = EMPTY;
+    for (const s of (mv.ownRemoved || [])) this.board[s] = EMPTY;
+    this.h1 = mv.h1; this.h2 = mv.h2;
+    this.capturedBy[mv.color] += mv.captured.length;                                  /* enemy stones I captured */
+    if (mv.selfCaptured) this.capturedBy[mv.color === BLACK ? WHITE : BLACK] += (mv.ownRemoved || []).length;  /* my suicide = their prisoners */
+    this.stack.push({ p: mv.p, color: mv.color, captured: mv.captured, ownRemoved: mv.ownRemoved || [], selfCaptured: mv.selfCaptured, pass: false, key: this.key(mv.h1, mv.h2), before, was: this._snap() });
+    this._addHash();
+    this.toMove = enemy; this.moveNum++; this.passes = 0; this.lastMove = p;
+    if (mv.captured.length === 1 && !mv.selfCaptured) {
+      const g = this.groupOf(p); this.koPoint = (g && g.size === 1 && g.libs === 1) ? g.libList[0] : -1;
+    } else this.koPoint = -1;
+    return this.stack[this.stack.length - 1];
+  }
+  pass(color) {
+    color = color || this.toMove;
+    this.stack.push({ p: -1, color, captured: [], selfCaptured: false, pass: true, key: this.key(this.h1, this.h2), before: [this.h1, this.h2], was: this._snap() });
+    this.histSeq.push(this.key(this.h1, this.h2));
+    this.toMove = color === BLACK ? WHITE : BLACK;
+    this.moveNum++; this.lastMove = -1; this.koPoint = -1;
+    if (this.passes >= 1) { this.passes = 2; this.over = { type: 'pass', winner: null }; } else this.passes = 1;
+    return this.stack[this.stack.length - 1];
+  }
+  _snap() { return { toMove: this.toMove, moveNum: this.moveNum, passes: this.passes, lastMove: this.lastMove, koPoint: this.koPoint, over: this.over }; }
+  resign(color) { this.over = { type: 'resign', winner: color === BLACK ? WHITE : BLACK }; return this.over; }
+
+  clone() {
+    const g = new Game({ size: this.n, koMode: this.rules.koMode, suicide: this.rules.suicide,
+      scoring: this.rules.scoring, komi: this.rules.komi });
+    g.board.set(this.board); g.h1 = this.h1; g.h2 = this.h2;
+    g.hist = new Map(this.hist); g.histSeq = this.histSeq.slice();
+    g.capturedBy = this.capturedBy.slice(); g.toMove = this.toMove; g.moveNum = this.moveNum;
+    g.passes = this.passes; g.lastMove = this.lastMove; g.koPoint = this.koPoint; g.over = this.over;
+    g.deadMarks = this.deadMarks;
+    return g;
+  }
+  undo() {
+    const rec = this.stack.pop(); if (!rec) return false;
+    const enemy = rec.color === BLACK ? WHITE : BLACK;
+    if (!rec.pass) {
+      if (!rec.selfCaptured) this.board[rec.p] = EMPTY;
+      for (const s of rec.captured) this.board[s] = enemy;
+      for (const s of (rec.ownRemoved || [])) this.board[s] = rec.color;
+      this.capturedBy[rec.color] -= rec.captured.length;
+      if (rec.selfCaptured) this.capturedBy[enemy] -= (rec.ownRemoved || []).length;
+    }
+    this.histSeq.pop();
+    const c = this.hist.get(rec.key); if (c) { if (c <= 1) this.hist.delete(rec.key); else this.hist.set(rec.key, c - 1); }
+    this.h1 = rec.before[0]; this.h2 = rec.before[1];
+    if (rec.was) { Object.assign(this, rec.was); }
+    else { this.toMove = rec.color; this.moveNum--;
+      const prev = this.stack.length ? this.stack[this.stack.length - 1] : null;
+      this.lastMove = prev ? prev.p : -1; this.koPoint = -1; }
+    if (this.over && this.over.type === 'pass') this.over = null;
+    if (rec.pass) this.passes = Math.max(0, this.passes - 1);
+    return true;
+  }
+  legalMoves(color) { color = color || this.toMove; const out = [];
+    for (let p = 0; p < this.N; p++) if (this.tryPlay(p, color)) out.push(p); return out; }
+  isLegal(p, color) { return !!this.tryPlay(p, color); }
+
+  /* ------------------------------------------------------------------
+     ANALYSIS — chains, regions, life & death, both scoring systems
+     Method:
+       · chains (groups) + regions (connected empty areas, incl. dead-marked points)
+       · a region belongs to a colour if every chain bordering it is that colour
+       · alive : ≥2 real eyes, or one big enough eye area (≥6), or shared with allies
+       · dead  : no eye of its own and every region it touches belongs to the enemy
+       · seki  : exactly one eye each and a contested shared area → both alive,
+                 shared points neutral (Japanese/Korean rules)
+     ------------------------------------------------------------------ */
+  analyze(deadMarks) {
+    const N = this.N, board = this.board, adj = this.adj, diag = this.diag;
+    const manual = new Set([...(deadMarks || []), ...(this.deadMarks || [])]);
+    const chainOf = new Int32Array(N).fill(-1);      /* point → chain id */
+    const chains = [], regions = [];
+
+    /* --- chains (dead-marked stones are removed) --- */
+    const seen = new Uint8Array(N), st = [];
+    for (let p = 0; p < N; p++) {
+      if (board[p] === EMPTY || seen[p] || manual.has(p)) continue;
+      const col = board[p], cid = chains.length, stones = [], libs = new Set();
+      st.length = 0; st.push(p); seen[p] = 1;
+      while (st.length) { const q = st.pop(); stones.push(q);
+        for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+          if (board[a] === EMPTY || manual.has(a)) libs.add(a);
+          else if (board[a] === col && !seen[a]) { seen[a] = 1; st.push(a); } } }
+      for (const s of stones) chainOf[s] = cid;
+      chains.push({ id: cid, color: col, size: stones.length, stones, libs: [...libs], libCount: libs.size,
+        ownRegions: [], sharedRegions: [], eyePoints: 0, realEyes: 0, status: 'alive', manual: false });
+    }
+    /* --- regions: empty points + dead-marked points --- */
+    const inRegion = p => board[p] === EMPTY || manual.has(p);
+    const seen2 = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+      if (!inRegion(p) || seen2[p]) continue;
+      const rid = regions.length, pts = [], border = new Set();
+      st.length = 0; st.push(p); seen2[p] = 1;
+      while (st.length) { const q = st.pop(); pts.push(q);
+        for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+          if (inRegion(a)) { if (!seen2[a]) { seen2[a] = 1; st.push(a); } } else border.add(chainOf[a]); }
+        for (let k = 0; k < 4; k++) { const a = diag[q * 4 + k]; if (a >= 0 && !inRegion(a) && chainOf[a] >= 0) border.add(chainOf[a]); } }
+      const cols = new Set(); for (const id of border) if (id >= 0) cols.add(chains[id].color);
+      const mine = [...border].filter(id => id >= 0);
+      regions.push({ id: rid, points: pts, border: mine, colors: [...cols],
+        owner: cols.size === 1 ? [...cols][0] : 0, singleChain: mine.length === 1 ? mine[0] : -1,
+        falseEye: false, kind: 'dame' });
+    }
+    for (const rg of regions) {
+      rg.falseEye = rg.points.length === 1 && rg.owner ? this._isFalseEye(rg.points[0], rg.owner) : false;
+      if (rg.owner && rg.falseEye) rg.ownerKind = 'falseEye';
+    }
+    /* region ownership: single colour (excluding dead-marked points which are already counted) */
+    for (const rg of regions) {
+      if (rg.colors.length === 1) { rg.owner = rg.colors[0]; rg.kind = 'territory'; }
+      else if (rg.colors.length === 0) rg.kind = 'empty';
+      else rg.kind = 'contested';
+    }
+    for (const ch of chains) {
+      for (const rg of regions) {
+        if (!rg.border.includes(ch.id)) continue;
+        const others = rg.border.filter(id => id !== ch.id);
+        if (!others.length) { ch.ownRegions.push(rg); if (!rg.falseEye) ch.realEyes++; ch.eyePoints += rg.points.length; }
+        else ch.sharedRegions.push(rg);
+      }
+    }
+
+    /* --- life & death --- */
+    for (const ch of chains) {
+      const ally = ch.sharedRegions.some(rg => rg.border.some(id => id !== ch.id && chains[id].color === ch.color));
+      const bigArea = ch.ownRegions.some(r => r.points.length >= 6 && !r.falseEye);
+      if (ch.realEyes >= 2 || bigArea || (ch.realEyes >= 1 && ally)) { ch.status = 'alive'; continue; }
+      /* dead if every region it touches would belong to the enemy (removing this chain) */
+      const allEnemy = ch.ownRegions.length === 0 && ch.sharedRegions.length > 0 && ch.sharedRegions.every(rg => {
+        const cols = new Set(rg.border.filter(id => id !== ch.id).map(id => chains[id].color));
+        return cols.size === 1 && [...cols][0] !== ch.color;
+      });
+      if (allEnemy) { ch.status = 'dead'; continue; }
+      /* seki: one eye each, contested shared area with enemy chains that are equally weak */
+      if (ch.realEyes <= 1) {
+        const partners = new Set();
+        for (const rg of ch.sharedRegions) { const cols = new Set();
+          for (const id of rg.border) if (id !== ch.id) cols.add(chains[id].color);
+          if (cols.size === 1 && [...cols][0] !== ch.color) for (const id of rg.border) if (id !== ch.id) partners.add(id); }
+        if (partners.size) {
+          const weak = [...partners].every(o => { const oc = chains[o];
+            const ocAlly = oc.sharedRegions.some(rg => rg.border.some(id => id !== o && chains[id].color === oc.color));
+            return oc.realEyes <= 1 && !ocAlly && !oc.ownRegions.some(r => r.points.length >= 6); });
+          if (weak) { ch.status = 'seki'; for (const o of partners) { const oc = chains[o];
+            const ocAlly = oc.sharedRegions.some(rg => rg.border.some(id => id !== o && chains[id].color === oc.color));
+            if (oc.realEyes <= 1 && !ocAlly && !oc.ownRegions.some(r => r.points.length >= 6)) oc.status = 'seki'; } }
+        }
+      }
+    }
+    for (const ch of chains) if (!ch.status) ch.status = 'alive';
+
+    /* --- ownership maps --- */
+    const owner = new Uint8Array(N), terrOwner = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+      if (board[p] === EMPTY) continue;
+      if (manual.has(p)) continue;                       /* dead → removed before counting */
+      owner[p] = terrOwner[p] = board[p];
+    }
+    for (const rg of regions) {
+      const borderChains = rg.border.map(id => chains[id]).filter(Boolean);
+      const allManual = borderChains.length === 0;
+      if (!rg.owner) continue;
+      const allAlive = borderChains.every(c => c.status === 'alive' || manualRegionOwner(c, rg));
+      const allAliveOrSeki = borderChains.every(c => c.status !== 'dead');
+      /* area (Chinese): a seki group's own enclosed points count for it */
+      if (allAliveOrSeki) for (const p of rg.points) owner[p] = rg.owner;
+      /* territory (JP/KR): only independently living groups; seki points neutral */
+      const jpAlive = borderChains.every(c => c.status === 'alive');
+      if (jpAlive || allManual) for (const p of rg.points) terrOwner[p] = rg.owner;
+      if (borderChains.some(c => c.status === 'seki')) rg.kind = 'seki';
+    }
+    function manualRegionOwner() { return false; }
+
+    let deadB = 0, deadW = 0;
+    for (const p of manual) if (board[p] === BLACK) deadB++; else if (board[p] === WHITE) deadW++;
+    for (const ch of chains) if (ch.status === 'dead') { if (ch.color === BLACK) deadB += ch.size; else deadW += ch.size; }
+    let areaB = 0, areaW = 0, terrB = 0, terrW = 0, dame = 0, sekiPts = 0;
+    for (let p = 0; p < N; p++) {
+      if (owner[p] === BLACK) areaB++; else if (owner[p] === WHITE) areaW++;
+    }
+    for (let p = 0; p < N; p++) {
+      if (!inRegion(p)) continue;
+      if (terrOwner[p] === BLACK) terrB++; else if (terrOwner[p] === WHITE) terrW++; else dame++;
+    }
+    for (const rg of regions) if (rg.kind === 'seki') sekiPts += rg.points.length;
+
+    const komi = this.rules.komi;
+    const score = {
+      area: { B: areaB, W: areaW + komi, rawB: areaB, rawW: areaW, komi, dame, deadB, deadW },
+      territory: { B: terrB + this.capturedBy[BLACK] + deadW, W: terrW + this.capturedBy[WHITE] + deadB + komi,
+        terrB, terrW, prisB: this.capturedBy[BLACK] + deadW, prisW: this.capturedBy[WHITE] + deadB, komi, deadB, deadW, dame },
+    };
+    score.area.leader = score.area.B === score.area.W ? 'draw' : (score.area.B > score.area.W ? 'B' : 'W');
+    score.territory.leader = score.territory.B === score.territory.W ? 'draw' : (score.territory.B > score.territory.W ? 'B' : 'W');
+    return { chains, regions, chainOf, owner, terrOwner, dame, sekiPts, komi, manual, score,
+      statusOf: p => { if (manual.has(p)) return 'dead'; const id = chainOf[p]; return id >= 0 ? chains[id].status : null; } };
+  }
+  _isFalseEye(p, ownerColor) {
+    let enemy = 0;
+    for (let k = 0; k < 4; k++) { const a = this.diag[p * 4 + k]; if (a >= 0 && this.board[a] !== EMPTY && this.board[a] !== ownerColor) enemy++; }
+    return enemy >= 2;
+  }
+  /* light ownership for rollouts */
+  quickOwner(board, owner) {
+    const adj = this.adj, N = this.N, seen = new Uint8Array(N), stack = new Int32Array(N);
+    for (let p = 0; p < N; p++) owner[p] = board[p];
+    for (let p = 0; p < N; p++) {
+      if (board[p] !== EMPTY || seen[p]) continue;
+      let sp = 0; stack[sp++] = p; seen[p] = 1; const pts = []; const cols = new Set();
+      while (sp > 0) { const q = stack[--sp]; pts.push(q);
+        for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+          if (board[a] === EMPTY) { if (!seen[a]) { seen[a] = 1; stack[sp++] = a; } } else cols.add(board[a]); } }
+      if (cols.size === 1) { const o = [...cols][0]; for (const q of pts) owner[q] = o; }
+    }
+    return owner;
+  }
+}
+
+/* =====================================================================
+   TACTICAL FEATURES for one candidate move (explanation engine)
+   ===================================================================== */
+function tacticalFeatures(game, p, color, scratch) {
+  const mv = game.tryPlay(p, color); if (!mv) return null;
+  const n = game.n, adj = game.adj, diag = game.diag, board = game.board;
+  const enemy = color === BLACK ? WHITE : BLACK;
+  const after = scratch || new Uint8Array(game.N); after.set(board); after[p] = color; for (const s of mv.captured) after[s] = EMPTY;
+  const g = game;
+  const f = { p, color, row: Math.floor(p / n), col: p % n,
+    captures: mv.captured.length, capturedPoints: mv.captured, selfCaptured: mv.selfCaptured,
+    savesAtari: 0, savesSize: 0, atariOn: [], cutsEnemy: 0, connectsOwn: 0, makesEye: false, falseEye: false,
+    eyeSize: 0, edgeDist: 0, starPoint: false, tengen: false, groupSize: 1, libsAfter: 0, territoryDelta: 0, ladder: false };
+  const own = g.groupOn(after, p); if (own) { f.groupSize = own.size; f.libsAfter = own.libs; }
+  for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== color) continue;
+    const gg = g.groupOn(board, a); if (gg && gg.libs === 1) { f.savesAtari++; f.savesSize = Math.max(f.savesSize, gg.size); } }
+  for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== enemy) continue;
+    const gg = g.groupOn(after, a); if (gg && gg.libs === 1) f.atariOn.push({ p: a, size: gg.size }); }
+  const ownSet = new Set(), enSet = new Set();
+  for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] === EMPTY) continue;
+    const gg = g.groupOn(board, a); if (!gg) continue; (gg.color === color ? ownSet : enSet).add(gg.stones[0]); }
+  f.connectsOwn = ownSet.size; f.cutsEnemy = enSet.size;
+  let emptyNb = 0, ownDiag = 0, enDiag = 0;
+  for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a >= 0 && board[a] === EMPTY) emptyNb++; }
+  for (let k = 0; k < 4; k++) { const a = diag[p * 4 + k]; if (a < 0) continue; if (board[a] === color) ownDiag++; else if (board[a] === enemy) enDiag++; }
+  f.eyeSize = 4 - emptyNb;
+  if (emptyNb === 0) { f.makesEye = true; f.falseEye = enDiag >= 2; }
+  f.diagOwn = ownDiag; f.diagEnemy = enDiag;
+  const r = f.row, c = f.col, sn = game.n;
+  f.edgeDist = Math.min(r, c, sn - 1 - r, sn - 1 - c);
+  f.starPoint = sn === 19 && (r === 3 || r === sn - 4) && (c === 3 || c === sn - 4);
+  f.tengen = sn % 2 === 1 && r === (sn - 1) / 2 && c === (sn - 1) / 2;
+  return f;
+}
+
+/* =====================================================================
+   MCTS-PUCT — heuristic priors + tactical rollouts (the "reasoning" core)
+   ===================================================================== */
+class MCTS {
+  constructor(game, opts) {
+    this.opts = Object.assign({ c: 1.3, maxNodes: 400000, rootChildren: 36, children: 18, rolloutCap: 120, noise: 0.2 }, opts || {});
+    this.g = game; this.N = game.N; this.n = game.n;
+    this.board = new Uint8Array(this.N); this.owner = new Uint8Array(this.N);
+    this.seen = new Int32Array(this.N); this.stk = new Int32Array(this.N);
+    this.rand = mulberry32(0xC0FFEE);
+    this.capturedBy = [0, 0, 0];
+  }
+  reset(rootColor, seed) {
+    this.rootColor = rootColor; this.toMove = rootColor;
+    if (seed != null) this.rand = mulberry32(seed);
+    this.board.set(this.g.board); this.capturedBy = [0, 0, 0];
+    this.hist = new Set(this.g.histSeq); this.lastMove = this.g.lastMove;
+    this.nodes = []; this.root = this._mk(-1, 0, -1); this.root.untried = this._candidates(rootColor, this.lastMove, this.opts.rootChildren);
+    this.noised = false;
+  }
+  _mk(move, color, parent) { return { move, color, parent, children: [], n: 0, w: 0, prior: 1, untried: null }; }
+  _grp(p) {   /* fast group finder on this.board */
+    const board = this.board, adj = this.g.adj, seen = this.seen, stk = this.stk, col = board[p];
+    if (col === EMPTY) return null;
+    this._stamp = (this._stamp || 0) + 1;
+    let sp = 0, size = 0, libs = 0;
+    stk[sp++] = p; seen[p] = this._stamp;
+    while (sp > 0) { const q = stk[--sp]; size++;
+      for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+        if (board[a] === EMPTY) libs++;
+        else if (board[a] === col && seen[a] !== this._stamp) { seen[a] = this._stamp; stk[sp++] = a; } } }
+    return { col, size, libs };
+  }
+  _apply(p, color) {   /* returns undo record or null (illegal) */
+    const board = this.board, adj = this.g.adj, enemy = color === BLACK ? WHITE : BLACK;
+    if (board[p] !== EMPTY) return null;
+    board[p] = color;
+    const captured = [], ownRemoved = [];
+    for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] === EMPTY || board[a] === color) continue;
+      const grp = this._grp(a); if (grp && grp.libs === 0) for (const s of this._groupList(a)) { captured.push(s); board[s] = EMPTY; } }
+    let selfCap = false;
+    if (!captured.length) {
+      const grp = this._grp(p);
+      if (grp && grp.libs === 0) {
+        if (!this.g.rules.suicide) { board[p] = EMPTY; return null; }
+        selfCap = true; for (const s of this._groupList(p)) { ownRemoved.push(s); board[s] = EMPTY; }
+      }
+    }
+    return { p, color, captured, ownRemoved, selfCap };
+  }
+  _groupList(p) {   /* stones of group at p on current board (after p placed) */
+    const board = this.board, adj = this.g.adj, col = board[p], out = [];
+    this._stamp2 = (this._stamp2 || 0) + 1;
+    const seen = this._seen2 || (this._seen2 = new Uint32Array(this.N)), stk = this.stk;
+    let sp = 0; stk[sp++] = p; seen[p] = this._stamp2;
+    while (sp > 0) { const q = stk[--sp]; out.push(q);
+      for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a >= 0 && board[a] === col && seen[a] !== this._stamp2) { seen[a] = this._stamp2; stk[sp++] = a; } } }
+    return out;
+  }
+  _undo(rec) {
+    if (!rec) return;
+    const board = this.board;
+    if (!rec.selfCap) board[rec.p] = EMPTY;
+    for (const s of rec.captured) board[s] = rec.color === BLACK ? WHITE : BLACK;
+    if (rec.selfCap) board[rec.p] = EMPTY;
+  }
+  _isTrueEye(p, color) {
+    const adj = this.g.adj, diag = this.g.diag, b = this.board;
+    for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a >= 0 && b[a] !== color) return false; }
+    let en = 0; for (let k = 0; k < 4; k++) { const a = diag[p * 4 + k]; if (a >= 0 && b[a] !== EMPTY && b[a] !== color) en++; }
+    return en < 2;
+  }
+  /* candidate generation with pattern priors */
+  _candidates(color, lastMove, limit) {
+    const N = this.N, n = this.n, board = this.board, adj = this.g.adj, out = [];
+    for (let p = 0; p < N; p++) {
+      if (board[p] !== EMPTY) continue;
+      const mv = this._apply(p, color); if (!mv) continue;
+      const caps = mv.captured.length, sc = mv.selfCap; this._undo(mv);
+      if (sc) continue;
+      if (caps) { out.push({ p, pr: 2.6 + 0.5 * Math.min(caps, 5) }); continue; }
+      if (this._isTrueEye(p, color)) continue;
+      let pr = 1.0;
+      const r = (p / n) | 0, c = p % n, ed = Math.min(r, c, n - 1 - r, n - 1 - c);
+      if (lastMove >= 0) { const lr = (lastMove / n) | 0, lc = lastMove % n, d = Math.max(Math.abs(lr - r), Math_lc(lc, c));
+        if (d <= 4) pr += 1.0 - 0.17 * d; }
+      if (ed >= 2 && ed <= 3) pr += 0.35; else if (ed <= 1) pr += 0.1;
+      if (n === 19 && ((r === 3 || r === n - 4) && (c === 3 || c === n - 4))) pr += 0.3;
+      if (n === 19 && ((r === 2 || r === n - 3) && (c === 2 || c === n - 3))) pr += 0.2;
+      if (n === 19 && (r === 3 || r === n - 4) && (c === 9 || c === 9)) pr += 0.15;
+      let adjE = 0, adjO = 0, minLib = 9;
+      for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0) continue;
+        if (board[a] !== EMPTY && board[a] !== color) adjE++; else if (board[a] === color) { adjO++; const grp = this._grp(a); if (grp) minLib = Math.min(minLib, grp.libs); } }
+      if (adjE && !adjO) pr += 0.3;
+      if (adjO && minLib <= 2) pr += 0.6;
+      if (adjO >= 2) pr += 0.15;
+      out.push({ p, pr });
+    }
+    out.sort((a, b) => b.pr - a.pr);
+    return out.slice(0, limit);
+  }
+  _rolloutMove(color, lastMove) {
+    const n = this.n, board = this.board, adj = this.g.adj;
+    const cands = []; let capMove = -1, capMax = 0;
+    for (let p = 0; p < this.N; p++) {
+      if (board[p] !== EMPTY) continue;
+      const mv = this._apply(p, color); if (!mv) continue;
+      if (mv.selfCap) { this._undo(mv); continue; }
+      if (mv.captured.length) { if (mv.captured.length > capMax) { capMax = mv.captured.length; capMove = p; } this._undo(mv); continue; }
+      if (this._isTrueEye(p, color)) { this._undo(mv); continue; }
+      this._undo(mv); cands.push(p);
+    }
+    if (capMove >= 0 && this.rand() < 0.92) return capMove;
+    let esc = -1, escS = 0;
+    for (const p of cands) for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== color) continue;
+      const grp = this._grp(a); if (grp && grp.libs === 1 && grp.size >= 2 && grp.size > escS) { escS = grp.size; esc = p; } }
+    if (esc >= 0 && this.rand() < 0.75) return esc;
+    if (!cands.length) return -1;
+    if (lastMove >= 0 && this.rand() < 0.5) {
+      const lr = (lastMove / n) | 0, lc = lastMove % n; let best = -1, bd = 99;
+      for (const p of cands) { const r = (p / n) | 0, c = p % n, d = Math.abs(lr - r) + Math.abs(lc - c);
+        if (d <= 3 && d < bd) { bd = d; best = p; } }
+      if (best >= 0) return best;
+    }
+    return cands[(this.rand() * cands.length) | 0];
+  }
+  _evalRoot() {
+    this.g.quickOwner(this.board, this.owner);
+    let b = 0, w = 0;
+    for (let p = 0; p < this.N; p++) { const o = this.owner[p]; if (o === BLACK) b++; else if (o === WHITE) w++; }
+    const komi = this.g.rules.komi;
+    const diff = this.rootColor === BLACK ? (b - w - komi) : (w + komi - b);
+    return diff > 0 ? 1 : diff < 0 ? 0 : 0.5;
+  }
+  iteration() {
+    const g = this.g;
+    this.board.set(g.board);
+    const undo = [];
+    let node = this.root, color = this.toMove, lastMove = this.lastMove;
+    const path = [this.root], colors = [];
+    /* descend while nodes are fully expanded */
+    while (!(node.untried && node.untried.length) && node.children.length) {
+      let best = null, bv = -1e9; const ln = Math.log(Math.max(node.n, 2));
+      for (const ci of node.children) { const ch = this.nodes[ci];
+        const v = (ch.n ? ch.w / ch.n : 0) + this.opts.c * (ch.prior || 1) * Math.sqrt(ln / Math.max(ch.n, 1));
+        if (v > bv) { bv = v; best = ch; } }
+      const mv = this._apply(best.move, color); if (!mv) break;
+      undo.push(mv); path.push(best); colors.push(color); node = best;
+      lastMove = best.move; color = color === BLACK ? WHITE : BLACK;
+    }
+    const mover = color;
+    if (node.untried == null) node.untried = this._candidates(color, lastMove, node === this.root ? this.opts.rootChildren : this.opts.children);
+    if (node === this.root && !this.noised && this.opts.noise && node.untried.length > 1) {
+      for (const o of node.untried) o.pr *= (1 - this.opts.noise) + this.opts.noise * 2 * this.rand();
+      this.noised = true;
+    }
+    let expanded = false;
+    if (node.untried.length) {
+      const i = (this.rand() * node.untried.length) | 0;
+      const pick = node.untried.splice(i, 1)[0];
+      const mv = this._apply(pick.p, color);
+      if (mv) {
+        undo.push(mv); expanded = true;
+        const nd = this._mk(pick.p, color, -1); nd.prior = pick.pr; this.nodes.push(nd);
+        node.children.push(this.nodes.length - 1);
+        path.push(nd); colors.push(color);
+        color = color === BLACK ? WHITE : BLACK;
+      }
+    }
+    /* rollout */
+    let lm = lastMove, plies = 0, passes = 0;
+    while (plies < this.opts.rolloutCap && passes < 2) {
+      const m = this._rolloutMove(color, lm);
+      if (m < 0) passes++; else { const mm = this._apply(m, color); if (!mm) passes++; else { undo.push(mm); lm = m; passes = 0; } }
+      plies++; color = color === BLACK ? WHITE : BLACK;
+    }
+    this._backup(path, colors, mover, this._evalRoot());
+    for (let k = undo.length - 1; k >= 0; k--) this._undo(undo[k]);
+    return expanded;
+  }
+    _backup(path, colors, mover, scoreForMover) {
+    /* scoreForMover is from the perspective of the player who moved at the deepest expanded node */
+    for (let i = path.length - 1; i >= 1; i--) {
+      const nd = path[i]; const col = colors[i - 1];   /* colour that played the move leading to nd */
+      nd.n++; nd.w += (col === mover ? scoreForMover : 1 - scoreForMover);
+    }
+    this.root.n++;
+  }
+  async run(maxVisits, onProgress, sliceMs) {
+    const t0 = Date.now(); sliceMs = sliceMs || 10;
+    while (this.root.n < maxVisits) {
+      const g0 = Date.now();
+      while (Date.now() - g0 < sliceMs && this.root.n < maxVisits) this.iteration();
+      if (onProgress) onProgress(this.stats());
+      await new Promise(r => setTimeout(r, 0));
+    }
+    return this.stats();
+  }
+  stats() {
+    return { visits: this.root.n, top: this.root.children.map(i => this.nodes[i]).filter(c => c.n > 0)
+      .map(c => ({ p: c.move, n: c.n, wr: c.w / c.n, prior: c.prior }))
+      .sort((a, b) => (b.wr - a.wr) || (b.n - a.n)) };
+  }
+}
+
+function Math_lc(a, c) { return Math.abs(a - c) }
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { Game, MCTS, BLACK, WHITE, EMPTY, tacticalFeatures, mulberry32 };
+}
+
+window.__GO_ENGINE__ = { Game, MCTS, BLACK, WHITE, EMPTY, tacticalFeatures, mulberry32 };
+})();
+</script>
+<script>
+/* =====================================================================
+   i18n
+   ===================================================================== */
+const I18N = {
+  zh: {
+    appTitle: s => `圍棋 · ${s}路`,
+    appSub: '人腦 × 機器推理',
+    score: '即時形勢 · 計分',
+    suggestions: 'AI 建議 · 視覺化推演',
+    controls: '對局控制',
+    log: '手順紀錄',
+    you: '你', ai: 'AI', black: '黑', white: '白',
+    turnYou: '輪到你', turnAi: 'AI 思考中', gameOver: '對局結束',
+    pass: '虛手（過手）', passShort: '過手', resign: '中盤負', undo: '悔棋', newGame: '新對局',
+    playAs: '你執', aiSide: 'AI 執', strength: 'AI 強度', boardSize: '棋盤', komi: '貼目',
+    ruleset: '計分制', scoringLive: '計分制（切換即時生效）',
+    chinese: '中國規則（數子）', japkr: '日韓規則（點目）',
+    segChinese: '中國', segJapKr: '日韓',
+    allowSuicide: '允许自殺（NZ/TT）', soundOn: '落子音效', territoryOverlay: '领地_overlay',
+    overlayLabel: '领地覆蓋', autoSuggest: '自動推演',
+    marksHint: '终局後可點擊棋盤上任何一团棋標記「死棋/活棋」，分數即時重算。',
+    autoDetect: '自動判定死活', clearMarks: '清除標記',
+    winnerB: '黑勝', winnerW: '白勝', draw: '和棋',
+    byResign: '（中盤認負）', byCount: '（計分）',
+    endGame: '終局計分', ended: '已終局 — 點擊棋塊可標記死棋，分數即時更新',
+    komiLabel: '貼目', prisonersLabel: '俘子', territoryLabel: '地盤', stonesLabel: '盤上子',
+    deadLabel: '死子', dameLabel: '單官/共活',
+    sugHint: '依 MCTS 搜尋訪問數與勝率排序；點擊建議可在棋盤預覽結果。',
+    analyzing: '推演中',
+    visits: '訪問', winrate: '勝率', scoreLead: '目數差',
+
+    tags: { capture: '提子', atari: '打吃', save: '救棋', connect: '連接', cut: '分斷', eye: '做眼',
+      eyeSteal: '破眼', extend: '擴張', invade: '侵入', bigPoint: '大場', hoshi: '要點', seki: '共活',
+      ko: '劫', sente: '先手', shape: '好形', running: '逃跑', thickness: '厚味' },
+    expl: {
+      captureOne: n => `提掉對方 ${n} 子（含盤上死子轉換為目數）。`,
+      captureOneB: n => `提掉對方 ${n} 子。`,
+      capture: n => `可提 ${n} 子`,
+      saves: n => `救回被叫吃的 ${n} 子`,
+      atariOn: n => `叫吃對方 ${n} 子`,
+      connect: '把相鄰棋塊連成一氣',
+      cut: '分斷對方相鄰棋塊',
+      eye: '做出真眼（確保根據地）',
+      falseEye: '此處是假眼，不宜落子',
+      eyeSteal: '奪取對方眼位/破眼',
+      extend: '向邊角擴張勢力（大場）',
+      corner: '佔據角部要點（金角銀腹）',
+      hoshi: '星位/大場，兼顧模樣與發展',
+      invade: '深入對方陣勢，破壞地盤',
+      reduce: '消減對方模樣',
+      center: '中腹厚味，潛在Attack價值',
+      edgeDanger: '貼邊子效率較差，需留意被壓',
+      koTake: '此著即打劫之提劫',
+      koFill: '填劫材/接上避免打劫',
+      nearLast: '直接回應對方最後一手',
+      territoryGain: d => `形勢估算即時Gain ${d >= 0 ? '+' : ''}${d.toFixed(1)} 目`,
+      searchRank: (wr, n) => `MCTS ${n} 次拜訪、勝率 ${(wr * 100).toFixed(0)}%`,
+      preview: '（點擊列出結果）',
+      nothing: '無明显戰術，屬布局/緩著',
+      passSug: '建議虛手：全域無更大處。',
+    },
+    aiMove: p => `AI 落子 ${p}`,
+    yourMove: p => `你落子 ${p}`,
+    youCaptured: '你提子', aiCaptured: 'AI 提子',
+    passMsg: '你過手', aiPassMsg: 'AI 過手',
+    needYourMove: '請落子或過手',
+    previewOf: p => `預覽：${p}`,
+  },
+  en: {
+    appTitle: s => `GO · ${s}×${s}`,
+    appSub: 'Human × Reasoning Engine',
+    score: 'Live Score · Counting',
+    suggestions: 'AI Suggestions · Visual Reasoning',
+    controls: 'Game Controls',
+    log: 'Move Log',
+    you: 'You', ai: 'AI', black: 'Black', white: 'White',
+    turnYou: 'Your move', turnAi: 'AI thinking', gameOver: 'Game over',
+    pass: 'Pass', passShort: 'Pass', resign: 'Resign', undo: 'Undo', newGame: 'New game',
+    playAs: 'You play', aiSide: 'AI plays', strength: 'AI strength', boardSize: 'Board', komi: 'Komi',
+    scoringLive: 'Scoring system (switch is live)',
+    chinese: 'Chinese (area)', japkr: 'Japanese/Korean (territory)',
+    segChinese: 'Chinese', segJapKr: 'JP/KR',
+    allowSuicide: 'Allow suicide (NZ/Tromp–Taylor)', soundOn: 'Stone click', territoryOverlay: 'Territory overlay',
+    overlayLabel: 'Territory overlay', autoSuggest: 'Auto-analysis',
+    marksHint: 'After the game ends, click any group to toggle dead/alive — the count updates instantly.',
+    autoDetect: 'Auto-detect life & death', clearMarks: 'Clear marks',
+    winnerB: 'Black wins', winnerW: 'White wins', draw: 'Draw',
+    byResign: '(resign)', byCount: '(count)',
+    endGame: 'End & count', ended: 'Game ended — click a group to toggle dead/alive; the count updates live',
+    komiLabel: 'Komi', prisonersLabel: 'Prisoners', territoryLabel: 'Territory', stonesLabel: 'Stones on board',
+    deadLabel: 'Dead stones', dameLabel: 'Neutral/dame',
+    sugHint: 'Ranked by MCTS visits & win rate. Click a line to preview the result on the board.',
+    analyzing: 'Analyzing',
+    visits: 'visits', winrate: 'winrate', scoreLead: 'score diff',
+
+    tags: { capture: 'capture', atari: 'atari', save: 'save', connect: 'connect', cut: 'cut', eye: 'eye',
+      eyeSteal: 'destroy eye', extend: 'extension', invade: 'invasion', bigPoint: 'big point', hoshi: 'hoshi',
+      seki: 'seki', ko: 'ko', sente: 'sente', shape: 'shape', running: 'escape', thickness: 'influence' },
+    expl: {
+      captureOne: n => `Captures ${n} enemy stone${n > 1 ? 's' : ''} (counts as territory under JP/KR).`,
+      captureOneB: n => `Captures ${n} enemy stone${n > 1 ? 's' : ''}.`,
+      capture: n => `captures ${n}`,
+      saves: n => `saves your group of ${n} from atari`,
+      atariOn: n => `puts a group of ${n} in atari`,
+      connect: 'connects adjacent friendly groups',
+      cut: 'cuts the adjacent enemy group',
+      eye: 'makes a genuine eye (territory base)',
+      falseEye: 'a false eye — usually a bad point',
+      eyeSteal: "steals the enemy's eye space",
+      extend: 'extends along the side (framework)',
+      corner: 'takes a corner point (gold corner, silver belly)',
+      hoshi: 'star point / big point balancing framework',
+      invade: 'invades the enemy framework',
+      reduce: 'reduces the enemy moyo',
+      center: 'central influence with attacking value',
+      edgeDanger: 'edge-hugging move is inefficient; watch out for pressure',
+      koTake: 'the ko capture itself',
+      koFill: 'fills the ko / connects to avoid the ko',
+      nearLast: 'answers the last move directly',
+      territoryGain: d => `live estimate ${d >= 0 ? '+' : ''}${d.toFixed(1)} points`,
+      searchRank: (wr, n) => `MCTS ${n} visits, ${(wr * 100).toFixed(0)}% win rate`,
+      preview: '(click to preview)',
+      nothing: 'no tactic — a fuseki/passage move',
+      passSug: 'Suggested pass: nothing bigger left on the board.',
+    },
+    aiMove: p => `AI plays ${p}`,
+    yourMove: p => `You play ${p}`,
+    youCaptured: 'Your prisoners', aiCaptured: 'AI prisoners',
+    passMsg: 'You pass', aiPassMsg: 'AI passes',
+    needYourMove: 'Play or pass',
+    previewOf: p => `Preview: ${p}`,
+  }
+};
+
+</script>
+<script>
+/* =====================================================================
+   APP — renderer, panels, game flow
+   ===================================================================== */
+(function () {
+  'use strict';
+  const gEngine = window.__GO_ENGINE__;
+  const { Game, MCTS, BLACK, WHITE, EMPTY, tacticalFeatures } = gEngine;
+  const COLS = 'ABCDEFGHJKLMNOPQRST';
+
+  const S = {
+    lang: 'zh', theme: 'dark',
+    size: 19, komiCN: 7.5, komiJP: 6.5,
+    scoring: 'area',            // 'area' (Chinese) | 'territory' (JP/KR)
+    suicide: false, koMode: 'psk',
+    youColor: BLACK, strength: 2500, aiDelay: 260,
+    overlay: true, sound: true, autoSuggest: true,
+    game: null, marks: new Set(),
+    suggestions: [], pinned: null, previewPoint: null, previewResult: null,
+    hover: -1, anims: [], thinking: false, analyzing: false, busy: false,
+    log: [], lastAnalyze: null, aiSeed: 1,
+  };
+  const t = (k, ...a) => { const d = I18N[S.lang]; let v = d; for (const p of k.split('.')) v = v && v[p]; return typeof v === 'function' ? v(...a) : (v == null ? k : v); };
+  const coordName = p => p < 0 ? '—' : COLS[p % S.size] + (S.size - Math.floor(p / S.size));
+
+  /* ---------------- DOM ---------------- */
+  const $ = s => document.querySelector(s);
+  const canvas = $('#board'), ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  let cell = 32, pad = 34, boardPx = 640;
+  let woodCanvas = null, sprites = {};
+
+  /* ---------------- wood board texture ---------------- */
+  function buildWood() {
+    const c = document.createElement('canvas');
+    c.width = boardPx * DPR; c.height = boardPx * DPR;
+    const x = c.getContext('2d'); x.scale(DPR, DPR);
+    const rnd = mulberrySeed(7717);
+    const base = S.theme === 'dark' ? ['#c8933f', '#b8823a', '#d3a054'] : ['#e3bd78', '#d8b06a', '#e8c684'];
+    const g = x.createLinearGradient(0, 0, boardPx * .6, boardPx);
+    g.addColorStop(0, base[2]); g.addColorStop(.5, base[0]); g.addColorStop(1, base[1]);
+    x.fillStyle = g; x.fillRect(0, 0, boardPx, boardPx);
+    /* grain: long wavy vertical strokes */
+    for (let i = 0; i < 260; i++) {
+      const x0 = rnd() * boardPx, w = .4 + rnd() * 2.2, a = .012 + rnd() * .05;
+      const dark = rnd() > .45;
+      x.strokeStyle = dark ? `rgba(90,55,15,${a})` : `rgba(255,225,170,${a * .8})`;
+      x.lineWidth = w; x.beginPath();
+      let px = x0;
+      x.moveTo(px, -10);
+      for (let y = -10; y <= boardPx + 10; y += 22) { px += (rnd() - .5) * 3.2; x.lineTo(px, y); }
+      x.stroke();
+    }
+    /* fine noise */
+    for (let i = 0; i < 2600; i++) {
+      const px = rnd() * boardPx, py = rnd() * boardPx, a = .01 + rnd() * .035;
+      x.fillStyle = rnd() > .5 ? `rgba(70,40,10,${a})` : `rgba(255,235,190,${a})`;
+      x.fillRect(px, py, 1 + rnd() * 2, 1 + rnd());
+    }
+    /* occasional knot rings */
+    for (let i = 0; i < 3; i++) {
+      const kx = rnd() * boardPx, ky = rnd() * boardPx, R = 10 + rnd() * 22;
+      for (let r = R; r > 2; r -= 3.2) {
+        x.strokeStyle = `rgba(96,58,18,${.025 + rnd() * .03})`; x.lineWidth = 1.2;
+        x.beginPath(); x.ellipse(kx, ky, r, r * (.6 + rnd() * .3), .3, 0, 7); x.stroke();
+      }
+    }
+    /* light from top-left + vignette */
+    const lg = x.createRadialGradient(boardPx * .28, boardPx * .2, boardPx * .1, boardPx * .5, boardPx * .5, boardPx * .8);
+    lg.addColorStop(0, 'rgba(255,240,200,.10)'); lg.addColorStop(.6, 'rgba(255,240,200,0)'); lg.addColorStop(1, 'rgba(40,20,0,.22)');
+    x.fillStyle = lg; x.fillRect(0, 0, boardPx, boardPx);
+    woodCanvas = c;
+  }
+  function mulberrySeed(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+  /* ---------------- stone sprites (with baked shadow) ---------------- */
+  function buildSprites() {
+    sprites = {};
+    const r = cell * .465, size = Math.ceil((r * 2 + 10) * DPR);
+    for (const col of [BLACK, WHITE]) {
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const x = c.getContext('2d'); x.scale(DPR, DPR);
+      const cx = size / (2 * DPR), cy = size / (2 * DPR);
+      /* shadow */
+      x.save(); x.shadowColor = 'rgba(0,0,0,.55)'; x.shadowBlur = cell * .22; x.shadowOffsetY = cell * .10;
+      x.fillStyle = 'rgba(0,0,0,.85)'; x.beginPath(); x.arc(cx, cy, r * .98, 0, 7); x.fill(); x.restore();
+      /* body */
+      const g = x.createRadialGradient(cx - r * .38, cy - r * .45, r * .12, cx, cy, r * 1.06);
+      if (col === BLACK) { g.addColorStop(0, '#5a5a66'); g.addColorStop(.35, '#26262e'); g.addColorStop(1, '#05050a'); }
+      else { g.addColorStop(0, '#ffffff'); g.addColorStop(.4, '#f4f0e4'); g.addColorStop(1, '#c8c2ae'); }
+      x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
+      /* rim shade */
+      x.lineWidth = Math.max(.6, r * .07);
+      x.strokeStyle = col === BLACK ? 'rgba(0,0,0,.55)' : 'rgba(120,110,85,.35)';
+      x.beginPath(); x.arc(cx, cy, r * .97, 0, 7); x.stroke();
+      /* specular */
+      x.save(); x.globalAlpha = col === BLACK ? .30 : .55;
+      const sg = x.createRadialGradient(cx - r * .4, cy - r * .48, 0, cx - r * .4, cy - r * .48, r * .55);
+      sg.addColorStop(0, 'rgba(255,255,255,.95)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = sg; x.beginPath(); x.arc(cx - r * .34, cy - r * .4, r * .5, 0, 7); x.fill(); x.restore();
+      sprites[col] = c;
+    }
+  }
+
+  /* ---------------- geometry ---------------- */
+  function layout() {
+    const wrap = $('.board-wrap');
+    const avail = Math.min(wrap.clientWidth, wrap.clientHeight) || 520;
+    boardPx = Math.max(320, Math.floor(avail));
+    pad = Math.max(22, Math.round(boardPx * (S.size >= 19 ? .052 : .07)));
+    cell = (boardPx - pad * 2) / (S.size - 1 + 1);      /* grid spans pad..boardPx-pad */
+    cell = (boardPx - pad * 2) / S.size;
+    const real = (boardPx - pad * 2) / (S.size - 1);
+    cell = real;
+    canvas.style.width = boardPx + 'px'; canvas.style.height = boardPx + 'px';
+    canvas.width = boardPx * DPR; canvas.height = boardPx * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    buildWood(); buildSprites();
+  }
+  const px = p => [pad + (p % S.size) * cell, pad + Math.floor(p / S.size) * cell];
+
+  /* ---------------- draw ---------------- */
+  let overlayAlpha = 0, overlayTarget = 0;
+  function draw() {
+    const g = S.game; if (!g || !woodCanvas) return;
+    ctx.clearRect(0, 0, boardPx, boardPx);
+    ctx.drawImage(woodCanvas, 0, 0, boardPx, boardPx);
+    /* grid */
+    const n = S.size, inset = pad + cell * (n - 1) / (n) * 0;
+    const step = cell;
+    const x0 = pad, y0 = pad, x1 = pad + (n - 1) * step, y1 = pad + (n - 1) * step;
+    ctx.strokeStyle = S.theme === 'dark' ? 'rgba(20,12,4,.75)' : 'rgba(40,25,8,.62)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < n; i++) {
+      const off = (i === 0 || i === n - 1) ? .5 : 0;
+      ctx.lineWidth = (i === 0 || i === n - 1) ? 1.6 : 1;
+      ctx.beginPath(); ctx.moveTo(x0, y0 + i * step + off); ctx.lineTo(x1, y0 + i * step + off); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0 + i * step + off, y0); ctx.lineTo(x0 + i * step + off, y1); ctx.stroke();
+    }
+    /* hoshi */
+    const hs = n === 19 ? [3, n - 4] : n === 13 ? [3, 6, n - 4] : n === 9 ? [2, 6] : [];
+    const hpts = n === 19 ? [[3, 3], [3, 9], [3, 15], [9, 3], [9, 9], [9, 15], [15, 3], [15, 9], [15, 15]]
+      : n === 13 ? [[3, 3], [3, 9], [9, 3], [9, 9], [6, 6]] : n === 9 ? [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]] : [];
+    ctx.fillStyle = S.theme === 'dark' ? 'rgba(15,9,3,.85)' : 'rgba(35,22,8,.75)';
+    for (const [r, c] of hpts) { ctx.beginPath(); ctx.arc(pad + c * step, pad + r * step, Math.max(2.2, cell * .10), 0, 7); ctx.fill(); }
+    /* coordinates */
+    ctx.fillStyle = 'rgba(236,222,196,.42)';
+    if (S.theme === 'light') ctx.fillStyle = 'rgba(60,40,15,.5)';
+    ctx.font = `${Math.max(8, Math.round(cell * .34))}px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+      ctx.fillText(COLS[i], pad + i * step, pad / 2 - 1);
+      ctx.fillText(COLS[i], pad + i * step, boardPx - pad / 2 + 1);
+      ctx.fillText(String(n - i), pad / 2 - 1, pad + i * step);
+      ctx.fillText(String(n - i), boardPx - pad / 2 + 1, pad + i * step);
+    }
+    /* territory overlay */
+    if (S.overlay && S.lastAnalyze && overlayAlpha > .01) {
+      const a = S.lastAnalyze;
+      ctx.save(); ctx.globalAlpha = overlayAlpha;
+      const r = cell * .22;
+      for (let p = 0; p < n * n; p++) {
+        let o = a._draw[p]; if (!o) continue;
+        const [X, Y] = px(p);
+        ctx.fillStyle = o === BLACK ? 'rgba(15,12,10,.85)' : 'rgba(246,242,230,.9)';
+        ctx.beginPath(); ctx.arc(X, Y, r, 0, 7); ctx.fill();
+      }
+      ctx.restore();
+    }
+    /* stones */
+    const now = performance.now();
+    const anim = new Map();
+    for (const a of S.anims) anim.set(a.p, a);
+    for (let p = 0; p < n * n; p++) {
+      const c = g.board[p]; if (!c) continue;
+      let scale = 1, alpha = 1;
+      if (anim.has(p)) { const a = anim.get(p); const k = Math.min(1, (now - a.t0) / 190);
+        const e = 1 - Math.pow(1 - k, 3); scale = .72 + .28 * e + Math.sin(k * Math.PI) * .06; alpha = k;
+        if (k >= 1) S.anims.splice(S.anims.indexOf(a), 1); }
+      drawStone(p, c, scale, alpha);
+    }
+    /* dead marks */
+    if (S.marks.size) {
+      ctx.save(); ctx.strokeStyle = 'rgba(207,95,78,.95)'; ctx.lineWidth = Math.max(1.6, cell * .09);
+      for (const p of S.marks) { if (!g.board[p]) continue; const [X, Y] = px(p); const r = cell * .3;
+        ctx.beginPath(); ctx.moveTo(X - r, Y - r); ctx.lineTo(X + r, Y + r); ctx.moveTo(X + r, Y - r); ctx.lineTo(X - r, Y + r); ctx.stroke(); }
+      ctx.restore();
+    }
+    /* preview ghost */
+    if (S.previewPoint != null && S.previewPoint >= 0) {
+      const [X, Y] = px(S.previewPoint);
+      ctx.save(); ctx.globalAlpha = .55;
+      ctx.fillStyle = 'rgba(224,145,63,.28)'; ctx.beginPath(); ctx.arc(X, Y, cell * .46, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(224,145,63,.95)'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.arc(X, Y, cell * .46, 0, 7); ctx.stroke(); ctx.restore();
+    }
+    /* suggestion pins */
+    S.suggestions.slice(0, 5).forEach((s, i) => {
+      if (s.p < 0) return;
+      const [X, Y] = px(s.p);
+      ctx.save();
+      ctx.globalAlpha = S.pinned === s.p ? 1 : .8;
+      ctx.fillStyle = S.pinned === s.p ? 'rgba(224,145,63,.95)' : 'rgba(224,145,63,.55)';
+      ctx.beginPath(); ctx.arc(X, Y, cell * (S.pinned === s.p ? .34 : .3), 0, 7); ctx.fill();
+      ctx.fillStyle = '#22160a'; ctx.font = `700 ${Math.round(cell * .34)}px ${getComputedStyle(document.body).fontFamily}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(i + 1), X, Y + .5);
+      ctx.restore();
+    });
+    /* ko point marker */
+    if (g.koPoint >= 0) { const [X, Y] = px(g.koPoint);
+      ctx.save(); ctx.strokeStyle = 'rgba(224,145,63,.8)'; ctx.lineWidth = 1.6; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(X, Y, cell * .3, 0, 7); ctx.stroke(); ctx.restore(); }
+    /* last move ring */
+    if (g.lastMove >= 0) {
+      const [X, Y] = px(g.lastMove);
+      ctx.save(); ctx.strokeStyle = g.board[g.lastMove] === BLACK ? 'rgba(240,235,225,.9)' : 'rgba(20,16,12,.85)';
+      ctx.lineWidth = Math.max(1.4, cell * .07); ctx.beginPath(); ctx.arc(X, Y, cell * .22, 0, 7); ctx.stroke(); ctx.restore();
+    }
+    /* hover ghost */
+    if (S.hover >= 0 && !S.busy && S.game.board[S.hover] === EMPTY && S.game.isLegal(S.hover)) {
+      drawStone(S.hover, S.game.toMove, .96, .38, true);
+    }
+    if (S.anims.length || Math.abs(overlayAlpha - overlayTarget) > .01) requestAnimationFrame(draw);
+  }
+  function drawStone(p, color, scale, alpha, ghost) {
+    const sp = sprites[color]; if (!sp) return;
+    const [X, Y] = px(p);
+    ctx.save(); ctx.globalAlpha = alpha;
+    const size = sp.width / DPR * scale;
+    ctx.drawImage(sp, X - size / 2, Y - size / 2, size, size);
+    ctx.restore();
+  }
+
+  /* ---------------- sound ---------------- */
+  let AC = null;
+  function click(color) {
+    if (!S.sound) return;
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      const now = AC.currentTime;
+      const buf = AC.createBuffer(1, 2048, AC.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+      const src = AC.createBufferSource(); src.buffer = buf;
+      const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = color === BLACK ? 2100 : 1500; f.Q.value = 1.1;
+      const gain = AC.createGain(); gain.gain.value = .32;
+      src.connect(f); f.connect(gain); gain.connect(AC.destination); src.start(now);
+      const o = AC.createOscillator(), og = AC.createGain();
+      o.frequency.value = color === BLACK ? 220 : 170; o.type = 'sine';
+      og.gain.setValueAtTime(.14, now); og.gain.exponentialRampToValueAtTime(.001, now + .09);
+      o.connect(og); og.connect(AC.destination); o.start(now); o.stop(now + .1);
+    } catch (e) { }
+  }
+
+  /* =====================================================================
+     GAME FLOW
+     ===================================================================== */
+  const aiColor = () => S.youColor === BLACK ? WHITE : BLACK;
+  function newGame() {
+    S.game = new Game({ size: S.size, komi: S.scoring === 'area' ? S.komiCN : S.komiJP, suicide: S.suicide, koMode: S.koMode });
+    S.marks = new Set(); S.suggestions = []; S.pinned = null; S.previewPoint = null; S.log = []; S.anims = [];
+    S.game.deadMarks = S.marks;
+    renderLog(); refreshScore(); renderSuggestions(); setStatus();
+    if (S.game.toMove === aiColor()) setTimeout(aiMove, 420);
+  }
+  async function humanPlay(p) {
+    if (S.busy || S.thinking) return;
+    if (S.game.over) { toggleMark(p); return; }
+    if (S.game.toMove !== S.youColor) return;
+    const mv = S.game.tryPlay(p); if (!mv) return;
+    S.game.play(p, mv); S.anims.push({ p, t0: performance.now() }); click(S.youColor);
+    pushLog(S.youColor, p);
+    S.pinned = null; S.previewPoint = null;
+    refreshScore(); setStatus(); renderLog(); requestAnimationFrame(draw);
+    if (!S.game.over) setTimeout(aiMove, S.aiDelay);
+  }
+  async function aiMove() {
+    if (S.game.over || S.game.toMove !== aiColor()) return;
+    S.busy = true; S.thinking = true; setStatus(); canvas.classList.add('thinking'); requestAnimationFrame(draw);
+    const m = new MCTS(S.game, { rolloutCap: S.size >= 19 ? 110 : 70, rootChildren: 34, children: 16, c: 1.25 });
+    m.reset(aiColor(), S.aiSeed++);
+    await m.run(S.strength, null, 10);
+    const best = m.stats().top[0];
+    S.busy = false; S.thinking = false; canvas.classList.remove('thinking');
+    if (!best) { S.game.pass(); pushLog(aiColor(), -1); }
+    else { const mv = S.game.tryPlay(best.p); if (mv) { S.game.play(best.p, mv); S.anims.push({ p: best.p, t0: performance.now() }); click(aiColor()); pushLog(aiColor(), best.p); } }
+    S.previewPoint = null;
+    refreshScore(); setStatus(); renderLog(); renderSuggestions(); requestAnimationFrame(draw);
+  }
+  function humanPass() {
+    if (S.game.over || S.game.toMove !== S.youColor || S.busy) return;
+    S.game.pass(); pushLog(S.youColor, -1); S.pinned = null; S.previewPoint = null;
+    refreshScore(); setStatus(); renderLog(); requestAnimationFrame(draw);
+    if (!S.game.over) setTimeout(aiMove, S.aiDelay);
+  }
+  function undoMove() {
+    /* undo until it is the human's turn again */
+    let n = 0;
+    while (S.game.stack.length && n < 2) { S.game.undo(); n++; if (S.game.toMove === S.youColor) break; }
+    S.pinned = null; S.previewPoint = null; S.suggestions = [];
+    refreshScore(); renderLog(); setStatus(); renderSuggestions(); requestAnimationFrame(draw);
+  }
+  function toggleMark(p) {
+    const g = S.game; if (!g.board[p]) return;
+    const grp = g.groupOf(p); if (!grp) return;
+    const already = grp.stones.some(s => S.marks.has(s));
+    for (const s of grp.stones) { if (already) S.marks.delete(s); else S.marks.add(s); }
+    refreshScore(); requestAnimationFrame(draw);
+  }
+
+  /* =====================================================================
+     SCORE PANEL  — during play: live influence estimate; at end: real count
+     ===================================================================== */
+  function influenceOwner() {
+    const n = S.size, N = n * n, g = S.game;
+    const db = new Int32Array(N).fill(-1), dw = new Int32Array(N).fill(-1);
+    const q = [];
+    for (let p = 0; p < N; p++) if (g.board[p] === BLACK) { db[p] = 0; q.push(p); }
+    let head = 0;
+    while (head < q.length) { const p = q[head++], d = db[p] + 1;
+      for (let k = 0; k < 4; k++) { const a = g.adj[p * 4 + k]; if (a < 0) continue;
+        if (g.board[a] === EMPTY && db[a] < 0) { db[a] = d; q.push(a); } } }
+    const q2 = [];
+    for (let p = 0; p < N; p++) if (g.board[p] === WHITE) { dw[p] = 0; q2.push(p); }
+    head = 0;
+    while (head < q2.length) { const p = q2[head++], d = dw[p] + 1;
+      for (let k = 0; k < 4; k++) { const a = g.adj[p * 4 + k]; if (a < 0) continue;
+        if (g.board[a] === EMPTY && dw[a] < 0) { dw[a] = d; q2.push(a); } } }
+    const owner = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+      if (g.board[p]) { owner[p] = g.board[p]; continue; }
+      const b = db[p] < 0 ? 99 : db[p], w = dw[p] < 0 ? 99 : dw[p];
+      if (b + 1 < w && b <= 6) owner[p] = BLACK; else if (w + 1 < b && w <= 6) owner[p] = WHITE;
+    }
+    return owner;
+  }
+  function refreshScore() {
+    if (!S.game) return;
+    const a = S.game.analyze(S.marks);
+    S.lastAnalyze = a; overlayTarget = S.overlay ? 1 : 0;
+    const live = !S.game.over && !S.marks.size;
+    const active = S.scoring, other = S.scoring === 'area' ? 'territory' : 'area';
+    let sa = a.score[active], so = a.score[other];
+    if (live) {
+      const inf = influenceOwner();
+      let ib = 0, iw = 0;
+      for (let p = 0; p < S.size * S.size; p++) { if (inf[p] === BLACK) ib++; else if (inf[p] === WHITE) iw++; }
+      sa = { B: ib + (active === 'territory' ? S.game.capturedBy[BLACK] : 0), W: iw + (active === 'territory' ? S.game.capturedBy[WHITE] : 0) + sa.komi,
+        rawB: ib, rawW: iw, komi: sa.komi, terrB: ib, terrW: iw, prisB: S.game.capturedBy[BLACK], prisW: S.game.capturedBy[WHITE], dame: 0, deadB: 0, deadW: 0 };
+      sa.leader = sa.B > sa.W ? 'B' : sa.W > sa.B ? 'W' : 'draw';
+      so = { ...so };
+    }
+    a._draw = live ? influenceOwner() : a.owner;
+    $('#sc-b .num').textContent = fmt(sa.B); $('#sc-w .num').textContent = fmt(sa.W);
+    $('#sc-b .rows').innerHTML = scoreRows(sa, 'B');
+    $('#sc-w .rows').innerHTML = scoreRows(sa, 'W');
+    let v;
+    const estTag = live ? `<small>${S.lang === 'zh' ? '動態預估' : 'live estimate'}</small>` : '';
+    if (S.game.over && S.game.over.type === 'resign') {
+      v = (S.game.over.winner === BLACK ? t('winnerB') : t('winnerW')) + ' ' + t('byResign');
+    } else if (S.game.over) {
+      v = (sa.leader === 'B' ? t('winnerB') : sa.leader === 'W' ? t('winnerW') : t('draw')) + ' ' + t('byCount') +
+        ` · ${fmt(sa.B)}–${fmt(sa.W)}`;
+      if (other === 'territory' || other === 'area') v += `  ‖ ${other === 'area' ? t('segChinese') : t('segJapKr')} ${fmt(so.B)}–${fmt(so.W)}`;
+      if (so.leader !== sa.leader) v += ` (${other === 'area' ? t('segChinese') : t('segJapKr')}: ${fmt(so.B)}–${fmt(so.W)})`;
+    } else {
+      const l = sa.leader;
+      v = (l === 'draw' ? t('draw') : (l === 'B' ? t('winnerB') : t('winnerW')) + ' ' + t('byCount')) +
+        ` · ${fmt(sa.B)}–${fmt(sa.W)}`;
+    }
+    $('#verdict').innerHTML = `<span>${v}</span>${estTag || `<small>${t('komiLabel')} ${fmt(sa.komi)}</small>`}`;
+    $('#tray-you .cnt').textContent = S.game.capturedBy[S.youColor];
+    $('#tray-ai .cnt').textContent = S.game.capturedBy[aiColor()];
+    renderTrayStones('#tray-you', S.youColor); renderTrayStones('#tray-ai', aiColor());
+    requestAnimationFrame(draw);
+  }
+  function renderTrayStones(sel, color) {
+    const el = $(sel + ' .stones'); el.innerHTML = '';
+    const n = Math.min(S.game.capturedBy[color], 40);
+    for (let i = 0; i < n; i++) { const d = document.createElement('i'); d.className = 'mini ' + (color === BLACK ? 'b' : 'w'); el.appendChild(d); }
+  }
+  function scoreRows(s, side) {
+    if (s.terrB === undefined) {   /* area */
+      return `<div><span>${t('stonesLabel')}+${t('territoryLabel')}</span><span class="mono">${fmt(side === 'B' ? s.rawB : s.rawW)}</span></div>
+        <div><span>${t('dameLabel')}</span><span class="mono">${fmt(s.dame)}</span></div>
+        <div><span>${t('komiLabel')}</span><span class="mono">${side === 'B' ? '—' : fmt(s.komi)}</span></div>`;
+    }
+    const terr = side === 'B' ? s.terrB : s.terrW, pris = side === 'B' ? s.prisB : s.prisW;
+    return `<div><span>${t('territoryLabel')}</span><span class="mono">${fmt(terr)}</span></div>
+      <div><span>${t('prisonersLabel')}</span><span class="mono">${fmt(pris)}</span></div>
+      <div><span>${t('komiLabel')}</span><span class="mono">${side === 'B' ? '—' : fmt(s.komi)}</span></div>`;
+  }
+  const fmt = n => (Math.round(n * 2) / 2).toString().replace(/\.0$/, '');
+
+  /* =====================================================================
+     SUGGESTIONS (visual reasoning tool)
+     ===================================================================== */
+  let suggestToken = 0;
+  async function runSuggestions(manual) {
+    const token = ++suggestToken;
+    const color = S.youColor;
+    if (S.game.over || S.game.toMove !== color) { if (!manual) { } }
+    S.analyzing = true; setStatus();
+    const m = new MCTS(S.game, { rolloutCap: S.size >= 19 ? 90 : 60, rootChildren: 22, children: 12, c: 1.3, noise: .25 });
+    m.reset(color, 991 + S.game.moveNum * 7);
+    await m.run(Math.min(2200, S.strength), null, 8);
+    if (token !== suggestToken) return;
+    const stats = m.stats();
+    stats.top.sort((a, b) => (b.n - a.n) || (b.wr - a.wr));
+    S.analyzing = false;
+    const base = S.lastAnalyze ? S.lastAnalyze.score[S.scoring] : null;
+    const list = [];
+    for (const top of stats.top.slice(0, 5)) {
+      const f = tacticalFeatures(S.game, top.p, color);
+      if (!f) continue;
+      /* territory delta — evaluated on a clone so the live game is never touched */
+      const probe = S.game.clone();
+      const mv = probe.tryPlay(top.p, color); if (mv) probe.play(top.p, mv);
+      const a2 = probe.analyze(S.marks);
+      const s2 = a2.score[S.scoring];
+      f.territoryDelta = base ? (color === BLACK ? (s2.B - s2.W) - (base.B - base.W) : (s2.W - s2.B) - (base.W - base.B)) : 0;
+      list.push({ p: top.p, n: top.n, wr: top.wr, f, previewOwner: a2.owner });
+    }
+    S.suggestions = list;
+    renderSuggestions(); setStatus(); requestAnimationFrame(draw);
+  }
+  function explainFor(item) {
+    const f = item.f, color = S.youColor, enemy = color === BLACK ? WHITE : BLACK;
+    const tags = [], lines = [];
+    if (f.captures) { tags.push(t('tags.capture')); lines.push(t('expl.capture' + (color === BLACK ? 'OneB' : 'One'), f.captures)); }
+    if (f.savesAtari) { tags.push(t('tags.save')); lines.push(t('expl.saves', f.savesSize)); }
+    if (f.atariOn.length) { tags.push(t('tags.atari')); lines.push(t('expl.atariOn', f.atariOn[0].size)); }
+    if (f.connectsOwn >= 2) { tags.push(t('tags.connect')); lines.push(t('expl.connect')); }
+    if (f.cutsEnemy >= 2) { tags.push(t('tags.cut')); lines.push(t('expl.cut')); }
+    if (f.makesEye && !f.falseEye) { tags.push(t('tags.eye')); lines.push(t('expl.eye')); }
+    else if (f.makesEye && f.falseEye) { tags.push(t('tags.eye')); lines.push(t('expl.falseEye')); }
+    if (f.starPoint) { tags.push(t('tags.hoshi')); lines.push(t('expl.corner')); }
+    else if (f.tengen) { tags.push(t('tags.bigPoint')); lines.push(t('expl.center')); }
+    else if (f.edgeDist >= 2 && f.edgeDist <= 4) { tags.push(t('tags.extend')); lines.push(t('expl.extend')); }
+    if (Math.abs(f.territoryDelta) >= 1.5) lines.push(t('expl.territoryGain', f.territoryDelta));
+    if (S.game.koPoint === f.p) { tags.push(t('tags.ko')); lines.push(t('expl.koTake')); }
+    const last = S.game.lastMove;
+    if (last >= 0) { const lr = Math.floor(last / S.size), lc = last % S.size;
+      if (Math.max(Math.abs(lr - f.row), Math.abs(lc - f.col)) <= 2) lines.push(t('expl.nearLast')); }
+    if (!lines.length) lines.push(t('expl.nothing'));
+    lines.push(t('expl.searchRank', item.wr, item.n));
+    return { tags: tags.slice(0, 3), lines };
+  }
+  function renderSuggestions() {
+    const box = $('#sug-list'); box.innerHTML = '';
+    if (!S.suggestions.length) {
+      box.innerHTML = S.analyzing ? `<div class="muted" style="font-size:12.5px;padding:6px 2px"><span class="thinking-dot"></span> ${t('analyzing')}…</div>` : '';
+      return;
+    }
+    S.suggestions.forEach((item, i) => {
+      const { tags, lines } = explainFor(item);
+      const div = document.createElement('div');
+      div.className = 'sug' + (S.pinned === item.p ? ' pinned' : '');
+      div.style.animationDelay = (i * 45) + 'ms';
+      div.innerHTML = `<div class="sug-top">
+          <span class="rank">${i + 1}</span><span class="coord">${coordName(item.p)}</span>
+          ${tags.map(g => `<span class="tag">${g}</span>`).join('')}
+          <span class="wr">${(item.wr * 100).toFixed(0)}%</span></div>
+        <div class="wrbar"><i style="width:${Math.max(4, Math.round(item.wr * 100))}%"></i></div>
+        <div class="expl"><ul>${lines.map(l => `<li>${l}</li>`).join('')}</ul></div>`;
+      div.onclick = () => { S.pinned = S.pinned === item.p ? null : item.p; S.previewPoint = S.pinned; S.previewResult = item.previewOwner; renderSuggestions(); requestAnimationFrame(draw); };
+      box.appendChild(div);
+    });
+  }
+
+  /* =====================================================================
+     STATUS / LOG
+     ===================================================================== */
+  let toastTimer = null;
+  function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 3400); }
+  function setStatus() {
+    if (!S.game) return; const el = $('#status');
+    const dot = S.game.over ? '' : `<span class="turn-stone ${S.game.toMove === BLACK ? 'b' : 'w'}"></span>`;
+    let txt;
+    if (S.game.over) { txt = '🏁 ' + t('gameOver');
+      const s = S.game.score ? S.game.score[S.scoring] : null; toast($('#verdict').textContent.trim()); }
+    else if (S.game.toMove === S.youColor) txt = t('turnYou') + (S.analyzing ? ` · <span class="thinking-dot"></span> ${t('analyzing')}` : '');
+    else txt = `<span class="thinking-dot"></span> ${t('turnAi')}`;
+    el.innerHTML = `${dot}<span>${txt}</span><span class="spacer"></span><span class="mono muted">#${S.game.moveNum}</span>`;
+  }
+  function pushLog(color, p) {
+    S.log.push({ color, p, pass: p < 0 });
+    renderLog();
+  }
+  function renderLog() {
+    const el = $('#log'); el.innerHTML = '';
+    const rows = S.log.slice(-80);
+    rows.forEach((m, i) => {
+      const d = document.createElement('div');
+      d.innerHTML = `<span class="n">${S.log.length - rows.length + i + 1}</span><span class="c">${m.color === BLACK ? '●' : '○'} ${m.pass ? '—' : coordName(m.p)}</span>`;
+      el.appendChild(d);
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+
+  /* =====================================================================
+     UI BUILD
+     ===================================================================== */
+  function buildUI() {
+    document.documentElement.lang = S.lang === 'zh' ? 'zh-Hant' : 'en';
+    document.documentElement.dataset.theme = S.theme;
+    $('#app-title').textContent = t('appTitle', S.size); $('#app-sub').textContent = t('appSub');
+    $('#card-score .head span:last-child').textContent = t('score');
+    $('#card-sug .head span:last-child').textContent = t('suggestions');
+    $('#card-ctl .head span:last-child').textContent = t('controls');
+    $('#card-log .head span:last-child').textContent = t('log');
+    $('#tray-you .label').textContent = t('youCaptured'); $('#tray-ai .label').textContent = t('aiCaptured');
+    $('#btn-pass').textContent = t('pass'); $('#btn-resign').textContent = t('resign');
+    $('#btn-undo').textContent = t('undo'); $('#btn-new').textContent = t('newGame'); $('#btn-end').textContent = t('endGame');
+    $('#lbl-you').textContent = t('playAs'); $('#lbl-ruleset').textContent = t('scoringLive');
+    $('#lbl-size').textContent = t('boardSize');
+    $('#lbl-strength').textContent = t('strength');
+    $('#seg-cn').textContent = t('segChinese'); $('#seg-jp').textContent = t('segJapKr');
+    $('#sw-overlay span').textContent = t('overlayLabel'); $('#sw-sound span').textContent = t('soundOn');
+    $('#sw-auto span').textContent = t('autoSuggest'); $('#sw-suicide span').textContent = t('allowSuicide');
+    $('#sug-hint').textContent = t('sugHint'); $('#marks-hint').textContent = t('marksHint');
+    $('#btn-autodetect').textContent = t('autoDetect'); $('#btn-clearmarks').textContent = t('clearMarks');
+    document.querySelectorAll('[data-i18n-title]').forEach(el => el.title = el.dataset.i18nTitle);
+  }
+
+  /* =====================================================================
+     EVENTS
+     ===================================================================== */
+  function pointFromEvent(e) {
+    const r = canvas.getBoundingClientRect();
+    const x = (e.clientX - r.left) * (boardPx / r.width), y = (e.clientY - r.top) * (boardPx / r.height);
+    const c = Math.round((x - pad) / cell), rr = Math.round((y - pad) / cell);
+    if (c < 0 || rr < 0 || c >= S.size || rr >= S.size) return -1;
+    const X = pad + c * cell, Y = pad + rr * cell;
+    if (Math.hypot(X - x, Y - y) > cell * .52) return -1;
+    return rr * S.size + c;
+  }
+  canvas.addEventListener('mousemove', e => { const p = pointFromEvent(e); if (p !== S.hover) { S.hover = p; requestAnimationFrame(draw); } });
+  canvas.addEventListener('mouseleave', () => { S.hover = -1; requestAnimationFrame(draw); });
+  canvas.addEventListener('click', e => { const p = pointFromEvent(e); if (p >= 0) humanPlay(p); });
+
+  $('#btn-pass').onclick = humanPass;
+  $('#btn-undo').onclick = undoMove;
+  $('#btn-new').onclick = () => newGame();
+  $('#btn-resign').onclick = () => { if (!S.game.over) { S.game.resign(S.youColor); setStatus(); refreshScore(); } };
+  $('#btn-end').onclick = () => { if (!S.game.over) S.game.over = { type: 'count', winner: null };
+    S.pinned = null; S.previewPoint = null; setStatus(); refreshScore(); runSuggestions(true); toast(t('ended')); };
+  $('#btn-autodetect').onclick = () => { S.marks = new Set(); S.game.deadMarks = S.marks; refreshScore(); renderSuggestions(); if (S.game.over) runSuggestions(true); };
+  $('#btn-clearmarks').onclick = () => { S.marks = new Set(); S.game.deadMarks = S.marks; refreshScore(); };
+  $('#seg-cn').onclick = () => setScoring('area');
+  $('#seg-jp').onclick = () => setScoring('territory');
+  function setYouButtons() {
+    $('#you-black').classList.toggle('on', S.youColor === BLACK);
+    $('#you-white').classList.toggle('on', S.youColor === WHITE);
+    $('#sc-b-who').textContent = (S.youColor === BLACK ? t('you') + ' · ' : '') + t('black');
+    $('#sc-w-who').textContent = (S.youColor === WHITE ? t('you') + ' · ' : '') + t('white');
+    $('#tray-you .label').textContent = t('youCaptured'); $('#tray-ai .label').textContent = t('aiCaptured');
+  }
+  function setScoring(sys) {
+    S.scoring = sys;
+    $('#seg-cn').classList.toggle('on', sys === 'area'); $('#seg-jp').classList.toggle('on', sys === 'territory');
+    S.game.rules.komi = sys === 'area' ? S.komiCN : S.komiJP;
+    refreshScore(); renderSuggestions();
+  }
+  $('#you-black').onclick = () => { S.youColor = BLACK; setYouButtons(); newGame(); };
+  $('#you-white').onclick = () => { S.youColor = WHITE; setYouButtons(); newGame(); };
+  $('#lang-toggle').onclick = () => { S.lang = S.lang === 'zh' ? 'en' : 'zh'; buildUI(); renderSuggestions(); renderLog(); setStatus(); refreshScore(); };
+  $('#theme-toggle').onclick = () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; buildUI(); layout(); requestAnimationFrame(draw); };
+  $('#sw-overlay').querySelector('input').onchange = e => { S.overlay = e.target.checked; overlayTarget = S.overlay ? 1 : 0; requestAnimationFrame(draw); };
+  $('#sw-sound').querySelector('input').onchange = e => S.sound = e.target.checked;
+  $('#sw-auto').querySelector('input').onchange = e => { S.autoSuggest = e.target.checked; if (S.autoSuggest) runSuggestions(true); };
+  $('#sw-suicide').querySelector('input').onchange = e => { S.suicide = e.target.checked; newGame(); };
+  $('#sel-size').onchange = e => { S.size = +e.target.value; layout(); newGame(); };
+  $('#sel-strength').onchange = e => S.strength = +e.target.value;
+  window.addEventListener('resize', () => { layout(); requestAnimationFrame(draw); });
+
+  /* =====================================================================
+     BOOT
+     ===================================================================== */
+  window.__GO_APP__ = { S, newGame, runSuggestions, refreshScore, layout, draw, setScoring, buildUI };
+  layout(); buildUI(); newGame();
+  overlayTarget = 1;
+  if (S.autoSuggest) setTimeout(() => runSuggestions(true), 300);
+})();
+
+</script>
+</body>
+</html>
