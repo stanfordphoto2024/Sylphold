@@ -86,10 +86,11 @@ main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(330px, .65
 .panel-col .card:nth-child(3) { animation-delay: .17s; }
 .panel-col .card:nth-child(4) { animation-delay: .23s; }
 .panel-col .card:nth-child(5) { animation-delay: .29s; }
-.card > .head {
+.card > .head { position: relative;
   display: flex; align-items: center; gap: 10px; padding: 13px 16px 10px;
   font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim);
 }
+.card > .head .sug-count { font-size: 11px; letter-spacing: .04em; color: var(--ink-faint); text-transform: none; display: inline-flex; align-items: center; gap: 6px; }
 .card > .head .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
 .card > .body { padding: 4px 16px 16px; }
 
@@ -208,8 +209,15 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
 .switch input:checked::after { left: 17px; background: var(--accent); }
 
 @media (max-width: 1080px) {
-  main { grid-template-columns: 1fr; }
-  .panel-col { max-height: none; }
+  /* single-column flow so nothing gets clipped: board, trays and status all stay visible */
+  .app { height: auto; min-height: 100vh; }
+  main { display: block; }
+  .board-col { display: block; }
+  .board-col > * + * { margin-top: 12px; }
+  .board-wrap { width: min(94vw, 62vh); aspect-ratio: 1 / 1; margin: 4px auto 0; }
+  .panel-col { margin-top: 16px; overflow: visible; }
+  header { flex-wrap: wrap; gap: 10px; }
+  header .spacer { flex: 1 1 auto; }
 }
 
 </style>
@@ -222,8 +230,7 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
       <span class="sub" id="app-sub">單一網頁</span>
     </div>
     <div class="spacer"></div>
-    <button id="lang-toggle" class="ghost" data-i18n-title="Switch language / 切換語言">中文 ∕ EN</button>
-    <button id="theme-toggle" class="ghost" data-i18n-title="Theme">◐</button>
+    <button id="lang-toggle" class="ghost" title="Language">EN</button>
   </header>
   <main>
     <section class="board-col">
@@ -234,7 +241,7 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
     </section>
     <aside class="panel-col">
       <div class="card" id="card-score">
-        <div class="head"><span class="dot"></span><span>Score</span></div>
+        <div class="head"><span class="dot"></span><span id="lbl-score">Score</span></div>
         <div class="body">
           <div class="row">
             <span class="lbl" id="lbl-ruleset">Scoring</span>
@@ -260,7 +267,7 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
       </div>
 
       <div class="card" id="card-sug">
-        <div class="head"><span class="dot"></span><span>Suggestions</span></div>
+        <div class="head"><span class="dot"></span><span id="lbl-sug">Suggestions</span><span class="spacer"></span><span class="sug-count" id="sug-count"></span><button id="btn-resuggest" class="mini-btn ghost" style="padding:4px 9px">↻</button></div>
         <div class="body">
           <p class="muted" id="sug-hint" style="font-size:12px;margin:2px 2px 10px"></p>
           <div id="sug-list"></div>
@@ -268,11 +275,10 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
       </div>
 
       <div class="card" id="card-ctl">
-        <div class="head"><span class="dot"></span><span>Controls</span></div>
+        <div class="head"><span class="dot"></span><span id="lbl-ctl">Controls</span></div>
         <div class="body">
           <div class="row">
             <button id="btn-new" class="primary"></button>
-            <button id="btn-pass"></button>
             <button id="btn-undo"></button>
             <button id="btn-resign" class="danger ghost"></button>
             <button id="btn-end" class="ghost"></button>
@@ -297,7 +303,7 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
       </div>
 
       <div class="card" id="card-log">
-        <div class="head"><span class="dot"></span><span>Log</span></div>
+        <div class="head"><span class="dot"></span><span id="lbl-log">Log</span></div>
         <div class="body"><div class="log" id="log"></div></div>
       </div>
 
@@ -925,7 +931,7 @@ const I18N = {
     endGame: '終局計分', ended: '已終局 — 點擊棋塊可標記死棋，分數即時更新',
     komiLabel: '貼目', prisonersLabel: '俘子', territoryLabel: '地盤', stonesLabel: '盤上子',
     deadLabel: '死子', dameLabel: '單官/共活',
-    sugHint: '依 MCTS 搜尋訪問數與勝率排序；點擊建議可在棋盤預覽結果。',
+    sugHint: '每一步自動即時重新推演（依拜訪數與勝率排序）；點擊建議可在棋盤預覽結果。',
     analyzing: '推演中',
     visits: '訪問', winrate: '勝率', scoreLead: '目數差',
 
@@ -989,7 +995,7 @@ const I18N = {
     endGame: 'End & count', ended: 'Game ended — click a group to toggle dead/alive; the count updates live',
     komiLabel: 'Komi', prisonersLabel: 'Prisoners', territoryLabel: 'Territory', stonesLabel: 'Stones on board',
     deadLabel: 'Dead stones', dameLabel: 'Neutral/dame',
-    sugHint: 'Ranked by MCTS visits & win rate. Click a line to preview the result on the board.',
+    sugHint: 'Re-analysed live after every move; ranked by visits & win rate. Click a line to preview it on the board.',
     analyzing: 'Analyzing',
     visits: 'visits', winrate: 'winrate', scoreLead: 'score diff',
 
@@ -1306,7 +1312,7 @@ const I18N = {
     S.game.play(p, mv); S.anims.push({ p, t0: performance.now() }); click(S.youColor);
     pushLog(S.youColor, p);
     S.pinned = null; S.previewPoint = null;
-    refreshScore(); setStatus(); renderLog(); requestAnimationFrame(draw);
+    refreshScore(); setStatus(); renderLog(); requestAnimationFrame(draw); maybeSuggest();
     if (!S.game.over) setTimeout(aiMove, S.aiDelay);
   }
   async function aiMove() {
@@ -1320,20 +1326,15 @@ const I18N = {
     if (!best) { S.game.pass(); pushLog(aiColor(), -1); }
     else { const mv = S.game.tryPlay(best.p); if (mv) { S.game.play(best.p, mv); S.anims.push({ p: best.p, t0: performance.now() }); click(aiColor()); pushLog(aiColor(), best.p); } }
     S.previewPoint = null;
-    refreshScore(); setStatus(); renderLog(); renderSuggestions(); requestAnimationFrame(draw);
+    refreshScore(); setStatus(); renderLog(); renderSuggestions(); requestAnimationFrame(draw); maybeSuggest();
   }
-  function humanPass() {
-    if (S.game.over || S.game.toMove !== S.youColor || S.busy) return;
-    S.game.pass(); pushLog(S.youColor, -1); S.pinned = null; S.previewPoint = null;
-    refreshScore(); setStatus(); renderLog(); requestAnimationFrame(draw);
-    if (!S.game.over) setTimeout(aiMove, S.aiDelay);
-  }
+
   function undoMove() {
     /* undo until it is the human's turn again */
     let n = 0;
     while (S.game.stack.length && n < 2) { S.game.undo(); n++; if (S.game.toMove === S.youColor) break; }
     S.pinned = null; S.previewPoint = null; S.suggestions = [];
-    refreshScore(); renderLog(); setStatus(); renderSuggestions(); requestAnimationFrame(draw);
+    refreshScore(); renderLog(); setStatus(); renderSuggestions(); requestAnimationFrame(draw); maybeSuggest();
   }
   function toggleMark(p) {
     const g = S.game; if (!g.board[p]) return;
@@ -1430,17 +1431,26 @@ const I18N = {
   /* =====================================================================
      SUGGESTIONS (visual reasoning tool)
      ===================================================================== */
-  let suggestToken = 0;
+  let suggestToken = 0, lastSugRender = 0;
   async function runSuggestions(manual) {
     const token = ++suggestToken;
     const color = S.youColor;
-    if (S.game.over || S.game.toMove !== color) { if (!manual) { } }
-    S.analyzing = true; setStatus();
+    S.analyzing = true; setStatus(); renderSuggestions();
+    const budget = Math.min(2200, S.strength);
     const m = new MCTS(S.game, { rolloutCap: S.size >= 19 ? 90 : 60, rootChildren: 22, children: 12, c: 1.3, noise: .25 });
     m.reset(color, 991 + S.game.moveNum * 7);
-    await m.run(Math.min(2200, S.strength), null, 8);
+    /* live pass — results stream in as the search grows */
+    const onProgress = () => {
+      if (token !== suggestToken) return;
+      const now = performance.now();
+      if (now - lastSugRender < 220) return;
+      lastSugRender = now;
+      const st = m.stats(); st.top.sort((a, b) => (b.n - a.n) || (b.wr - a.wr));
+      S.suggestions = st.top.slice(0, 5).map(x => ({ p: x.p, n: x.n, wr: x.wr, f: tacticalFeatures(S.game, x.p, color), live: true }));
+      renderSuggestions();
+    };
+    const stats = await m.run(budget, onProgress, 10);
     if (token !== suggestToken) return;
-    const stats = m.stats();
     stats.top.sort((a, b) => (b.n - a.n) || (b.wr - a.wr));
     S.analyzing = false;
     const base = S.lastAnalyze ? S.lastAnalyze.score[S.scoring] : null;
@@ -1459,9 +1469,11 @@ const I18N = {
     S.suggestions = list;
     renderSuggestions(); setStatus(); requestAnimationFrame(draw);
   }
+  function maybeSuggest() { if (S.autoSuggest) runSuggestions(true); }
   function explainFor(item) {
     const f = item.f, color = S.youColor, enemy = color === BLACK ? WHITE : BLACK;
     const tags = [], lines = [];
+    if (!f) { lines.push(t('expl.searchRank', item.wr, item.n)); return { tags, lines, live: true }; }
     if (f.captures) { tags.push(t('tags.capture')); lines.push(t('expl.capture' + (color === BLACK ? 'OneB' : 'One'), f.captures)); }
     if (f.savesAtari) { tags.push(t('tags.save')); lines.push(t('expl.saves', f.savesSize)); }
     if (f.atariOn.length) { tags.push(t('tags.atari')); lines.push(t('expl.atariOn', f.atariOn[0].size)); }
@@ -1483,6 +1495,10 @@ const I18N = {
   }
   function renderSuggestions() {
     const box = $('#sug-list'); box.innerHTML = '';
+    const cnt = $('#sug-count');
+    if (cnt) cnt.innerHTML = S.analyzing
+      ? `<span class="thinking-dot"></span> ${t('analyzing')}… <span class="mono">${S.suggestions.reduce((a, x) => a + x.n, 0)}</span>`
+      : (S.suggestions.length ? `<span class="mono">${S.suggestions.reduce((a, x) => a + x.n, 0)}</span> ${t('visits')}` : '');
     if (!S.suggestions.length) {
       box.innerHTML = S.analyzing ? `<div class="muted" style="font-size:12.5px;padding:6px 2px"><span class="thinking-dot"></span> ${t('analyzing')}…</div>` : '';
       return;
@@ -1541,12 +1557,13 @@ const I18N = {
     document.documentElement.lang = S.lang === 'zh' ? 'zh-Hant' : 'en';
     document.documentElement.dataset.theme = S.theme;
     $('#app-title').textContent = t('appTitle', S.size); $('#app-sub').textContent = t('appSub');
-    $('#card-score .head span:last-child').textContent = t('score');
-    $('#card-sug .head span:last-child').textContent = t('suggestions');
-    $('#card-ctl .head span:last-child').textContent = t('controls');
-    $('#card-log .head span:last-child').textContent = t('log');
+    $('#lbl-score').textContent = t('score');
+    $('#lbl-sug').textContent = t('suggestions');
+    $('#lbl-ctl').textContent = t('controls');
+    $('#lbl-log').textContent = t('log');
+    $('#lang-toggle').textContent = S.lang === 'zh' ? 'EN' : '中文';
     $('#tray-you .label').textContent = t('youCaptured'); $('#tray-ai .label').textContent = t('aiCaptured');
-    $('#btn-pass').textContent = t('pass'); $('#btn-resign').textContent = t('resign');
+    $('#btn-resign').textContent = t('resign');
     $('#btn-undo').textContent = t('undo'); $('#btn-new').textContent = t('newGame'); $('#btn-end').textContent = t('endGame');
     $('#lbl-you').textContent = t('playAs'); $('#lbl-ruleset').textContent = t('scoringLive');
     $('#lbl-size').textContent = t('boardSize');
@@ -1575,7 +1592,6 @@ const I18N = {
   canvas.addEventListener('mouseleave', () => { S.hover = -1; requestAnimationFrame(draw); });
   canvas.addEventListener('click', e => { const p = pointFromEvent(e); if (p >= 0) humanPlay(p); });
 
-  $('#btn-pass').onclick = humanPass;
   $('#btn-undo').onclick = undoMove;
   $('#btn-new').onclick = () => newGame();
   $('#btn-resign').onclick = () => { if (!S.game.over) { S.game.resign(S.youColor); setStatus(); refreshScore(); } };
@@ -1601,7 +1617,6 @@ const I18N = {
   $('#you-black').onclick = () => { S.youColor = BLACK; setYouButtons(); newGame(); };
   $('#you-white').onclick = () => { S.youColor = WHITE; setYouButtons(); newGame(); };
   $('#lang-toggle').onclick = () => { S.lang = S.lang === 'zh' ? 'en' : 'zh'; buildUI(); renderSuggestions(); renderLog(); setStatus(); refreshScore(); };
-  $('#theme-toggle').onclick = () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; buildUI(); layout(); requestAnimationFrame(draw); };
   $('#sw-overlay').querySelector('input').onchange = e => { S.overlay = e.target.checked; overlayTarget = S.overlay ? 1 : 0; requestAnimationFrame(draw); };
   $('#sw-sound').querySelector('input').onchange = e => S.sound = e.target.checked;
   $('#sw-auto').querySelector('input').onchange = e => { S.autoSuggest = e.target.checked; if (S.autoSuggest) runSuggestions(true); };
