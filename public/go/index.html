@@ -308,8 +308,8 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
             <select id="sel-size"><option value="19" selected>19×19</option><option value="13">13×13</option><option value="9">9×9</option></select>
             <span class="lbl" id="lbl-strength" style="min-width:0">AI</span>
             <select id="sel-strength">
-              <option value="900">900</option><option value="2500" selected>2500</option>
-              <option value="6000">6000</option><option value="12000">12000</option>
+              <option value="1200">快 · 1.2秒</option><option value="3000" selected>標準 · 3秒</option>
+              <option value="6000">強 · 6秒</option><option value="12000">最強 · 12秒</option>
             </select>
           </div>
           <div class="row"><label class="switch" id="sw-overlay"><input type="checkbox" checked><span></span></label>
@@ -514,29 +514,41 @@ class Game {
       if (depth > budget) return false;
     }
   }
+  _fg(board, p, col) {   /* allocation-free group scan on an arbitrary board snapshot */
+    if (board[p] !== col) return null;
+    const n = this.n, adj = this.adj;
+    const seen = this._seenX || (this._seenX = new Int32Array(this.N));
+    const stk = this._stkX || (this._stkX = new Int32Array(this.N));
+    const libs = this._libX || (this._libX = new Int32Array(this.N));
+    const stamp = (this._stampX = (this._stampX || 0) + 1);
+    let sp = 0, nlib = 0, size = 0;
+    stk[sp++] = p; seen[p] = stamp;
+    while (sp > 0) { const q = stk[--sp]; size++;
+      for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+        if (board[a] === EMPTY) { let dup = false; for (let j = 0; j < nlib; j++) if (libs[j] === a) { dup = true; break; } if (!dup) libs[nlib++] = a; }
+        else if (board[a] === col && seen[a] !== stamp) { seen[a] = stamp; stk[sp++] = a; } } }
+    return { size, nlib, first: nlib ? libs[0] : -1 };
+  }
   ladderWorksFrom(board, firstMove, defenderStone, attacker) {
+    /* classic ladder read, allocation-free: fill → extend → fill → extend until the
+       chased chain can no longer be kept in atari (ladder fails) or is captured */
+    if (board[firstMove >= 0 ? firstMove : -1] !== undefined && firstMove >= 0 && board[firstMove] !== EMPTY) return false;
     const defender = attacker === BLACK ? WHITE : BLACK, adj = this.adj, log = [];
     const put = (p, c) => { log.push([p, board[p]]); board[p] = c; };
     const rollback = () => { while (log.length) { const [p, c] = log.pop(); board[p] = c; } };
-    const grpAt = (p) => { const seen = new Set([p]), stk = [p], stones = []; const libs = [];
-      while (stk.length) { const q = stk.pop(); stones.push(q);
-        for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
-          if (board[a] === EMPTY) libs.push(a);
-          else if (board[a] === defender && !seen.has(a)) { seen.add(a); stk.push(a); } } }
-      return { stones, libs }; };
-    put(firstMove, attacker);
-    let g = grpAt(defenderStone);
-    for (let depth = 0; depth < 24; depth++) {
-      if (!g.libs.length) { rollback(); return true; }
-      if (g.libs.length >= 3) { rollback(); return false; }
-      put(g.libs[0], defender);                       /* defender extends */
-      g = grpAt(defenderStone);
-      if (!g.libs.length) { rollback(); return true; }
-      if (g.libs.length >= 3) { rollback(); return false; }
-      put(g.libs[0], attacker);                       /* attacker re-atarises */
-      g = grpAt(defenderStone);
-      if (!g.libs.length) { rollback(); return true; }
-      if (g.libs.length >= 2) { rollback(); return false; }
+    if (firstMove >= 0) put(firstMove, attacker);
+    let g = this._fg(board, defenderStone, defender);
+    for (let depth = 0; depth < 24 && g; depth++) {
+      if (g.nlib === 0) { rollback(); return true; }
+      if (g.nlib >= 3) { rollback(); return false; }
+      put(g.first, defender);                             /* chased chain runs */
+      g = this._fg(board, defenderStone, defender);
+      if (!g || g.nlib >= 3) { rollback(); return false; }
+      if (g.nlib === 0) { rollback(); return true; }
+      put(g.first, attacker);                             /* pursuer re-atarises */
+      g = this._fg(board, defenderStone, defender);
+      if (g && g.nlib === 0) { rollback(); return true; }
+      if (!g || g.nlib >= 2) { rollback(); return false; }
     }
     rollback(); return false;
   }
@@ -785,7 +797,7 @@ class MCTS {
   constructor(game, opts) {
     this.opts = Object.assign({
       c: 1.2, pwBase: 8, pwAlpha: 0.5, raveN: 400, raveBlendPrior: 60,
-      ladder: true, avoidSelfAtari: true,
+      ladder: true, avoidSelfAtari: true, localRollout: true,
       maxNodes: 400000, rootChildren: 36, children: 20, rolloutCap: 220, noise: 0.25,
       fillIn: true,
     }, opts || {});
@@ -805,6 +817,18 @@ class MCTS {
     this.noised = false; this.raveOn = this.opts.raveN > 0;
   }
   _mk(move, color, parent) { return { move, color, parent, children: [], n: 0, w: 0, prior: 1, untried: null, amaf: null }; }
+  _fastGrp(board, p, col) {   /* same as _grp but for any board snapshot; returns {libs:[..]} without allocating */
+    if (board[p] !== col) return null;
+    const adj = this.adj, seen = this.seen, stk = this.stk, libs = this._libBuf || (this._libBuf = new Int32Array(this.N));
+    this._stamp = (this._stamp || 0) + 1;
+    let sp = 0, nlib = 0, size = 0;
+    stk[sp++] = p; seen[p] = this._stamp;
+    while (sp > 0) { const q = stk[--sp]; size++;
+      for (let k = 0; k < 4; k++) { const a = adj[q * 4 + k]; if (a < 0) continue;
+        if (board[a] === EMPTY) { let dup = false; for (let j = 0; j < nlib; j++) if (libs[j] === a) { dup = true; break; } if (!dup) libs[nlib++] = a; }
+        else if (board[a] === col && seen[a] !== this._stamp) { seen[a] = this._stamp; stk[sp++] = a; } } }
+    return { size, nlib, first: nlib ? libs[0] : -1 };
+  }
   _grp(p) {   /* fast group finder on this.board */
     const board = this.board, adj = this.g.adj, seen = this.seen, stk = this.stk, col = board[p];
     if (col === EMPTY) return null;
@@ -900,42 +924,59 @@ class MCTS {
     out.sort((a, b) => b.pr - a.pr);
     return out.slice(0, limit);
   }
-  /* rollout policy: capture > save own atari > avoid self-atari > respond near the last move > random */
-  _rolloutMove(color, lastMove) {
-    const n = this.n, board = this.board, adj = this.g.adj;
-    const cands = []; const ladderCands = []; let capMove = -1, capMax = 0;
-    for (let p = 0; p < this.N; p++) {
+  /* rollout policy — local window only (LightMC structure): scan the neighbourhood of the
+     last move instead of the whole board. priority: capture > ladder > save own group in
+     atari > respond close to the last move > random inside the window > global fallback */
+  _rolloutMoveLocal(color, lastMove, radius) {
+    const n = this.n, n2 = this.N, board = this.board, adj = this.g.adj;
+    const lr = (lastMove / n) | 0, lc = lastMove % n, R = radius || 3;
+    const caps = [], ladder = [], safe = [], near = []; let capMax = 0;
+    for (let p = 0; p < n2; p++) {
       if (board[p] !== EMPTY) continue;
+      const r = (p / n) | 0, c = p % n;
+      if (Math.max(Math.abs(lr - r), Math.abs(lc - c)) > R) continue;
       const mv = this._apply(p, color); if (!mv) continue;
       if (mv.selfCap) { this._undo(mv); continue; }
-      if (mv.captured.length) { if (mv.captured.length > capMax) { capMax = mv.captured.length; capMove = p; } this._undo(mv); continue; }
+      if (mv.captured.length) { this._undo(mv); if (mv.captured.length >= capMax) { capMax = mv.captured.length; caps.length = 0; } caps.push(p); continue; }
       if (this.opts.avoidSelfAtari && mv.ownLibsAfter <= 1) { this._undo(mv); continue; }
       if (this._isTrueEye(p, color)) { this._undo(mv); continue; }
       if (this.opts.ladder) {
-        const enemy = color === BLACK ? WHITE : BLACK;
-        let hit = false;
-        for (let k = 0; k < 4; k++) { const a = this.g.adj[p * 4 + k]; if (a < 0 || board[a] !== enemy) continue;
+        const enemy = color === BLACK ? WHITE : BLACK; let hit = false;
+        for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== enemy) continue;
+          const eg = this._grp(a); if (!eg || eg.libs > 2) continue;
           if (this.g.ladderWorksFrom(board, p, a, color)) { hit = true; break; } }
-        this._undo(mv);
-        if (hit) { ladderCands.push(p); continue; }
-        cands.push(p); continue;
+        if (hit) { this._undo(mv); ladder.push(p); continue; }
       }
-      this._undo(mv); cands.push(p);
+      this._undo(mv); near.push(p);
     }
-    if (ladderCands.length && this.rand() < 0.85) return ladderCands[(this.rand() * ladderCands.length) | 0];
-    if (capMove >= 0 && this.rand() < 0.92) return capMove;
+    if (caps.length && this.rand() < 0.92) return caps[(this.rand() * caps.length) | 0];
+    if (ladder.length && this.rand() < 0.85) return ladder[(this.rand() * ladder.length) | 0];
     let esc = -1, escS = 0;
-    for (const p of cands) for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== color) continue;
+    for (const p of near) for (let k = 0; k < 4; k++) { const a = adj[p * 4 + k]; if (a < 0 || board[a] !== color) continue;
       const grp = this._grp(a); if (grp && grp.libs === 1 && grp.size >= 2 && grp.size > escS) { escS = grp.size; esc = p; } }
     if (esc >= 0 && this.rand() < 0.75) return esc;
-    if (!cands.length) return -1;
-    if (lastMove >= 0 && this.rand() < 0.5) {
-      const lr = (lastMove / n) | 0, lc = lastMove % n; let best = -1, bd = 99;
-      for (const p of cands) { const r = (p / n) | 0, c = p % n, d = Math.abs(lr - r) + Math.abs(lc - c);
+    if (near.length && this.rand() < 0.5) {
+      let best = -1, bd = 99;
+      for (const p of near) { const r = (p / n) | 0, c = p % n, d = Math.abs(lr - r) + Math.abs(lc - c);
         if (d <= 3 && d < bd) { bd = d; best = p; } }
       if (best >= 0) return best;
     }
-    return cands[(this.rand() * cands.length) | 0];
+    const pool = near.length ? near : null;
+    if (pool) return pool[(this.rand() * pool.length) | 0];
+    return this._rolloutMoveGlobal(color, lastMove);
+  }
+  _rolloutMoveGlobal(color) {   /* rare fallback: window was empty — pick any legal non-eye move */
+    const board = this.board;
+    let pick = -1, seen = 0;
+    for (let p = 0; p < this.N; p++) {
+      if (board[p] !== EMPTY) continue;
+      const mv = this._apply(p, color); if (!mv) continue;
+      const ok = !mv.selfCap && !mv.captured.length && !this._isTrueEye(p, color) && (!this.opts.avoidSelfAtari || mv.ownLibsAfter > 1);
+      this._undo(mv);
+      if (!ok) continue;
+      seen++; if (this.rand() < 1 / seen) pick = p;
+    }
+    return pick;
   }
   /* fill-in + eye-filling endgame so the rollout score reflects life & death, not just the last position */
   _finalFill(startColor) {
@@ -1026,7 +1067,7 @@ class MCTS {
     const amaf = [];
     let lm = lastMove, plies = 0, passes = 0;
     while (plies < this.opts.rolloutCap && passes < 2) {
-      const m = this._rolloutMove(color, lm);
+      const m = this.opts.localRollout ? this._rolloutMoveLocal(color, lm, 3) : this._rolloutMoveGlobal(color, lm);
       if (m < 0) passes++; else { const mm = this._apply(m, color); if (!mm) passes++; else { undo.push(mm); amaf.push([color, m]); lm = m; passes = 0; } }
       plies++; color = color === BLACK ? WHITE : BLACK;
     }
@@ -1058,11 +1099,14 @@ class MCTS {
     for (let k = undo.length - 1; k >= 0; k--) this._undo(undo[k]);
     return path.length > 1;
   }
-  async run(maxVisits, onProgress, sliceMs) {
+  async run(maxVisits, onProgress, sliceMs, maxMs) {
     const t0 = Date.now(); sliceMs = sliceMs || 10;
-    while (this.root.n < maxVisits) {
+    const deadline = maxMs ? t0 + maxMs : Infinity;
+    for (;;) {
+      if (this.root.n >= maxVisits && this.root.n > 0) break;
+      if (this.root.n > 0 && Date.now() >= deadline) break;
       const g0 = Date.now();
-      while (Date.now() - g0 < sliceMs && this.root.n < maxVisits) this.iteration();
+      while (Date.now() - g0 < sliceMs && this.root.n < maxVisits && Date.now() < deadline) this.iteration();
       if (onProgress) onProgress(this.stats());
       await new Promise(r => setTimeout(r, 0));
     }
@@ -1235,7 +1279,7 @@ const I18N = {
     size: 19, komiCN: 7.5, komiJP: 6.5,
     scoring: 'area',            // 'area' (Chinese) | 'territory' (JP/KR)
     suicide: false, koMode: 'psk',
-    youColor: BLACK, strength: 2500, aiDelay: 260,
+    youColor: BLACK, strength: 3000, visitsCap: 20000, aiDelay: 260,
     overlay: true, sound: true, autoSuggest: true,
     game: null, marks: new Set(),
     suggestions: [], pinned: null, previewPoint: null, previewResult: null,
@@ -1501,7 +1545,7 @@ const I18N = {
     S.busy = true; S.thinking = true; setStatus(); canvas.classList.add('thinking'); requestAnimationFrame(draw);
     const m = new MCTS(S.game, { rolloutCap: S.size >= 19 ? 110 : 70, rootChildren: 34, children: 16, c: 1.25 });
     m.reset(aiColor(), S.aiSeed++);
-    await m.run(S.strength, null, 10);
+    await m.run(S.visitsCap, null, 10, S.strength);   /* strength = thinking time in ms */
     const best = m.stats().top[0];
     S.busy = false; S.thinking = false; canvas.classList.remove('thinking');
     if (!best) { S.game.pass(); pushLog(aiColor(), -1); }
@@ -1620,7 +1664,7 @@ const I18N = {
     const token = ++suggestToken;
     const color = S.youColor;
     S.analyzing = true; setStatus(); renderSuggestions();
-    const budget = Math.min(2200, S.strength);
+    const msBudget = Math.min(S.strength * 2, 9000);   /* the panel may keep thinking a little longer */
     const m = new MCTS(S.game, { rolloutCap: S.size >= 19 ? 90 : 60, rootChildren: 22, children: 12, c: 1.3, noise: .25 });
     m.reset(color, 991 + S.game.moveNum * 7);
     /* live pass — results stream in as the search grows */
@@ -1633,7 +1677,7 @@ const I18N = {
       S.suggestions = st.top.slice(0, 5).map(x => ({ p: x.p, n: x.n, wr: x.wr, f: tacticalFeatures(S.game, x.p, color), live: true }));
       renderSuggestions();
     };
-    const stats = await m.run(budget, onProgress, 10);
+    const stats = await m.run(S.visitsCap, onProgress, 10, msBudget);
     if (token !== suggestToken) return;
     stats.top.sort((a, b) => (b.n - a.n) || (b.wr - a.wr));
     S.analyzing = false;
@@ -1803,6 +1847,9 @@ const I18N = {
     $('#lbl-you').textContent = t('playAs'); $('#lbl-ruleset').textContent = t('scoringLive');
     $('#lbl-size').textContent = t('boardSize');
     $('#lbl-strength').textContent = t('strength');
+    for (const [v, k] of [['1200', 'spFast'], ['3000', 'spNormal'], ['6000', 'spStrong'], ['12000', 'spMax']]) {
+      const o = document.querySelector('#sel-strength option[value="' + v + '"]'); if (o) o.textContent = t(k);
+    }
     $('#seg-cn').textContent = t('segChinese'); $('#seg-jp').textContent = t('segJapKr');
     $('#sw-overlay span').textContent = t('overlayLabel'); $('#sw-sound span').textContent = t('soundOn');
     $('#sw-auto span').textContent = t('autoSuggest'); $('#sw-suicide span').textContent = t('allowSuicide');
