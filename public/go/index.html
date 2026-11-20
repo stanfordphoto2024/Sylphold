@@ -92,7 +92,10 @@ main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(330px, .65
 }
 .card > .head .sug-count { font-size: 11px; letter-spacing: .04em; color: var(--ink-faint); text-transform: none; display: inline-flex; align-items: center; gap: 6px; }
 .card > .head .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
-.card > .body { padding: 4px 16px 16px; }
+/* keep every row animation inside the card — nothing may spill over the head or the rounded edge */
+.card > .body { padding: 4px 16px 16px; overflow: hidden; border-radius: 12px; }
+/* the list is its own clipping box: rows may never paint over the hint above or the card edge */
+#sug-list { position: relative; overflow: hidden; border-radius: 12px; padding: 2px 0 0; }
 
 /* ---------- board ---------- */
 .tray {
@@ -138,8 +141,8 @@ canvas#board:disabled, canvas#board.thinking { cursor: progress; }
   cursor: pointer; will-change: transform;
   transition: transform .2s cubic-bezier(.645,.045,.355,1), border-color .22s ease, background .22s ease, opacity .2s ease; }
 /* on-screen reordering is movement → ease-in-out; entering/exiting → ease-out */
-.sug.enter { animation: rise .22s var(--ease) both; }
-.sug.leaving { opacity: 0; transform: scale(.98); pointer-events: none; }
+.sug.enter { animation: sugFade .22s ease both; }
+.sug.leaving { opacity: 0; pointer-events: none; }
 .sug.gone { display: none; }
 .sug.pinned { border-color: rgba(224,145,63,.6); background: rgba(224,145,63,.07); }
 .sug-top { display: flex; align-items: center; gap: 9px; }
@@ -234,9 +237,12 @@ kbd { font: inherit; font-size: 11px; background: rgba(0,0,0,.25); border: 1px s
   .sug { transition: opacity .2s ease, border-color .2s ease, background .2s ease; }
   .sug.enter { animation: none; }
   .sug:hover { transform: none; }
+  .sug { transform: none !important; }
   .wrbar i { transition: opacity .2s ease; }
   .sug.enter, .sug.leaving { transform: none; }
 }
+
+@keyframes sugFade { from { opacity: 0; } to { opacity: 1; } }
 
 </style>
 </head>
@@ -1143,7 +1149,7 @@ const I18N = {
     you: '你', ai: 'AI', black: '黑', white: '白',
     turnYou: '輪到你', turnAi: 'AI 思考中', gameOver: '對局結束',
     pass: '虛手（過手）', passShort: '過手', resign: '中盤負', undo: '悔棋', newGame: '新對局',
-    playAs: '你執', aiSide: 'AI 執', strength: 'AI 強度', boardSize: '棋盤', komi: '貼目',
+    playAs: '你執', aiSide: 'AI 執', strength: 'AI 強度', spFast: '快 · 1.2秒', spNormal: '標準 · 3秒', spStrong: '強 · 6秒', spMax: '最強 · 12秒', boardSize: '棋盤', komi: '貼目',
     ruleset: '計分制', scoringLive: '計分制（切換即時生效）',
     chinese: '中國規則（數子）', japkr: '日韓規則（點目）',
     segChinese: '中國', segJapKr: '日韓',
@@ -1207,7 +1213,7 @@ const I18N = {
     you: 'You', ai: 'AI', black: 'Black', white: 'White',
     turnYou: 'Your move', turnAi: 'AI thinking', gameOver: 'Game over',
     pass: 'Pass', passShort: 'Pass', resign: 'Resign', undo: 'Undo', newGame: 'New game',
-    playAs: 'You play', aiSide: 'AI plays', strength: 'AI strength', boardSize: 'Board', komi: 'Komi',
+    playAs: 'You play', aiSide: 'AI plays', strength: 'AI strength', spFast: 'Fast · 1.2s', spNormal: 'Normal · 3s', spStrong: 'Strong · 6s', spMax: 'Max · 12s', boardSize: 'Board', komi: 'Komi',
     scoringLive: 'Scoring system (switch is live)',
     chinese: 'Chinese (area)', japkr: 'Japanese/Korean (territory)',
     segChinese: 'Chinese', segJapKr: 'JP/KR',
